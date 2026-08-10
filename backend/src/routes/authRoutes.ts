@@ -11,18 +11,27 @@ const router = Router();
 router.post('/login', async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
+    
+    // NoSQL Injection Protection & Type Validation
+    if (typeof email !== 'string' || typeof password !== 'string') {
+      return res.status(400).json({ success: false, message: 'Invalid input format. Strings required.' });
+    }
+
     if (!email || email.trim() === '') {
       return res.status(400).json({ success: false, message: 'Email is required' });
     }
     if (!password || password.trim() === '') {
       return res.status(400).json({ success: false, message: 'Password is required' });
     }
-    const cleanEmail = email.toLowerCase().trim();
+
+    // Sanitize input
+    const cleanEmail = email.toLowerCase().trim().replace(/[${\}]/g, '');
+    const cleanPassword = password.replace(/[${\}]/g, '');
 
     // Check DB User first
     let user = await User.findOne({ email: cleanEmail });
 
-    if (!user || user.passwordHash !== password) {
+    if (!user || user.passwordHash !== cleanPassword) {
       return res.status(400).json({ success: false, message: 'Invalid email or password' });
     }
 
@@ -53,6 +62,11 @@ router.post('/register', async (req: Request, res: Response) => {
   try {
     const { name, email, password, role, phone } = req.body;
 
+    // NoSQL Injection Protection & Type Validation
+    if (typeof email !== 'string' || typeof password !== 'string' || typeof name !== 'string') {
+      return res.status(400).json({ success: false, message: 'Invalid input format. Strings required.' });
+    }
+
     if (!name || name.trim() === '') {
       return res.status(400).json({ success: false, message: 'Name is required' });
     }
@@ -66,7 +80,10 @@ router.post('/register', async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: 'Password must be at least 6 characters long' });
     }
 
-    const cleanEmail = email.toLowerCase().trim();
+    // Sanitize input
+    const cleanEmail = email.toLowerCase().trim().replace(/[${\}]/g, '');
+    const cleanPassword = password.replace(/[${\}]/g, '');
+    const cleanName = name.replace(/[${\}]/g, '');
 
     const existing = await User.findOne({ email: cleanEmail });
 
@@ -75,9 +92,9 @@ router.post('/register', async (req: Request, res: Response) => {
     }
 
     const newUser = new User({
-      name,
+      name: cleanName,
       email: cleanEmail,
-      passwordHash: password,
+      passwordHash: cleanPassword,
       role: role || 'CUSTOMER',
       phone,
       amcPlan: 'Gold AMC Plan',

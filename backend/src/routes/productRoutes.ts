@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import Product from '../models/Product';
+import { processBase64Image } from '../utils/imageProcessor';
 
 const router = Router();
 
@@ -40,6 +41,13 @@ router.get('/:id', async (req: Request, res: Response) => {
 // POST create new product
 router.post('/', async (req: Request, res: Response) => {
   try {
+    if (req.body.image) {
+      req.body.image = await processBase64Image(req.body.image);
+    }
+    if (req.body.imageUrls && Array.isArray(req.body.imageUrls)) {
+      req.body.imageUrls = await Promise.all(req.body.imageUrls.map((url: string) => processBase64Image(url)));
+    }
+    
     const newProduct = new Product(req.body);
     const savedProduct = await newProduct.save();
     res.status(201).json({ success: true, data: savedProduct });
@@ -51,6 +59,13 @@ router.post('/', async (req: Request, res: Response) => {
 // PUT update product
 router.put('/:id', async (req: Request, res: Response) => {
   try {
+    if (req.body.image) {
+      req.body.image = await processBase64Image(req.body.image);
+    }
+    if (req.body.imageUrls && Array.isArray(req.body.imageUrls)) {
+      req.body.imageUrls = await Promise.all(req.body.imageUrls.map((url: string) => processBase64Image(url)));
+    }
+
     const updatedProduct = await Product.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,
