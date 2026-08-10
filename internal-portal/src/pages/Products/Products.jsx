@@ -5,24 +5,25 @@ import { FiPlus, FiTrash2, FiSearch, FiLayers, FiDollarSign, FiInfo } from 'reac
 import Modal from '../../components/Modal';
 
 function getFallbackSrc(category) {
+  const baseUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/images`;
   switch (category) {
     case 'IP Camera':
-      return '/hikvision_dome_camera.png';
+      return `${baseUrl}/hikvision_dome_camera.png`;
     case 'Analog Camera':
-      return '/dahua_bullet_camera.png';
+      return `${baseUrl}/dahua_bullet_camera.png`;
     case 'NVR':
     case 'DVR':
-      return '/cp_plus_nvr.png';
+      return `${baseUrl}/cp_plus_nvr.png`;
     case 'Hard Disk':
-      return '/surveillance_hdd.png';
+      return `${baseUrl}/surveillance_hdd.png`;
     case 'SSD':
-      return '/surveillance_hdd.png';
+      return `${baseUrl}/surveillance_hdd.png`;
     case 'Pendrive':
-      return '/cctv_cable.png';
+      return `${baseUrl}/cctv_cable.png`;
     case 'HDMI Cables':
     case 'Cables':
     default:
-      return '/cctv_cable.png';
+      return `${baseUrl}/cctv_cable.png`;
   }
 }
 
@@ -208,7 +209,9 @@ export default function Products() {
             delivery: 'Free Delivery',
             warranty: '2 Years Warranty',
             rating: item.rating || 4.5,
-            offers: item.badge || ''
+            offers: item.badge || '', // this is the old badge string
+            features: item.features || [],
+            offersList: item.offers || [],
           }));
           dispatch(setProducts(mapped));
         }
@@ -242,8 +245,54 @@ export default function Products() {
     offers: '',
     isNew: false,
     isBestSeller: false,
-    isFlashDeal: false
+    isFlashDeal: false,
+    dynamicFeatures: [],
+    dynamicOffers: []
   });
+
+  const addDynamicFeature = () => {
+    setProductForm(prev => ({
+      ...prev,
+      dynamicFeatures: [...prev.dynamicFeatures, { iconName: '', label: '' }]
+    }));
+  };
+
+  const updateDynamicFeature = (index, field, value) => {
+    setProductForm(prev => {
+      const newFeatures = [...prev.dynamicFeatures];
+      newFeatures[index][field] = value;
+      return { ...prev, dynamicFeatures: newFeatures };
+    });
+  };
+
+  const removeDynamicFeature = (index) => {
+    setProductForm(prev => {
+      const newFeatures = prev.dynamicFeatures.filter((_, i) => i !== index);
+      return { ...prev, dynamicFeatures: newFeatures };
+    });
+  };
+
+  const addDynamicOffer = () => {
+    setProductForm(prev => ({
+      ...prev,
+      dynamicOffers: [...prev.dynamicOffers, { title: '', subtitle: '' }]
+    }));
+  };
+
+  const updateDynamicOffer = (index, field, value) => {
+    setProductForm(prev => {
+      const newOffers = [...prev.dynamicOffers];
+      newOffers[index][field] = value;
+      return { ...prev, dynamicOffers: newOffers };
+    });
+  };
+
+  const removeDynamicOffer = (index) => {
+    setProductForm(prev => {
+      const newOffers = prev.dynamicOffers.filter((_, i) => i !== index);
+      return { ...prev, dynamicOffers: newOffers };
+    });
+  };
 
   const handleMultipleFilesChange = (e) => {
     const files = Array.from(e.target.files);
@@ -305,6 +354,8 @@ export default function Products() {
       description: productForm.description || '',
       isFlashDeal: productForm.isFlashDeal || false,
       isBestSeller: productForm.isBestSeller || false,
+      features: productForm.dynamicFeatures || [],
+      offers: productForm.dynamicOffers || [],
     };
 
     fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/products`, {
@@ -341,7 +392,9 @@ export default function Products() {
             offers: item.badge || '',
             isNew: productForm.isNew || false,
             isBestSeller: productForm.isBestSeller || false,
-            isFlashDeal: productForm.isFlashDeal || false
+            isFlashDeal: productForm.isFlashDeal || false,
+            features: item.features || [],
+            offersList: item.offers || [],
           }));
         }
       })
@@ -368,7 +421,9 @@ export default function Products() {
       offers: '',
       isNew: false,
       isBestSeller: false,
-      isFlashDeal: false
+      isFlashDeal: false,
+      dynamicFeatures: [],
+      dynamicOffers: []
     });
     setModalOpen(false);
   };
@@ -477,7 +532,9 @@ export default function Products() {
                   offers: p.offers || '',
                   isNew: p.isNew || false,
                   isBestSeller: p.isBestSeller || false,
-                  isFlashDeal: p.isFlashDeal || false
+                  isFlashDeal: p.isFlashDeal || false,
+                  dynamicFeatures: p.features || [],
+                  dynamicOffers: p.offersList || [] // Wait, the mapping from api to redux needs to include features/offers. Let's fix that too. We'll map the raw p.dbFeatures.
                 });
                 setEditModalOpen(true);
               }}
@@ -679,6 +736,42 @@ export default function Products() {
             />
           </div>
 
+          {/* Dynamic Features Section */}
+          <div className="border border-slate-200 dark:border-slate-700 rounded-2xl p-4 bg-slate-50/50 dark:bg-slate-800/10">
+            <div className="flex justify-between items-center mb-3">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Highlight Features (e.g. 2MP Full HD)</label>
+              <button type="button" onClick={addDynamicFeature} className="text-xs text-primary font-bold flex items-center gap-1"><FiPlus /> Add Feature</button>
+            </div>
+            <div className="space-y-3">
+              {productForm.dynamicFeatures.map((feat, idx) => (
+                <div key={idx} className="flex gap-3 items-center">
+                  <input type="text" placeholder="Icon Name (e.g. camera)" value={feat.iconName} onChange={(e) => updateDynamicFeature(idx, 'iconName', e.target.value)} className="w-1/3 text-xs p-2 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-lg focus:border-primary text-slate-800 dark:text-slate-100" />
+                  <input type="text" placeholder="Feature Label (e.g. 2MP Full HD)" value={feat.label} onChange={(e) => updateDynamicFeature(idx, 'label', e.target.value)} className="w-2/3 text-xs p-2 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-lg focus:border-primary text-slate-800 dark:text-slate-100" />
+                  <button type="button" onClick={() => removeDynamicFeature(idx)} className="text-red-500 hover:text-red-700"><FiTrash2 size={16} /></button>
+                </div>
+              ))}
+              {productForm.dynamicFeatures.length === 0 && <p className="text-xs text-slate-400">No dynamic features added yet.</p>}
+            </div>
+          </div>
+
+          {/* Dynamic Offers Section */}
+          <div className="border border-slate-200 dark:border-slate-700 rounded-2xl p-4 bg-slate-50/50 dark:bg-slate-800/10">
+            <div className="flex justify-between items-center mb-3">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Bank & EMI Offers</label>
+              <button type="button" onClick={addDynamicOffer} className="text-xs text-primary font-bold flex items-center gap-1"><FiPlus /> Add Offer</button>
+            </div>
+            <div className="space-y-3">
+              {productForm.dynamicOffers.map((offer, idx) => (
+                <div key={idx} className="flex flex-col gap-2 relative border border-slate-100 dark:border-slate-800 p-3 rounded-xl bg-white dark:bg-slate-850">
+                  <button type="button" onClick={() => removeDynamicOffer(idx)} className="absolute top-3 right-3 text-red-400 hover:text-red-600"><FiTrash2 size={14} /></button>
+                  <input type="text" placeholder="Offer Title (e.g. Bank Offer)" value={offer.title} onChange={(e) => updateDynamicOffer(idx, 'title', e.target.value)} className="w-full text-xs p-2 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-lg focus:border-primary text-slate-800 dark:text-slate-100 pr-8" />
+                  <input type="text" placeholder="Offer Subtitle (e.g. Flat 10% Discount)" value={offer.subtitle} onChange={(e) => updateDynamicOffer(idx, 'subtitle', e.target.value)} className="w-full text-xs p-2 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-lg focus:border-primary text-slate-800 dark:text-slate-100" />
+                </div>
+              ))}
+              {productForm.dynamicOffers.length === 0 && <p className="text-xs text-slate-400">No dynamic offers added yet.</p>}
+            </div>
+          </div>
+
           <div>
             <label className="block text-xs font-semibold text-slate-500 mb-2">Upload Device Photo(s) (Supports multiple)</label>
             <div className="border border-dashed border-slate-200 dark:border-slate-800 p-4 rounded-2xl bg-slate-50/50 dark:bg-slate-800/10 transition-colors">
@@ -768,6 +861,8 @@ export default function Products() {
                 description: productForm.description || '',
                 isFlashDeal: productForm.isFlashDeal || false,
                 isBestSeller: productForm.isBestSeller || false,
+                features: productForm.dynamicFeatures || [],
+                offers: productForm.dynamicOffers || [],
               };
 
               fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/products/${editingProduct.id}`, {
@@ -803,7 +898,9 @@ export default function Products() {
                       offers: productForm.offers,
                        isNew: productForm.isNew || false,
                       isBestSeller: productForm.isBestSeller || false,
-                      isFlashDeal: productForm.isFlashDeal || false
+                      isFlashDeal: productForm.isFlashDeal || false,
+                      features: productForm.dynamicFeatures || [],
+                      offersList: productForm.dynamicOffers || [],
                     }));
                   }
                 })
@@ -999,6 +1096,42 @@ export default function Products() {
                 onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
                 className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
               />
+            </div>
+
+            {/* Dynamic Features Section */}
+            <div className="border border-slate-200 dark:border-slate-700 rounded-2xl p-4 bg-slate-50/50 dark:bg-slate-800/10">
+              <div className="flex justify-between items-center mb-3">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Highlight Features (e.g. 2MP Full HD)</label>
+                <button type="button" onClick={addDynamicFeature} className="text-xs text-primary font-bold flex items-center gap-1"><FiPlus /> Add Feature</button>
+              </div>
+              <div className="space-y-3">
+                {productForm.dynamicFeatures.map((feat, idx) => (
+                  <div key={idx} className="flex gap-3 items-center">
+                    <input type="text" placeholder="Icon Name (e.g. camera)" value={feat.iconName} onChange={(e) => updateDynamicFeature(idx, 'iconName', e.target.value)} className="w-1/3 text-xs p-2 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-lg focus:border-primary text-slate-800 dark:text-slate-100" />
+                    <input type="text" placeholder="Feature Label (e.g. 2MP Full HD)" value={feat.label} onChange={(e) => updateDynamicFeature(idx, 'label', e.target.value)} className="w-2/3 text-xs p-2 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-lg focus:border-primary text-slate-800 dark:text-slate-100" />
+                    <button type="button" onClick={() => removeDynamicFeature(idx)} className="text-red-500 hover:text-red-700"><FiTrash2 size={16} /></button>
+                  </div>
+                ))}
+                {productForm.dynamicFeatures.length === 0 && <p className="text-xs text-slate-400">No dynamic features added yet.</p>}
+              </div>
+            </div>
+  
+            {/* Dynamic Offers Section */}
+            <div className="border border-slate-200 dark:border-slate-700 rounded-2xl p-4 bg-slate-50/50 dark:bg-slate-800/10">
+              <div className="flex justify-between items-center mb-3">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Bank & EMI Offers</label>
+                <button type="button" onClick={addDynamicOffer} className="text-xs text-primary font-bold flex items-center gap-1"><FiPlus /> Add Offer</button>
+              </div>
+              <div className="space-y-3">
+                {productForm.dynamicOffers.map((offer, idx) => (
+                  <div key={idx} className="flex flex-col gap-2 relative border border-slate-100 dark:border-slate-800 p-3 rounded-xl bg-white dark:bg-slate-850">
+                    <button type="button" onClick={() => removeDynamicOffer(idx)} className="absolute top-3 right-3 text-red-400 hover:text-red-600"><FiTrash2 size={14} /></button>
+                    <input type="text" placeholder="Offer Title (e.g. Bank Offer)" value={offer.title} onChange={(e) => updateDynamicOffer(idx, 'title', e.target.value)} className="w-full text-xs p-2 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-lg focus:border-primary text-slate-800 dark:text-slate-100 pr-8" />
+                    <input type="text" placeholder="Offer Subtitle (e.g. Flat 10% Discount)" value={offer.subtitle} onChange={(e) => updateDynamicOffer(idx, 'subtitle', e.target.value)} className="w-full text-xs p-2 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-lg focus:border-primary text-slate-800 dark:text-slate-100" />
+                  </div>
+                ))}
+                {productForm.dynamicOffers.length === 0 && <p className="text-xs text-slate-400">No dynamic offers added yet.</p>}
+              </div>
             </div>
 
             <div>

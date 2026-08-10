@@ -76,10 +76,21 @@ router.get('/analytics', async (req: Request, res: Response) => {
 // GET entire dashboard state dynamically built from live database collections
 router.get('/', async (req: Request, res: Response) => {
   try {
-    let dashboardData = await Dashboard.findOne().lean();
+    // ⚡ Ultra-Fast Parallel MongoDB Query Execution
+    let [dashboardDoc, liveOrders, liveProducts, liveTechnicians, liveCustomers, liveJobs] = await Promise.all([
+      Dashboard.findOne().lean(),
+      Order.find().sort({ createdAt: -1 }).lean(),
+      Product.find().lean(),
+      User.find({ role: 'TECHNICIAN' }).lean(),
+      User.find({ role: 'CUSTOMER' }).lean(),
+      Job.find().sort({ createdAt: -1 }).lean()
+    ]);
+
+    let dashboardData = dashboardDoc;
+
     if (!dashboardData) {
       // Create baseline document with empty fields if it doesn't exist
-      dashboardData = await Dashboard.create({
+      const newDoc = await Dashboard.create({
         orders: [],
         customers: [],
         technicians: [],
@@ -96,15 +107,8 @@ router.get('/', async (req: Request, res: Response) => {
         banners: [],
         brands: []
       });
-      dashboardData = (dashboardData as any).toObject();
+      dashboardData = newDoc.toObject();
     }
-
-    // Fetch live data from individual collections
-    const liveOrders = await Order.find().sort({ createdAt: -1 }).lean();
-    const liveProducts = await Product.find().lean();
-    const liveTechnicians = await User.find({ role: 'TECHNICIAN' }).lean();
-    const liveCustomers = await User.find({ role: 'CUSTOMER' }).lean();
-    const liveJobs = await Job.find().sort({ createdAt: -1 }).lean();
 
     // Map live Jobs/Projects
     const mappedProjects = liveJobs.map((job: any) => ({
@@ -205,6 +209,16 @@ router.get('/', async (req: Request, res: Response) => {
       isFlashDeal: prod.isFlashDeal || false
     }));
 
+    // Map live Payments from liveOrders
+    const mappedPayments = liveOrders.map((o: any, idx: number) => ({
+      id: `PAY-${o.orderNumber || idx}`,
+      customer: o.customerName,
+      amount: o.totalAmount || 0,
+      method: o.paymentMethod || (idx % 2 === 0 ? 'Razorpay / Online UPI' : 'Cash on Delivery'),
+      status: o.paymentStatus === 'PAID' ? 'SUCCESS' : 'PENDING',
+      date: new Date(o.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    }));
+
     // Merge baseline and dynamic live collections
     const mergedData = {
       ...dashboardData,
@@ -212,7 +226,8 @@ router.get('/', async (req: Request, res: Response) => {
       products: mappedProducts,
       technicians: mappedTechnicians,
       customers: mappedCustomers,
-      projects: mappedProjects
+      projects: mappedProjects,
+      payments: mappedPayments
     };
 
     res.json({ success: true, data: mergedData });

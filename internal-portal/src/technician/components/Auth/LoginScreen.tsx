@@ -18,7 +18,15 @@ interface LoginScreenProps {
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const demoAccounts = [
     {
-      name: 'moorthy',
+      name: 'Kathir',
+      email: 'kathir@gmail.com',
+      badge: 'SK-TECH-KATHIR',
+      role: 'CCTV Field Specialist',
+      avatar: 'K',
+      password: 'demoPass123!',
+    },
+    {
+      name: 'Moorthy',
       email: 'moorthy@sktechnology.in',
       badge: 'SK-TECH-MOORTHY',
       role: 'Senior CCTV Field Engineer',
@@ -26,7 +34,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       password: 'demoPass123!',
     },
     {
-      name: 'selvam',
+      name: 'Selvam',
       email: 'selvam@sktechnology.in',
       badge: 'SK-TECH-SELVAM',
       role: 'IP Camera & Network Specialist',
@@ -58,9 +66,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    const userName = selectedDemo.name;
-    const userEmail = selectedDemo.email;
-    const userId = selectedDemo.badge;
+    const typedEmail = email.trim() || 'kathir@gmail.com';
+    let nameFromEmail = typedEmail.split('@')[0];
+    nameFromEmail = nameFromEmail.charAt(0).toUpperCase() + nameFromEmail.slice(1);
+
+    const userName = (typedEmail === selectedDemo.email) ? selectedDemo.name : nameFromEmail;
+    const userEmail = typedEmail;
+    const userId = `SK-TECH-${userName.toUpperCase()}`;
+    const userRole = (typedEmail === selectedDemo.email) ? selectedDemo.role : 'CCTV Field Specialist';
 
     localStorage.setItem('user_name', userName);
     localStorage.setItem('user_email', userEmail);
@@ -72,7 +85,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         name: userName,
         email: userEmail,
         badge: userId,
-        role: selectedDemo.role,
+        role: userRole,
       });
     }, 500);
   };

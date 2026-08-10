@@ -218,9 +218,10 @@ router.post('/:id/accept', async (req: Request, res: Response) => {
     
     job.status = 'ASSIGNED';
     job.acceptanceStatus = 'ACCEPTED';
+    job.customerConfirmed = true;
     const updatedJob = await job.save();
 
-    // Broadcast to admins and technician room
+    // Broadcast to admins, customer, and technician room
     broadcastEvent('job:accepted', {
       jobId: updatedJob._id,
       jobCode: updatedJob.jobCode,
@@ -232,11 +233,15 @@ router.post('/:id/accept', async (req: Request, res: Response) => {
       status: updatedJob.status,
       technician: technician.name,
     });
-    emitToJob(updatedJob._id.toString(), 'job:status_updated', {
-      jobId: updatedJob._id,
-      status: updatedJob.status,
-      acceptanceStatus: 'ACCEPTED',
-    });
+    if (updatedJob.customer?.email) {
+      emitToUser(updatedJob.customer.email.toLowerCase(), 'order:status_updated', {
+        orderCode: updatedJob.jobCode,
+        status: 'ASSIGNED',
+        customerConfirmed: true,
+        technicianName: technician.name,
+        technicianPhone: technician.phone || ''
+      });
+    }
 
     const dashboardData = await Dashboard.findOne();
     if (dashboardData) {
@@ -253,6 +258,91 @@ router.post('/:id/accept', async (req: Request, res: Response) => {
     }
 
     res.json({ success: true, data: updatedJob });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/jobs/:id/reject - Technician rejects auto-assigned job (Triggers Cascade & Admin Notification)
+router.post('/:id/reject', async (req: Request, res: Response) => {
+  try {
+    const isMongoId = /^[0-9a-fA-F]{24}$/.test(req.params.id as string);
+    const job = await Job.findOne({
+      $or: [
+        ...(isMongoId ? [{ _id: req.params.id }] : []),
+        { jobCode: req.params.id },
+      ],
+    });
+    if (!job) {
+      return res.status(404).json({ success: false, message: `Job ${req.params.id} not found` });
+    }
+
+    const { technicianId, technicianName, reason } = req.body;
+
+    // 1. Mark technician in rejectedTechnicianIds
+    if (!job.rejectedTechnicianIds) job.rejectedTechnicianIds = [];
+    if (technicianId && !job.rejectedTechnicianIds.includes(technicianId)) {
+      job.rejectedTechnicianIds.push(technicianId);
+    }
+    if (technicianName && !job.rejectedTechnicianIds.includes(technicianName)) {
+      job.rejectedTechnicianIds.push(technicianName);
+    }
+
+    // 2. Clear current assignedTechnicians
+    job.assignedTechnicians = [];
+    job.acceptanceStatus = 'DECLINED';
+    job.customerConfirmed = false;
+
+    // 3. Notify Admin via socket alert & Dashboard model
+    emitToRole('admin', 'job:rejected', {
+      jobId: job._id,
+      jobCode: job.jobCode,
+      technicianName: technicianName || 'Technician',
+      reason: reason || 'Not available for job assignment'
+    });
+
+    let dashboardData = await Dashboard.findOne();
+    if (!dashboardData) dashboardData = new Dashboard();
+    dashboardData.notifications.push({
+      id: `notif-rej-${Date.now()}`,
+      title: '🚨 Technician Job Rejection',
+      message: `Technician ${technicianName || 'Staff'} rejected job ${job.jobCode}. Initiating auto-cascade to next technician.`,
+      timestamp: new Date().toISOString(),
+      read: false,
+      type: 'URGENT',
+      jobId: job.jobCode
+    });
+    await dashboardData.save();
+
+    // 4. CASCADING RE-ASSIGNMENT ENGINE: Find Next Available Technician
+    const User = require('../models/User').default;
+    const allTechs = await User.find({ role: 'TECHNICIAN' });
+    const availableTech = allTechs.find((t: any) => 
+      !job.rejectedTechnicianIds?.includes(t._id.toString()) && 
+      !job.rejectedTechnicianIds?.includes(t.name)
+    );
+
+    if (availableTech) {
+      job.assignedTechnicians.push({
+        id: availableTech._id.toString(),
+        name: availableTech.name,
+        phone: availableTech.phone || ''
+      });
+      job.status = 'PENDING';
+      job.acceptanceStatus = 'PENDING';
+
+      emitToRole('admin', 'job:auto_reassigned', {
+        jobCode: job.jobCode,
+        fromTech: technicianName,
+        toTech: availableTech.name
+      });
+    } else {
+      job.status = 'PENDING';
+      job.acceptanceStatus = 'DECLINED';
+    }
+
+    const savedJob = await job.save();
+    res.json({ success: true, message: 'Job rejection logged and cascading re-assignment executed', data: savedJob });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

@@ -163,9 +163,20 @@ export const AssignedJobsTable: React.FC<AssignedJobsTableProps> = ({
             {/* Title & Equipment */}
             <div>
               <h3 className="font-bold text-zinc-900 text-sm leading-snug">{job.title}</h3>
-              <p className="text-[11px] text-zinc-400 font-medium mt-0.5">
-                Equipment: {job.installation.equipmentType}
-              </p>
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                <p className="text-[11px] text-zinc-400 font-medium">
+                  Equipment: {job.installation.equipmentType}
+                </p>
+                <span className={`px-2 py-0.5 text-[10px] font-extrabold rounded-md border flex items-center gap-1 ${
+                  (job as any).paymentMethod?.toLowerCase().includes('cash') || (job as any).paymentMethod?.toLowerCase().includes('cod')
+                    ? 'bg-blue-50 text-blue-700 border-blue-200'
+                    : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                }`}>
+                  {(job as any).paymentMethod?.toLowerCase().includes('cash') || (job as any).paymentMethod?.toLowerCase().includes('cod')
+                    ? '💵 Collect Cash on Delivery'
+                    : '💳 Online / UPI Paid'}
+                </span>
+              </div>
             </div>
 
             {/* Info Box: Customer & Schedule */}
@@ -214,14 +225,39 @@ export const AssignedJobsTable: React.FC<AssignedJobsTableProps> = ({
                   Taken by {job.assignedTechnicianName}
                 </span>
               ) : (
-                <button
-                  disabled={updatingId === job.id}
-                  onClick={(e) => handleQuickStatus(e, job.id, 'ACCEPTED')}
-                  className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center space-x-1.5 transition-all shadow-xs cursor-pointer"
-                >
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                  <span>Accept Job</span>
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    disabled={updatingId === job.id}
+                    onClick={(e) => handleQuickStatus(e, job.id, 'ACCEPTED')}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center space-x-1 transition-all shadow-xs cursor-pointer"
+                  >
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                    <span>Accept</span>
+                  </button>
+                  <button
+                    disabled={updatingId === job.id}
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      if (window.confirm(`Are you sure you want to reject Job ${job.jobCode}? It will be auto-reassigned to the next available technician.`)) {
+                        setUpdatingId(job.id);
+                        try {
+                          const { JobsApiService } = await import('../../services/apiService');
+                          const techName = localStorage.getItem('user_name') || 'Technician';
+                          const techId = localStorage.getItem('user_id') || 'tech-01';
+                          await JobsApiService.rejectJob(job.id, { id: techId, name: techName } as any);
+                          window.location.reload();
+                        } catch (err) {
+                          console.error(err);
+                        } finally {
+                          setUpdatingId(null);
+                        }
+                      }
+                    }}
+                    className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs rounded-xl border border-red-200 transition-all cursor-pointer"
+                  >
+                    <span>Reject</span>
+                  </button>
+                </div>
               )}
             </div>
           </div>

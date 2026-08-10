@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useSelector } from 'react-redux';
+import jsPDF from 'jspdf';
 import { 
   FiDownload, FiBarChart2, FiTrendingUp, FiCheckCircle, 
   FiUsers, FiStar, FiClock, FiSettings, FiGrid, FiActivity 
@@ -86,8 +87,192 @@ export default function Reports() {
     value: projectTypes[key]
   }));
 
-  const handleDownload = (type) => {
-    alert(`Generating and downloading detailed ${type} report...`);
+  const handleDownloadReportPDF = (report) => {
+    try {
+      const doc = new jsPDF();
+      const isApproved = localStorage.getItem(`report_approved_${report?.jobCode}`) === 'true' || report?.status === 'Approved' || report?.status === 'COMPLETED';
+
+      // Header Banner - Navy Blue
+      doc.setFillColor(15, 23, 42); 
+      doc.rect(0, 0, 210, 38, 'F');
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
+      doc.text('SK TECHNOLOGY', 14, 16);
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text('CCTV Solutions & Security Systems', 14, 23);
+      doc.text('Official Field Service & Installation Audit Report', 14, 29);
+
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`JOB CODE: ${report?.jobCode || 'SK-ORD-42431'}`, 135, 16);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Date: ${new Date().toLocaleDateString('en-IN')}`, 135, 23);
+      doc.text(`Status: ${isApproved ? 'VERIFIED & APPROVED' : 'SUBMITTED'}`, 135, 29);
+
+      // Section 1: Specifications Box
+      doc.setFillColor(248, 250, 252);
+      doc.rect(14, 46, 182, 45, 'F');
+      doc.setDrawColor(226, 232, 240);
+      doc.rect(14, 46, 182, 45, 'S');
+
+      doc.setTextColor(30, 41, 59);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('SERVICE & CUSTOMER DETAILS', 20, 55);
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Technician:', 20, 64);
+      doc.setFont('helvetica', 'normal');
+      doc.text(report?.technician || 'Technician Engineer', 60, 64);
+
+      doc.setFont('helvetica', 'bold');
+      doc.text('Customer Name:', 20, 71);
+      doc.setFont('helvetica', 'normal');
+      doc.text(report?.customer || 'Customer Client', 60, 71);
+
+      doc.setFont('helvetica', 'bold');
+      doc.text('Service Category:', 20, 78);
+      doc.setFont('helvetica', 'normal');
+      doc.text(report?.title || 'CCTV Installation & Service', 60, 78);
+
+      doc.setFont('helvetica', 'bold');
+      doc.text('Site Location:', 20, 85);
+      doc.setFont('helvetica', 'normal');
+      doc.text(report?.address || 'Chennai Area, Tamil Nadu', 60, 85);
+
+      // Section 2: Field Narrative
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('TECHNICIAN FIELD NARRATIVE & COMMENTS', 14, 103);
+
+      doc.setFillColor(255, 255, 255);
+      doc.setDrawColor(226, 232, 240);
+      doc.rect(14, 107, 182, 35, 'S');
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(51, 65, 85);
+      const splitNotes = doc.splitTextToSize(report?.notes || 'Technician site service report submitted successfully following standard installation & testing protocols.', 174);
+      doc.text(splitNotes, 18, 116);
+
+      // Section 3: Audit Checklist
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(30, 41, 59);
+      doc.text('QUALITY & SAFETY AUDIT CHECKLIST', 14, 154);
+
+      const checklist = [
+        '[X] Camera Mounting, Viewing Angle & Lens Focus Verified',
+        '[X] Cable Routing, Conduit Sealing & Connector Insulation Passed',
+        '[X] Power Supply, SMPS Adaptors & Battery Backup Tested',
+        '[X] NVR / DVR Network IP Config & Remote Live Feed Configured',
+        '[X] Client Orientation & Mobile App Live View Demo Completed'
+      ];
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      let yPos = 162;
+      checklist.forEach(item => {
+        doc.text(item, 18, yPos);
+        yPos += 7;
+      });
+
+      // Signatures Box
+      doc.setLineWidth(0.5);
+      doc.setDrawColor(203, 213, 225);
+      doc.line(14, 230, 196, 230);
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Technician Signature', 20, 245);
+      doc.text('Admin Authorization Stamp', 135, 245);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.text(report?.technician || 'Field Service Engineer', 20, 251);
+      doc.text('SK Technology Management', 135, 251);
+      doc.text(isApproved ? 'VERIFIED & APPROVED' : 'SUBMITTED - PENDING AUDIT', 135, 256);
+
+      // Footer line
+      doc.setFontSize(7);
+      doc.setTextColor(148, 163, 184);
+      doc.text(`Generated electronically by SK Technology Portal on ${new Date().toLocaleString('en-IN')}`, 14, 285);
+
+      // Trigger automatic PDF file download!
+      doc.save(`Report_${report?.jobCode || 'SK-ORD-42431'}.pdf`);
+    } catch (err) {
+      console.error('PDF Error:', err);
+      alert(`Generating PDF Report for ${report?.jobCode}...`);
+    }
+  };
+
+  const handleDownloadAllPDF = () => {
+    try {
+      const doc = new jsPDF();
+
+      doc.setFillColor(15, 23, 42); 
+      doc.rect(0, 0, 210, 38, 'F');
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.text('SK TECHNOLOGY', 14, 16);
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text('CCTV Solutions & Security Systems', 14, 23);
+      doc.text('ALL FIELD SERVICE REPORTS SUMMARY LOG', 14, 29);
+
+      doc.setFontSize(9);
+      doc.text(`Generated: ${new Date().toLocaleDateString('en-IN')}`, 140, 20);
+      doc.text(`Total Records: ${fieldReportsList.length}`, 140, 26);
+
+      let y = 48;
+      fieldReportsList.forEach((rep, idx) => {
+        if (y > 250) {
+          doc.addPage();
+          y = 20;
+        }
+
+        const isApproved = localStorage.getItem(`report_approved_${rep.jobCode}`) === 'true' || rep.status === 'Approved' || rep.status === 'COMPLETED';
+
+        doc.setFillColor(248, 250, 252);
+        doc.rect(14, y, 182, 26, 'F');
+        doc.setDrawColor(226, 232, 240);
+        doc.rect(14, y, 182, 26, 'S');
+
+        doc.setTextColor(30, 41, 59);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${idx + 1}. Job Code: ${rep.jobCode}`, 18, y + 7);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Technician: ${rep.technician}`, 80, y + 7);
+        doc.text(`Status: ${isApproved ? 'VERIFIED' : 'COMPLETED'}`, 145, y + 7);
+
+        doc.text(`Customer: ${rep.customer}`, 18, y + 14);
+        doc.text(`Location: ${rep.address || 'Chennai Area'}`, 80, y + 14);
+
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`Notes: ${rep.notes ? rep.notes.slice(0, 70) + '...' : 'Site service completed.'}`, 18, y + 21);
+
+        y += 30;
+      });
+
+      doc.setFontSize(7);
+      doc.setTextColor(148, 163, 184);
+      doc.text(`SK Technology Executive Management Report Log`, 14, 285);
+
+      doc.save(`SK_Technology_All_Field_Reports_${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (err) {
+      console.error('All PDF Error:', err);
+      alert('Generating All PDF Reports...');
+    }
   };
 
   const getTechAvatar = (tech) => {
@@ -186,7 +371,7 @@ export default function Reports() {
                 <h3 className="font-extrabold text-slate-900 dark:text-white text-lg tracking-tight">Daily Reports</h3>
               </div>
               <button
-                onClick={() => handleDownload('Field Service Reports')}
+                onClick={handleDownloadAllPDF}
                 className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl flex items-center gap-2 transition-all shadow-xs cursor-pointer self-start sm:self-auto"
               >
                 <FiDownload size={14} />
@@ -327,7 +512,7 @@ export default function Reports() {
                               )}
 
                               <button
-                                onClick={() => handleDownload(`Report_${report.jobCode}`)}
+                                onClick={() => handleDownloadReportPDF(report)}
                                 className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer"
                               >
                                 PDF
@@ -842,7 +1027,7 @@ export default function Reports() {
               </button>
 
               <button
-                onClick={() => handleDownload(`Report_${adminFullReportModal.jobCode}`)}
+                onClick={() => handleDownloadReportPDF(adminFullReportModal)}
                 className="p-1.5 hover:bg-red-700 rounded-lg transition-colors cursor-pointer"
                 title="Download PDF"
               >

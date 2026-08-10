@@ -15,6 +15,8 @@ export interface IProduct extends Document {
   description?: string;
   isFlashDeal?: boolean;
   isBestSeller?: boolean;
+  features?: { iconName: string; label: string }[];
+  offers?: { title: string; subtitle: string }[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -35,6 +37,18 @@ const ProductSchema: Schema = new Schema(
     description: { type: String },
     isFlashDeal: { type: Boolean, default: false },
     isBestSeller: { type: Boolean, default: false },
+    features: [
+      {
+        iconName: { type: String },
+        label: { type: String },
+      },
+    ],
+    offers: [
+      {
+        title: { type: String },
+        subtitle: { type: String },
+      },
+    ],
   },
   { timestamps: true }
 );

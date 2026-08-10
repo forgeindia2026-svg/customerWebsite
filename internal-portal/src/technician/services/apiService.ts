@@ -457,6 +457,26 @@ export const JobsApiService = {
     }
   },
 
+  async rejectJob(jobId: string, technicianProfile: TechnicianProfile, reason?: string): Promise<Job> {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/jobs/${jobId}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          technicianId: technicianProfile.id,
+          technicianName: technicianProfile.name,
+          reason: reason || 'Not available for job assignment'
+        })
+      });
+      const resData = await res.json();
+      if (!resData.success) throw new Error(resData.message);
+      return this.mapJob(resData.data);
+    } catch (err) {
+      console.error('Error rejecting job:', err);
+      throw err;
+    }
+  },
+
   async getTechnicianProfile(): Promise<TechnicianProfile> {
     const id = localStorage.getItem('user_id') || 'tech-01';
     const name = localStorage.getItem('user_name') || 'Technician';

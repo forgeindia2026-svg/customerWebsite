@@ -78,6 +78,8 @@ export interface IJob extends Document {
     safetyVerified: boolean;
     notes: string;
   };
+  rejectedTechnicianIds?: string[];
+  customerConfirmed?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -90,7 +92,7 @@ const JobSchema: Schema = new Schema(
     status: {
       type: String,
       enum: ['PENDING', 'ASSIGNED', 'IN_PROGRESS', 'BEFORE_PHOTOS_DONE', 'AFTER_PHOTOS_DONE', 'INSPECTED', 'DAILY_REPORTED', 'COMPLETED', 'CANCELLED'],
-      default: 'ASSIGNED',
+      default: 'PENDING',
     },
     priority: {
       type: String,
@@ -102,6 +104,8 @@ const JobSchema: Schema = new Schema(
       enum: ['PENDING', 'ACCEPTED', 'DECLINED'],
       default: 'PENDING',
     },
+    rejectedTechnicianIds: [{ type: String }],
+    customerConfirmed: { type: Boolean, default: false },
     currentLocation: {
       lat: { type: Number },
       lng: { type: Number },

@@ -240,9 +240,10 @@ const dashboardSlice = createSlice({
   initialState,
   reducers: {
     setDashboardData: (state, action) => {
+      const payload = action.payload || {};
       return {
         ...state,
-        ...action.payload,
+        ...payload,
         darkMode: state.darkMode
       };
     },
