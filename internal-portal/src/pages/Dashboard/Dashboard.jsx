@@ -145,6 +145,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     socket.emit('join_role', 'admin');
+    dispatch(fetchDashboardData());
 
     const handleUpdate = () => {
       if (typeof fetchDashboardData === 'function') {
