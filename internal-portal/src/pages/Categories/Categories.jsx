@@ -23,7 +23,7 @@ export default function Categories() {
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/categories');
+      const res = await fetch('https://cctvwebsite.onrender.com/api/categories');
       const data = await res.json();
       if (data.success) {
         setCategories(data.data);
@@ -51,7 +51,7 @@ export default function Categories() {
   const handleAddCategory = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:5000/api/categories', {
+      const res = await fetch('https://cctvwebsite.onrender.com/api/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -73,7 +73,7 @@ export default function Categories() {
   const handleEditCategory = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`http://localhost:5000/api/categories/${editingCategory._id}`, {
+      const res = await fetch(`https://cctvwebsite.onrender.com/api/categories/${editingCategory._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -95,7 +95,7 @@ export default function Categories() {
   const handleDeleteCategory = async (id) => {
     if (window.confirm("Are you sure you want to delete this category?")) {
       try {
-        const res = await fetch(`http://localhost:5000/api/categories/${id}`, {
+        const res = await fetch(`https://cctvwebsite.onrender.com/api/categories/${id}`, {
           method: 'DELETE'
         });
         const data = await res.json();
@@ -121,7 +121,7 @@ export default function Categories() {
 
   const toggleFeatured = async (cat) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/categories/${cat._id}`, {
+      const res = await fetch(`https://cctvwebsite.onrender.com/api/categories/${cat._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isFeaturedOnHome: !cat.isFeaturedOnHome })

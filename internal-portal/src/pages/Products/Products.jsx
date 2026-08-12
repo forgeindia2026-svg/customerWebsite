@@ -5,7 +5,7 @@ import { FiPlus, FiTrash2, FiSearch, FiLayers, FiDollarSign, FiInfo } from 'reac
 import Modal from '../../components/Modal';
 
 function getFallbackSrc(category) {
-  const baseUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/images`;
+  const baseUrl = `${import.meta.env.VITE_API_URL || 'https://cctvwebsite.onrender.com'}/images`;
   switch (category) {
     case 'IP Camera':
       return `${baseUrl}/hikvision_dome_camera.png`;
@@ -183,7 +183,7 @@ export default function Products() {
   const products = useSelector(state => state.dashboard.products);
 
   React.useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/products`)
+    fetch(`${import.meta.env.VITE_API_URL || 'https://cctvwebsite.onrender.com'}/api/products`)
       .then(res => res.json())
       .then(data => {
         if (data.success && Array.isArray(data.data)) {
@@ -358,7 +358,7 @@ export default function Products() {
       offers: productForm.dynamicOffers || [],
     };
 
-    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/products`, {
+    fetch(`${import.meta.env.VITE_API_URL || 'https://cctvwebsite.onrender.com'}/api/products`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(dbProduct)
@@ -497,7 +497,7 @@ export default function Products() {
               key={prod.id} 
               prod={prod} 
               onDelete={(id) => {
-                fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/products/${id}`, {
+                fetch(`${import.meta.env.VITE_API_URL || 'https://cctvwebsite.onrender.com'}/api/products/${id}`, {
                   method: 'DELETE',
                 })
                   .then(res => res.json())
@@ -865,7 +865,7 @@ export default function Products() {
                 offers: productForm.dynamicOffers || [],
               };
 
-              fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/products/${editingProduct.id}`, {
+              fetch(`${import.meta.env.VITE_API_URL || 'https://cctvwebsite.onrender.com'}/api/products/${editingProduct.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(dbProduct)

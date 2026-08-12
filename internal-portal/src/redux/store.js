@@ -13,7 +13,7 @@ const dashboardSyncMiddleware = store => next => action => {
   ];
 
   if (action.type.startsWith('dashboard/') && !ignoreActions.includes(action.type)) {
-    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/dashboard`, {
+    fetch(`${import.meta.env.VITE_API_URL || 'https://cctvwebsite.onrender.com'}/api/dashboard`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json'
@@ -61,7 +61,7 @@ const dashboardSyncMiddleware = store => next => action => {
       }
 
       // POST new job to backend
-      fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/jobs`, {
+      fetch(`${import.meta.env.VITE_API_URL || 'https://cctvwebsite.onrender.com'}/api/jobs`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

@@ -5,7 +5,7 @@ export const fetchDashboardData = createAsyncThunk(
   'dashboard/fetchDashboardData',
   async (_, { dispatch }) => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/dashboard`);
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://cctvwebsite.onrender.com'}/api/dashboard`);
       const data = await res.json();
       if (data.success && data.data) {
         dispatch(setDashboardData(data.data));
