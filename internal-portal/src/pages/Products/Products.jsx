@@ -250,6 +250,34 @@ export default function Products() {
     dynamicOffers: []
   });
 
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      setIsUploading(true);
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://cctvwebsite.onrender.com'}/api/upload`, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (data.success) {
+        setProductForm(prev => ({ ...prev, imageUrl: data.imageUrl }));
+      } else {
+        alert('Upload failed: ' + data.message);
+      }
+    } catch (err) {
+      alert('Upload error: ' + err.message);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const addDynamicFeature = () => {
     setProductForm(prev => ({
       ...prev,
@@ -736,6 +764,23 @@ export default function Products() {
             />
           </div>
 
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Product Image Upload</label>
+            <input 
+              type="file" 
+              accept="image/*"
+              onChange={handleImageUpload}
+              disabled={isUploading}
+              className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+            />
+            {isUploading && <span className="text-[10px] text-blue-500 mt-1 block">Uploading image to AWS S3...</span>}
+            {productForm.imageUrl && (
+              <div className="mt-2 relative inline-block">
+                <img src={productForm.imageUrl} alt="Preview" className="h-16 w-16 object-contain border border-slate-200 dark:border-slate-700 rounded-lg p-1" />
+              </div>
+            )}
+          </div>
+
           {/* Dynamic Features Section */}
           <div className="border border-slate-200 dark:border-slate-700 rounded-2xl p-4 bg-slate-50/50 dark:bg-slate-800/10">
             <div className="flex justify-between items-center mb-3">
@@ -1096,6 +1141,23 @@ export default function Products() {
                 onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
                 className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
               />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Product Image Upload</label>
+              <input 
+                type="file" 
+                accept="image/*"
+                onChange={handleImageUpload}
+                disabled={isUploading}
+                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+              />
+              {isUploading && <span className="text-[10px] text-blue-500 mt-1 block">Uploading image to AWS S3...</span>}
+              {productForm.imageUrl && (
+                <div className="mt-2 relative inline-block">
+                  <img src={productForm.imageUrl} alt="Preview" className="h-16 w-16 object-contain border border-slate-200 dark:border-slate-700 rounded-lg p-1" />
+                </div>
+              )}
             </div>
 
             {/* Dynamic Features Section */}

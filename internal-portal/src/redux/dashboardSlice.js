@@ -4,13 +4,17 @@ import initialDb from '../mock-data/db.json';
 export const fetchDashboardData = createAsyncThunk(
   'dashboard/fetchDashboardData',
   async (_, { dispatch }) => {
+    dispatch(dashboardSlice.actions.setLoading(true));
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://cctvwebsite.onrender.com'}/api/dashboard`);
       const data = await res.json();
       if (data.success && data.data) {
         dispatch(setDashboardData(data.data));
       }
-    } catch (err) {
+    } finally {
+      dispatch(dashboardSlice.actions.setLoading(false));
+    }
+    catch (err) {
       console.warn('Dashboard fetch error:', err);
     }
   }
@@ -216,7 +220,7 @@ const defaultDailyLogs = {
   ]
 };
 
-const initialState = {
+const initialState = { isLoading: false,
   orders: [],
   customers: [],
   technicians: [],
@@ -239,6 +243,7 @@ const dashboardSlice = createSlice({
   name: 'dashboard',
   initialState,
   reducers: {
+    setLoading: (state, action) => { state.isLoading = action.payload; },
     setDashboardData: (state, action) => {
       const payload = action.payload || {};
       return {
