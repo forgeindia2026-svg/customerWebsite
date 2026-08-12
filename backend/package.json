@@ -35,6 +35,8 @@
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/multer": "^2.2.0",
+    "@types/multer-s3": "^3.0.3",
     "@types/node": "^26.1.2",
     "@types/web-push": "^3.6.4",
     "ts-node-dev": "^2.0.0",
