@@ -1,5 +1,6 @@
 import { configureStore } from '@reduxjs/toolkit';
 import dashboardReducer from './dashboardSlice';
+import { getApiUrl } from '../utils/config';
 
 const dashboardSyncMiddleware = store => next => action => {
   const prevState = store.getState().dashboard;
@@ -9,11 +10,15 @@ const dashboardSyncMiddleware = store => next => action => {
   const ignoreActions = [
     'dashboard/setDashboardData',
     'dashboard/setDarkMode',
-    'dashboard/toggleDarkMode'
+    'dashboard/toggleDarkMode',
+    'dashboard/setLoading',
+    'dashboard/fetchDashboardData/pending',
+    'dashboard/fetchDashboardData/fulfilled',
+    'dashboard/fetchDashboardData/rejected'
   ];
 
   if (action.type.startsWith('dashboard/') && !ignoreActions.includes(action.type)) {
-    fetch(`${import.meta.env.VITE_API_URL || 'https://cctvwebsite.onrender.com'}/api/dashboard`, {
+    fetch(`${getApiUrl()}/api/dashboard`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json'

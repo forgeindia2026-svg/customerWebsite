@@ -4,6 +4,21 @@ import { addCustomer, editCustomer } from '../../redux/dashboardSlice';
 import { FiSearch, FiMail, FiPhone, FiMapPin, FiGrid, FiList, FiPlus, FiLayers, FiInfo } from 'react-icons/fi';
 import Modal from '../../components/Modal';
 
+function formatLocation(locationStr) {
+  if (!locationStr) return { address: 'N/A', service: null };
+  const match = locationStr.match(/(.*?)\s*\[Service:\s*(.*?)\]/i);
+  if (match) {
+    return {
+      address: match[1].trim(),
+      service: match[2].trim()
+    };
+  }
+  return {
+    address: locationStr,
+    service: null
+  };
+}
+
 export default function Customers() {
   const dispatch = useDispatch();
   const customers = useSelector(state => state.dashboard.customers);
@@ -21,10 +36,16 @@ export default function Customers() {
     location: 'Anna Nagar, Chennai'
   });
 
-  const filteredCustomers = customers.filter(cust => {
-    return cust.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           cust.phone.includes(searchTerm) ||
-           cust.email.toLowerCase().includes(searchTerm.toLowerCase());
+  const safeCustomers = Array.isArray(customers) ? customers : [];
+  const filteredCustomers = safeCustomers.filter(cust => {
+    if (!cust || typeof cust !== 'object') return false;
+    const name = typeof cust.name === 'string' ? cust.name : '';
+    const phone = typeof cust.phone === 'string' || typeof cust.phone === 'number' ? String(cust.phone) : '';
+    const email = typeof cust.email === 'string' ? cust.email : '';
+    const search = (searchTerm || '').toLowerCase();
+    return name.toLowerCase().includes(search) ||
+           phone.includes(search) ||
+           email.toLowerCase().includes(search);
   });
 
   const getThemeClass = (index) => {
@@ -150,7 +171,7 @@ export default function Customers() {
                         </p>
                       </div>
                       <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs uppercase shrink-0 shadow-2xs ${theme.badge}`}>
-                        {cust.name.slice(0, 2)}
+                        {(cust.name || 'CU').slice(0, 2)}
                       </div>
                     </div>
 
@@ -212,96 +233,130 @@ export default function Customers() {
                 No customers match your search parameters.
               </div>
             ) : (
-              filteredCustomers.map((cust, idx) => (
-                <div key={`mob-cust-${cust.id || idx}`} className="bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-3.5 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-bold text-xs text-slate-900 dark:text-white">{cust.name}</h4>
-                      <p className="text-[11px] text-slate-500 truncate">📍 {cust.location}</p>
+              filteredCustomers.map((cust, idx) => {
+                const { address, service } = formatLocation(cust.location);
+                return (
+                  <div key={`mob-cust-${cust.id || idx}`} className="bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-3.5 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-bold text-xs text-slate-900 dark:text-white truncate">{cust.name}</h4>
+                        <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5" title={cust.location}>📍 {address}</p>
+                        {service && (
+                          <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                            Service: {service}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => {
+                          setEditingCustomer(cust);
+                          setCustomerForm({
+                            name: cust.name,
+                            email: cust.email,
+                            phone: cust.phone,
+                            location: cust.location
+                          });
+                          setEditModalOpen(true);
+                        }}
+                        className="px-2.5 py-1 bg-blue-50 text-blue-600 dark:bg-blue-900/30 text-[10px] font-bold rounded-lg border border-blue-200 shrink-0"
+                      >
+                        Edit
+                      </button>
                     </div>
-                    <button
-                      onClick={() => {
-                        setEditingCustomer(cust);
-                        setCustomerForm({
-                          name: cust.name,
-                          email: cust.email,
-                          phone: cust.phone,
-                          location: cust.location
-                        });
-                        setEditModalOpen(true);
-                      }}
-                      className="px-2.5 py-1 bg-blue-50 text-blue-600 dark:bg-blue-900/30 text-[10px] font-bold rounded-lg border border-blue-200"
-                    >
-                      Edit
-                    </button>
-                  </div>
 
-                  <div className="text-[11px] text-slate-600 dark:text-slate-300 space-y-0.5 pt-1 border-t border-slate-200/60 dark:border-slate-700/60">
-                    <p className="truncate">📞 {cust.phone} • ✉️ {cust.email}</p>
-                    <div className="flex items-center justify-between font-mono font-bold pt-1">
-                      <span className="text-slate-500">{cust.installationsCount || 0} Orders</span>
-                      <span className="text-emerald-600">₹{(cust.totalSpent || 0).toLocaleString('en-IN')}</span>
+                    <div className="text-[11px] text-slate-600 dark:text-slate-300 space-y-0.5 pt-1 border-t border-slate-200/60 dark:border-slate-700/60">
+                      <p className="truncate">📞 {cust.phone} • ✉️ {cust.email}</p>
+                      <div className="flex items-center justify-between font-mono font-bold pt-1">
+                        <span className="text-slate-500">{cust.installationsCount || 0} Orders</span>
+                        <span className="text-emerald-600">₹{(cust.totalSpent || 0).toLocaleString('en-IN')}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
 
           {/* 💻 Desktop Table View (hidden md:block) */}
-          <div className="hidden md:block overflow-x-auto min-w-full">
+          <div className="hidden md:block overflow-x-auto w-full max-w-full">
             {filteredCustomers.length === 0 ? (
               <div className="py-12 text-center text-slate-450 text-xs font-medium">
                 <FiInfo size={36} className="mx-auto mb-2 opacity-50" />
                 <p className="text-xs">No customers match your search parameters.</p>
               </div>
             ) : (
-              <table className="w-full text-left border-collapse min-w-[850px]">
+              <table className="w-full text-left border-collapse table-auto min-w-[920px]">
                 <thead>
-                  <tr className="bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-200/80 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider text-[11px]">
-                    <th className="py-3.5 px-4 whitespace-nowrap w-28">Customer ID</th>
-                    <th className="py-3.5 px-4 min-w-[200px] whitespace-nowrap">Customer Name</th>
-                    <th className="py-3.5 px-4 min-w-[240px] whitespace-nowrap">Contact Details</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap w-48">Location Area</th>
-                    <th className="py-3.5 px-4 text-center whitespace-nowrap w-32">Orders</th>
-                    <th className="py-3.5 px-4 text-right whitespace-nowrap w-40">Total Billing</th>
+                  <tr className="bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-200/80 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider text-[11px] align-middle">
+                    <th className="py-3.5 px-4 whitespace-nowrap w-[130px]">Customer ID</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap w-[180px]">Customer Name</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap w-[240px]">Contact Details</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap min-w-[220px]">Location Area</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap text-center w-[120px]">Orders</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap text-right w-[140px]">Total Billing</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-800 dark:text-slate-200 text-xs">
-                  {filteredCustomers.map((cust, idx) => (
-                    <tr 
-                      key={cust.id || idx} 
-                      onClick={() => {
-                        setEditingCustomer(cust);
-                        setCustomerForm({
-                          name: cust.name,
-                          email: cust.email,
-                          phone: cust.phone,
-                          location: cust.location
-                        });
-                        setEditModalOpen(true);
-                      }}
-                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors cursor-pointer group"
-                    >
-                      <td className="py-4 px-4 align-middle font-mono font-bold text-slate-500 whitespace-nowrap">{cust.id || `CUST-0${idx + 1}`}</td>
-                      <td className="py-4 px-4 align-middle">
-                        <span className="font-bold text-slate-900 dark:text-slate-100 text-xs block leading-tight group-hover:text-primary transition-colors whitespace-nowrap">{cust.name}</span>
-                      </td>
-                      <td className="py-4 px-4 align-middle whitespace-nowrap">
-                        <div className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">{cust.email}</div>
-                        <div className="text-[11px] text-slate-400 font-medium mt-0.5 font-sans whitespace-nowrap">{cust.phone}</div>
-                      </td>
-                      <td className="py-4 px-4 align-middle font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">{cust.location}</td>
-                      <td className="py-4 px-4 align-middle text-center font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">
-                        <span className="px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-bold">
-                          {cust.installationsCount || 0} orders
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 align-middle text-right font-bold text-slate-900 dark:text-white whitespace-nowrap">
-                        ₹{(cust.totalSpent || 0).toLocaleString('en-IN')}
-                      </td>
-                    </tr>
-                  ))}
+                  {filteredCustomers.map((cust, idx) => {
+                    const { address, service } = formatLocation(cust.location);
+                    return (
+                      <tr 
+                        key={cust.id || idx} 
+                        onClick={() => {
+                          setEditingCustomer(cust);
+                          setCustomerForm({
+                            name: cust.name,
+                            email: cust.email,
+                            phone: cust.phone,
+                            location: cust.location
+                          });
+                          setEditModalOpen(true);
+                        }}
+                        className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors cursor-pointer group"
+                      >
+                        <td className="py-4 px-4 align-middle font-mono font-bold text-slate-500 whitespace-nowrap w-[130px]">
+                          {cust.id || `CUST-0${idx + 1}`}
+                        </td>
+                        <td className="py-4 px-4 align-middle w-[180px]">
+                          <span className="font-bold text-slate-900 dark:text-slate-100 text-xs block leading-tight group-hover:text-primary transition-colors truncate max-w-[170px]" title={cust.name}>
+                            {cust.name}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 align-middle w-[240px]">
+                          <div className="flex flex-col min-w-0 max-w-[220px]">
+                            <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 truncate" title={cust.email}>
+                              {cust.email || 'N/A'}
+                            </span>
+                            <span className="text-[11px] text-slate-400 font-medium font-sans mt-0.5 tracking-tight truncate" title={cust.phone}>
+                              {cust.phone || 'N/A'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 align-middle min-w-[220px]">
+                          <div className="flex flex-col gap-1 min-w-0 max-w-[260px] text-left" title={cust.location}>
+                            <span className="font-semibold text-slate-800 dark:text-slate-200 text-xs leading-snug break-words line-clamp-2">
+                              {address}
+                            </span>
+                            {service && (
+                              <div className="pt-0.5">
+                                <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60 truncate max-w-full">
+                                  Service: {service}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 align-middle text-center whitespace-nowrap w-[120px]">
+                          <span className="inline-block px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300">
+                            {cust.installationsCount || 0} orders
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 align-middle text-right font-bold text-slate-900 dark:text-white whitespace-nowrap w-[140px]">
+                          ₹{(cust.totalSpent || 0).toLocaleString('en-IN')}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}

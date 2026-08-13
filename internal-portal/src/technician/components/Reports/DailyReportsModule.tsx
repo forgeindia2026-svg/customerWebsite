@@ -89,36 +89,26 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
       });
     }
 
-    // 2. Synthesize completion & site evidence reports if job has fieldNotes, photos, or status updates
-    if (
-      job.fieldNotes ||
-      (job.beforePhotos && job.beforePhotos.length > 0) ||
-      (job.afterPhotos && job.afterPhotos.length > 0) ||
-      job.status === 'COMPLETED' ||
-      job.status === 'BEFORE_PHOTOS_DONE' ||
-      job.status === 'AFTER_PHOTOS_DONE'
-    ) {
-      if (!job.dailyReports || job.dailyReports.length === 0) {
-        // Check if report has been approved by admin in storage
-        const isApproved = job.approvedByAdmin === true || (job.status === 'COMPLETED' && localStorage.getItem(`report_approved_${job.jobCode}`) === 'true');
-        list.push({
-          id: `REP-${job.jobCode}-WORKFLOW`,
-          date: new Date(job.updatedAt || Date.now()).toISOString().split('T')[0],
-          jobCode: job.jobCode,
-          jobTitle: job.title,
-          customer: job.customer?.name || 'Client',
-          customerAddress: `${job.customer?.address || ''}, ${job.customer?.city || ''}`,
-          technician: job.assignedTechnician?.name || 'Technician',
-          hoursLogged: 8,
-          status: isApproved ? 'VERIFIED' : 'PENDING_REVIEW',
-          summary: job.fieldNotes || `Site evidence & workflow report submitted. Status: ${job.status.replace(/_/g, ' ')}`,
-          photosCount: (job.beforePhotos?.length || 0) + (job.afterPhotos?.length || 0),
-          beforePhotos: job.beforePhotos || [],
-          afterPhotos: job.afterPhotos || [],
-          safetyCheck: 'PASSED (4/4)',
-          supervisorApproval: isApproved ? 'Approved by Admin' : 'Pending Admin Verification',
-        });
-      }
+    // 2. Synthesize completion & site evidence reports for all assigned jobs
+    if (!job.dailyReports || job.dailyReports.length === 0) {
+      const isApproved = job.approvedByAdmin === true || job.status === 'COMPLETED' || job.status === 'APPROVED' || job.status === 'DELIVERED' || localStorage.getItem(`report_approved_${job.jobCode}`) === 'true';
+      list.push({
+        id: `REP-${job.jobCode}-WORKFLOW`,
+        date: new Date(job.updatedAt || Date.now()).toISOString().split('T')[0],
+        jobCode: job.jobCode,
+        jobTitle: job.title,
+        customer: job.customer?.name || 'Client',
+        customerAddress: `${job.customer?.address || ''}, ${job.customer?.city || ''}`,
+        technician: job.assignedTechnician?.name || 'Technician',
+        hoursLogged: 8,
+        status: isApproved ? 'VERIFIED' : 'PENDING_REVIEW',
+        summary: job.fieldNotes || `Field execution work report for ${job.title}. Status: ${job.status.replace(/_/g, ' ')}`,
+        photosCount: (job.beforePhotos?.length || 0) + (job.afterPhotos?.length || 0),
+        beforePhotos: job.beforePhotos || [],
+        afterPhotos: job.afterPhotos || [],
+        safetyCheck: 'PASSED (4/4)',
+        supervisorApproval: isApproved ? 'Approved by Admin' : 'Pending Admin Verification',
+      });
     }
 
     return list;

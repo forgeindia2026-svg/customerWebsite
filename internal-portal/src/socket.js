@@ -1,6 +1,7 @@
 import { io } from 'socket.io-client';
+import { getApiUrl } from './utils/config';
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || 'https://cctvwebsite.onrender.com';
+const SOCKET_URL = getApiUrl();
 
 export const socket = io(SOCKET_URL, {
   autoConnect: true,

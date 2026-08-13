@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Send, AlertCircle, CheckCircle2, BellRing } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || `${import.meta.env.VITE_API_URL || 'https://cctvwebsite.onrender.com'}`;
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export default function Notifications() {
   const [formData, setFormData] = useState({

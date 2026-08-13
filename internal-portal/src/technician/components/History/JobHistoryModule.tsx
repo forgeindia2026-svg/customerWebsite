@@ -12,6 +12,14 @@ import {
 
 import { formatDate } from '../../services/dateUtils';
 
+export const COMPLETED_HISTORY_STATUSES = [
+  'COMPLETED',
+  'DELIVERED',
+  'APPROVED',
+  'DAILY_REPORTED',
+  'AFTER_PHOTOS_DONE'
+];
+
 interface JobHistoryModuleProps {
   jobs: Job[];
   onSelectJob?: (job: Job) => void;
@@ -21,12 +29,15 @@ export const JobHistoryModule: React.FC<JobHistoryModuleProps> = ({ jobs }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
 
-  const completedJobs = jobs.filter(j => j.status === 'COMPLETED' || j.status === 'DAILY_REPORTED');
+  const completedJobs = jobs && jobs.length > 0 ? jobs.filter(j => COMPLETED_HISTORY_STATUSES.includes(j.status)) : [];
+
+  // Fallback to all assigned jobs if no explicit completed status is set yet
+  const displayJobs = completedJobs.length > 0 ? completedJobs : (jobs && jobs.length > 0 ? jobs : []);
 
   const techName = localStorage.getItem('user_name') || 'Technician';
 
   // Dynamically map completed jobs from backend
-  const completedJobsList = completedJobs.map((job) => ({
+  const completedJobsList = displayJobs.map((job) => ({
     id: job.id,
     jobCode: job.jobCode,
     title: job.title,

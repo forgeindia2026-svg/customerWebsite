@@ -4,36 +4,34 @@ import { addProduct, deleteProduct, editProduct, setProducts } from '../../redux
 import { FiPlus, FiTrash2, FiSearch, FiLayers, FiDollarSign, FiInfo } from 'react-icons/fi';
 import Modal from '../../components/Modal';
 
+import { getApiUrl } from '../../utils/config';
+
 function getFallbackSrc(category) {
-  const baseUrl = `${import.meta.env.VITE_API_URL || 'https://cctvwebsite.onrender.com'}/images`;
-  switch (category) {
-    case 'IP Camera':
-      return `${baseUrl}/hikvision_dome_camera.png`;
-    case 'Analog Camera':
-      return `${baseUrl}/dahua_bullet_camera.png`;
-    case 'NVR':
-    case 'DVR':
-      return `${baseUrl}/cp_plus_nvr.png`;
-    case 'Hard Disk':
-      return `${baseUrl}/surveillance_hdd.png`;
-    case 'SSD':
-      return `${baseUrl}/surveillance_hdd.png`;
-    case 'Pendrive':
-      return `${baseUrl}/cctv_cable.png`;
-    case 'HDMI Cables':
-    case 'Cables':
-    default:
-      return `${baseUrl}/cctv_cable.png`;
-  }
+  const baseUrl = `${getApiUrl()}/images`;
+  const catLower = (category || '').toLowerCase();
+  if (catLower.includes('ip')) return `${baseUrl}/ip_camera.png`;
+  if (catLower.includes('analog') || catLower.includes('bullet')) return `${baseUrl}/bullet_camera.png`;
+  if (catLower.includes('dome')) return `${baseUrl}/dome_camera.png`;
+  if (catLower.includes('wifi')) return `${baseUrl}/wifi_camera.png`;
+  if (catLower.includes('ptz')) return `${baseUrl}/ptz_camera.png`;
+  if (catLower.includes('nvr') || catLower.includes('dvr')) return `${baseUrl}/dvr_nvr.png`;
+  if (catLower.includes('hard') || catLower.includes('hdd') || catLower.includes('disk') || catLower.includes('storage')) return `${baseUrl}/surveillance_hdd.png`;
+  if (catLower.includes('vdp') || catLower.includes('door')) return `${baseUrl}/video_door_phone.png`;
+  return `${baseUrl}/cctv_cable.png`;
 }
 
 function ProductCard({ prod, onDelete, onEdit }) {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
-  const images = prod.imageUrls && prod.imageUrls.length > 0 
+  const rawImages = prod.imageUrls && prod.imageUrls.length > 0 
     ? prod.imageUrls 
     : [prod.imageUrl || getFallbackSrc(prod.category)];
 
-  const currentImage = images[activeImageIndex] || images[0];
+  const images = rawImages.map(img => {
+    if (!img || img.startsWith('blob:')) return getFallbackSrc(prod.category);
+    return img.replace('http://localhost:5000', getApiUrl());
+  });
+
+  const currentImage = images[activeImageIndex] || images[0] || getFallbackSrc(prod.category);
 
   const hasOfferPrice = prod.offerPrice && Number(prod.offerPrice) > 0;
   const computedDiscount = hasOfferPrice && Number(prod.price) > 0
@@ -89,6 +87,10 @@ function ProductCard({ prod, onDelete, onEdit }) {
             <img 
               src={currentImage} 
               alt={prod.name} 
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = getFallbackSrc(prod.category);
+              }}
               className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
             />
           </div>
@@ -183,7 +185,7 @@ export default function Products() {
   const products = useSelector(state => state.dashboard.products);
 
   React.useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL || 'https://cctvwebsite.onrender.com'}/api/products`)
+    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/products`)
       .then(res => res.json())
       .then(data => {
         if (data.success && Array.isArray(data.data)) {
@@ -225,11 +227,27 @@ export default function Products() {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
 
-  const defaultCategories = ['IP Camera', 'Analog Camera', 'NVR', 'DVR', 'Hard Disk', 'SSD', 'Pendrive', 'Cables', 'HDMI Cables', 'Power Supply', 'Accessories', 'Tools'];
+  const subCategoriesMap = {
+    'CCTV Cameras': ['IP Cameras', 'WiFi Cameras', 'PTZ Cameras', 'Dome Cameras', 'Bullet Cameras'],
+    'DVR': ['4 Channel DVR', '8 Channel DVR', '16 Channel DVR', '32 Channel DVR'],
+    'NVR': ['4 Channel NVR', '8 Channel NVR', '16 Channel NVR', '32 Channel NVR', '64 Channel NVR'],
+    'Accessories': ['BNC Connectors', 'DC Pins', 'Power Supply Boxes', 'Mounting Brackets', 'Junction Boxes'],
+    'Hard Disk': ['1 TB Hard Disk', '2 TB Hard Disk', '4 TB Hard Disk', '6 TB Hard Disk', '8 TB+ Hard Disk'],
+    'Video Door Phone': ['Single Apartment VDP', 'Multi Apartment VDP', 'Wireless VDP'],
+    'Alarm Systems': ['Motion Sensors', 'Door Sensors', 'Siren & Alarms', 'Control Panels'],
+    'Networking': ['Cat6 Cable Box', 'PoE Switches', 'Routers & Access Points', 'RJ45 Connectors'],
+    'Installation Kit': ['Tool Kit', 'Cable Testers', 'Wire Strippers', 'Crimp Tools'],
+    'SSD': ['128 GB SSD', '256 GB SSD', '512 GB SSD', '1 TB SSD'],
+    'Pendrive': ['32 GB Pendrive', '64 GB Pendrive', '128 GB Pendrive'],
+    'HDMI Cables': ['1.5m HDMI Cable', '3m HDMI Cable', '5m HDMI Cable', '10m+ HDMI Cable'],
+  };
+
+  const defaultCategories = Object.keys(subCategoriesMap);
 
   const [productForm, setProductForm] = useState({ 
     name: '', 
-    category: 'IP Camera', 
+    category: 'CCTV Cameras', 
+    subCategory: 'IP Cameras',
     customCategory: '',
     price: '', 
     offerPrice: '',
@@ -599,18 +617,41 @@ export default function Products() {
             </div>
           </div>
           
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1.5">Category</label>
               <select 
                 value={productForm.category}
-                onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
-                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-850 rounded-xl focus:outline-none focus:border-primary text-slate-850 dark:text-slate-100"
+                onChange={(e) => {
+                  const newCat = e.target.value;
+                  const subs = subCategoriesMap[newCat] || [];
+                  setProductForm({ 
+                    ...productForm, 
+                    category: newCat,
+                    subCategory: subs.length > 0 ? subs[0] : ''
+                  });
+                }}
+                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100 font-semibold"
               >
-                {defaultCategories.map(cat => (
+                {Object.keys(subCategoriesMap).map(cat => (
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
                 <option value="Other" style={{ color: '#2563eb', fontWeight: 'bold' }}>Add Category</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Sub Category</label>
+              <select 
+                value={productForm.subCategory}
+                onChange={(e) => setProductForm({ ...productForm, subCategory: e.target.value })}
+                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100 font-semibold"
+              >
+                {(subCategoriesMap[productForm.category] || []).map(sub => (
+                  <option key={sub} value={sub}>{sub}</option>
+                ))}
+                {(!subCategoriesMap[productForm.category] || subCategoriesMap[productForm.category].length === 0) && (
+                  <option value="">General</option>
+                )}
               </select>
             </div>
             <div>
@@ -981,18 +1022,41 @@ export default function Products() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-500 mb-1.5">Category</label>
                 <select
                   value={productForm.category}
-                  onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
-                  className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-805 rounded-xl focus:outline-none focus:border-primary text-slate-850 dark:text-slate-100"
+                  onChange={(e) => {
+                    const newCat = e.target.value;
+                    const subs = subCategoriesMap[newCat] || [];
+                    setProductForm({
+                      ...productForm,
+                      category: newCat,
+                      subCategory: subs.length > 0 ? subs[0] : ''
+                    });
+                  }}
+                  className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100 font-semibold"
                 >
-                  {defaultCategories.map(cat => (
+                  {Object.keys(subCategoriesMap).map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                   <option value="Other" style={{ color: '#2563eb', fontWeight: 'bold' }}>Add Category</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5">Sub Category</label>
+                <select
+                  value={productForm.subCategory}
+                  onChange={(e) => setProductForm({ ...productForm, subCategory: e.target.value })}
+                  className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100 font-semibold"
+                >
+                  {(subCategoriesMap[productForm.category] || []).map(sub => (
+                    <option key={sub} value={sub}>{sub}</option>
+                  ))}
+                  {(!subCategoriesMap[productForm.category] || subCategoriesMap[productForm.category].length === 0) && (
+                    <option value="">General</option>
+                  )}
                 </select>
               </div>
               <div>

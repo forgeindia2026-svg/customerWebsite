@@ -23,7 +23,7 @@ export default function Categories() {
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch('https://cctvwebsite.onrender.com/api/categories');
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/categories`);
       const data = await res.json();
       if (data.success) {
         setCategories(data.data);
@@ -51,7 +51,7 @@ export default function Categories() {
   const handleAddCategory = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('https://cctvwebsite.onrender.com/api/categories', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/categories`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

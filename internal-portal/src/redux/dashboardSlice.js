@@ -1,21 +1,21 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import initialDb from '../mock-data/db.json';
+import { getApiUrl } from '../utils/config';
 
 export const fetchDashboardData = createAsyncThunk(
   'dashboard/fetchDashboardData',
   async (_, { dispatch }) => {
     dispatch(dashboardSlice.actions.setLoading(true));
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://cctvwebsite.onrender.com'}/api/dashboard`);
+      const res = await fetch(`${getApiUrl()}/api/dashboard`);
       const data = await res.json();
       if (data.success && data.data) {
         dispatch(setDashboardData(data.data));
       }
+    } catch (err) {
+      console.warn('Dashboard fetch error:', err);
     } finally {
       dispatch(dashboardSlice.actions.setLoading(false));
-    }
-    catch (err) {
-      console.warn('Dashboard fetch error:', err);
     }
   }
 );
@@ -41,104 +41,9 @@ const getInitialCustomers = (orders) => {
   return Object.values(customersMap);
 };
 
-const initialQueries = [
-  {
-    id: 'QRY-101',
-    raisedBy: 'Rohan Malhotra',
-    type: 'Customer',
-    subject: 'Delay in camera delivery',
-    priority: 'High',
-    status: 'In Progress',
-    date: 'May 24, 2024',
-    messages: [
-      { sender: 'Rohan Malhotra', text: 'Hi, my installation was scheduled for yesterday, but the cameras have not arrived yet.', time: '10:00 AM' },
-      { sender: 'Admin', text: 'Apologies for the delay, Rohan. The dispatch was delayed due to weather. The technician will arrive today by 3 PM.', time: '11:15 AM' }
-    ]
-  },
-  {
-    id: 'QRY-102',
-    raisedBy: 'Prakash Kumar',
-    type: 'Technician',
-    subject: 'Need extra CAT-6 cables',
-    priority: 'Medium',
-    status: 'Open',
-    date: 'May 25, 2024',
-    messages: [
-      { sender: 'Prakash Kumar', text: 'We need 50 meters more of CAT-6 cable at Subiksha Retailers site. Please approve from inventory.', time: '09:30 AM' }
-    ]
-  },
-  {
-    id: 'QRY-103',
-    raisedBy: 'Dr. Vimal Clinic',
-    type: 'Customer',
-    subject: 'NVR Login credentials not working',
-    priority: 'High',
-    status: 'Resolved',
-    date: 'May 22, 2024',
-    messages: [
-      { sender: 'Dr. Vimal Clinic', text: 'I am unable to login with the credentials provided on my mobile app.', time: '02:00 PM' },
-      { sender: 'Admin', text: 'Please reset the NVR and use the default password admin123. Let me know if that works.', time: '02:30 PM' },
-      { sender: 'Dr. Vimal Clinic', text: 'Yes, it works now! Thanks.', time: '03:00 PM' }
-    ]
-  }
-];
-
-const initialAnnouncements = [
-  {
-    id: 'ANN-01',
-    title: 'Monthly Review Meeting',
-    content: 'All service technicians are requested to attend the monthly review meeting at the head office on Saturday, June 1st at 10:00 AM.',
-    date: 'May 25, 2024',
-    priority: 'High',
-    target: 'All Technicians'
-  },
-  {
-    id: 'ANN-02',
-    title: 'Safety Equipment Handover',
-    content: 'Please collect your new safety gear, helmets, and insulated toolkits from the storage manager before heading to any on-site project.',
-    date: 'May 23, 2024',
-    priority: 'Medium',
-    target: 'All Technicians'
-  },
-  {
-    id: 'ANN-03',
-    title: 'New CP Plus Firmware Guidelines',
-    content: 'We have updated the installation manuals for the CP Plus 8-Channel NVR series. Please download the latest firmware guide from the shared technician folder.',
-    date: 'May 20, 2024',
-    priority: 'Normal',
-    target: 'IP CCTV Specialists'
-  }
-];
-
-const initialBanners = [
-  {
-    id: 'BNR-01',
-    title: 'Monsoon CCTV Protection Offer - Flat 15% OFF',
-    linkUrl: '/offers/monsoon-safety',
-    position: 'Home Hero Slider',
-    status: 'Active',
-    date: 'May 25, 2024',
-    imageUrl: 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?q=80&w=600&auto=format&fit=crop'
-  },
-  {
-    id: 'BNR-02',
-    title: 'Protect Your Shop: Wireless Camera Kit Bundle',
-    linkUrl: '/products/wireless-kits',
-    position: 'Sidebar Banner',
-    status: 'Active',
-    date: 'May 24, 2024',
-    imageUrl: 'https://images.unsplash.com/photo-1558002038-1055907df827?q=80&w=600&auto=format&fit=crop'
-  },
-  {
-    id: 'BNR-03',
-    title: 'Free AMC Service on commercial installations over 16 cameras',
-    linkUrl: '/services/amc-corporate',
-    position: 'Home Hero Slider',
-    status: 'Inactive',
-    date: 'May 20, 2024',
-    imageUrl: 'https://images.unsplash.com/photo-1521791136368-1a851900d157?q=80&w=600&auto=format&fit=crop'
-  }
-];
+const initialQueries = [];
+const initialAnnouncements = [];
+const initialBanners = [];
 
 const initialBrands = [
   {
@@ -220,22 +125,37 @@ const defaultDailyLogs = {
   ]
 };
 
-const initialState = { isLoading: false,
-  orders: [],
-  customers: [],
-  technicians: [],
-  projects: [],
-  serviceRequests: [],
-  products: [],
-  inventory: [],
-  payments: [],
-  notifications: [],
-  settings: {},
-  chartData: [],
-  queries: [],
-  announcements: [],
-  banners: [],
-  brands: [],
+const loadCachedDashboardData = () => {
+  try {
+    const cached = localStorage.getItem('sk_admin_dashboard_cache');
+    if (cached) {
+      return JSON.parse(cached);
+    }
+  } catch (e) {
+    console.warn('Failed to parse cached dashboard data:', e);
+  }
+  return null;
+};
+
+const cachedData = loadCachedDashboardData();
+
+const initialState = {
+  isLoading: false,
+  orders: Array.isArray(cachedData?.orders) ? cachedData.orders : [],
+  customers: Array.isArray(cachedData?.customers) ? cachedData.customers : [],
+  technicians: Array.isArray(cachedData?.technicians) ? cachedData.technicians : [],
+  projects: Array.isArray(cachedData?.projects) ? cachedData.projects : [],
+  serviceRequests: Array.isArray(cachedData?.serviceRequests) ? cachedData.serviceRequests : [],
+  products: Array.isArray(cachedData?.products) ? cachedData.products : [],
+  inventory: Array.isArray(cachedData?.inventory) ? cachedData.inventory : [],
+  payments: Array.isArray(cachedData?.payments) ? cachedData.payments : [],
+  notifications: Array.isArray(cachedData?.notifications) ? cachedData.notifications : [],
+  settings: cachedData?.settings || {},
+  chartData: Array.isArray(cachedData?.chartData) ? cachedData.chartData : [],
+  queries: Array.isArray(cachedData?.queries) ? cachedData.queries : [],
+  announcements: Array.isArray(cachedData?.announcements) ? cachedData.announcements : [],
+  banners: Array.isArray(cachedData?.banners) ? cachedData.banners : [],
+  brands: Array.isArray(cachedData?.brands) ? cachedData.brands : [],
   darkMode: false,
 };
 
@@ -246,9 +166,17 @@ const dashboardSlice = createSlice({
     setLoading: (state, action) => { state.isLoading = action.payload; },
     setDashboardData: (state, action) => {
       const payload = action.payload || {};
+      try {
+        localStorage.setItem('sk_admin_dashboard_cache', JSON.stringify(payload));
+      } catch (e) {}
       return {
         ...state,
         ...payload,
+        orders: Array.isArray(payload.orders) ? payload.orders : (state.orders || []),
+        customers: Array.isArray(payload.customers) ? payload.customers : (state.customers || []),
+        technicians: Array.isArray(payload.technicians) ? payload.technicians : (state.technicians || []),
+        products: Array.isArray(payload.products) ? payload.products : (state.products || []),
+        projects: Array.isArray(payload.projects) ? payload.projects : (state.projects || []),
         darkMode: state.darkMode
       };
     },

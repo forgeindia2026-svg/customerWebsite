@@ -193,4 +193,10 @@ const JobSchema: Schema = new Schema(
   { timestamps: true }
 );
 
+// High-Performance Database Indexes for Technician Portal & Admin Dashboards
+JobSchema.index({ 'assignedTechnicians.id': 1, status: 1, createdAt: -1 });
+JobSchema.index({ status: 1, createdAt: -1 });
+JobSchema.index({ priority: 1, createdAt: -1 });
+JobSchema.index({ jobCode: 1 });
+
 export default mongoose.model<IJob>('Job', JobSchema);

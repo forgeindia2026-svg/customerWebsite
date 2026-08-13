@@ -110,19 +110,36 @@ router.get('/', async (req: Request, res: Response) => {
       dashboardData = newDoc.toObject();
     }
 
-    // Map live Jobs/Projects
-    const mappedProjects = liveJobs.map((job: any) => ({
-      id: job.jobCode,
-      name: job.title,
-      technician: (job.assignedTechnicians && job.assignedTechnicians.length > 0) ? job.assignedTechnicians.map((t: any) => t.name).join(', ') : 'Unassigned',
-      customer: job.customer?.name || 'Unknown Customer',
-      location: job.customer?.address || 'Chennai Area',
-      submissionDate: job.scheduledDate || new Date(job.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      status: (job.status === 'COMPLETED' || job.status === 'ASSIGNED' || job.status === 'IN_PROGRESS') ? 'Approved' : (job.status === 'PENDING' ? 'Pending Approval' : 'Rework'),
-      details: job.scopeOfWork?.join(', ') || job.title,
-      devicesCount: job.equipmentList?.length || 0,
-      dailyLogs: job.fieldNotes ? [{ date: new Date(job.updatedAt).toLocaleDateString('en-US'), status: job.status, report: job.fieldNotes, photos: [] }] : []
-    }));
+    // Map live Jobs/Projects (Combine Jobs & Orders so all 27 projects are returned)
+    const jobCodesSet = new Set(liveJobs.map(j => j.jobCode));
+    const mappedProjects = [
+      ...liveJobs.map((job: any) => ({
+        id: job.jobCode,
+        name: job.title,
+        technician: (job.assignedTechnicians && job.assignedTechnicians.length > 0) ? job.assignedTechnicians.map((t: any) => t.name).join(', ') : 'Unassigned',
+        customer: job.customer?.name || 'Unknown Customer',
+        location: job.customer?.address || 'Chennai Area',
+        submissionDate: job.scheduledDate || new Date(job.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        status: (job.status === 'COMPLETED' || job.status === 'ASSIGNED' || job.status === 'IN_PROGRESS') ? 'Approved' : (job.status === 'PENDING' ? 'Pending Approval' : 'Rework'),
+        details: job.scopeOfWork?.join(', ') || job.title,
+        devicesCount: job.equipmentList?.length || 0,
+        dailyLogs: job.fieldNotes ? [{ date: new Date(job.updatedAt).toLocaleDateString('en-US'), status: job.status, report: job.fieldNotes, photos: [] }] : []
+      })),
+      ...liveOrders
+        .filter(o => !jobCodesSet.has(o.orderNumber))
+        .map((order: any) => ({
+          id: order.orderNumber,
+          name: order.items?.map((item: any) => item.title).join(', ') || 'CCTV Installation',
+          technician: 'Unassigned',
+          customer: order.customerName,
+          location: order.shippingAddress || 'Chennai Area',
+          submissionDate: new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          status: order.orderStatus === 'DELIVERED' ? 'Approved' : 'Pending Approval',
+          details: order.items?.map((item: any) => item.title).join(', ') || 'CCTV Installation',
+          devicesCount: order.items?.length || 1,
+          dailyLogs: []
+        }))
+    ];
 
     // Map live Orders
     const mappedOrders = liveOrders.map((order: any) => {

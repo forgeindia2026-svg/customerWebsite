@@ -472,40 +472,52 @@ export default function Products() {
       .then((data) => {
         if (data.success && Array.isArray(data.data)) {
           const formatted: Product[] = data.data.map((item: any, idx: number) => {
-            let mainCat = item.category || 'cctv';
-            let subCat = undefined;
+            let mainCat = 'cctv';
+            let subCat: string | undefined = undefined;
 
-            const lowerCat = mainCat.toLowerCase().trim();
-            if (['ip', 'wifi', 'ptz', 'dome', 'bullet'].includes(lowerCat)) {
+            const lowerCat = (item.category || '').toLowerCase().trim();
+            if (lowerCat.includes('ip') || lowerCat.includes('wifi') || lowerCat.includes('ptz') || lowerCat.includes('dome') || lowerCat.includes('bullet') || lowerCat.includes('camera') || lowerCat.includes('cctv')) {
               mainCat = 'cctv';
-              subCat = lowerCat;
-            } else if (lowerCat === 'cctv') {
-              mainCat = 'cctv';
-            } else if (['dvr', 'nvr', 'accessories', 'harddisk', 'vdp', 'alarm', 'networking', 'kit'].includes(lowerCat)) {
-              mainCat = lowerCat;
-            } else if (lowerCat === 'ip camera' || lowerCat === 'analog camera') {
-              mainCat = 'cctv';
-              subCat = lowerCat === 'ip camera' ? 'ip' : 'bullet';
-            } else if (lowerCat === 'cables' || lowerCat === 'power supply' || lowerCat === 'tools') {
+              if (lowerCat.includes('ip')) subCat = 'ip';
+              else if (lowerCat.includes('wifi')) subCat = 'wifi';
+              else if (lowerCat.includes('ptz')) subCat = 'ptz';
+              else if (lowerCat.includes('dome')) subCat = 'dome';
+              else if (lowerCat.includes('bullet') || lowerCat.includes('analog')) subCat = 'bullet';
+            } else if (lowerCat.includes('dvr')) {
+              mainCat = 'dvr';
+            } else if (lowerCat.includes('nvr')) {
+              mainCat = 'nvr';
+            } else if (lowerCat.includes('hard') || lowerCat.includes('hdd') || lowerCat.includes('disk') || lowerCat.includes('storage')) {
+              mainCat = 'harddisk';
+            } else if (lowerCat.includes('cable') || lowerCat.includes('power') || lowerCat.includes('accessory') || lowerCat.includes('tool')) {
               mainCat = 'accessories';
+            } else if (lowerCat.includes('vdp') || lowerCat.includes('door')) {
+              mainCat = 'vdp';
+            } else if (lowerCat.includes('alarm')) {
+              mainCat = 'alarm';
+            } else if (lowerCat.includes('network')) {
+              mainCat = 'networking';
             }
 
+            const titleStr = item.name || item.title || 'CCTV Security Product';
+            const imgStr = item.imageUrl || item.image || (Array.isArray(item.photoUrls) ? item.photoUrls[0] : '') || 'https://images.unsplash.com/photo-1557597774-9d273605dfa9';
+
             return {
-              id: item._id || idx + 100,
+              id: item._id || item.id || idx + 100,
               brand: (item.brand || 'SK-VISION').toUpperCase(),
-              name: item.title,
+              name: titleStr,
               category: mainCat,
               subCategory: subCat,
-              price: item.price,
-              originalPrice: item.originalPrice || Math.round(item.price * 1.25),
+              price: item.price || item.offerPrice || 0,
+              originalPrice: item.originalPrice || Math.round((item.price || 1000) * 1.25),
               discountBadge: item.badge || (item.originalPrice ? `-${Math.round((item.originalPrice - item.price) / item.originalPrice * 100)}%` : undefined),
               rating: item.rating || 4.5,
               reviewsCount: item.reviewsCount || 10,
-              inStock: item.stock > 0,
-              stockCount: item.stock || 20,
-              warranty: '2 Years Warranty',
+              inStock: (item.stock ?? 1) > 0,
+              stockCount: item.stock ?? 10,
+              warranty: item.warranty || '2 Years Warranty',
               freeDelivery: true,
-              image: item.image ? item.image.replace('http://localhost:5000', import.meta.env.VITE_API_URL || 'http://localhost:5000') : '',
+              image: imgStr,
               resolution: item.specs?.[0] || 'HD Resolution',
               specs: item.specs || [],
             };
@@ -640,9 +652,9 @@ export default function Products() {
 
   // Filter states
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
-  const [priceMin, setPriceMin] = useState<number>(500);
-  const [priceMax, setPriceMax] = useState<number>(50000);
-  const [appliedPriceRange, setAppliedPriceRange] = useState<[number, number]>([500, 50000]);
+  const [priceMin, setPriceMin] = useState<number>(0);
+  const [priceMax, setPriceMax] = useState<number>(100000);
+  const [appliedPriceRange, setAppliedPriceRange] = useState<[number, number]>([0, 100000]);
   const [minRating, setMinRating] = useState<number>(0);
   const [inStockOnly, setInStockOnly] = useState<boolean>(false);
   
@@ -697,9 +709,9 @@ export default function Products() {
     setSelectedCategory("all");
     setSelectedSubCategory("all");
     setSelectedBrands([]);
-    setPriceMin(500);
-    setPriceMax(50000);
-    setAppliedPriceRange([500, 50000]);
+    setPriceMin(0);
+    setPriceMax(100000);
+    setAppliedPriceRange([0, 100000]);
     setMinRating(0);
     setInStockOnly(false);
     setSearchQuery("");
@@ -1294,8 +1306,11 @@ export default function Products() {
                       {/* Product Photo */}
                       <Link to={`/products/${product.id}`} className="flex items-center justify-center h-full w-full">
                         <img
-                          src={product.image}
+                          src={product.image && !product.image.startsWith('blob:') ? product.image : 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=600&q=80'}
                           alt={product.name}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=600&q=80';
+                          }}
                           className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300"
                         />
                       </Link>

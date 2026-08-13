@@ -26,6 +26,17 @@ import { formatDate } from '../../services/dateUtils';
 
 interface DashboardModuleProps {
   jobs: Job[];
+  summaryStats?: {
+    totalAssigned: number;
+    availablePool: number;
+    inProgress: number;
+    pending: number;
+    completedToday: number;
+    hoursLogged: number;
+    shiftTarget: number;
+    firstTimeFix: number;
+    safetyScore: number;
+  } | null;
   isLoading?: boolean;
   onSelectJob: (job: Job) => void;
   onOpenWorkflow: (job: Job) => void;
@@ -33,23 +44,30 @@ interface DashboardModuleProps {
 
 export const DashboardModule: React.FC<DashboardModuleProps> = ({
   jobs,
+  summaryStats = null,
   isLoading = false,
   onSelectJob,
   onOpenWorkflow,
 }) => {
-  const myAssignedJobs = jobs.filter((j) => j.isAssignedToMe);
-  const availablePoolJobs = jobs.filter((j) => j.isAvailableToAccept);
+  const myAssignedJobs = jobs && jobs.length > 0 ? jobs : [];
+  const availablePoolJobs = myAssignedJobs.filter((j) => j.isAvailableToAccept);
 
-  const activeJob = jobs.find((j) => (j.status === 'IN_PROGRESS' || j.status === 'ACCEPTED') && j.isAssignedToMe);
+  const activeJob = myAssignedJobs.find((j) => j.status === 'IN_PROGRESS' || j.status === 'ACCEPTED');
   const pendingJobs = myAssignedJobs.filter((j) => j.status === 'PENDING');
   const completedJobs = myAssignedJobs.filter((j) => j.status === 'COMPLETED');
   const inProgressJobs = myAssignedJobs.filter((j) => j.status === 'IN_PROGRESS' || j.status === 'ACCEPTED');
 
-  const totalHoursLogged = completedJobs.reduce((sum, job) => 
-    sum + (job.dailyReports?.reduce((total, r) => total + (r.hoursWorked || 0), 0) || 0), 0
-  );
-  const firstTimeFixRate = completedJobs.length > 0 ? 100.0 : 0.0;
-  const safetyScore = myAssignedJobs.length > 0 ? 100 : 0;
+  const totalHoursLogged = completedJobs.reduce((sum, job) => {
+    const reports = Array.isArray(job.dailyReports) ? job.dailyReports : [];
+    return sum + reports.reduce((total: number, r: any) => total + (r.hoursWorked || 0), 0);
+  }, 0);
+
+  const totalAssignedVal = summaryStats ? summaryStats.totalAssigned : (jobs.length > 0 ? jobs.length : (isLoading ? null : 0));
+  const inProgressVal = summaryStats ? summaryStats.inProgress : (inProgressJobs.length > 0 ? inProgressJobs.length : (isLoading ? null : 0));
+  const completedVal = summaryStats ? summaryStats.completedToday : (completedJobs.length > 0 ? completedJobs.length : (isLoading ? null : 0));
+  const hoursVal = summaryStats ? summaryStats.hoursLogged : totalHoursLogged;
+  const fixRateVal = summaryStats ? summaryStats.firstTimeFix : (completedJobs.length > 0 ? 100.0 : (isLoading ? null : 0.0));
+  const safetyVal = summaryStats ? summaryStats.safetyScore : (myAssignedJobs.length > 0 ? 100 : (isLoading ? null : 0));
 
   const nextJob = activeJob || jobs[0];
 
@@ -128,24 +146,7 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
       </div>
       {/* 6 High-Performance Metric Cards Row - Mobile 2 Cols, Desktop Preserved */}
       <div className="grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-6 gap-3 sm:gap-4">
-        {isLoading ? (
-          [...Array(6)].map((_, idx) => (
-            <div key={idx} className="bg-white border border-zinc-200/90 rounded-2xl p-5 shadow-2xs animate-pulse space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="h-2.5 w-16 bg-zinc-200 rounded"></div>
-                <div className="w-8 h-8 rounded-xl bg-zinc-200"></div>
-              </div>
-              <div className="flex items-baseline justify-between mt-2">
-                <div className="h-7 w-12 bg-zinc-200 rounded"></div>
-                <div className="h-4 w-8 bg-zinc-200 rounded"></div>
-              </div>
-              <div className="h-3 w-24 bg-zinc-200 rounded"></div>
-              <div className="w-full bg-zinc-200 h-1 rounded-full"></div>
-            </div>
-          ))
-        ) : (
-          <>
-            {/* 1. Total Assigned */}
+        {/* 1. Total Assigned */}
             <div className="bg-white border border-zinc-200/90 rounded-2xl p-5 shadow-2xs hover:shadow-md hover:border-zinc-300 hover:-translate-y-0.5 transition-all duration-200 group relative overflow-hidden">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">ASSIGNED JOBS</span>
@@ -155,23 +156,37 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
               </div>
 
               <div className="mt-3 flex items-baseline justify-between">
-                <p className="text-3xl font-black text-zinc-900 tracking-tight">{myAssignedJobs.length}</p>
-                <span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md font-mono ${
-                  myAssignedJobs.length > 0 ? 'text-emerald-700 bg-emerald-50' : 'text-zinc-500 bg-zinc-50'
-                }`}>
-                  {myAssignedJobs.length > 0 ? 'Active' : '0 Assigned'}
-                </span>
+                {totalAssignedVal === null ? (
+                  <div className="w-14 h-8 bg-zinc-200 animate-pulse rounded-lg" />
+                ) : (
+                  <p className="text-3xl font-black text-zinc-900 tracking-tight">{totalAssignedVal}</p>
+                )}
+                {totalAssignedVal === null ? (
+                  <div className="w-12 h-4 bg-zinc-200 animate-pulse rounded" />
+                ) : (
+                  <span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md font-mono ${
+                    (totalAssignedVal || 0) > 0 ? 'text-emerald-700 bg-emerald-50' : 'text-zinc-500 bg-zinc-50'
+                  }`}>
+                    {(totalAssignedVal || 0) > 0 ? 'Active' : '0 Assigned'}
+                  </span>
+                )}
               </div>
 
               <p className="text-[11px] font-semibold text-zinc-500 mt-1.5 flex items-center space-x-1">
-                <span>{myAssignedJobs.length} Assigned</span>
-                <span className="text-zinc-300">•</span>
-                <span className="text-amber-600 font-normal">{availablePoolJobs.length} Available Pool</span>
+                {totalAssignedVal === null ? (
+                  <div className="w-24 h-3 bg-zinc-200 animate-pulse rounded" />
+                ) : (
+                  <>
+                    <span>{totalAssignedVal} Assigned</span>
+                    <span className="text-zinc-300">•</span>
+                    <span className="text-amber-600 font-normal">{availablePoolJobs.length} Available Pool</span>
+                  </>
+                )}
               </p>
 
               {/* Tiny Progress Bar */}
               <div className="w-full bg-zinc-100 h-1 rounded-full mt-3 overflow-hidden">
-                <div className="bg-zinc-900 h-full rounded-full transition-all duration-500" style={{ width: myAssignedJobs.length > 0 ? '100%' : '0%' }} />
+                <div className="bg-zinc-900 h-full rounded-full transition-all duration-500" style={{ width: (totalAssignedVal || 0) > 0 ? '100%' : '0%' }} />
               </div>
             </div>
 
@@ -185,22 +200,36 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
               </div>
 
               <div className="mt-3 flex items-baseline justify-between">
-                <p className="text-3xl font-black text-zinc-900 tracking-tight">{inProgressJobs.length}</p>
-                <span className="inline-flex items-center text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md font-mono">
-                  <Zap className="w-3 h-3 mr-0.5" />
-                  Active
-                </span>
+                {inProgressVal === null ? (
+                  <div className="w-14 h-8 bg-zinc-200 animate-pulse rounded-lg" />
+                ) : (
+                  <p className="text-3xl font-black text-zinc-900 tracking-tight">{inProgressVal}</p>
+                )}
+                {inProgressVal === null ? (
+                  <div className="w-12 h-4 bg-amber-100 animate-pulse rounded" />
+                ) : (
+                  <span className="inline-flex items-center text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md font-mono">
+                    <Zap className="w-3 h-3 mr-0.5" />
+                    Active
+                  </span>
+                )}
               </div>
 
               <p className="text-[11px] font-semibold text-amber-600 mt-1.5 flex items-center space-x-1">
-                <span>Active On Site</span>
-                <span className="text-zinc-300">•</span>
-                <span className="text-zinc-400 font-normal">{pendingJobs.length} Pending</span>
+                {inProgressVal === null ? (
+                  <div className="w-24 h-3 bg-zinc-200 animate-pulse rounded" />
+                ) : (
+                  <>
+                    <span>Active On Site</span>
+                    <span className="text-zinc-300">•</span>
+                    <span className="text-zinc-400 font-normal">{pendingJobs.length} Pending</span>
+                  </>
+                )}
               </p>
 
               {/* Tiny Progress Bar */}
               <div className="w-full bg-amber-100 h-1 rounded-full mt-3 overflow-hidden">
-                <div className="bg-amber-500 h-full rounded-full transition-all duration-500" style={{ width: jobs.length > 0 ? `${(inProgressJobs.length / jobs.length) * 100}%` : '0%' }} />
+                <div className="bg-amber-500 h-full rounded-full transition-all duration-500" style={{ width: (totalAssignedVal || 0) > 0 ? `${((inProgressVal || 0) / (totalAssignedVal || 1)) * 100}%` : '0%' }} />
               </div>
             </div>
 
@@ -214,22 +243,36 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
               </div>
 
               <div className="mt-3 flex items-baseline justify-between">
-                <p className="text-3xl font-black text-zinc-900 tracking-tight">{completedJobs.length}</p>
-                <span className="inline-flex items-center text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-mono">
-                  <ArrowUpRight className="w-3 h-3 mr-0.5" />
-                  {completedJobs.length > 0 ? '100%' : '0%'}
-                </span>
+                {completedVal === null ? (
+                  <div className="w-14 h-8 bg-zinc-200 animate-pulse rounded-lg" />
+                ) : (
+                  <p className="text-3xl font-black text-zinc-900 tracking-tight">{completedVal}</p>
+                )}
+                {completedVal === null ? (
+                  <div className="w-12 h-4 bg-emerald-100 animate-pulse rounded" />
+                ) : (
+                  <span className="inline-flex items-center text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-mono">
+                    <ArrowUpRight className="w-3 h-3 mr-0.5" />
+                    {(completedVal || 0) > 0 ? '100%' : '0%'}
+                  </span>
+                )}
               </div>
 
               <p className="text-[11px] font-semibold text-emerald-600 mt-1.5 flex items-center space-x-1">
-                <span>QA Passed</span>
-                <span className="text-zinc-300">•</span>
-                <span className="text-zinc-400 font-normal">Completed</span>
+                {completedVal === null ? (
+                  <div className="w-24 h-3 bg-zinc-200 animate-pulse rounded" />
+                ) : (
+                  <>
+                    <span>QA Passed</span>
+                    <span className="text-zinc-300">•</span>
+                    <span className="text-zinc-400 font-normal">Completed</span>
+                  </>
+                )}
               </p>
 
               {/* Tiny Progress Bar */}
               <div className="w-full bg-emerald-100 h-1 rounded-full mt-3 overflow-hidden">
-                <div className="bg-emerald-500 h-full rounded-full transition-all duration-500" style={{ width: jobs.length > 0 ? `${(completedJobs.length / jobs.length) * 100}%` : '0%' }} />
+                <div className="bg-emerald-500 h-full rounded-full transition-all duration-500" style={{ width: (totalAssignedVal || 0) > 0 ? `${((completedVal || 0) / (totalAssignedVal || 1)) * 100}%` : '0%' }} />
               </div>
             </div>
 
@@ -243,24 +286,38 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
               </div>
 
               <div className="mt-3 flex items-baseline justify-between">
-                <p className="text-3xl font-black text-zinc-900 tracking-tight">
-                  {totalHoursLogged.toFixed(1)} <span className="text-xs font-bold text-zinc-400 font-mono">hrs</span>
-                </p>
-                <span className="inline-flex items-center text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-mono">
-                  <ArrowUpRight className="w-3 h-3 mr-0.5" />
-                  Auto Sum
-                </span>
+                {hoursVal === null ? (
+                  <div className="w-14 h-8 bg-zinc-200 animate-pulse rounded-lg" />
+                ) : (
+                  <p className="text-3xl font-black text-zinc-900 tracking-tight">
+                    {hoursVal.toFixed(1)} <span className="text-xs font-bold text-zinc-400 font-mono">hrs</span>
+                  </p>
+                )}
+                {hoursVal === null ? (
+                  <div className="w-12 h-4 bg-zinc-200 animate-pulse rounded" />
+                ) : (
+                  <span className="inline-flex items-center text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-mono">
+                    <ArrowUpRight className="w-3 h-3 mr-0.5" />
+                    Auto Sum
+                  </span>
+                )}
               </div>
 
               <p className="text-[11px] font-semibold text-zinc-600 mt-1.5 flex items-center space-x-1">
-                <span>Shift Target: 8h</span>
-                <span className="text-zinc-300">•</span>
-                <span className="text-zinc-400 font-normal">{totalHoursLogged >= 8 ? 'Target Met' : `${(8 - totalHoursLogged).toFixed(1)}h left`}</span>
+                {hoursVal === null ? (
+                  <div className="w-24 h-3 bg-zinc-200 animate-pulse rounded" />
+                ) : (
+                  <>
+                    <span>Shift Target: 8h</span>
+                    <span className="text-zinc-300">•</span>
+                    <span className="text-zinc-400 font-normal">{(hoursVal || 0) >= 8 ? 'Target Met' : `${(8 - (hoursVal || 0)).toFixed(1)}h left`}</span>
+                  </>
+                )}
               </p>
 
               {/* Tiny Progress Bar */}
               <div className="w-full bg-zinc-100 h-1 rounded-full mt-3 overflow-hidden">
-                <div className="bg-zinc-800 h-full rounded-full transition-all duration-500" style={{ width: `${Math.min((totalHoursLogged / 8) * 100, 100)}%` }} />
+                <div className="bg-zinc-800 h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(((hoursVal || 0) / 8) * 100, 100)}%` }} />
               </div>
             </div>
 
@@ -274,22 +331,36 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
               </div>
 
               <div className="mt-3 flex items-baseline justify-between">
-                <p className="text-3xl font-black text-zinc-900 tracking-tight">{firstTimeFixRate.toFixed(1)}%</p>
-                <span className="inline-flex items-center text-[10px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md font-mono">
-                  <ArrowUpRight className="w-3 h-3 mr-0.5" />
-                  {completedJobs.length > 0 ? '+100%' : '0%'}
-                </span>
+                {fixRateVal === null ? (
+                  <div className="w-14 h-8 bg-zinc-200 animate-pulse rounded-lg" />
+                ) : (
+                  <p className="text-3xl font-black text-zinc-900 tracking-tight">{fixRateVal.toFixed(1)}%</p>
+                )}
+                {fixRateVal === null ? (
+                  <div className="w-12 h-4 bg-sky-100 animate-pulse rounded" />
+                ) : (
+                  <span className="inline-flex items-center text-[10px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md font-mono">
+                    <ArrowUpRight className="w-3 h-3 mr-0.5" />
+                    {(fixRateVal || 0) > 0 ? '+100%' : '0%'}
+                  </span>
+                )}
               </div>
 
               <p className="text-[11px] font-semibold text-sky-600 mt-1.5 flex items-center space-x-1">
-                <span>Single Visit</span>
-                <span className="text-zinc-300">•</span>
-                <span className="text-zinc-400 font-normal">{completedJobs.length > 0 ? 'Top Tier' : 'No Completed Jobs'}</span>
+                {fixRateVal === null ? (
+                  <div className="w-24 h-3 bg-zinc-200 animate-pulse rounded" />
+                ) : (
+                  <>
+                    <span>Single Visit</span>
+                    <span className="text-zinc-300">•</span>
+                    <span className="text-zinc-400 font-normal">{(completedVal || 0) > 0 ? 'Top Tier' : 'No Completed Jobs'}</span>
+                  </>
+                )}
               </p>
 
               {/* Tiny Progress Bar */}
               <div className="w-full bg-sky-100 h-1 rounded-full mt-3 overflow-hidden">
-                <div className="bg-sky-500 h-full rounded-full transition-all duration-500" style={{ width: `${firstTimeFixRate}%` }} />
+                <div className="bg-sky-500 h-full rounded-full transition-all duration-500" style={{ width: `${fixRateVal || 0}%` }} />
               </div>
             </div>
 
@@ -303,10 +374,18 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
               </div>
 
               <div className="mt-3 flex items-baseline justify-between">
-                <p className="text-3xl font-black text-zinc-900 tracking-tight">{safetyScore}%</p>
-                <span className="inline-flex items-center text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-mono">
-                  ★ {safetyScore === 100 ? 'Perfect' : 'N/A'}
-                </span>
+                {safetyVal === null ? (
+                  <div className="w-14 h-8 bg-zinc-200 animate-pulse rounded-lg" />
+                ) : (
+                  <p className="text-3xl font-black text-zinc-900 tracking-tight">{safetyVal}%</p>
+                )}
+                {safetyVal === null ? (
+                  <div className="w-12 h-4 bg-emerald-100 animate-pulse rounded" />
+                ) : (
+                  <span className="inline-flex items-center text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-mono">
+                    ★ {safetyVal === 100 ? 'Perfect' : 'N/A'}
+                  </span>
+                )}
               </div>
 
               <p className="text-[11px] font-semibold text-emerald-600 mt-1.5 flex items-center space-x-1">
@@ -315,13 +394,7 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
                 <span className="text-zinc-400 font-normal">{jobs.length > 0 ? 'LOTO Verified' : 'No Active Job'}</span>
               </p>
 
-              {/* Tiny Progress Bar */}
-              <div className="w-full bg-emerald-100 h-1 rounded-full mt-3 overflow-hidden">
-                <div className="bg-emerald-500 h-full rounded-full transition-all duration-500" style={{ width: `${safetyScore}%` }} />
-              </div>
             </div>
-          </>
-        )}
       </div>
 
       {/* Active Working Job Dark Navy Hero Banner */}

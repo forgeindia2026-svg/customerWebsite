@@ -22,9 +22,20 @@ export const TodaysScheduleModule: React.FC<TodaysScheduleModuleProps> = ({
   onSelectJob,
   onOpenWorkflow,
 }) => {
-  // Filter jobs for Today dynamically
-  const todayDateStr = new Date().toISOString().split('T')[0];
-  const todaysJobs = jobs.filter(j => j.scheduledDate === todayDateStr || j.status === 'IN_PROGRESS' || j.status === 'ACCEPTED');
+  // Normalize Date Comparison across timezone boundaries (UTC & Local)
+  const now = new Date();
+  const localTodayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const utcTodayStr = now.toISOString().split('T')[0];
+
+  const todaysJobs = jobs && jobs.length > 0 ? jobs.filter(j => {
+    if (j.status === 'IN_PROGRESS' || j.status === 'ACCEPTED' || j.status === 'PENDING' || j.status === 'ASSIGNED') {
+      return true;
+    }
+    if (!j.scheduledDate) return false;
+    const rawStr = typeof j.scheduledDate === 'string' ? j.scheduledDate : new Date(j.scheduledDate).toISOString();
+    const parsedDateStr = rawStr.split('T')[0];
+    return parsedDateStr === localTodayStr || parsedDateStr === utcTodayStr;
+  }) : [];
 
   const [filterMode, setFilterMode] = useState<'ALL' | 'ACTIVE' | 'UPCOMING'>('ALL');
 

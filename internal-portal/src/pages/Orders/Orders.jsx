@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { FiSearch, FiSliders, FiCheckCircle, FiInfo, FiTrash2, FiPlusCircle, FiEye, FiGrid, FiList, FiPlus, FiUser, FiCalendar, FiDollarSign, FiChevronDown, FiCheck, FiEdit } from 'react-icons/fi';
+import { FiSearch, FiSliders, FiCheckCircle, FiInfo, FiTrash2, FiPlusCircle, FiEye, FiGrid, FiList, FiPlus, FiUser, FiCalendar, FiDollarSign, FiChevronDown, FiCheck, FiEdit, FiShoppingBag, FiClock } from 'react-icons/fi';
 import { approveOrder, addOrder, assignTechnicianToOrder, editOrder } from '../../redux/dashboardSlice';
 import Modal from '../../components/Modal';
 
@@ -105,9 +105,115 @@ export default function Orders() {
     setOrderToScope(null);
   };
 
+  // KPI Metrics Calculations
+  const totalOrdersCount = orders.length;
+  const pendingOrdersCount = orders.filter(o => o.status === 'Pending' || o.status === 'Pending Approval').length;
+  const inProgressOrdersCount = orders.filter(o => o.status === 'In Progress' || o.status === 'Assigned').length;
+  const completedOrdersCount = orders.filter(o => o.status === 'Completed' || o.status === 'Approved').length;
+  const totalRevenue = orders.reduce((sum, o) => sum + (Number(o.amount) || 0), 0);
+
   return (
     <div className="space-y-6">
       
+      {/* 📊 Orders KPI Summary Cards Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* 1. Total Orders */}
+        <div 
+          onClick={() => setStatusFilter('All')}
+          className={`p-4 rounded-2xl bg-white dark:bg-slate-900 border transition-all cursor-pointer ${
+            statusFilter === 'All'
+              ? 'border-blue-500 shadow-md ring-2 ring-blue-500/20'
+              : 'border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 shadow-sm'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total Orders</span>
+            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+              <FiShoppingBag size={20} />
+            </div>
+          </div>
+          <div className="mt-2 flex items-baseline justify-between">
+            <span className="text-2xl font-black text-slate-900 dark:text-white font-mono">{totalOrdersCount}</span>
+            <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-full">
+              All Orders
+            </span>
+          </div>
+          <p className="mt-1 text-[11px] text-slate-400">CCTV & Service Orders</p>
+        </div>
+
+        {/* 2. Pending Orders */}
+        <div 
+          onClick={() => setStatusFilter('Pending')}
+          className={`p-4 rounded-2xl bg-white dark:bg-slate-900 border transition-all cursor-pointer ${
+            statusFilter === 'Pending' || statusFilter === 'Pending Approval'
+              ? 'border-amber-500 shadow-md ring-2 ring-amber-500/20'
+              : 'border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 shadow-sm'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Pending</span>
+            <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+              <FiClock size={20} />
+            </div>
+          </div>
+          <div className="mt-2 flex items-baseline justify-between">
+            <span className="text-2xl font-black text-slate-900 dark:text-white font-mono">{pendingOrdersCount}</span>
+            <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full">
+              Action Needed
+            </span>
+          </div>
+          <p className="mt-1 text-[11px] text-slate-400">Needs Approval / Technician</p>
+        </div>
+
+        {/* 3. In Progress */}
+        <div 
+          onClick={() => setStatusFilter('In Progress')}
+          className={`p-4 rounded-2xl bg-white dark:bg-slate-900 border transition-all cursor-pointer ${
+            statusFilter === 'In Progress'
+              ? 'border-purple-500 shadow-md ring-2 ring-purple-500/20'
+              : 'border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 shadow-sm'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">In Progress</span>
+            <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+              <FiSliders size={20} />
+            </div>
+          </div>
+          <div className="mt-2 flex items-baseline justify-between">
+            <span className="text-2xl font-black text-slate-900 dark:text-white font-mono">{inProgressOrdersCount}</span>
+            <span className="text-[11px] font-semibold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/40 px-2 py-0.5 rounded-full">
+              On-Site Jobs
+            </span>
+          </div>
+          <p className="mt-1 text-[11px] text-slate-400">Active Field Installations</p>
+        </div>
+
+        {/* 4. Completed Revenue */}
+        <div 
+          onClick={() => setStatusFilter('Completed')}
+          className={`p-4 rounded-2xl bg-white dark:bg-slate-900 border transition-all cursor-pointer ${
+            statusFilter === 'Completed' || statusFilter === 'Approved'
+              ? 'border-emerald-500 shadow-md ring-2 ring-emerald-500/20'
+              : 'border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 shadow-sm'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Completed & Billing</span>
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+              <FiCheckCircle size={20} />
+            </div>
+          </div>
+          <div className="mt-2 flex items-baseline justify-between">
+            <span className="text-xl font-black text-slate-900 dark:text-white font-mono">₹{totalRevenue.toLocaleString('en-IN')}</span>
+            <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full">
+              {completedOrdersCount} Finished
+            </span>
+          </div>
+          <p className="mt-1 text-[11px] text-slate-400">Total Billing Value</p>
+        </div>
+      </div>
+
       {/* Search, Add Order & Filters Panel */}
       <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col lg:flex-row gap-4 justify-between items-center transition-colors">
         

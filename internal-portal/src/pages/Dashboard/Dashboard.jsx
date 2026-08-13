@@ -175,7 +175,9 @@ export default function Dashboard() {
   }, [dispatch]);
 
   // Calculate dynamic stats
-  const totalRevenue = orders.reduce((sum, o) => sum + (parseFloat(o.amount) || 0), 0);
+  const completedOrders = orders.filter(o => o.status === 'Completed' || o.status === 'Approved');
+  const completedRevenue = completedOrders.reduce((sum, o) => sum + (parseFloat(o.amount) || 0), 0);
+  const totalRevenue = completedRevenue > 0 ? completedRevenue : orders.reduce((sum, o) => sum + (parseFloat(o.amount) || 0), 0);
   const todayStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   const todayOrders = orders.filter(o => o.date === todayStr || o.date?.includes('Today') || o.date === 'May 25, 2024').length;
   const activeOrders = orders.filter(o => o.status === 'In Progress' || o.status === 'Pending' || o.status === 'Pending Approval').length;

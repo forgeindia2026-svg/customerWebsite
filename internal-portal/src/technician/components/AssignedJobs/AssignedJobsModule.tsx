@@ -8,10 +8,13 @@ import { JobDetailDrawer } from '../JobDetailDrawer';
 import { Briefcase, AlertTriangle, RefreshCw, CheckCircle2, Clock, Play, ArrowUpRight } from 'lucide-react';
 
 interface AssignedJobsModuleProps {
+  jobs?: Job[];
+  summaryStats?: any;
+  isLoading?: boolean;
   onOpenWorkflow: (job: Job) => void;
 }
 
-export const AssignedJobsModule: React.FC<AssignedJobsModuleProps> = ({ onOpenWorkflow }) => {
+export const AssignedJobsModule: React.FC<AssignedJobsModuleProps> = ({ jobs, summaryStats, isLoading = false, onOpenWorkflow }) => {
   const [filters, setFilters] = useState<JobFilterOptions>({
     searchQuery: '',
     status: 'ALL',
@@ -19,11 +22,11 @@ export const AssignedJobsModule: React.FC<AssignedJobsModuleProps> = ({ onOpenWo
     sortBy: 'scheduledDate',
     sortOrder: 'asc',
     page: 1,
-    limit: 10,
+    limit: 50,
   });
 
   const [response, setResponse] = useState<PaginatedJobsResponse | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isFetching, setIsFetching] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   // Selected job state for detail view drawer
@@ -32,19 +35,40 @@ export const AssignedJobsModule: React.FC<AssignedJobsModuleProps> = ({ onOpenWo
 
   const fetchJobs = useCallback(async () => {
     setError(null);
+    setIsFetching(true);
     try {
       const res = await JobsApiService.getAssignedJobs(filters);
       setResponse(res);
     } catch (err: any) {
       setError(err.message || 'Failed to load assigned jobs.');
     } finally {
-      setIsLoading(false);
+      setIsFetching(false);
     }
   }, [filters]);
 
   useEffect(() => {
-    fetchJobs();
-  }, [fetchJobs]);
+    if (jobs && jobs.length > 0) {
+      const stats = {
+        totalAssigned: jobs.length,
+        totalAvailable: jobs.filter((j) => j.isAvailableToAccept).length,
+        pendingCount: jobs.filter((j) => j.status === 'PENDING').length,
+        inProgressCount: jobs.filter((j) => j.status === 'IN_PROGRESS' || j.status === 'ACCEPTED').length,
+        completedCount: jobs.filter((j) => j.status === 'COMPLETED').length,
+        onHoldCount: jobs.filter((j) => j.status === 'ON_HOLD').length,
+      };
+
+      setResponse({
+        data: jobs,
+        total: jobs.length,
+        page: 1,
+        limit: 50,
+        totalPages: 1,
+        stats,
+      });
+    } else if (filters.searchQuery || filters.status !== 'ALL' || filters.priority !== 'ALL') {
+      fetchJobs();
+    }
+  }, [jobs, filters, fetchJobs]);
 
   const handleFilterChange = (updated: Partial<JobFilterOptions>) => {
     setFilters((prev) => ({ ...prev, ...updated }));
@@ -100,10 +124,10 @@ export const AssignedJobsModule: React.FC<AssignedJobsModuleProps> = ({ onOpenWo
     }
   };
 
-  const totalAssigned = response?.stats.totalAssigned ?? 0;
-  const inProgressCount = response?.stats.inProgressCount ?? 0;
-  const pendingCount = response?.stats.pendingCount ?? 0;
-  const completedCount = response?.stats.completedCount ?? 0;
+  const totalAssignedVal = response?.stats?.totalAssigned ?? summaryStats?.totalAssigned ?? (jobs && jobs.length > 0 ? jobs.length : (isLoading ? null : 0));
+  const inProgressCountVal = response?.stats?.inProgressCount ?? summaryStats?.inProgress ?? (jobs && jobs.length > 0 ? jobs.filter((j) => j.status === 'IN_PROGRESS' || j.status === 'ACCEPTED').length : (isLoading ? null : 0));
+  const pendingCountVal = response?.stats?.pendingCount ?? summaryStats?.pending ?? (jobs && jobs.length > 0 ? jobs.filter((j) => j.status === 'PENDING').length : (isLoading ? null : 0));
+  const completedCountVal = response?.stats?.completedCount ?? summaryStats?.completedToday ?? (jobs && jobs.length > 0 ? jobs.filter((j) => j.status === 'COMPLETED').length : (isLoading ? null : 0));
 
   return (
     <div className="space-y-6">
@@ -118,7 +142,11 @@ export const AssignedJobsModule: React.FC<AssignedJobsModuleProps> = ({ onOpenWo
             </div>
           </div>
           <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-2xl sm:text-3xl font-extrabold text-zinc-900 tracking-tight font-mono">{totalAssigned}</span>
+            {totalAssignedVal === null ? (
+              <div className="w-14 h-7 bg-zinc-200 animate-pulse rounded-lg" />
+            ) : (
+              <span className="text-2xl sm:text-3xl font-extrabold text-zinc-900 tracking-tight font-mono">{totalAssignedVal}</span>
+            )}
             <span className="text-[10px] font-bold text-zinc-700 bg-zinc-100 px-2 py-0.5 rounded-full border border-zinc-200">
               Orders
             </span>
@@ -135,7 +163,11 @@ export const AssignedJobsModule: React.FC<AssignedJobsModuleProps> = ({ onOpenWo
             </div>
           </div>
           <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-2xl sm:text-3xl font-extrabold text-sky-700 tracking-tight font-mono">{inProgressCount}</span>
+            {inProgressCountVal === null ? (
+              <div className="w-14 h-7 bg-sky-100 animate-pulse rounded-lg" />
+            ) : (
+              <span className="text-2xl sm:text-3xl font-extrabold text-sky-700 tracking-tight font-mono">{inProgressCountVal}</span>
+            )}
             <span className="text-[10px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full border border-sky-100">
               Active
             </span>
@@ -152,7 +184,11 @@ export const AssignedJobsModule: React.FC<AssignedJobsModuleProps> = ({ onOpenWo
             </div>
           </div>
           <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-2xl sm:text-3xl font-extrabold text-amber-700 tracking-tight font-mono">{pendingCount}</span>
+            {pendingCountVal === null ? (
+              <div className="w-14 h-7 bg-amber-100 animate-pulse rounded-lg" />
+            ) : (
+              <span className="text-2xl sm:text-3xl font-extrabold text-amber-700 tracking-tight font-mono">{pendingCountVal}</span>
+            )}
             <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
               Scheduled
             </span>
@@ -169,9 +205,13 @@ export const AssignedJobsModule: React.FC<AssignedJobsModuleProps> = ({ onOpenWo
             </div>
           </div>
           <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-2xl sm:text-3xl font-extrabold text-emerald-700 tracking-tight font-mono">{completedCount}</span>
+            {completedCountVal === null ? (
+              <div className="w-14 h-7 bg-emerald-100 animate-pulse rounded-lg" />
+            ) : (
+              <span className="text-2xl sm:text-3xl font-extrabold text-emerald-700 tracking-tight font-mono">{completedCountVal}</span>
+            )}
             <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
-              {totalAssigned > 0 ? `${Math.round((completedCount / totalAssigned) * 100)}%` : '0%'}
+              {(totalAssignedVal || 0) > 0 ? `${Math.round(((completedCountVal || 0) / (totalAssignedVal || 1)) * 100)}%` : '0%'}
             </span>
           </div>
           <p className="text-[11px] text-emerald-600 font-medium mt-1">Finished & signed off</p>
@@ -185,36 +225,8 @@ export const AssignedJobsModule: React.FC<AssignedJobsModuleProps> = ({ onOpenWo
         onResetFilters={handleResetFilters}
       />
 
-      {/* Loading Skeleton */}
-      {isLoading && (
-        <div className="p-8 bg-white border border-zinc-200 rounded-xl space-y-4 shadow-xs">
-          <div className="flex items-center space-x-3 text-zinc-500 text-sm">
-            <RefreshCw className="w-4 h-4 animate-spin text-zinc-800" />
-            <span>Fetching assigned jobs...</span>
-          </div>
-          <div className="h-10 bg-zinc-100 rounded-lg animate-pulse"></div>
-          <div className="h-12 bg-zinc-100 rounded-lg animate-pulse"></div>
-          <div className="h-12 bg-zinc-100 rounded-lg animate-pulse"></div>
-        </div>
-      )}
-
-      {/* Error State */}
-      {!isLoading && error && (
-        <div className="p-6 bg-red-50 border border-red-200 rounded-xl text-center space-y-3">
-          <AlertTriangle className="w-8 h-8 text-red-600 mx-auto" />
-          <h3 className="text-sm font-semibold text-red-900">Error Loading Jobs</h3>
-          <p className="text-xs text-red-700">{error}</p>
-          <button
-            onClick={fetchJobs}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 transition-colors"
-          >
-            Retry
-          </button>
-        </div>
-      )}
-
       {/* Table / Grid Content */}
-      {!isLoading && !error && response && (
+      {response && (
         <div className="space-y-4">
           {/* Live Result Count Bar */}
           <div className="flex items-center justify-between px-1 text-xs font-medium text-zinc-500">
