@@ -19,7 +19,7 @@ const getApiUrl = () => {
     const host = window.location.hostname;
     return `http://${host}:5000`;
   }
-  return import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  return import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
 };
 
 export const JobsApiService = {
