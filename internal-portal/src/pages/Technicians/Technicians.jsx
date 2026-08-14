@@ -70,18 +70,43 @@ export default function Technicians() {
     dispatch(updateTechnicianStatus({ id: techId, status: newStatus }));
   };
 
-  const handleAddTech = (e) => {
+  const handleAddTech = async (e) => {
     e.preventDefault();
-    dispatch(addTechnician(techForm));
-    setTechForm({ 
-      name: '', 
-      phone: '', 
-      email: '', 
-      password: '',
-      specialization: 'IP Cameras & Networking',
-      avatarUrl: ''
-    });
-    setModalOpen(false);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: techForm.name,
+          email: techForm.email,
+          phone: techForm.phone,
+          password: techForm.password || 'password123', // fallback password
+          role: 'TECHNICIAN',
+          specialties: [techForm.specialization]
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        // Now fetch dashboard data to get the newly added technician from DB
+        const { fetchDashboardData } = await import('../../redux/dashboardSlice');
+        dispatch(fetchDashboardData());
+        
+        setTechForm({ 
+          name: '', 
+          phone: '', 
+          email: '', 
+          password: '',
+          specialization: 'IP Cameras & Networking',
+          avatarUrl: ''
+        });
+        setModalOpen(false);
+      } else {
+        alert('Error adding technician: ' + data.message);
+      }
+    } catch (error) {
+      console.error('Failed to add technician:', error);
+      alert('Error connecting to server');
+    }
   };
 
   const handleEditTechClick = (tech) => {

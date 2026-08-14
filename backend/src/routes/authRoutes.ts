@@ -60,7 +60,7 @@ router.post('/login', async (req: Request, res: Response) => {
 // POST Register
 router.post('/register', async (req: Request, res: Response) => {
   try {
-    const { name, email, password, role, phone } = req.body;
+    const { name, email, password, role, phone, specialties } = req.body;
 
     // NoSQL Injection Protection & Type Validation
     if (typeof email !== 'string' || typeof password !== 'string' || typeof name !== 'string') {
@@ -97,6 +97,7 @@ router.post('/register', async (req: Request, res: Response) => {
       passwordHash: cleanPassword,
       role: role || 'CUSTOMER',
       phone,
+      specialties: Array.isArray(specialties) ? specialties : [],
       amcPlan: 'Gold AMC Plan',
       amcExpires: 'May 20, 2026'
     });
