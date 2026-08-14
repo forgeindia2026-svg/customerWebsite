@@ -12,7 +12,11 @@ router.get('/', async (req: Request, res: Response) => {
     let query: any = {};
 
     if (category && typeof category === 'string' && !['all', 'all categories', 'all products', ''].includes(category.trim().toLowerCase())) {
-      query.category = { $regex: category.trim(), $options: 'i' };
+      const cleanCat = category.trim();
+      // Extract keywords, e.g. "CCTV Cameras" -> "cctv"
+      const keywords = cleanCat.split(/\s+/).filter(w => w.length > 0 && !['camera', 'cameras', 'system', 'systems'].includes(w.toLowerCase()));
+      const pattern = keywords.length > 0 ? keywords.join('|') : cleanCat;
+      query.category = { $regex: pattern, $options: 'i' };
     }
 
     if (search && typeof search === 'string' && search.trim() !== '') {
