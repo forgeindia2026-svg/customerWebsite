@@ -12,9 +12,9 @@ router.get('/dashboard-summary', async (req: Request, res: Response) => {
   try {
     const [totalAssigned, inProgress, pending, completed] = await Promise.all([
       Job.countDocuments(),
-      Job.countDocuments({ status: { $in: ['IN_PROGRESS', 'ACCEPTED', 'ASSIGNED'] } }),
-      Job.countDocuments({ status: { $in: ['PENDING', 'PENDING APPROVAL'] } }),
-      Job.countDocuments({ status: { $in: ['COMPLETED', 'DELIVERED', 'APPROVED'] } })
+      Job.countDocuments({ status: { $in: ['IN_PROGRESS', 'ACCEPTED', 'ASSIGNED'] } } as any),
+      Job.countDocuments({ status: { $in: ['PENDING', 'PENDING APPROVAL'] } } as any),
+      Job.countDocuments({ status: { $in: ['COMPLETED', 'DELIVERED', 'APPROVED'] } } as any)
     ]);
 
     const executionTimeMs = Date.now() - startTime;
@@ -174,11 +174,11 @@ router.put('/:id', async (req: Request, res: Response) => {
       if (req.body.photo.type === 'BEFORE') {
         if (!job.beforePhotos) job.beforePhotos = [];
         job.beforePhotos.push(newPhoto);
-        job.markModified('beforePhotos');
+        (job as any).markModified('beforePhotos');
       } else {
         if (!job.afterPhotos) job.afterPhotos = [];
         job.afterPhotos.push(newPhoto);
-        job.markModified('afterPhotos');
+        (job as any).markModified('afterPhotos');
       }
       delete req.body.photo;
 

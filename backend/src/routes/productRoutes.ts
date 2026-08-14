@@ -26,7 +26,7 @@ router.get('/', async (req: Request, res: Response) => {
     
     // Normalize products so Admin Web, Customer App & Customer Web all get name, title, image, and imageUrl!
     const products = rawProducts.map(p => {
-      const obj = p.toObject();
+      const obj: any = p.toObject();
       const nameVal = obj.name || obj.title || 'CCTV Product';
       const imgVal = obj.imageUrl || obj.image || '';
       return {
@@ -52,7 +52,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
-    const obj = product.toObject();
+    const obj: any = product.toObject();
     const nameVal = obj.name || obj.title || 'CCTV Product';
     const imgVal = obj.imageUrl || obj.image || '';
     res.json({
