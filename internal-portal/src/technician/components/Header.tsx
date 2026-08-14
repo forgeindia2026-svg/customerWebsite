@@ -29,7 +29,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   const initials = currentTechnician?.name
     ? currentTechnician.name.split(' ').map((n) => n[0]).join('').toUpperCase()
-    : 'AV';
+    : (localStorage.getItem('user_name') ? localStorage.getItem('user_name')[0].toUpperCase() : 'T');
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -175,7 +175,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
           <div className="hidden md:block text-left">
             <span className="text-xs font-bold text-zinc-900 block leading-tight">
-              {currentTechnician?.name || 'Technician'}
+              {currentTechnician?.name || localStorage.getItem('user_name') || 'Technician'}
             </span>
             <span className="text-[10px] text-zinc-400 font-mono">Field Staff</span>
           </div>

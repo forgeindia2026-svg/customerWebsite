@@ -55,7 +55,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const initials = currentTechnician?.name
     ? currentTechnician.name.split(' ').map((n) => n[0]).join('').toUpperCase()
-    : 'AV';
+    : (localStorage.getItem('user_name') ? localStorage.getItem('user_name')[0].toUpperCase() : 'T');
 
   const handleTabClick = (tabId: string) => {
     setActiveTab(tabId);
@@ -182,7 +182,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {initials}
               </div>
               <div className="text-left leading-tight truncate">
-                <p className="text-xs font-bold text-white truncate">{currentTechnician?.name || 'Alex Vance'}</p>
+                <p className="text-xs font-bold text-white truncate">{currentTechnician?.name || localStorage.getItem('user_name') || 'Technician'}</p>
                 <div className="flex items-center space-x-1 mt-0.5">
                   <ShieldCheck className="w-3 h-3 text-[#00C885]" />
                   <span className="text-[10px] text-[#00C885] font-mono font-semibold truncate">{currentTechnician?.badgeNumber || 'SK-TECH-9042'}</span>

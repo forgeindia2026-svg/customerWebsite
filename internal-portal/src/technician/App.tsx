@@ -115,8 +115,25 @@ export function App() {
   // Mobile Responsive Drawer State
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
 
-  // Technician Profile State & Summary Metrics State (Synchronous Instant Cache Hydration)
-  const [profile, setProfile] = useState<TechnicianProfile | null>(null);
+  const [profile, setProfile] = useState<TechnicianProfile | null>(() => {
+    const name = localStorage.getItem('user_name');
+    const email = localStorage.getItem('user_email');
+    const id = localStorage.getItem('user_id');
+    if (name) {
+      return {
+        id: id || 'tech-01',
+        name: name,
+        email: email || '',
+        phone: localStorage.getItem('user_phone') || '+91 98765 43210',
+        badgeNumber: `SK-TECH-${(id || '1234').slice(-4).toUpperCase()}`,
+        status: 'AVAILABLE',
+        specialties: ['CCTV & Networking'],
+        rating: 5.0,
+        completedJobsCount: 0
+      };
+    }
+    return null;
+  });
   const [summaryStats, setSummaryStats] = useState<any>(() => {
     try {
       const cached = localStorage.getItem('sk_tech_summary_cache');
