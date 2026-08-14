@@ -274,23 +274,35 @@ export default function Products() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setProductForm(prev => ({ ...prev, imageUrl: reader.result }));
+    };
+
     const formData = new FormData();
     formData.append('image', file);
 
     try {
       setIsUploading(true);
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/upload`, {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
+      const res = await fetch(`${apiUrl}/api/upload`, {
         method: 'POST',
         body: formData
       });
-      const data = await res.json();
-      if (data.success) {
-        setProductForm(prev => ({ ...prev, imageUrl: data.imageUrl }));
-      } else {
-        alert('Upload failed: ' + data.message);
+      if (res.ok) {
+        const text = await res.text();
+        try {
+          const data = JSON.parse(text);
+          if (data.success && data.imageUrl) {
+            setProductForm(prev => ({ ...prev, imageUrl: data.imageUrl }));
+            return;
+          }
+        } catch (_) {}
       }
+      reader.readAsDataURL(file);
     } catch (err) {
-      alert('Upload error: ' + err.message);
+      console.warn('Upload network note, fallback to local reader:', err);
+      reader.readAsDataURL(file);
     } finally {
       setIsUploading(false);
     }
