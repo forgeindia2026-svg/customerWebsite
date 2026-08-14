@@ -8,6 +8,7 @@ export const initSocket = (server: HttpServer) => {
     cors: {
       origin: '*',
       methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
+      credentials: true
     },
   });
 

@@ -26,7 +26,7 @@ const server = http.createServer(app);
 // Initialize Socket.io Real-time Gateway
 initSocket(server);
 
-app.use(cors());
+app.use(cors({ origin: '*', credentials: true }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use('/images', express.static(path.join(__dirname, '../public/images')));
