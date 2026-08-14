@@ -29,9 +29,26 @@ router.post('/', async (req: Request, res: Response) => {
     if (req.body.serviceType === 'DELIVERY_INSTALLATION') {
       newOrder.orderStatus = 'PROCESSING';
       
-      // 1. Fetch available technicians
+      // 1. Fetch available technicians and balance workload
       const availableTechnicians = await User.find({ role: 'TECHNICIAN' });
-      const assignedTech = availableTechnicians.length > 0 ? availableTechnicians[0] : null;
+      let assignedTech = null;
+
+      if (availableTechnicians.length > 0) {
+        // Calculate current active workload for each technician
+        const techWorkloads = await Promise.all(
+          availableTechnicians.map(async (tech) => {
+            const activeJobsCount = await Job.countDocuments({
+              'assignedTechnicians.id': tech._id.toString(),
+              status: { $in: ['PENDING', 'ASSIGNED', 'IN_PROGRESS'] }
+            });
+            return { tech, activeJobsCount };
+          })
+        );
+
+        // Sort technicians by least active jobs first
+        techWorkloads.sort((a, b) => a.activeJobsCount - b.activeJobsCount);
+        assignedTech = techWorkloads[0].tech;
+      }
 
       if (assignedTech) {
         // 2. Create the Job mapped to this order, assigned to the tech
