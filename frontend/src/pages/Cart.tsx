@@ -153,7 +153,7 @@ export default function Cart() {
     setCheckoutOpen(true);
 
     // Try to load cached profile address
-    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/profile?email=${encodeURIComponent(email)}`)
+    fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/auth/profile?email=${encodeURIComponent(email)}`)
       .then(res => res.json())
       .then(data => {
         if (data.success && data.data) {
@@ -192,14 +192,14 @@ export default function Cart() {
       title: item.name,
       price: item.price,
       quantity: item.quantity,
-      image: item.image ? item.image.replace('http://localhost:5000', import.meta.env.VITE_API_URL || 'http://localhost:5000') : ''
+      image: item.image ? item.image.replace('https://65.0.45.64.sslip.io', import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io') : ''
     }));
 
     const fullAddress = `${checkoutForm.address}, ${checkoutForm.state} - ${checkoutForm.zipcode} [Service: ${checkoutForm.serviceType === 'DELIVERY_INSTALLATION' ? 'DELIVERY + INSTALLATION' : 'ONLY PRODUCT DELIVERY'}]`;
 
     try {
       // 1. Create Order in backend database
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/orders`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -232,7 +232,7 @@ export default function Cart() {
           return;
         }
 
-        const paymentRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/payments/create-order`, {
+        const paymentRes = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/payments/create-order`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -253,7 +253,7 @@ export default function Cart() {
             order_id: paymentOrderData.order.id,
             handler: async (response: any) => {
               // Verify Payment Signature on Backend
-              await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/payments/verify`, {
+              await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/payments/verify`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

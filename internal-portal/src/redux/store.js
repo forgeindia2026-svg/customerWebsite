@@ -66,7 +66,7 @@ const dashboardSyncMiddleware = store => next => action => {
       }
 
       // POST new job to backend
-      fetch(`${import.meta.env.VITE_API_URL || 'https://cctvwebsite.onrender.com'}/api/jobs`, {
+      fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/jobs`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Send, AlertCircle, CheckCircle2, BellRing } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
 
 export default function Notifications() {
   const [formData, setFormData] = useState({

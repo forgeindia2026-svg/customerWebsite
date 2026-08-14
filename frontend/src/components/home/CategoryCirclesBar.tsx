@@ -50,7 +50,7 @@ export default function CategoryCirclesBar() {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        const API_URL = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
         const res = await fetch(`${API_URL}/api/categories?featured=true`);
         const data = await res.json();
         if (data.success && data.data && data.data.length > 0) {

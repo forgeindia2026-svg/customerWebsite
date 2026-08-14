@@ -28,7 +28,7 @@ function ProductCard({ prod, onDelete, onEdit }) {
 
   const images = rawImages.map(img => {
     if (!img || img.startsWith('blob:')) return getFallbackSrc(prod.category);
-    return img.replace('http://localhost:5000', getApiUrl());
+    return img.replace('https://65.0.45.64.sslip.io', getApiUrl());
   });
 
   const currentImage = images[activeImageIndex] || images[0] || getFallbackSrc(prod.category);
@@ -185,7 +185,7 @@ export default function Products() {
   const products = useSelector(state => state.dashboard.products);
 
   React.useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/products`)
+    fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/products`)
       .then(res => res.json())
       .then(data => {
         if (data.success && Array.isArray(data.data)) {
@@ -279,7 +279,7 @@ export default function Products() {
 
     try {
       setIsUploading(true);
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://cctvwebsite.onrender.com'}/api/upload`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/upload`, {
         method: 'POST',
         body: formData
       });
@@ -406,7 +406,7 @@ export default function Products() {
       offers: productForm.dynamicOffers || [],
     };
 
-    fetch(`${import.meta.env.VITE_API_URL || 'https://cctvwebsite.onrender.com'}/api/products`, {
+    fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/products`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(dbProduct)
@@ -545,7 +545,7 @@ export default function Products() {
               key={prod.id} 
               prod={prod} 
               onDelete={(id) => {
-                fetch(`${import.meta.env.VITE_API_URL || 'https://cctvwebsite.onrender.com'}/api/products/${id}`, {
+                fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/products/${id}`, {
                   method: 'DELETE',
                 })
                   .then(res => res.json())
@@ -953,7 +953,7 @@ export default function Products() {
                 offers: productForm.dynamicOffers || [],
               };
 
-              fetch(`${import.meta.env.VITE_API_URL || 'https://cctvwebsite.onrender.com'}/api/products/${editingProduct.id}`, {
+              fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/products/${editingProduct.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(dbProduct)

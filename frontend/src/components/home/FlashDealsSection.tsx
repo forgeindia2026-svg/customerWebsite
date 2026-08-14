@@ -87,7 +87,7 @@ export default function FlashDealsSection() {
 
   // Fetch live products to check if any are marked as Flash Deals
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/products`)
+    fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/products`)
       .then((res) => res.json())
       .then((data) => {
         if (data.success && Array.isArray(data.data)) {
@@ -101,7 +101,7 @@ export default function FlashDealsSection() {
             discount: item.badge || '-20%',
             rating: item.rating || 4.5,
             reviews: item.reviewsCount || 10,
-            image: item.image ? item.image.replace('http://localhost:5000', import.meta.env.VITE_API_URL || 'http://localhost:5000') : ''
+            image: item.image ? item.image.replace('https://65.0.45.64.sslip.io', import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io') : ''
           }));
           setDeals(formatted);
         }

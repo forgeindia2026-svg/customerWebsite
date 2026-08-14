@@ -107,8 +107,8 @@ export default function Login() {
     }
 
     const url = isRegister 
-      ? `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/register` 
-      : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/login`;
+      ? `${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/auth/register` 
+      : `${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/auth/login`;
 
     const body = isRegister
       ? { name, email, password, role: "CUSTOMER", phone: mobile }

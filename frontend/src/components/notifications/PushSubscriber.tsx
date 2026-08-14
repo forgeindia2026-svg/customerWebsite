@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Bell, BellRing } from 'lucide-react';
 
 const publicVapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
-const API_URL = import.meta.env.VITE_API_URL || `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}`;
+const API_URL = import.meta.env.VITE_API_URL || `${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}`;
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);

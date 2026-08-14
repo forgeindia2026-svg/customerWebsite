@@ -26,8 +26,8 @@ function getCategoryImageUrl(cat) {
     return getCategoryFallback(cat?.name || cat?.slug);
   }
   let url = cat.image;
-  if (url.startsWith('http://localhost:5000')) {
-    url = url.replace('http://localhost:5000', getApiUrl());
+  if (url.startsWith('https://65.0.45.64.sslip.io')) {
+    url = url.replace('https://65.0.45.64.sslip.io', getApiUrl());
   } else if (url.startsWith('/images/')) {
     url = `${getApiUrl()}${url}`;
   }
@@ -77,7 +77,7 @@ export default function Categories() {
   const handleAddCategory = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/categories`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/categories`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -99,7 +99,7 @@ export default function Categories() {
   const handleEditCategory = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`https://cctvwebsite.onrender.com/api/categories/${editingCategory._id}`, {
+      const res = await fetch(`https://65.0.45.64.sslip.io/api/categories/${editingCategory._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -121,7 +121,7 @@ export default function Categories() {
   const handleDeleteCategory = async (id) => {
     if (window.confirm("Are you sure you want to delete this category?")) {
       try {
-        const res = await fetch(`https://cctvwebsite.onrender.com/api/categories/${id}`, {
+        const res = await fetch(`https://65.0.45.64.sslip.io/api/categories/${id}`, {
           method: 'DELETE'
         });
         const data = await res.json();
@@ -147,7 +147,7 @@ export default function Categories() {
 
   const toggleFeatured = async (cat) => {
     try {
-      const res = await fetch(`https://cctvwebsite.onrender.com/api/categories/${cat._id}`, {
+      const res = await fetch(`https://65.0.45.64.sslip.io/api/categories/${cat._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isFeaturedOnHome: !cat.isFeaturedOnHome })
