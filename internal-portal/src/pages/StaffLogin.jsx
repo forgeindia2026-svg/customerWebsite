@@ -62,36 +62,15 @@ export default function StaffLogin() {
             navigate('/technician');
           }
           return;
+        } else {
+            setErrorMsg(data.message || 'Invalid credentials');
         }
-      }
-      
-      // Fallback for local development if server error or suspended
-      const isParamAdmin = email.toLowerCase().includes('admin');
-      const userRole = isParamAdmin ? 'ADMIN' : 'TECHNICIAN';
-      localStorage.setItem('internal_token', 'mock-token-local');
-      localStorage.setItem('internal_role', userRole);
-      localStorage.setItem('user_name', 'Kathir (Staff)');
-      localStorage.setItem('user_email', email);
-
-      if (userRole === 'ADMIN') {
-        navigate('/admin');
       } else {
-        navigate('/technician');
+          setErrorMsg('Authentication failed. Please try again.');
       }
     } catch (err) {
-      // Fallback evaluation based on entered email
-      const isParamAdmin = email.toLowerCase().includes('admin');
-      const userRole = isParamAdmin ? 'ADMIN' : 'TECHNICIAN';
-      localStorage.setItem('internal_token', 'mock-token-local');
-      localStorage.setItem('internal_role', userRole);
-      localStorage.setItem('user_name', 'Kathir (Staff)');
-      localStorage.setItem('user_email', email);
-
-      if (userRole === 'ADMIN') {
-        navigate('/admin');
-      } else {
-        navigate('/technician');
-      }
+      console.error("Login Error:", err);
+      setErrorMsg('Failed to connect to the server. Please check if the backend is running.');
     } finally {
       setIsSubmitting(false);
     }
