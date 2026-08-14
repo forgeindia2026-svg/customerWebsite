@@ -53,8 +53,9 @@ export default function StaffLogin() {
           localStorage.setItem('internal_token', data.data.token || 'mock-token');
           localStorage.setItem('internal_role', userRole);
           localStorage.setItem('user_id', data.data.id || data.data._id || '');
-          localStorage.setItem('user_name', data.data.name || 'Kathir');
+          localStorage.setItem('user_name', data.data.name || email.split('@')[0]);
           localStorage.setItem('user_email', data.data.email || email);
+          localStorage.setItem('sk_tech_auth', 'true');
 
           if (userRole === 'ADMIN') {
             navigate('/admin');

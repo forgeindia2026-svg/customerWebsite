@@ -97,9 +97,7 @@ router.post('/register', async (req: Request, res: Response) => {
       passwordHash: cleanPassword,
       role: role || 'CUSTOMER',
       phone,
-      specialties: Array.isArray(specialties) ? specialties : [],
-      amcPlan: 'Gold AMC Plan',
-      amcExpires: 'May 20, 2026'
+      specialties: Array.isArray(specialties) ? specialties : []
     });
 
     const savedUser = await newUser.save();

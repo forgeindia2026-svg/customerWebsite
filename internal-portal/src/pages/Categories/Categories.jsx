@@ -7,6 +7,32 @@ import {
   FiUploadCloud,
 } from 'react-icons/fi';
 import Modal from '../../components/Modal';
+import { getApiUrl } from '../../utils/config';
+
+function getCategoryFallback(name = '') {
+  const baseUrl = `${getApiUrl()}/images`;
+  const lower = (name || '').toLowerCase();
+  if (lower.includes('ip')) return `${baseUrl}/ip_camera.png`;
+  if (lower.includes('wifi')) return `${baseUrl}/wifi_camera.png`;
+  if (lower.includes('dvr') || lower.includes('nvr')) return `${baseUrl}/dvr_nvr.png`;
+  if (lower.includes('acces') || lower.includes('cable')) return `${baseUrl}/cctv_cable.png`;
+  if (lower.includes('door') || lower.includes('vdp')) return `${baseUrl}/video_door_phone.png`;
+  if (lower.includes('hard') || lower.includes('ssd') || lower.includes('storage')) return `${baseUrl}/surveillance_hdd.png`;
+  return `${baseUrl}/bullet_camera.png`;
+}
+
+function getCategoryImageUrl(cat) {
+  if (!cat || !cat.image || cat.image.startsWith('blob:')) {
+    return getCategoryFallback(cat?.name || cat?.slug);
+  }
+  let url = cat.image;
+  if (url.startsWith('http://localhost:5000')) {
+    url = url.replace('http://localhost:5000', getApiUrl());
+  } else if (url.startsWith('/images/')) {
+    url = `${getApiUrl()}${url}`;
+  }
+  return url;
+}
 
 export default function Categories() {
   const [categories, setCategories] = useState([]);
@@ -23,7 +49,7 @@ export default function Categories() {
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/categories`);
+      const res = await fetch(`${getApiUrl()}/api/categories`);
       const data = await res.json();
       if (data.success) {
         setCategories(data.data);
@@ -176,8 +202,12 @@ export default function Categories() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="w-14 h-14 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center p-1.5 overflow-hidden border border-slate-100 dark:border-slate-750">
                     <img 
-                      src={cat.image} 
+                      src={getCategoryImageUrl(cat)} 
                       alt={cat.name} 
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = getCategoryFallback(cat.name);
+                      }}
                       className="w-full h-full object-contain rounded-lg"
                     />
                   </div>

@@ -41,14 +41,9 @@ export function App() {
   const [queuedReportsCount, setQueuedReportsCount] = useState<number>(3);
   const [isAutoSyncing, setIsAutoSyncing] = useState<boolean>(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    if (!localStorage.getItem('user_name')) {
-      localStorage.setItem('user_name', 'kathir');
-      localStorage.setItem('user_id', 'tech-kathir');
-    }
-    if (!localStorage.getItem('sk_tech_token')) {
-      localStorage.setItem('sk_tech_token', 'token-sk-tech-2026');
-    }
-    return true;
+    const token = localStorage.getItem('internal_token') || localStorage.getItem('sk_tech_auth');
+    const name = localStorage.getItem('user_name');
+    return Boolean(token && name);
   });
   const [activeTab, setActiveTab] = useState<string>(() => {
     return localStorage.getItem('sk_tech_tab') || 'dashboard';
@@ -220,10 +215,7 @@ export function App() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('sk_tech_auth');
-    localStorage.removeItem('sk_tech_tab');
-    localStorage.removeItem('internal_token');
-    localStorage.removeItem('internal_role');
+    localStorage.clear();
     setIsAuthenticated(false);
     window.location.href = '/login';
   };
