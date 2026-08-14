@@ -8,15 +8,20 @@ const router = Router();
 // GET all products (with optional category filter)
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const { category, search } = req.query;
+    const { category, search, brand } = req.query;
     let query: any = {};
 
     if (category && typeof category === 'string' && !['all', 'all categories', 'all products', ''].includes(category.trim().toLowerCase())) {
-      const cleanCat = category.trim();
-      // Extract keywords, e.g. "CCTV Cameras" -> "cctv"
-      const keywords = cleanCat.split(/\s+/).filter(w => w.length > 0 && !['camera', 'cameras', 'system', 'systems'].includes(w.toLowerCase()));
-      const pattern = keywords.length > 0 ? keywords.join('|') : cleanCat;
-      query.category = { $regex: pattern, $options: 'i' };
+      const cleanCat = category.trim().toLowerCase();
+      if (cleanCat.includes('cctv') || cleanCat.includes('camera') || cleanCat.includes('ip') || cleanCat.includes('bullet') || cleanCat.includes('dome') || cleanCat.includes('wifi') || cleanCat.includes('ptz')) {
+        query.category = { $regex: 'cctv|ip|bullet|wifi|dome|ptz|camera', $options: 'i' };
+      } else {
+        query.category = { $regex: cleanCat, $options: 'i' };
+      }
+    }
+
+    if (brand && typeof brand === 'string' && !['all', 'all brands', ''].includes(brand.trim().toLowerCase())) {
+      query.brand = { $regex: brand.trim(), $options: 'i' };
     }
 
     if (search && typeof search === 'string' && search.trim() !== '') {
