@@ -3,9 +3,26 @@ import Job from './models/Job';
 import User from './models/User';
 import Dashboard from './models/Dashboard';
 import Order from './models/Order';
+import Category from './models/Category';
 
 export async function seedDatabase() {
   try {
+    // Seed default Categories if none exist
+    const categoryCount = await Category.countDocuments();
+    if (categoryCount === 0) {
+      console.log('Seeding default Categories into MongoDB...');
+      await Category.create([
+        { name: 'IP Cameras', slug: 'ip', image: 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=300&q=80', isFeaturedOnHome: true },
+        { name: 'WiFi Cameras', slug: 'wifi', image: 'https://images.unsplash.com/photo-1580894732444-8ecded7900cd?auto=format&fit=crop&w=300&q=80', isFeaturedOnHome: true },
+        { name: 'DVR', slug: 'dvr', image: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=300&q=80', isFeaturedOnHome: true },
+        { name: 'NVR', slug: 'nvr', image: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=300&q=80', isFeaturedOnHome: true },
+        { name: 'Accessories', slug: 'accessories', image: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80', isFeaturedOnHome: true },
+        { name: 'Video Door Phone', slug: 'vdp', image: 'https://images.unsplash.com/photo-1558002038-1055907df827?auto=format&fit=crop&w=300&q=80', isFeaturedOnHome: true },
+        { name: 'Alarm Systems', slug: 'alarm', image: 'https://images.unsplash.com/photo-1558002038-1055907df827?auto=format&fit=crop&w=300&q=80', isFeaturedOnHome: true },
+        { name: 'Hard Disk & SSD', slug: 'storage', image: 'https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?auto=format&fit=crop&w=300&q=80', isFeaturedOnHome: true },
+      ]);
+      console.log('Categories seeded successfully.');
+    }
     // Seed default Admin User if no users exist
     const adminCount = await User.countDocuments({ role: 'ADMIN' });
     if (adminCount === 0) {

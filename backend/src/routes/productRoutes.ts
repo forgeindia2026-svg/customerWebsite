@@ -11,15 +11,23 @@ router.get('/', async (req: Request, res: Response) => {
     const { category, search } = req.query;
     let query: any = {};
 
-    if (category && category !== 'all') {
-      query.category = { $regex: category as string, $options: 'i' };
+    if (category && typeof category === 'string' && !['all', 'all categories', 'all products', ''].includes(category.trim().toLowerCase())) {
+      query.category = { $regex: category.trim(), $options: 'i' };
     }
 
-    if (search) {
-      query.$or = [
-        { title: { $regex: search as string, $options: 'i' } },
-        { name: { $regex: search as string, $options: 'i' } }
-      ];
+    if (search && typeof search === 'string' && search.trim() !== '') {
+      const terms = search.trim().split(/\s+/).filter(t => t.length > 0);
+      const orClauses = terms.map(term => ({
+        $or: [
+          { title: { $regex: term, $options: 'i' } },
+          { name: { $regex: term, $options: 'i' } },
+          { category: { $regex: term, $options: 'i' } },
+          { brand: { $regex: term, $options: 'i' } },
+          { description: { $regex: term, $options: 'i' } },
+          { specs: { $regex: term, $options: 'i' } }
+        ]
+      }));
+      query.$or = orClauses.flatMap(c => c.$or);
     }
 
     const rawProducts = await Product.find(query).sort({ createdAt: -1 });
