@@ -13,6 +13,8 @@ export interface IProduct extends Document {
   specs: string[];
   stock: number;
   description?: string;
+  warranty?: string;
+  delivery?: string;
   isFlashDeal?: boolean;
   isBestSeller?: boolean;
   features?: { iconName: string; label: string }[];
@@ -35,6 +37,8 @@ const ProductSchema: Schema = new Schema(
     specs: [{ type: String }],
     stock: { type: Number, default: 50 },
     description: { type: String },
+    warranty: { type: String },
+    delivery: { type: String },
     isFlashDeal: { type: Boolean, default: false },
     isBestSeller: { type: Boolean, default: false },
     features: [

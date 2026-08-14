@@ -515,7 +515,7 @@ export default function Products() {
               reviewsCount: item.reviewsCount || 10,
               inStock: (item.stock ?? 1) > 0,
               stockCount: item.stock ?? 10,
-              warranty: item.warranty || '2 Years Warranty',
+              warranty: item.warranty || '1 Year Warranty',
               freeDelivery: true,
               image: imgStr,
               resolution: item.specs?.[0] || 'HD Resolution',
