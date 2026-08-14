@@ -174,14 +174,20 @@ export default function Dashboard() {
     };
   }, [dispatch]);
 
-  // Calculate dynamic stats
-  const completedOrders = orders.filter(o => o.status === 'Completed' || o.status === 'Approved');
-  const completedRevenue = completedOrders.reduce((sum, o) => sum + (parseFloat(o.amount) || 0), 0);
-  const totalRevenue = completedRevenue > 0 ? completedRevenue : orders.reduce((sum, o) => sum + (parseFloat(o.amount) || 0), 0);
+  // Calculate dynamic stats (with robust fallback matching for MongoDB fields)
+  const completedOrders = orders.filter(o => o.status === 'Completed' || o.status === 'Approved' || o.orderStatus === 'DELIVERED');
+  const completedRevenue = completedOrders.reduce((sum, o) => sum + (parseFloat(o.amount || o.totalAmount) || 0), 0);
+  const totalRevenue = completedRevenue > 0 ? completedRevenue : orders.reduce((sum, o) => sum + (parseFloat(o.amount || o.totalAmount) || 0), 0);
+  
   const todayStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  const todayOrders = orders.filter(o => o.date === todayStr || o.date?.includes('Today') || o.date === 'May 25, 2024').length;
-  const activeOrders = orders.filter(o => o.status === 'In Progress' || o.status === 'Pending' || o.status === 'Pending Approval').length;
-  const finishedOrders = orders.filter(o => o.status === 'Completed' || o.status === 'Approved').length;
+  const todayOrders = orders.filter(o => {
+    if (!o) return false;
+    const orderDateStr = o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : o.date;
+    return orderDateStr === todayStr || o.date?.includes('Today');
+  }).length;
+
+  const activeOrders = orders.filter(o => o.status === 'In Progress' || o.status === 'Pending' || o.status === 'Pending Approval' || o.orderStatus === 'PROCESSING' || o.orderStatus === 'PENDING').length;
+  const finishedOrders = orders.filter(o => o.status === 'Completed' || o.status === 'Approved' || o.orderStatus === 'DELIVERED').length;
 
   // ⚡ 100% REAL LIVE MONGO DB DATA (STRICT MATCHING, ZERO MOCK FALLBACKS)
   const upiTotal = (payments.length > 0 ? payments : orders)

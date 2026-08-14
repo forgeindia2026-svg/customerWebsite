@@ -169,10 +169,21 @@ const dashboardSlice = createSlice({
       try {
         localStorage.setItem('sk_admin_dashboard_cache', JSON.stringify(payload));
       } catch (e) {}
+
+      const rawOrders = Array.isArray(payload.orders) ? payload.orders : (state.orders || []);
+      const normalizedOrders = rawOrders.map(o => ({
+        ...o,
+        id: o.id || o.orderNumber || o._id,
+        customer: o.customer || o.customerName || 'Customer Client',
+        amount: parseFloat(o.amount || o.totalAmount) || 0,
+        status: o.status || (o.orderStatus === 'DELIVERED' ? 'Completed' : o.orderStatus === 'PROCESSING' ? 'In Progress' : o.orderStatus) || 'Pending',
+        date: o.date || (o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Today')
+      }));
+
       return {
         ...state,
         ...payload,
-        orders: Array.isArray(payload.orders) ? payload.orders : (state.orders || []),
+        orders: normalizedOrders,
         customers: Array.isArray(payload.customers) ? payload.customers : (state.customers || []),
         technicians: Array.isArray(payload.technicians) ? payload.technicians : (state.technicians || []),
         products: Array.isArray(payload.products) ? payload.products : (state.products || []),
