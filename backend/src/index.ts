@@ -62,7 +62,7 @@ mongoose
     } catch (e: any) {
       console.warn('Index sync note:', e.message);
     }
-    await seedDatabase();
+    // await seedDatabase();
   })
   .catch((err) => {
     console.error('⚠️ MongoDB Connection Note:', err.message || err);
