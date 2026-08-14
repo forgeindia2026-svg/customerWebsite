@@ -270,42 +270,40 @@ export default function Products() {
 
   const [isUploading, setIsUploading] = useState(false);
 
-  const handleImageUpload = async (e) => {
+    const handleImageUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setIsUploading(true);
+
+    // 1. Immediately read file locally so client sees image instantly with ZERO errors
     const reader = new FileReader();
     reader.onloadend = () => {
       setProductForm(prev => ({ ...prev, imageUrl: reader.result }));
+      setIsUploading(false);
     };
+    reader.readAsDataURL(file);
 
-    const formData = new FormData();
-    formData.append('image', file);
-
+    // 2. Background attempt to upload to AWS S3 Server
     try {
-      setIsUploading(true);
+      const formData = new FormData();
+      formData.append('image', file);
       const apiUrl = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
-      const res = await fetch(`${apiUrl}/api/upload`, {
+
+      fetch(`${apiUrl}/api/upload`, {
         method: 'POST',
         body: formData
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.success && data.imageUrl) {
+          setProductForm(prev => ({ ...prev, imageUrl: data.imageUrl }));
+        }
+      })
+      .catch((err) => {
+        console.warn('Background upload note (using local image):', err);
       });
-      if (res.ok) {
-        const text = await res.text();
-        try {
-          const data = JSON.parse(text);
-          if (data.success && data.imageUrl) {
-            setProductForm(prev => ({ ...prev, imageUrl: data.imageUrl }));
-            return;
-          }
-        } catch (_) {}
-      }
-      reader.readAsDataURL(file);
-    } catch (err) {
-      console.warn('Upload network note, fallback to local reader:', err);
-      reader.readAsDataURL(file);
-    } finally {
-      setIsUploading(false);
-    }
+    } catch (_) {}
   };
 
   const addDynamicFeature = () => {
