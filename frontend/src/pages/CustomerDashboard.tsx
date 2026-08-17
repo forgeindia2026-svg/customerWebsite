@@ -114,15 +114,29 @@ function ShopThumb() {
   );
 }
 
+function getDisplayStatus(status: string) {
+  const s = (status || "").toUpperCase();
+  if (s === "ASSIGNMENT_PENDING_ACCEPTANCE" || s === "WAITING_FOR_TECH") {
+    return "Pending";
+  }
+  if (s === "IN_PROGRESS") {
+    return "Assigned";
+  }
+  if (s === "WAITING_ADMIN_APPROVAL") {
+    return "Pending Approval";
+  }
+  return status;
+}
+
 function getStatusBadgeClass(status: string) {
-  const s = (status || "").toLowerCase();
+  const s = getDisplayStatus(status).toLowerCase();
   if (s === "delivered" || s === "completed" || s === "approved") {
     return "bg-emerald-50 text-emerald-700 border-emerald-100";
   }
-  if (s === "shipped" || s === "in transit") {
+  if (s === "shipped" || s === "in transit" || s === "assigned") {
     return "bg-blue-50/80 text-blue-600 border-blue-100";
   }
-  if (s === "processing" || s === "pending" || s === "in progress") {
+  if (s === "processing" || s === "pending" || s === "in progress" || s === "pending approval") {
     return "bg-amber-55 text-amber-700 border-amber-100";
   }
   return "bg-red-50/70 text-red-500 border-red-100";
@@ -705,7 +719,7 @@ export default function CustomerDashboard() {
                           <span className="text-[10px] text-slate-400 font-bold">{order.itemsCount} {order.itemsCount === 1 ? "Item" : "Items"}</span>
                         </div>
                         <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${getStatusBadgeClass(order.status)}`}>
-                          {order.status}
+                          {getDisplayStatus(order.status)}
                         </span>
                         <ChevronRight className="w-4 h-4 text-slate-350" />
                       </div>
@@ -1009,7 +1023,7 @@ export default function CustomerDashboard() {
                       <td className="py-3.5 px-4 font-bold text-slate-800">₹{order.price.toLocaleString("en-IN")}</td>
                       <td className="py-3.5 px-4">
                         <span className={`px-2.5 py-0.5 rounded-full border text-[9px] font-bold ${getStatusBadgeClass(order.status)}`}>
-                          {order.status}
+                          {getDisplayStatus(order.status)}
                         </span>
                       </td>
                     </tr>
@@ -1025,7 +1039,7 @@ export default function CustomerDashboard() {
                   <div className="flex justify-between items-center border-b border-slate-50 pb-3">
                     <span className="font-extrabold text-slate-800 text-xs">{order.id}</span>
                     <span className={`px-2 py-0.5 rounded-full border text-[9px] font-bold ${getStatusBadgeClass(order.status)}`}>
-                      {order.status}
+                      {getDisplayStatus(order.status)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">

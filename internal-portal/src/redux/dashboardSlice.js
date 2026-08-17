@@ -20,6 +20,29 @@ export const fetchDashboardData = createAsyncThunk(
   }
 );
 
+export const adminApproveJob = createAsyncThunk(
+  'dashboard/adminApproveJob',
+  async (jobId, { dispatch }) => {
+    try {
+      const res = await fetch(`${getApiUrl()}/api/jobs/${jobId}/admin-approve`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      const data = await res.json();
+      if (data.success) {
+        // Refresh dashboard data to see updated statuses and queues
+        dispatch(fetchDashboardData());
+      }
+      return data;
+    } catch (err) {
+      console.warn('Admin approve job error:', err);
+      return { success: false, message: err.message };
+    }
+  }
+);
+
 const getInitialCustomers = (orders) => {
   const customersMap = {};
   orders.forEach((order, idx) => {

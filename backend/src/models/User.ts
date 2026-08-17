@@ -13,6 +13,8 @@ export interface IUser extends Document {
   rating?: number;
   completedJobsCount?: number;
   isActive?: boolean;
+  isAvailable?: boolean;
+  currentJobId?: string;
   amcPlan?: string;
   amcExpires?: string;
   createdAt: Date;
@@ -31,6 +33,8 @@ const UserSchema: Schema = new Schema(
     rating: { type: Number, default: 5.0 },
     completedJobsCount: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
+    isAvailable: { type: Boolean, default: true },
+    currentJobId: { type: String, default: null },
     amcPlan: { type: String, default: 'Gold AMC Plan' },
     amcExpires: { type: String, default: 'May 20, 2026' },
   },

@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-export type JobStatus = 'PENDING' | 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+export type JobStatus = 'PENDING' | 'WAITING_FOR_TECH' | 'ASSIGNMENT_PENDING_ACCEPTANCE' | 'ASSIGNED' | 'IN_PROGRESS' | 'WAITING_ADMIN_APPROVAL' | 'COMPLETED' | 'CANCELLED';
 export type JobPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 export type JobAcceptanceStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED';
 
@@ -91,7 +91,7 @@ const JobSchema: Schema = new Schema(
     category: { type: String, required: true },
     status: {
       type: String,
-      enum: ['PENDING', 'ASSIGNED', 'IN_PROGRESS', 'BEFORE_PHOTOS_DONE', 'AFTER_PHOTOS_DONE', 'INSPECTED', 'DAILY_REPORTED', 'COMPLETED', 'CANCELLED'],
+      enum: ['PENDING', 'WAITING_FOR_TECH', 'ASSIGNMENT_PENDING_ACCEPTANCE', 'ASSIGNED', 'IN_PROGRESS', 'BEFORE_PHOTOS_DONE', 'AFTER_PHOTOS_DONE', 'INSPECTED', 'DAILY_REPORTED', 'WAITING_ADMIN_APPROVAL', 'COMPLETED', 'CANCELLED'],
       default: 'PENDING',
     },
     priority: {

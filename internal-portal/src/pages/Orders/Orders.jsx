@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { FiSearch, FiSliders, FiCheckCircle, FiInfo, FiTrash2, FiPlusCircle, FiEye, FiGrid, FiList, FiPlus, FiUser, FiCalendar, FiDollarSign, FiChevronDown, FiCheck, FiEdit, FiShoppingBag, FiClock } from 'react-icons/fi';
-import { approveOrder, addOrder, assignTechnicianToOrder, editOrder } from '../../redux/dashboardSlice';
+import { approveOrder, addOrder, assignTechnicianToOrder, editOrder, adminApproveJob } from '../../redux/dashboardSlice';
 import Modal from '../../components/Modal';
 
 export default function Orders() {
@@ -55,11 +55,17 @@ export default function Orders() {
     switch (status) {
       case 'Completed':
       case 'Approved':
+      case 'COMPLETED':
         return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-900/40';
       case 'In Progress':
+      case 'IN_PROGRESS':
         return 'bg-blue-50 text-blue-700 dark:bg-blue-955/20 dark:text-blue-300 border border-blue-100 dark:border-blue-900/40';
       case 'Pending Approval':
       case 'Pending':
+      case 'WAITING_ADMIN_APPROVAL':
+      case 'ASSIGNMENT_PENDING_ACCEPTANCE':
+      case 'WAITING_FOR_TECH':
+      case 'CANCELLED':
         return 'bg-amber-50 text-amber-700 dark:bg-amber-955/20 dark:text-amber-300 border border-amber-100 dark:border-amber-900/40';
       default:
         return 'bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-700';
@@ -342,6 +348,19 @@ export default function Orders() {
                                 <span>Approve Order</span>
                               </button>
                             )}
+                            {ord.status === 'WAITING_ADMIN_APPROVAL' && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  dispatch(adminApproveJob(ord.id));
+                                  setActiveStatusDropdown(null);
+                                }}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
+                              >
+                                <FiCheck size={14} />
+                                <span>Approve Completion</span>
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => {
@@ -468,6 +487,19 @@ export default function Orders() {
                                   >
                                     <FiCheck className="w-3.5 h-3.5" />
                                     <span>Approve Order</span>
+                                  </button>
+                                )}
+                                {ord.status === 'WAITING_ADMIN_APPROVAL' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      dispatch(adminApproveJob(ord.id));
+                                      setActiveStatusDropdown(null);
+                                    }}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-left text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 font-bold transition-colors cursor-pointer"
+                                  >
+                                    <FiCheck className="w-3.5 h-3.5" />
+                                    <span>Approve Completion</span>
                                   </button>
                                 )}
                                 <button

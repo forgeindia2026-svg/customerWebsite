@@ -232,22 +232,19 @@ router.post('/:id/accept', async (req: Request, res: Response) => {
 
     // Check if the technician is already assigned
     const isAlreadyAssigned = job.assignedTechnicians.some(t => t.id === technician.id || t.name === technician.name);
-    if (isAlreadyAssigned) {
-      return res.status(400).json({ success: false, message: 'You have already accepted this job.' });
+    if (!isAlreadyAssigned) {
+      if (job.assignedTechnicians.length >= requiredCount) {
+        return res.status(400).json({ success: false, message: 'This job already has the required number of technicians.' });
+      }
+      job.assignedTechnicians.push({
+        id: technician.id,
+        name: technician.name,
+        avatar: technician.avatarUrl || '',
+        phone: technician.phone || ''
+      });
     }
-
-    if (job.assignedTechnicians.length >= requiredCount) {
-      return res.status(400).json({ success: false, message: 'This job already has the required number of technicians.' });
-    }
-
-    job.assignedTechnicians.push({
-      id: technician.id,
-      name: technician.name,
-      avatar: technician.avatarUrl || '',
-      phone: technician.phone || ''
-    });
     
-    job.status = 'ASSIGNED';
+    job.status = 'IN_PROGRESS';
     job.acceptanceStatus = 'ACCEPTED';
     job.customerConfirmed = true;
     const updatedJob = await job.save();
@@ -345,21 +342,36 @@ router.post('/:id/reject', async (req: Request, res: Response) => {
     });
     await dashboardData.save();
 
-    // 4. CASCADING RE-ASSIGNMENT ENGINE: Find Next Available Technician
+    // 4. Free the technician who rejected
     const User = require('../models/User').default;
-    const allTechs = await User.find({ role: 'TECHNICIAN' });
-    const availableTech = allTechs.find((t: any) => 
-      !job.rejectedTechnicianIds?.includes(t._id.toString()) && 
-      !job.rejectedTechnicianIds?.includes(t.name)
-    );
+    const rejectingTech = await User.findById(technicianId);
+    if (rejectingTech) {
+      rejectingTech.isAvailable = true;
+      rejectingTech.currentJobId = null;
+      await rejectingTech.save();
+    }
+
+    // 5. CASCADING RE-ASSIGNMENT ENGINE: Find Next Available Technician
+    const { processWaitingQueue } = require('../services/queueService');
+    
+    const availableTech = await User.findOne({ 
+      role: 'TECHNICIAN', 
+      isAvailable: true, 
+      isActive: true,
+      _id: { $nin: job.rejectedTechnicianIds }
+    });
 
     if (availableTech) {
+      availableTech.isAvailable = false;
+      availableTech.currentJobId = job.jobCode;
+      await availableTech.save();
+
       job.assignedTechnicians.push({
         id: availableTech._id.toString(),
         name: availableTech.name,
         phone: availableTech.phone || ''
       });
-      job.status = 'PENDING';
+      job.status = 'ASSIGNMENT_PENDING_ACCEPTANCE';
       job.acceptanceStatus = 'PENDING';
 
       emitToRole('admin', 'job:auto_reassigned', {
@@ -368,12 +380,15 @@ router.post('/:id/reject', async (req: Request, res: Response) => {
         toTech: availableTech.name
       });
     } else {
-      job.status = 'PENDING';
-      job.acceptanceStatus = 'DECLINED';
+      job.status = 'WAITING_FOR_TECH';
+      job.acceptanceStatus = 'PENDING';
     }
 
-    const savedJob = await job.save();
-    res.json({ success: true, message: 'Job rejection logged and cascading re-assignment executed', data: savedJob });
+    await job.save();
+
+    // Trigger queue processing for the freed technician (they rejected this job, but maybe there is another waiting job they CAN take)
+    processWaitingQueue();
+    res.json({ success: true, message: 'Job rejection logged and cascading re-assignment executed', data: job });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -467,6 +482,93 @@ router.post('/:id/upload-photo', async (req: Request, res: Response) => {
     emitToRole('admin', 'job:photo_added', { jobId: job._id, jobCode: job.jobCode, photo: photoObj });
 
     res.json({ success: true, photo: photoObj, job });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/jobs/:id/complete - Technician marks job as completed, waiting for admin approval
+router.post('/:id/complete', async (req: Request, res: Response) => {
+  try {
+    const isMongoId = /^[0-9a-fA-F]{24}$/.test(req.params.id as string);
+    const job = await Job.findOne({
+      $or: [
+        ...(isMongoId ? [{ _id: req.params.id }] : []),
+        { jobCode: req.params.id },
+      ],
+    });
+    if (!job) {
+      return res.status(404).json({ success: false, message: `Job ${req.params.id} not found` });
+    }
+
+    job.status = 'WAITING_ADMIN_APPROVAL';
+    await job.save();
+
+    // Notify Admin via Dashboard model
+    let dashboardData = await Dashboard.findOne();
+    if (!dashboardData) {
+      dashboardData = new Dashboard();
+    }
+    dashboardData.notifications.push({
+      id: `notif-comp-${Date.now()}`,
+      title: 'Job Completed - Pending Approval',
+      message: `Job ${job.jobCode} has been marked as completed by the technician. Please approve.`,
+      timestamp: new Date().toISOString(),
+      read: false,
+      type: 'URGENT',
+      jobId: job.jobCode
+    });
+    await dashboardData.save();
+
+    emitToRole('admin', 'job:completed_pending_approval', {
+      jobId: job._id,
+      jobCode: job.jobCode
+    });
+
+    res.json({ success: true, message: 'Job marked as completed, waiting for admin approval.', job });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/jobs/:id/admin-approve - Admin approves job completion, frees technician and processes queue
+router.post('/:id/admin-approve', async (req: Request, res: Response) => {
+  try {
+    const isMongoId = /^[0-9a-fA-F]{24}$/.test(req.params.id as string);
+    const job = await Job.findOne({
+      $or: [
+        ...(isMongoId ? [{ _id: req.params.id }] : []),
+        { jobCode: req.params.id },
+      ],
+    });
+    if (!job) {
+      return res.status(404).json({ success: false, message: `Job ${req.params.id} not found` });
+    }
+
+    job.status = 'COMPLETED';
+    await job.save();
+
+    // Free the assigned technicians
+    const User = require('../models/User').default;
+    for (const tech of (job.assignedTechnicians || [])) {
+      const technician = await User.findById(tech.id);
+      if (technician) {
+        technician.isAvailable = true;
+        technician.currentJobId = null;
+        await technician.save();
+      }
+    }
+
+    // Process the waiting queue now that technicians are available
+    const { processWaitingQueue } = require('../services/queueService');
+    processWaitingQueue();
+
+    emitToRole('admin', 'job:approved', {
+      jobId: job._id,
+      jobCode: job.jobCode
+    });
+
+    res.json({ success: true, message: 'Job approved and technicians freed.', job });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
