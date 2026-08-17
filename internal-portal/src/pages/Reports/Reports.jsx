@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import jsPDF from 'jspdf';
 import { 
@@ -21,6 +21,22 @@ export default function Reports() {
   const [adminQuickDetailReport, setAdminQuickDetailReport] = useState(null);
   const [adminFullReportModal, setAdminFullReportModal] = useState(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [generalReports, setGeneralReports] = useState([]);
+
+  useEffect(() => {
+    const fetchGeneralReports = async () => {
+      try {
+        const res = await fetch('http://localhost:5000/api/reports');
+        if (res.ok) {
+          const data = await res.json();
+          setGeneralReports(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch general reports', err);
+      }
+    };
+    fetchGeneralReports();
+  }, []);
 
   // Extract technician reports live from orders store
   const fieldReportsList = orders.map((order) => {
@@ -40,6 +56,23 @@ export default function Reports() {
       updatedAt: order.updatedAt || new Date().toISOString(),
     };
   });
+
+  const generalReportsFormatted = generalReports.map((gr) => ({
+    id: gr._id,
+    jobCode: gr.jobId || 'GENERAL-TASK',
+    title: gr.activityType,
+    customer: 'N/A (General)',
+    address: 'Internal / Office / Other',
+    technician: gr.technicianName,
+    status: 'COMPLETED',
+    notes: gr.workDescription,
+    beforePhotos: [],
+    afterPhotos: [],
+    updatedAt: gr.createdAt,
+    hoursWorked: gr.hoursWorked
+  }));
+
+  const allReportsList = [...fieldReportsList, ...generalReportsFormatted].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 
   // Calculations
   const totalCollected = payments.filter(p => p.status === 'Paid').reduce((sum, p) => sum + p.amount, 0);
@@ -230,10 +263,10 @@ export default function Reports() {
 
       doc.setFontSize(9);
       doc.text(`Generated: ${new Date().toLocaleDateString('en-IN')}`, 140, 20);
-      doc.text(`Total Records: ${fieldReportsList.length}`, 140, 26);
+      doc.text(`Total Records: ${allReportsList.length}`, 140, 26);
 
       let y = 48;
-      fieldReportsList.forEach((rep, idx) => {
+      allReportsList.forEach((rep, idx) => {
         if (y > 250) {
           doc.addPage();
           y = 20;
@@ -322,7 +355,7 @@ export default function Reports() {
             <div className="bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xs flex items-center justify-between">
               <div>
                 <span className="text-slate-400 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider block truncate">TOTAL REPORTS</span>
-                <span className="text-lg sm:text-2xl font-black text-slate-900 dark:text-white block mt-0.5 font-mono">{fieldReportsList.length} Logs</span>
+                <span className="text-lg sm:text-2xl font-black text-slate-900 dark:text-white block mt-0.5 font-mono">{allReportsList.length} Logs</span>
               </div>
               <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center shrink-0">
                 <FiBarChart2 size={16} />
@@ -333,7 +366,7 @@ export default function Reports() {
               <div>
                 <span className="text-slate-400 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider block truncate">COMPLETED AUDITS</span>
                 <span className="text-lg sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 block mt-0.5 font-mono">
-                  {fieldReportsList.filter(r => r.status === 'COMPLETED' || r.status === 'Completed' || r.status === 'Approved').length}
+                  {allReportsList.filter(r => r.status === 'COMPLETED' || r.status === 'Completed' || r.status === 'Approved').length}
                 </span>
               </div>
               <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 flex items-center justify-center shrink-0">
@@ -345,7 +378,7 @@ export default function Reports() {
               <div>
                 <span className="text-slate-400 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider block truncate">EVIDENCE PHOTOS</span>
                 <span className="text-lg sm:text-2xl font-black text-purple-600 dark:text-purple-400 block mt-0.5 font-mono">
-                  {fieldReportsList.reduce((sum, r) => sum + r.beforePhotos.length + r.afterPhotos.length, 0)} Files
+                  {allReportsList.reduce((sum, r) => sum + r.beforePhotos.length + r.afterPhotos.length, 0)} Files
                 </span>
               </div>
               <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-purple-50 dark:bg-purple-900/30 text-purple-600 flex items-center justify-center shrink-0">
@@ -381,12 +414,12 @@ export default function Reports() {
 
             {/* 📱 Mobile Card View (Screenshot 1) - Matching Technician Mobile Flow */}
             <div className="block md:hidden space-y-3">
-              {fieldReportsList.length === 0 ? (
+              {allReportsList.length === 0 ? (
                 <div className="p-6 text-center text-slate-400 text-xs bg-slate-50 rounded-2xl border border-slate-200">
                   No field service reports found.
                 </div>
               ) : (
-                fieldReportsList.map((report) => {
+                allReportsList.map((report) => {
                   const isApproved = localStorage.getItem(`report_approved_${report.jobCode}`) === 'true' || report.status === 'Approved';
                   const mainPhoto = report.afterPhotos?.[0] || report.beforePhotos?.[0] || 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?q=80&w=200&auto=format&fit=crop';
                   const photoUrl = typeof mainPhoto === 'string' ? mainPhoto : mainPhoto.url;
@@ -438,14 +471,14 @@ export default function Reports() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
-                  {fieldReportsList.length === 0 ? (
+                  {allReportsList.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="py-12 text-center text-slate-400 text-sm">
                         No field service reports found. Reports submitted by technicians will automatically appear here.
                       </td>
                     </tr>
                   ) : (
-                    fieldReportsList.map((report) => {
+                    allReportsList.map((report) => {
                       const totalPhotos = report.beforePhotos.length + report.afterPhotos.length;
                       return (
                         <tr key={report.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">

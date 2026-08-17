@@ -17,6 +17,7 @@ import {
   Eye,
   X
 } from 'lucide-react';
+import { GeneralReportModal } from './GeneralReportModal';
 
 interface DailyReportsModuleProps {
   jobs: Job[];
@@ -38,6 +39,7 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
   const [mobileSubTab, setMobileSubTab] = useState<'All' | 'Submitted' | 'In Progress' | 'Drafts'>('Submitted');
   const [mobileQuickDetailReport, setMobileQuickDetailReport] = useState<any | null>(null);
   const [mobileFullReportModal, setMobileFullReportModal] = useState<any | null>(null);
+  const [showGeneralReportModal, setShowGeneralReportModal] = useState(false);
 
   const handleCreateReport = () => {
     // 1. Pick an IN_PROGRESS or ACCEPTED active job first
@@ -54,11 +56,38 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
       return;
     }
 
-    // 3. Fallback to available job
+    // 3. Fallback to general report if no jobs available
     if (jobs[0]) {
       onOpenWorkflow(jobs[0]);
     } else {
-      alert('No assigned work orders were found. Please assign a job from the admin portal first.');
+      setShowGeneralReportModal(true);
+    }
+  };
+
+  const handleGeneralReportSubmit = async (data: any) => {
+    try {
+      const authUser = JSON.parse(localStorage.getItem('tech_user') || '{}');
+      
+      const payload = {
+        technicianId: authUser.id || 'TECH-UNKNOWN',
+        technicianName: authUser.name || 'Unknown Technician',
+        ...data
+      };
+
+      const res = await fetch('http://localhost:5000/api/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        alert('General report submitted successfully!');
+      } else {
+        alert('Failed to submit report.');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error submitting report.');
     }
   };
 
@@ -1075,6 +1104,13 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
           </div>
         </div>
       )}
+
+      {/* General Report Modal */}
+      <GeneralReportModal 
+        isOpen={showGeneralReportModal} 
+        onClose={() => setShowGeneralReportModal(false)} 
+        onSubmit={handleGeneralReportSubmit} 
+      />
     </div>
   );
 };

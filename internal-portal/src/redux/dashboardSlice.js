@@ -488,6 +488,13 @@ const dashboardSlice = createSlice({
     },
     deleteProduct: (state, action) => {
       state.products = state.products.filter(p => p.id !== action.payload);
+      try {
+        const cached = JSON.parse(localStorage.getItem('sk_admin_dashboard_cache') || '{}');
+        if (cached && Array.isArray(cached.products)) {
+          cached.products = state.products;
+          localStorage.setItem('sk_admin_dashboard_cache', JSON.stringify(cached));
+        }
+      } catch (e) {}
     },
     // Notifications actions
     markNotificationAsRead: (state, action) => {

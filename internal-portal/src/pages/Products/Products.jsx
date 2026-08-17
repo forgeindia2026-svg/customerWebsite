@@ -560,20 +560,26 @@ export default function Products() {
               key={prod.id} 
               prod={prod} 
               onDelete={(id) => {
-                fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/products/${id}`, {
-                  method: 'DELETE',
-                })
-                  .then(res => res.json())
-                  .then(data => {
-                    if (data.success) {
-                      dispatch(deleteProduct(id));
-                    }
-                  })
-                  .catch(err => {
-                    console.error('Failed to delete product from API:', err);
+                  // Optimistically delete from UI instantly for snappy UX
+                  if (id) {
                     dispatch(deleteProduct(id));
-                  });
-              }}
+                  }
+                  
+                  fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/products/${id}`, {
+                    method: 'DELETE',
+                  })
+                    .then(res => res.json())
+                    .then(data => {
+                      if (!data.success && typeof id === 'string' && !id.startsWith('PROD-')) {
+                        if (data.message && !data.message.toLowerCase().includes('not found')) {
+                          console.warn('Backend delete issue:', data.message);
+                        }
+                      }
+                    })
+                    .catch(err => {
+                      console.error('Failed to delete product from API:', err);
+                    });
+                }}
               onEdit={(p) => {
                 setEditingProduct(p);
                 const isDefault = defaultCategories.includes(p.category);
