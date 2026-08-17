@@ -12,6 +12,7 @@ export interface IUser extends Document {
   specialties?: string[];
   rating?: number;
   completedJobsCount?: number;
+  isActive?: boolean;
   amcPlan?: string;
   amcExpires?: string;
   createdAt: Date;
@@ -29,6 +30,7 @@ const UserSchema: Schema = new Schema(
     specialties: [{ type: String }],
     rating: { type: Number, default: 5.0 },
     completedJobsCount: { type: Number, default: 0 },
+    isActive: { type: Boolean, default: true },
     amcPlan: { type: String, default: 'Gold AMC Plan' },
     amcExpires: { type: String, default: 'May 20, 2026' },
   },

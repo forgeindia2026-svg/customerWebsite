@@ -98,10 +98,20 @@ router.post('/', async (req: Request, res: Response) => {
       imageVal = await uploadBase64ToS3(imageVal);
     }
 
+    let imagesVal = req.body.images || [];
+    if (Array.isArray(imagesVal)) {
+      for (let i = 0; i < imagesVal.length; i++) {
+        if (imagesVal[i] && imagesVal[i].startsWith('data:image')) {
+          imagesVal[i] = await uploadBase64ToS3(imagesVal[i]);
+        }
+      }
+    }
+
     req.body.title = titleVal;
     req.body.name = titleVal;
     req.body.image = imageVal;
     req.body.imageUrl = imageVal;
+    req.body.images = imagesVal;
     
     const newProduct = new Product(req.body);
     const savedProduct = await newProduct.save();

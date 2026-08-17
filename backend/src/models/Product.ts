@@ -10,6 +10,7 @@ export interface IProduct extends Document {
   rating: number;
   reviewsCount: number;
   image: string;
+  images?: string[];
   specs: string[];
   stock: number;
   description?: string;
@@ -17,6 +18,10 @@ export interface IProduct extends Document {
   delivery?: string;
   isFlashDeal?: boolean;
   isBestSeller?: boolean;
+  subCategory?: string;
+  modelName?: string;
+  discount?: number;
+  promotionalOffer?: string;
   features?: { iconName: string; label: string }[];
   offers?: { title: string; subtitle: string }[];
   createdAt: Date;
@@ -34,6 +39,7 @@ const ProductSchema: Schema = new Schema(
     rating: { type: Number, default: 4.5 },
     reviewsCount: { type: Number, default: 0 },
     image: { type: String, required: true },
+    images: [{ type: String }],
     specs: [{ type: String }],
     stock: { type: Number, default: 50 },
     description: { type: String },
@@ -41,6 +47,10 @@ const ProductSchema: Schema = new Schema(
     delivery: { type: String },
     isFlashDeal: { type: Boolean, default: false },
     isBestSeller: { type: Boolean, default: false },
+    subCategory: { type: String },
+    modelName: { type: String },
+    discount: { type: Number },
+    promotionalOffer: { type: String },
     features: [
       {
         iconName: { type: String },

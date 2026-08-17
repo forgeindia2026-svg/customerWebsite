@@ -188,4 +188,29 @@ router.post('/change-password', async (req: Request, res: Response) => {
   }
 });
 
+// DELETE Technician
+router.delete('/technician/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const deleted = await User.findByIdAndDelete(id);
+    if (!deleted) return res.status(404).json({ success: false, message: 'Technician not found' });
+    res.json({ success: true, message: 'Technician deleted successfully' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// DEACTIVATE Technician
+router.put('/technician/:id/deactivate', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { isActive } = req.body;
+    const updated = await User.findByIdAndUpdate(id, { isActive }, { new: true });
+    if (!updated) return res.status(404).json({ success: false, message: 'Technician not found' });
+    res.json({ success: true, message: 'Technician status updated', data: updated });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 export default router;

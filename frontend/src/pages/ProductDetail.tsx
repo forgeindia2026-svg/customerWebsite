@@ -218,11 +218,15 @@ export default function ProductDetail() {
   // Alternate images for thumbnail gallery
   const galleryImages = useMemo(() => {
     if (!product) return [];
-    return [
-      product.image,
-      "https://images.unsplash.com/photo-1580894732444-8ecded7900cd?auto=format&fit=crop&w=600&q=80",
-      "https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=600&q=80"
-    ];
+    if (product.images && product.images.length > 0) {
+      // Ensure the main image is included if not already
+      const images = [...product.images];
+      if (!images.includes(product.image)) {
+        images.unshift(product.image);
+      }
+      return images;
+    }
+    return [product.image];
   }, [product]);
 
   if (loading) {
@@ -430,6 +434,11 @@ export default function ProductDetail() {
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 leading-tight">
                 {product.name}
               </h1>
+              {product.modelName && (
+                <p className="text-sm font-semibold text-gray-500 mt-1">
+                  Model: {product.modelName}
+                </p>
+              )}
               
               {/* Rating & Assured Tag */}
               <div className="flex items-center gap-2 pt-1 flex-wrap">
@@ -458,9 +467,20 @@ export default function ProductDetail() {
                   ₹{product.originalPrice.toLocaleString("en-IN")}
                 </span>
                 <span className="text-sm font-extrabold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-lg border border-emerald-100">
-                  {product.discountBadge ? `${product.discountBadge.replace('-', '')} OFF` : '2% OFF'}
+                  {product.discountBadge ? `${product.discountBadge.replace('-', '')} OFF` : (product.discount ? `${product.discount}% OFF` : '2% OFF')}
                 </span>
               </div>
+
+              {(product.promotionalOffer || product.offers) && (
+                <div className="bg-orange-50 border border-orange-100 rounded-lg p-3 mt-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-orange-600 font-bold text-xs uppercase tracking-wider">Special Offer</span>
+                  </div>
+                  <p className="text-sm font-medium text-orange-800 mt-1">
+                    {product.promotionalOffer || product.offers}
+                  </p>
+                </div>
+              )}
               
               {/* EMI Callout */}
               <div className="flex items-center gap-2 text-xs font-semibold text-slate-650 pt-1">

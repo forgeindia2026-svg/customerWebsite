@@ -1,16 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { updateTechnicianStatus, addTechnician, editTechnician } from '../../redux/dashboardSlice';
+import { updateTechnicianStatus, addTechnician, editTechnician, deleteTechnician, toggleTechnicianActivation, fetchDashboardData } from '../../redux/dashboardSlice';
 import { 
   FiSliders, FiPhone, FiMail, FiStar, FiUserCheck, FiPlus, 
   FiChevronDown, FiGrid, FiList, FiSearch, FiEdit, FiInfo,
-  FiEye, FiEyeOff
+  FiEye, FiEyeOff, FiTrash2, FiPower
 } from 'react-icons/fi';
 import Modal from '../../components/Modal';
 
 export default function Technicians() {
   const dispatch = useDispatch();
   const technicians = useSelector(state => state.dashboard.technicians);
+
+  useEffect(() => {
+    dispatch(fetchDashboardData());
+  }, [dispatch]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -22,7 +26,7 @@ export default function Technicians() {
     phone: '', 
     email: '', 
     password: '',
-    specialization: 'IP Cameras & Networking',
+    specialization: 'Technician',
     avatarUrl: ''
   });
 
@@ -59,9 +63,9 @@ export default function Technicians() {
   const getStatusColor = (status) => {
     switch (status) {
       case 'Available': return 'bg-emerald-500';
-      case 'Busy': return 'bg-amber-500';
+      case 'On Job': return 'bg-amber-500';
+      case 'On Break': return 'bg-slate-400';
       case 'Offline': return 'bg-red-500';
-      case 'Leave': return 'bg-slate-400';
       default: return 'bg-slate-350';
     }
   };
@@ -96,7 +100,7 @@ export default function Technicians() {
           phone: '', 
           email: '', 
           password: '',
-          specialization: 'IP Cameras & Networking',
+          specialization: 'Technician',
           avatarUrl: ''
         });
         setModalOpen(false);
@@ -127,6 +131,49 @@ export default function Technicians() {
     dispatch(editTechnician(editingTech));
     setEditModalOpen(false);
     setEditingTech(null);
+  };
+
+  const handleDeleteTech = async (id, e) => {
+    if (e) e.stopPropagation();
+    if (window.confirm("Are you sure you want to delete this technician permanently?")) {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/auth/technician/${id}`, {
+          method: 'DELETE'
+        });
+        const data = await response.json();
+        if (data.success) {
+          dispatch(deleteTechnician(id));
+        } else {
+          alert('Error deleting technician: ' + data.message);
+        }
+      } catch (error) {
+        console.error('Failed to delete technician:', error);
+        alert('Error connecting to server');
+      }
+    }
+  };
+
+  const handleToggleActivation = async (id, currentStatus, e) => {
+    if (e) e.stopPropagation();
+    const newStatus = !currentStatus;
+    if (window.confirm(`Are you sure you want to ${newStatus ? 'activate' : 'deactivate'} this technician?`)) {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/auth/technician/${id}/deactivate`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isActive: newStatus })
+        });
+        const data = await response.json();
+        if (data.success) {
+          dispatch(toggleTechnicianActivation({ id, isActive: newStatus }));
+        } else {
+          alert('Error updating technician status: ' + data.message);
+        }
+      } catch (error) {
+        console.error('Failed to update technician status:', error);
+        alert('Error connecting to server');
+      }
+    }
   };
 
   const filteredTechnicians = technicians.filter(tech => {
@@ -243,20 +290,34 @@ export default function Technicians() {
                         </div>
                       </div>
 
-                      <button 
-                        onClick={() => handleEditTechClick(tech)}
-                        className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition-colors shrink-0 cursor-pointer"
-                      >
-                        <FiEdit size={14} />
-                      </button>
+                      <div className="flex gap-1.5 shrink-0">
+                        <button 
+                          onClick={(e) => handleToggleActivation(tech.id, tech.isActive !== false, e)}
+                          className={`p-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${tech.isActive === false ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-700 dark:bg-emerald-900/30 dark:hover:bg-emerald-800/40 dark:text-emerald-400' : 'bg-amber-100 hover:bg-amber-200 text-amber-700 dark:bg-amber-900/30 dark:hover:bg-amber-800/40 dark:text-amber-400'}`}
+                          title={tech.isActive === false ? "Activate Technician" : "Deactivate Technician"}
+                        >
+                          <FiPower size={14} />
+                        </button>
+                        <button 
+                          onClick={(e) => handleEditTechClick(tech, e)}
+                          className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                          title="Edit Profile"
+                        >
+                          <FiEdit size={14} />
+                        </button>
+                        <button 
+                          onClick={(e) => handleDeleteTech(tech.id, e)}
+                          className="p-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                          title="Delete Technician"
+                        >
+                          <FiTrash2 size={14} />
+                        </button>
+                      </div>
                     </div>
 
-                    {/* Contact Info & Job Status */}
+                    {/* Contact Info */}
                     <div className="text-xs text-slate-600 dark:text-slate-300 space-y-1 pt-2 border-t border-slate-100 dark:border-slate-800">
                       <p className="truncate">📞 {tech.phone} • ✉️ {tech.email}</p>
-                      <p className="text-[11px] font-medium text-slate-500">
-                        Assigned Job: <strong className={tech.currentProject !== 'None' ? theme.jobText : 'text-slate-700 dark:text-slate-200'}>{tech.currentProject}</strong>
-                      </p>
                     </div>
 
                     {/* Status Dropdown selector */}
@@ -268,9 +329,9 @@ export default function Technicians() {
                         className="w-full text-xs pl-7 pr-8 py-2 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-xl focus:outline-none focus:border-primary appearance-none cursor-pointer font-bold"
                       >
                         <option value="Available">Available</option>
-                        <option value="Busy">Busy</option>
+                        <option value="On Job">On Job</option>
+                        <option value="On Break">On Break</option>
                         <option value="Offline">Offline</option>
-                        <option value="Leave">Leave</option>
                       </select>
                       <FiChevronDown className="absolute right-3 w-4 h-4 text-slate-400 pointer-events-none" />
                     </div>
@@ -294,7 +355,7 @@ export default function Technicians() {
                     <div>
                       {/* Profile header */}
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">{tech.id}</span>
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">{tech.id.length > 8 ? tech.id.slice(-8) : tech.id}</span>
                         <span className="flex items-center gap-0.5 text-[11px] font-bold text-slate-700 dark:text-slate-200">
                           <FiStar className="text-amber-400 fill-amber-400 w-3 h-3" /> {tech.rating}
                         </span>
@@ -324,10 +385,6 @@ export default function Technicians() {
                           <FiPhone className="text-slate-400 w-3 h-3 flex-shrink-0" />
                           <span>{tech.phone}</span>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-slate-500 dark:text-slate-400 text-[10px] uppercase">JOB:</span>
-                          <span className={`font-semibold truncate text-[11px] ${tech.currentProject !== 'None' ? theme.jobText : 'text-slate-700 dark:text-slate-300'}`}>{tech.currentProject}</span>
-                        </div>
                       </div>
                     </div>
 
@@ -342,20 +399,34 @@ export default function Technicians() {
                             className="w-full text-[11px] pl-6 pr-6 py-1 border border-slate-200 dark:border-slate-800 bg-transparent dark:bg-slate-800 text-slate-800 dark:text-slate-300 rounded-lg focus:outline-none focus:border-primary appearance-none cursor-pointer font-semibold"
                           >
                             <option value="Available">Available</option>
-                            <option value="Busy">Busy</option>
+                            <option value="On Job">On Job</option>
+                            <option value="On Break">On Break</option>
                             <option value="Offline">Offline</option>
-                            <option value="Leave">Leave</option>
                           </select>
                           <FiChevronDown className="absolute right-2.5 w-3 h-3 text-slate-400 pointer-events-none" />
                         </div>
                       </div>
 
-                      <button 
-                        onClick={() => handleEditTechClick(tech)}
-                        className="w-full flex items-center justify-center gap-1 py-1 px-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-[11px] font-semibold transition-colors"
-                      >
-                        <FiEdit size={11} /> Edit Profile
-                      </button>
+                      <div className="flex gap-1 mt-1">
+                        <button 
+                          onClick={() => handleEditTechClick(tech)}
+                          className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-[11px] font-semibold transition-colors"
+                        >
+                          <FiEdit size={11} /> Edit
+                        </button>
+                        <button 
+                          onClick={() => handleToggleActivation(tech.id, tech.isActive !== false)}
+                          className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-semibold transition-colors ${tech.isActive === false ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-700 dark:bg-emerald-900/30 dark:hover:bg-emerald-800/40 dark:text-emerald-400' : 'bg-amber-100 hover:bg-amber-200 text-amber-700 dark:bg-amber-900/30 dark:hover:bg-amber-800/40 dark:text-amber-400'}`}
+                        >
+                          <FiPower size={11} /> {tech.isActive === false ? 'Activate' : 'Deactivate'}
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteTech(tech.id)}
+                          className="px-2.5 flex items-center justify-center py-1.5 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 rounded-lg text-[11px] font-semibold transition-colors"
+                        >
+                          <FiTrash2 size={11} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -379,9 +450,9 @@ export default function Technicians() {
                     <th className="py-3.5 px-4 min-w-[200px] whitespace-nowrap">Technician</th>
                     <th className="py-3.5 px-4 min-w-[220px] whitespace-nowrap">Specialization</th>
                     <th className="py-3.5 px-4 min-w-[240px] whitespace-nowrap">Contact Info</th>
-                    <th className="py-3.5 px-4 min-w-[200px] whitespace-nowrap">Current Job</th>
                     <th className="py-3.5 px-4 text-center whitespace-nowrap w-24">Rating</th>
                     <th className="py-3.5 px-4 text-right whitespace-nowrap w-44">Status</th>
+                    <th className="py-3.5 px-4 text-center whitespace-nowrap w-24">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-800 dark:text-slate-200 text-xs">
@@ -393,7 +464,7 @@ export default function Technicians() {
                         onClick={() => handleEditTechClick(tech)}
                         className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors cursor-pointer group"
                       >
-                        <td className="py-4 px-4 align-middle font-mono font-bold text-slate-500 whitespace-nowrap">{tech.id}</td>
+                        <td className="py-4 px-4 align-middle font-mono font-bold text-slate-500 whitespace-nowrap">{tech.id.length > 8 ? tech.id.slice(-8) : tech.id}</td>
                         <td className="py-4 px-4 align-middle whitespace-nowrap">
                           <div className="flex items-center gap-2.5">
                             <div className="w-8 h-8 rounded-full flex items-center justify-center relative overflow-hidden shrink-0">
@@ -416,11 +487,6 @@ export default function Technicians() {
                           <div className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">{tech.email}</div>
                           <div className="text-[11px] text-slate-400 font-medium mt-0.5 font-sans whitespace-nowrap">{tech.phone}</div>
                         </td>
-                        <td className="py-4 px-4 align-middle whitespace-nowrap">
-                          <span className={`font-semibold text-xs whitespace-nowrap ${tech.currentProject !== 'None' ? theme.jobText : 'text-slate-700 dark:text-slate-300'}`}>
-                            {tech.currentProject}
-                          </span>
-                        </td>
                         <td className="py-4 px-4 align-middle text-center whitespace-nowrap">
                           <span className="inline-flex items-center justify-center gap-1 text-xs font-bold text-slate-800 dark:text-slate-200">
                             <FiStar className="text-amber-400 fill-amber-400 w-3.5 h-3.5" /> {tech.rating}
@@ -435,11 +501,29 @@ export default function Technicians() {
                               className="text-[11px] pl-7 pr-7 py-1.5 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-full focus:outline-none focus:border-primary appearance-none cursor-pointer font-bold transition-all shadow-xs"
                             >
                               <option value="Available">Available</option>
-                              <option value="Busy">Busy</option>
+                              <option value="On Job">On Job</option>
+                              <option value="On Break">On Break</option>
                               <option value="Offline">Offline</option>
-                              <option value="Leave">Leave</option>
                             </select>
                             <FiChevronDown className="absolute right-2.5 text-slate-400 pointer-events-none w-3.5 h-3.5" />
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 align-middle text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-center gap-2">
+                            <button 
+                              onClick={(e) => handleToggleActivation(tech.id, tech.isActive !== false, e)}
+                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${tech.isActive === false ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-700 dark:bg-emerald-900/30 dark:hover:bg-emerald-800/40 dark:text-emerald-400' : 'bg-amber-100 hover:bg-amber-200 text-amber-700 dark:bg-amber-900/30 dark:hover:bg-amber-800/40 dark:text-amber-400'}`}
+                              title={tech.isActive === false ? "Activate" : "Deactivate"}
+                            >
+                              <FiPower size={14} />
+                            </button>
+                            <button 
+                              onClick={(e) => handleDeleteTech(tech.id, e)}
+                              className="p-1.5 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 rounded-lg transition-colors cursor-pointer"
+                              title="Delete"
+                            >
+                              <FiTrash2 size={14} />
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -492,17 +576,13 @@ export default function Technicians() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Specialization Field</label>
-              <select 
-                value={techForm.specialization}
-                onChange={(e) => setTechForm({ ...techForm, specialization: e.target.value })}
-                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
-              >
-                <option>IP Cameras & Networking</option>
-                <option>Analog Systems & Cabling</option>
-                <option>DVR/NVR Troubleshooting</option>
-                <option>PTZ Cameras & Fiber Optics</option>
-              </select>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Role</label>
+              <input 
+                type="text"
+                value="Technician"
+                disabled
+                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 rounded-xl focus:outline-none text-slate-500 cursor-not-allowed"
+              />
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1.5">Login Password</label>
@@ -606,17 +686,13 @@ export default function Technicians() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1.5">Specialization Field</label>
-                <select 
-                  value={editingTech.specialization}
-                  onChange={(e) => setEditingTech({ ...editingTech, specialization: e.target.value })}
-                  className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
-                >
-                  <option>IP Cameras & Networking</option>
-                  <option>Analog Systems & Cabling</option>
-                  <option>DVR/NVR Troubleshooting</option>
-                  <option>PTZ Cameras & Fiber Optics</option>
-                </select>
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5">Role</label>
+                <input 
+                  type="text"
+                  value="Technician"
+                  disabled
+                  className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 rounded-xl focus:outline-none text-slate-500 cursor-not-allowed"
+                />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-500 mb-1.5">Login Password</label>

@@ -379,6 +379,30 @@ const dashboardSlice = createSlice({
         }
       }
     },
+    deleteTechnician: (state, action) => {
+      state.technicians = state.technicians.filter(t => t.id !== action.payload);
+      try { localStorage.setItem('sk_admin_dashboard_cache', JSON.stringify(state)); } catch(e){}
+      state.notifications.unshift({
+        id: `NTF-${Date.now()}`,
+        title: 'Technician Deleted',
+        message: `A technician has been removed from the system.`,
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) + ', Today',
+        category: 'System',
+        read: false
+      });
+    },
+    toggleTechnicianActivation: (state, action) => {
+      const { id, isActive } = action.payload;
+      const tech = state.technicians.find(t => t.id === id);
+      if (tech) {
+        tech.isActive = isActive;
+        if (!isActive) {
+          tech.status = 'Offline'; // automatically set to offline when deactivated
+          tech.currentProject = 'None';
+        }
+        try { localStorage.setItem('sk_admin_dashboard_cache', JSON.stringify(state)); } catch(e){}
+      }
+    },
     // Projects actions
     approveProject: (state, action) => {
       const project = state.projects.find(p => p.id === action.payload);
@@ -732,7 +756,9 @@ export const {
   addBrand,
   deleteBrand,
   toggleBrandStatus,
-  editBrand
+  editBrand,
+  deleteTechnician,
+  toggleTechnicianActivation
 } = dashboardSlice.actions;
 
 export default dashboardSlice.reducer;

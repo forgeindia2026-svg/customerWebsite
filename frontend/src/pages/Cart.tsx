@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Trash2, ArrowRight, ShoppingBag, CheckCircle2, X, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -177,6 +177,8 @@ export default function Cart() {
     });
   };
 
+  const isSubmittingRef = useRef(false);
+
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!checkoutForm.name || !checkoutForm.phone || !checkoutForm.address || !checkoutForm.state || !checkoutForm.zipcode) {
@@ -184,6 +186,8 @@ export default function Cart() {
       return;
     }
 
+    if (isSubmittingRef.current || placingOrder) return;
+    isSubmittingRef.current = true;
     setPlacingOrder(true);
     setCheckoutError("");
 
@@ -285,6 +289,7 @@ export default function Cart() {
           rzp.on('payment.failed', function (resp: any) {
             setCheckoutError(`Payment Failed: ${resp.error.description || 'Transaction cancelled'}`);
             setPlacingOrder(false);
+            isSubmittingRef.current = false;
           });
           rzp.open();
           return;
@@ -299,6 +304,7 @@ export default function Cart() {
       setCheckoutError(err.message || "An error occurred. Please try again.");
     } finally {
       setPlacingOrder(false);
+      isSubmittingRef.current = false;
     }
   };
 
