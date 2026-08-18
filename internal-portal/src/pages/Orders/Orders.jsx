@@ -660,12 +660,30 @@ export default function Orders() {
               <label className="block text-xs font-semibold text-slate-500 mb-1.5">Phone Number</label>
               <input 
                 required
-                type="text" 
-                placeholder="+91 XXXXX XXXXX" 
+                type="tel" 
+                maxLength={10}
+                placeholder="10-digit mobile number" 
                 value={orderForm.phone}
-                onChange={(e) => setOrderForm({ ...orderForm, phone: e.target.value })}
-                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+                onChange={(e) => {
+                  const cleaned = e.target.value.replace(/\D/g, '').slice(0, 10);
+                  setOrderForm({ ...orderForm, phone: cleaned });
+                }}
+                className={`w-full text-xs p-2.5 border ${
+                  orderForm.phone && (orderForm.phone.length !== 10 || !/^[6-9]\d{9}$/.test(orderForm.phone))
+                    ? 'border-red-500 focus:border-red-500'
+                    : 'border-slate-200 dark:border-slate-700 focus:border-primary'
+                } bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none text-slate-800 dark:text-slate-100`}
               />
+              {orderForm.phone && orderForm.phone.length < 10 && (
+                <p className="text-[11px] text-red-500 mt-1 font-medium">
+                  Phone number must be exactly 10 digits ({orderForm.phone.length}/10)
+                </p>
+              )}
+              {orderForm.phone && orderForm.phone.length === 10 && !/^[6-9]\d{9}$/.test(orderForm.phone) && (
+                <p className="text-[11px] text-red-500 mt-1 font-medium">
+                  Must start with 6, 7, 8, or 9 for valid Indian mobile number
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1.5">Email Address</label>

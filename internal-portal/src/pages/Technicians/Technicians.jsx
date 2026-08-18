@@ -76,6 +76,10 @@ export default function Technicians() {
 
   const handleAddTech = async (e) => {
     e.preventDefault();
+    if (!techForm.phone || techForm.phone.length !== 10 || !/^[6-9]\d{9}$/.test(techForm.phone)) {
+      alert('Please enter a valid 10-digit Indian mobile number.');
+      return;
+    }
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/auth/register`, {
         method: 'POST',
@@ -128,6 +132,10 @@ export default function Technicians() {
 
   const handleEditTechSubmit = (e) => {
     e.preventDefault();
+    if (!editingTech.phone || editingTech.phone.length !== 10 || !/^[6-9]\d{9}$/.test(editingTech.phone)) {
+      alert('Please enter a valid 10-digit Indian mobile number.');
+      return;
+    }
     dispatch(editTechnician(editingTech));
     setEditModalOpen(false);
     setEditingTech(null);
@@ -555,12 +563,30 @@ export default function Technicians() {
               <label className="block text-xs font-semibold text-slate-500 mb-1.5">Phone Number</label>
               <input 
                 required
-                type="text" 
-                placeholder="+91 9XXXX XXXXX" 
+                type="tel" 
+                maxLength={10}
+                placeholder="10-digit mobile number" 
                 value={techForm.phone}
-                onChange={(e) => setTechForm({ ...techForm, phone: e.target.value })}
-                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+                onChange={(e) => {
+                  const cleaned = e.target.value.replace(/\D/g, '').slice(0, 10);
+                  setTechForm({ ...techForm, phone: cleaned });
+                }}
+                className={`w-full text-xs p-2.5 border ${
+                  techForm.phone && (techForm.phone.length !== 10 || !/^[6-9]\d{9}$/.test(techForm.phone))
+                    ? 'border-red-500 focus:border-red-500'
+                    : 'border-slate-200 dark:border-slate-700 focus:border-primary'
+                } bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none text-slate-800 dark:text-slate-100`}
               />
+              {techForm.phone && techForm.phone.length < 10 && (
+                <p className="text-[11px] text-red-500 mt-1 font-medium">
+                  Phone number must be exactly 10 digits ({techForm.phone.length}/10)
+                </p>
+              )}
+              {techForm.phone && techForm.phone.length === 10 && !/^[6-9]\d{9}$/.test(techForm.phone) && (
+                <p className="text-[11px] text-red-500 mt-1 font-medium">
+                  Must start with 6, 7, 8, or 9 for valid Indian mobile number
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1.5">Email ID</label>
@@ -667,11 +693,30 @@ export default function Technicians() {
                 <label className="block text-xs font-semibold text-slate-500 mb-1.5">Phone Number</label>
                 <input 
                   required
-                  type="text" 
+                  type="tel" 
+                  maxLength={10}
+                  placeholder="10-digit mobile number"
                   value={editingTech.phone}
-                  onChange={(e) => setEditingTech({ ...editingTech, phone: e.target.value })}
-                  className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+                  onChange={(e) => {
+                    const cleaned = e.target.value.replace(/\D/g, '').slice(0, 10);
+                    setEditingTech({ ...editingTech, phone: cleaned });
+                  }}
+                  className={`w-full text-xs p-2.5 border ${
+                    editingTech.phone && (editingTech.phone.length !== 10 || !/^[6-9]\d{9}$/.test(editingTech.phone))
+                      ? 'border-red-500 focus:border-red-500'
+                      : 'border-slate-200 dark:border-slate-700 focus:border-primary'
+                  } bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none text-slate-800 dark:text-slate-100`}
                 />
+                {editingTech.phone && editingTech.phone.length < 10 && (
+                  <p className="text-[11px] text-red-500 mt-1 font-medium">
+                    Phone number must be exactly 10 digits ({editingTech.phone.length}/10)
+                  </p>
+                )}
+                {editingTech.phone && editingTech.phone.length === 10 && !/^[6-9]\d{9}$/.test(editingTech.phone) && (
+                  <p className="text-[11px] text-red-500 mt-1 font-medium">
+                    Must start with 6, 7, 8, or 9 for valid Indian mobile number
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-500 mb-1.5">Email ID</label>

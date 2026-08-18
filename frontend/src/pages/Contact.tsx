@@ -178,11 +178,29 @@ export default function Contact() {
                     <Input
                       required
                       type="tel"
-                      placeholder="+1 (555) 000-0000"
+                      maxLength={10}
+                      placeholder="10-digit mobile number"
                       value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="bg-background h-10"
+                      onChange={(e) => {
+                        const cleaned = e.target.value.replace(/\D/g, '').slice(0, 10);
+                        setFormData({ ...formData, phone: cleaned });
+                      }}
+                      className={`bg-background h-10 ${
+                        formData.phone && (formData.phone.length !== 10 || !/^[6-9]\d{9}$/.test(formData.phone))
+                          ? 'border-red-500 focus-visible:ring-red-500'
+                          : ''
+                      }`}
                     />
+                    {formData.phone && formData.phone.length < 10 && (
+                      <p className="text-[11px] text-red-500 mt-1 font-medium">
+                        Phone number must be exactly 10 digits ({formData.phone.length}/10)
+                      </p>
+                    )}
+                    {formData.phone && formData.phone.length === 10 && !/^[6-9]\d{9}$/.test(formData.phone) && (
+                      <p className="text-[11px] text-red-500 mt-1 font-medium">
+                        Must start with 6, 7, 8, or 9 for valid Indian mobile number
+                      </p>
+                    )}
                   </div>
                 </div>
 

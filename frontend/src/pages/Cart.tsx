@@ -504,10 +504,29 @@ export default function Cart() {
                     <input
                       type="tel"
                       required
+                      maxLength={10}
+                      placeholder="10-digit mobile number"
                       value={checkoutForm.phone}
-                      onChange={e => setCheckoutForm(prev => ({ ...prev, phone: e.target.value }))}
-                      className="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#ff3b30] bg-white text-gray-900"
+                      onChange={e => {
+                        const cleaned = e.target.value.replace(/\D/g, '').slice(0, 10);
+                        setCheckoutForm(prev => ({ ...prev, phone: cleaned }));
+                      }}
+                      className={`w-full px-3.5 py-2.5 text-xs border ${
+                        checkoutForm.phone && (checkoutForm.phone.length !== 10 || !/^[6-9]\d{9}$/.test(checkoutForm.phone))
+                          ? 'border-red-500 focus:border-red-500'
+                          : 'border-gray-200 focus:border-[#ff3b30]'
+                      } rounded-xl focus:outline-none bg-white text-gray-900`}
                     />
+                    {checkoutForm.phone && checkoutForm.phone.length < 10 && (
+                      <p className="text-[11px] text-red-500 mt-1 font-medium">
+                        Phone number must be exactly 10 digits ({checkoutForm.phone.length}/10)
+                      </p>
+                    )}
+                    {checkoutForm.phone && checkoutForm.phone.length === 10 && !/^[6-9]\d{9}$/.test(checkoutForm.phone) && (
+                      <p className="text-[11px] text-red-500 mt-1 font-medium">
+                        Must start with 6, 7, 8, or 9 for valid Indian mobile number
+                      </p>
+                    )}
                   </div>
 
                   {/* Street Address */}
