@@ -50,13 +50,22 @@ export default function Reports() {
     if (rawStatus === 'COMPLETED' || rawStatus === 'APPROVED' || localStorage.getItem(`report_approved_${order.jobCode || order.id}`) === 'true') mappedStatus = 'Verified';
     if (rawStatus === 'REJECTED') mappedStatus = 'Rejected';
 
+    const techName = 
+      order.assignedTechnicianName || 
+      order.technicianName || 
+      (typeof order.technician === 'string' ? order.technician : order.technician?.name) ||
+      order.assignedTechnicians?.[0]?.name || 
+      order.assignedTechnician?.name || 
+      order.techName ||
+      'Rithvik (Field Tech)';
+
     return {
       id: order._id || order.id,
       jobCode: order.jobCode || order.id || 'SK-ORD-1001',
       title: order.title || order.serviceType || 'CCTV Installation & Service',
       customer: order.customerName || order.customer || 'Unknown Customer',
       address: order.location || order.address || 'Unknown Location',
-      technician: order.assignedTechnicianName || order.technician || 'Unassigned Technician',
+      technician: techName,
       status: mappedStatus,
       notes: order.fieldNotes || order.workDone || 'Technician site service report submitted.',
       beforePhotos: order.beforePhotos || [],
@@ -67,17 +76,19 @@ export default function Reports() {
 
   const generalReportsFormatted = generalReports.map((gr) => ({
     id: gr._id,
-    jobCode: gr.jobId || 'GENERAL-TASK',
-    title: gr.activityType,
-    customer: 'N/A (General)',
-    address: 'Internal / Office / Other',
-    technician: gr.technicianName,
-    status: 'Verified',
-    notes: gr.workDescription,
-    beforePhotos: [],
-    afterPhotos: [],
-    updatedAt: gr.createdAt,
-    hoursWorked: gr.hoursWorked
+    jobCode: gr.jobId || gr.jobCode || 'GENERAL-TASK',
+    title: gr.activityType || 'General Daily Work',
+    customer: gr.customerName || 'N/A (General)',
+    address: gr.location || 'Internal / Office / Other',
+    technician: gr.technicianName || gr.technician || 'Rithvik (Field Tech)',
+    status: gr.status || 'PRESENT',
+    checkInTime: gr.checkInTime || '09:00 AM',
+    checkOutTime: gr.checkOutTime || '06:00 PM',
+    notes: gr.workDescription || 'Shift logged',
+    beforePhotos: gr.beforePhotos || [],
+    afterPhotos: gr.afterPhotos || [],
+    updatedAt: gr.createdAt || gr.date,
+    hoursWorked: gr.hoursWorked || 8
   }));
 
   const allReportsList = [...fieldReportsList, ...generalReportsFormatted].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
