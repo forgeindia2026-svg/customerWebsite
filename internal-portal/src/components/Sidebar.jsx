@@ -55,7 +55,6 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
     { name: 'Inventory', path: '/admin/inventory', icon: FiPackage },
     { name: 'Payments', path: '/admin/payments', icon: FiCreditCard },
     { name: 'Notifications', path: '/admin/notifications', icon: FiBell, badgeCount: unreadCount },
-    { name: 'Settings', path: '/admin/settings', icon: FiSettings },
   ];
 
   return (
