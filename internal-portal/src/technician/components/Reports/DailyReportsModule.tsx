@@ -38,8 +38,51 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [mobileSubTab, setMobileSubTab] = useState<'All' | 'Submitted' | 'In Progress' | 'Drafts'>('Submitted');
   const [mobileQuickDetailReport, setMobileQuickDetailReport] = useState<any | null>(null);
-  const [mobileFullReportModal, setMobileFullReportModal] = useState<any | null>(null);
   const [showGeneralReportModal, setShowGeneralReportModal] = useState(false);
+  const [punchStatus, setPunchStatus] = useState<'PUNCHED_IN' | 'PUNCHED_OUT'>(() => {
+    const authUser = JSON.parse(localStorage.getItem('tech_user') || '{}');
+    const techId = authUser.id || authUser._id || 'TECH-01';
+    return localStorage.getItem(`tech_checkin_${techId}`) ? 'PUNCHED_IN' : 'PUNCHED_OUT';
+  });
+  const [checkInTimestamp, setCheckInTimestamp] = useState<string | null>(() => {
+    const authUser = JSON.parse(localStorage.getItem('tech_user') || '{}');
+    const techId = authUser.id || authUser._id || 'TECH-01';
+    return localStorage.getItem(`tech_checkin_${techId}`) || null;
+  });
+
+  const handleCheckIn = async () => {
+    const now = new Date();
+    const authUser = JSON.parse(localStorage.getItem('tech_user') || '{}');
+    const techId = authUser.id || authUser._id || 'TECH-01';
+    const techName = authUser.name || 'Technician';
+
+    const checkInTimeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const isoString = now.toISOString();
+
+    localStorage.setItem(`tech_checkin_${techId}`, isoString);
+    setCheckInTimestamp(isoString);
+    setPunchStatus('PUNCHED_IN');
+
+    try {
+      await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/reports`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          technicianId: techId,
+          technicianName: techName,
+          date: now.toISOString().split('T')[0],
+          activityType: 'Check-In',
+          workDescription: `Punched in / Shift started at ${checkInTimeStr}`,
+          checkInTime: checkInTimeStr,
+          status: 'PRESENT',
+          hoursWorked: 0
+        })
+      });
+      alert(`✓ Check-In Successful at ${checkInTimeStr}! Have a great shift.`);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const handleCreateReport = () => {
     // 1. Pick an IN_PROGRESS or ACCEPTED active job first
@@ -283,6 +326,52 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
 
   return (
     <div className="space-y-6 text-zinc-900 font-sans">
+
+      {/* 🕒 Top Attendance Punch Clock Banner */}
+      <div className="bg-slate-900 text-white rounded-2xl p-5 shadow-lg border border-slate-800 space-y-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Clock className="w-5 h-5 text-emerald-400" />
+              <h3 className="font-extrabold text-sm text-white uppercase tracking-wider">Shift Attendance & Punch Clock</h3>
+              {punchStatus === 'PUNCHED_IN' ? (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 animate-pulse">
+                  ● PUNCHED IN (ACTIVE SHIFT)
+                </span>
+              ) : (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-800 text-slate-400 border border-slate-700">
+                  ○ OFF SHIFT
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-300">
+              {punchStatus === 'PUNCHED_IN'
+                ? `Check-in recorded at ${checkInTimestamp ? new Date(checkInTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '09:00 AM'}. Log your daily work or check out when done.`
+                : 'Start your shift by tapping Check-In. Your working hours will be logged automatically for admin.'}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-end shrink-0">
+            {punchStatus === 'PUNCHED_IN' ? (
+              <button
+                onClick={() => setShowGeneralReportModal(true)}
+                className="w-full sm:w-auto px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+              >
+                <Square size={16} fill="currentColor" />
+                <span>Check Out & End Shift</span>
+              </button>
+            ) : (
+              <button
+                onClick={handleCheckIn}
+                className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+              >
+                <Play size={16} fill="currentColor" />
+                <span>Check In (Start Shift)</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Table Format: Header Bar & Filter Controls */}
       <div className="bg-white border border-zinc-200/90 rounded-2xl p-4 sm:p-5 space-y-4 shadow-2xs">

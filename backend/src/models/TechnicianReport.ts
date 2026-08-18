@@ -7,7 +7,18 @@ export interface ITechnicianReport extends Document {
   activityType: string;
   workDescription: string;
   hoursWorked: number;
+  checkInTime?: string;
+  checkOutTime?: string;
+  status?: string; // 'PRESENT' | 'HALF_DAY' | 'ON_LEAVE' | 'FIELD_JOB'
   jobId?: string; // Optional reference to a Job
+  jobCode?: string;
+  customerName?: string;
+  location?: string;
+  isMultiDay?: boolean;
+  dayNumber?: number;
+  beforePhotos?: string[];
+  afterPhotos?: string[];
+  approvedByAdmin?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -20,12 +31,22 @@ const TechnicianReportSchema: Schema = new Schema(
     activityType: { 
       type: String, 
       required: true,
-      enum: ['Customer Job', 'Office Work', 'Maintenance', 'Standby', 'Leave'],
       default: 'Customer Job'
     },
     workDescription: { type: String, required: true },
-    hoursWorked: { type: Number, required: true },
-    jobId: { type: String },
+    hoursWorked: { type: Number, required: true, default: 8 },
+    checkInTime: { type: String, default: '' },
+    checkOutTime: { type: String, default: '' },
+    status: { type: String, default: 'PRESENT' },
+    jobId: { type: String, default: '' },
+    jobCode: { type: String, default: '' },
+    customerName: { type: String, default: '' },
+    location: { type: String, default: '' },
+    isMultiDay: { type: Boolean, default: false },
+    dayNumber: { type: Number, default: 1 },
+    beforePhotos: [{ type: String }],
+    afterPhotos: [{ type: String }],
+    approvedByAdmin: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

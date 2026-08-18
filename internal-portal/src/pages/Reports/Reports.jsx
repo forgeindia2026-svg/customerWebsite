@@ -128,6 +128,30 @@ export default function Reports() {
     value: projectTypes[key]
   }));
 
+  const handleExportMonthlyExcel = () => {
+    const headers = ['Date', 'Technician Name', 'Check-In Time', 'Check-Out Time', 'Hours Logged', 'Status / Attendance', 'Job / Activity Type', 'Customer / Location', 'Work Description'];
+    const rows = allReportsList.map(r => [
+      r.updatedAt?.split('T')[0] || r.date || new Date().toISOString().split('T')[0],
+      `"${(r.technician || 'Technician').replace(/"/g, '""')}"`,
+      r.checkInTime || '09:00 AM',
+      r.checkOutTime || '06:00 PM',
+      r.hoursWorked || 8,
+      r.status || 'PRESENT',
+      `"${(r.title || r.activityType || 'General Work').replace(/"/g, '""')}"`,
+      `"${(r.customer || 'N/A').replace(/"/g, '""')}"`,
+      `"${(r.notes || r.workDescription || 'Shift completed').replace(/"/g, '""')}"`
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `Monthly_Technician_Attendance_Report_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleDownloadReportPDF = (report) => {
     try {
       const doc = new jsPDF();
@@ -411,13 +435,23 @@ export default function Reports() {
               <div>
                 <h3 className="font-extrabold text-slate-900 dark:text-white text-lg tracking-tight">Daily Reports</h3>
               </div>
-              <button
-                onClick={handleDownloadAllPDF}
-                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl flex items-center gap-2 transition-all shadow-xs cursor-pointer self-start sm:self-auto"
-              >
-                <FiDownload size={14} />
-                <span>Export All Field Reports (PDF)</span>
-              </button>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={handleExportMonthlyExcel}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-2 transition-all shadow-xs cursor-pointer"
+                >
+                  <FiDownload size={14} />
+                  <span>Export Monthly Attendance (Excel / CSV)</span>
+                </button>
+
+                <button
+                  onClick={handleDownloadAllPDF}
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl flex items-center gap-2 transition-all shadow-xs cursor-pointer"
+                >
+                  <FiDownload size={14} />
+                  <span>Export Reports (PDF)</span>
+                </button>
+              </div>
             </div>
 
             {/* 📱 Mobile Card View (Screenshot 1) - Matching Technician Mobile Flow */}
