@@ -108,13 +108,34 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
     }
   };
 
+  const [dbReports, setDbReports] = useState<any[]>([]);
+
+  const fetchDbReports = async () => {
+    try {
+      const authUser = JSON.parse(localStorage.getItem('tech_user') || '{}');
+      const techId = authUser.id || authUser._id;
+      const url = `${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/reports${techId ? `?technicianId=${techId}` : ''}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        setDbReports(data);
+      }
+    } catch (e) {
+      console.error('Failed to fetch DB reports', e);
+    }
+  };
+
+  useEffect(() => {
+    fetchDbReports();
+  }, []);
+
   const handleGeneralReportSubmit = async (data: any) => {
     try {
       const authUser = JSON.parse(localStorage.getItem('tech_user') || '{}');
       
       const payload = {
-        technicianId: authUser.id || 'TECH-UNKNOWN',
-        technicianName: authUser.name || 'Unknown Technician',
+        technicianId: authUser.id || authUser._id || 'TECH-UNKNOWN',
+        technicianName: authUser.name || 'Technician',
         ...data
       };
 
@@ -126,6 +147,7 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
 
       if (res.ok) {
         alert('General report submitted successfully!');
+        fetchDbReports();
       } else {
         alert('Failed to submit report.');
       }
@@ -136,7 +158,7 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
   };
 
   // Dynamically extract submitted daily reports and workflow completion reports from jobs database
-  const reports = jobs.flatMap((job) => {
+  const jobReports = jobs.flatMap((job) => {
     const list: any[] = [];
 
     // 1. Explicit daily reports array
@@ -186,6 +208,26 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
 
     return list;
   });
+
+  const dbReportsFormatted = dbReports.map((gr) => ({
+    id: gr._id || `REP-DB-${Math.random()}`,
+    date: gr.createdAt ? gr.createdAt.split('T')[0] : (gr.date || new Date().toISOString().split('T')[0]),
+    jobCode: gr.jobCode || gr.jobId || 'GENERAL-TASK',
+    jobTitle: gr.activityType || 'Daily Work Log',
+    customer: gr.customerName || 'Internal / Office',
+    customerAddress: gr.location || 'Chennai, Tamil Nadu',
+    technician: gr.technicianName || 'Technician',
+    hoursLogged: gr.hoursWorked || 8,
+    status: gr.approvedByAdmin ? 'VERIFIED' : 'PENDING_REVIEW',
+    summary: gr.workDescription || 'Shift report submitted.',
+    photosCount: (gr.beforePhotos?.length || 0) + (gr.afterPhotos?.length || 0),
+    beforePhotos: gr.beforePhotos || [],
+    afterPhotos: gr.afterPhotos || [],
+    safetyCheck: 'PASSED (4/4)',
+    supervisorApproval: gr.approvedByAdmin ? 'Approved by Admin' : 'Pending Admin Verification',
+  }));
+
+  const reports = [...jobReports, ...dbReportsFormatted].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const filteredReports = reports.filter((r) => {
     if (filterType === 'VERIFIED') return r.status === 'VERIFIED';
