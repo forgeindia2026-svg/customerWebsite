@@ -38,6 +38,7 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [mobileSubTab, setMobileSubTab] = useState<'All' | 'Submitted' | 'In Progress' | 'Drafts'>('Submitted');
   const [mobileQuickDetailReport, setMobileQuickDetailReport] = useState<any | null>(null);
+  const [mobileFullReportModal, setMobileFullReportModal] = useState<any | null>(null);
   const [showGeneralReportModal, setShowGeneralReportModal] = useState(false);
   const [punchStatus, setPunchStatus] = useState<'PUNCHED_IN' | 'PUNCHED_OUT'>(() => {
     const authUser = JSON.parse(localStorage.getItem('tech_user') || '{}');
