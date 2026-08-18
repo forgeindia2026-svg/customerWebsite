@@ -106,7 +106,7 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
             <div className="flex flex-wrap items-center gap-3 text-xs">
               <span className="flex items-center space-x-1.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-3 py-1 rounded-full font-mono font-bold">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                <span>ON DUTY • SHIFT ACTIVE</span>
+                <span>ON DUTY • WORK ACTIVE</span>
               </span>
               <span className="flex items-center space-x-1 text-slate-300 font-mono">
                 <CalendarDays className="w-3.5 h-3.5 text-slate-400" />
@@ -135,8 +135,8 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
             )}
 
             <button
-              onClick={() => nextJob && onSelectJob(nextJob)}
-              className="px-5 py-3 bg-slate-800/90 hover:bg-slate-700 text-white font-bold text-xs rounded-xl border border-slate-600 flex items-center justify-center space-x-2 transition-all duration-200 shadow-md cursor-pointer hover:border-slate-500"
+              onClick={() => onSelectJob(nextJob || jobs[0])}
+              className="px-5 py-3 border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-xs rounded-xl flex items-center justify-center space-x-2 transition-colors cursor-pointer"
             >
               <Navigation className="w-4 h-4 text-emerald-400" />
               <span>VIEW TODAY'S ROUTE</span>
@@ -144,257 +144,62 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
           </div>
         </div>
       </div>
-      {/* 6 High-Performance Metric Cards Row - Mobile 2 Cols, Desktop Preserved */}
-      <div className="grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-6 gap-3 sm:gap-4">
-        {/* 1. Total Assigned */}
-            <div className="bg-white border border-zinc-200/90 rounded-2xl p-5 shadow-2xs hover:shadow-md hover:border-zinc-300 hover:-translate-y-0.5 transition-all duration-200 group relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">ASSIGNED JOBS</span>
-                <div className="w-8 h-8 rounded-xl bg-zinc-100 group-hover:bg-zinc-900 group-hover:text-white transition-colors duration-200 flex items-center justify-center text-zinc-700">
-                  <Briefcase className="w-4 h-4" />
-                </div>
-              </div>
 
-              <div className="mt-3 flex items-baseline justify-between">
-                {totalAssignedVal === null ? (
-                  <div className="w-14 h-8 bg-zinc-200 animate-pulse rounded-lg" />
-                ) : (
-                  <p className="text-3xl font-black text-zinc-900 tracking-tight">{totalAssignedVal}</p>
-                )}
-                {totalAssignedVal === null ? (
-                  <div className="w-12 h-4 bg-zinc-200 animate-pulse rounded" />
-                ) : (
-                  <span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md font-mono ${
-                    (totalAssignedVal || 0) > 0 ? 'text-emerald-700 bg-emerald-50' : 'text-zinc-500 bg-zinc-50'
-                  }`}>
-                    {(totalAssignedVal || 0) > 0 ? 'Active' : '0 Assigned'}
-                  </span>
-                )}
-              </div>
+      {/* Modern Clean 4 KPI Metric Cards with Vibrant Subtle Gradients */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+        {/* 1. Assigned Jobs */}
+        <div className="bg-gradient-to-br from-blue-50/80 via-white to-blue-50/20 dark:from-slate-900 dark:to-slate-800 border border-blue-200/70 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex items-center justify-between min-w-0">
+          <div className="min-w-0 pr-1">
+            <span className="text-[9px] sm:text-[10px] font-black text-blue-700/70 dark:text-blue-400 uppercase tracking-wider block mb-1 truncate">ASSIGNED JOBS</span>
+            <p className="text-2xl sm:text-3xl font-black text-[#0B1527] dark:text-white leading-none">{totalAssignedVal ?? 0}</p>
+            <span className="text-[10px] sm:text-[11px] font-bold text-blue-600/80 mt-1.5 block truncate">
+              Scheduled Jobs
+            </span>
+          </div>
+          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold shrink-0 shadow-md shadow-blue-500/20">
+            <Briefcase className="w-4 h-4 sm:w-5 sm:h-5" />
+          </div>
+        </div>
 
-              <p className="text-[11px] font-semibold text-zinc-500 mt-1.5 flex items-center space-x-1">
-                {totalAssignedVal === null ? (
-                  <div className="w-24 h-3 bg-zinc-200 animate-pulse rounded" />
-                ) : (
-                  <>
-                    <span>{totalAssignedVal} Assigned</span>
-                    <span className="text-zinc-300">•</span>
-                    <span className="text-amber-600 font-normal">{availablePoolJobs.length} Available Pool</span>
-                  </>
-                )}
-              </p>
+        {/* 2. In Progress */}
+        <div className="bg-gradient-to-br from-amber-50/80 via-white to-amber-50/20 dark:from-slate-900 dark:to-slate-800 border border-amber-200/70 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex items-center justify-between min-w-0">
+          <div className="min-w-0 pr-1">
+            <span className="text-[9px] sm:text-[10px] font-black text-amber-800/70 dark:text-amber-400 uppercase tracking-wider block mb-1 truncate">IN PROGRESS</span>
+            <p className="text-2xl sm:text-3xl font-black text-amber-700 dark:text-amber-400 leading-none">{inProgressVal ?? 0}</p>
+            <span className="text-[10px] sm:text-[11px] font-bold text-amber-600 mt-1.5 block truncate flex items-center gap-0.5">
+              <Zap className="w-3 h-3 fill-current shrink-0" /> Active On Site
+            </span>
+          </div>
+          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-amber-500 text-white flex items-center justify-center font-bold shrink-0 shadow-md shadow-amber-500/20">
+            <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
+          </div>
+        </div>
 
-              {/* Tiny Progress Bar */}
-              <div className="w-full bg-zinc-100 h-1 rounded-full mt-3 overflow-hidden">
-                <div className="bg-zinc-900 h-full rounded-full transition-all duration-500" style={{ width: (totalAssignedVal || 0) > 0 ? '100%' : '0%' }} />
-              </div>
-            </div>
+        {/* 3. Completed Today */}
+        <div className="bg-gradient-to-br from-emerald-50/80 via-white to-emerald-50/20 dark:from-slate-900 dark:to-slate-800 border border-emerald-200/70 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex items-center justify-between min-w-0">
+          <div className="min-w-0 pr-1">
+            <span className="text-[9px] sm:text-[10px] font-black text-emerald-800/70 dark:text-emerald-400 uppercase tracking-wider block mb-1 truncate">COMPLETED TODAY</span>
+            <p className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400 leading-none">{completedVal ?? 0}</p>
+            <span className="text-[10px] sm:text-[11px] font-bold text-emerald-600 mt-1.5 block truncate">QA Verified</span>
+          </div>
+          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-bold shrink-0 shadow-md shadow-emerald-500/20">
+            <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
+          </div>
+        </div>
 
-            {/* 2. In Progress */}
-            <div className="bg-white border border-zinc-200/90 rounded-2xl p-5 shadow-2xs hover:shadow-md hover:border-amber-300/80 hover:-translate-y-0.5 transition-all duration-200 group relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">IN PROGRESS</span>
-                <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-colors duration-200 flex items-center justify-center">
-                  <Clock className="w-4 h-4" />
-                </div>
-              </div>
-
-              <div className="mt-3 flex items-baseline justify-between">
-                {inProgressVal === null ? (
-                  <div className="w-14 h-8 bg-zinc-200 animate-pulse rounded-lg" />
-                ) : (
-                  <p className="text-3xl font-black text-zinc-900 tracking-tight">{inProgressVal}</p>
-                )}
-                {inProgressVal === null ? (
-                  <div className="w-12 h-4 bg-amber-100 animate-pulse rounded" />
-                ) : (
-                  <span className="inline-flex items-center text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md font-mono">
-                    <Zap className="w-3 h-3 mr-0.5" />
-                    Active
-                  </span>
-                )}
-              </div>
-
-              <p className="text-[11px] font-semibold text-amber-600 mt-1.5 flex items-center space-x-1">
-                {inProgressVal === null ? (
-                  <div className="w-24 h-3 bg-zinc-200 animate-pulse rounded" />
-                ) : (
-                  <>
-                    <span>Active On Site</span>
-                    <span className="text-zinc-300">•</span>
-                    <span className="text-zinc-400 font-normal">{pendingJobs.length} Pending</span>
-                  </>
-                )}
-              </p>
-
-              {/* Tiny Progress Bar */}
-              <div className="w-full bg-amber-100 h-1 rounded-full mt-3 overflow-hidden">
-                <div className="bg-amber-500 h-full rounded-full transition-all duration-500" style={{ width: (totalAssignedVal || 0) > 0 ? `${((inProgressVal || 0) / (totalAssignedVal || 1)) * 100}%` : '0%' }} />
-              </div>
-            </div>
-
-            {/* 3. Completed Today */}
-            <div className="bg-white border border-zinc-200/90 rounded-2xl p-5 shadow-2xs hover:shadow-md hover:border-emerald-300/80 hover:-translate-y-0.5 transition-all duration-200 group relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">COMPLETED TODAY</span>
-                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors duration-200 flex items-center justify-center">
-                  <CheckCircle2 className="w-4 h-4" />
-                </div>
-              </div>
-
-              <div className="mt-3 flex items-baseline justify-between">
-                {completedVal === null ? (
-                  <div className="w-14 h-8 bg-zinc-200 animate-pulse rounded-lg" />
-                ) : (
-                  <p className="text-3xl font-black text-zinc-900 tracking-tight">{completedVal}</p>
-                )}
-                {completedVal === null ? (
-                  <div className="w-12 h-4 bg-emerald-100 animate-pulse rounded" />
-                ) : (
-                  <span className="inline-flex items-center text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-mono">
-                    <ArrowUpRight className="w-3 h-3 mr-0.5" />
-                    {(completedVal || 0) > 0 ? '100%' : '0%'}
-                  </span>
-                )}
-              </div>
-
-              <p className="text-[11px] font-semibold text-emerald-600 mt-1.5 flex items-center space-x-1">
-                {completedVal === null ? (
-                  <div className="w-24 h-3 bg-zinc-200 animate-pulse rounded" />
-                ) : (
-                  <>
-                    <span>QA Passed</span>
-                    <span className="text-zinc-300">•</span>
-                    <span className="text-zinc-400 font-normal">Completed</span>
-                  </>
-                )}
-              </p>
-
-              {/* Tiny Progress Bar */}
-              <div className="w-full bg-emerald-100 h-1 rounded-full mt-3 overflow-hidden">
-                <div className="bg-emerald-500 h-full rounded-full transition-all duration-500" style={{ width: (totalAssignedVal || 0) > 0 ? `${((completedVal || 0) / (totalAssignedVal || 1)) * 100}%` : '0%' }} />
-              </div>
-            </div>
-
-            {/* 4. Hours Logged */}
-            <div className="bg-white border border-zinc-200/90 rounded-2xl p-5 shadow-2xs hover:shadow-md hover:border-zinc-300 hover:-translate-y-0.5 transition-all duration-200 group relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">HOURS LOGGED</span>
-                <div className="w-8 h-8 rounded-xl bg-zinc-100 text-zinc-700 group-hover:bg-zinc-900 group-hover:text-white transition-colors duration-200 flex items-center justify-center">
-                  <TrendingUp className="w-4 h-4" />
-                </div>
-              </div>
-
-              <div className="mt-3 flex items-baseline justify-between">
-                {hoursVal === null ? (
-                  <div className="w-14 h-8 bg-zinc-200 animate-pulse rounded-lg" />
-                ) : (
-                  <p className="text-3xl font-black text-zinc-900 tracking-tight">
-                    {hoursVal.toFixed(1)} <span className="text-xs font-bold text-zinc-400 font-mono">hrs</span>
-                  </p>
-                )}
-                {hoursVal === null ? (
-                  <div className="w-12 h-4 bg-zinc-200 animate-pulse rounded" />
-                ) : (
-                  <span className="inline-flex items-center text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-mono">
-                    <ArrowUpRight className="w-3 h-3 mr-0.5" />
-                    Auto Sum
-                  </span>
-                )}
-              </div>
-
-              <p className="text-[11px] font-semibold text-zinc-600 mt-1.5 flex items-center space-x-1">
-                {hoursVal === null ? (
-                  <div className="w-24 h-3 bg-zinc-200 animate-pulse rounded" />
-                ) : (
-                  <>
-                    <span>Shift Target: 8h</span>
-                    <span className="text-zinc-300">•</span>
-                    <span className="text-zinc-400 font-normal">{(hoursVal || 0) >= 8 ? 'Target Met' : `${(8 - (hoursVal || 0)).toFixed(1)}h left`}</span>
-                  </>
-                )}
-              </p>
-
-              {/* Tiny Progress Bar */}
-              <div className="w-full bg-zinc-100 h-1 rounded-full mt-3 overflow-hidden">
-                <div className="bg-zinc-800 h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(((hoursVal || 0) / 8) * 100, 100)}%` }} />
-              </div>
-            </div>
-
-            {/* 5. First-Time Fix */}
-            <div className="bg-white border border-zinc-200/90 rounded-2xl p-5 shadow-2xs hover:shadow-md hover:border-sky-300/80 hover:-translate-y-0.5 transition-all duration-200 group relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">FIRST-TIME FIX</span>
-                <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-600 group-hover:bg-sky-500 group-hover:text-white transition-colors duration-200 flex items-center justify-center">
-                  <Award className="w-4 h-4" />
-                </div>
-              </div>
-
-              <div className="mt-3 flex items-baseline justify-between">
-                {fixRateVal === null ? (
-                  <div className="w-14 h-8 bg-zinc-200 animate-pulse rounded-lg" />
-                ) : (
-                  <p className="text-3xl font-black text-zinc-900 tracking-tight">{fixRateVal.toFixed(1)}%</p>
-                )}
-                {fixRateVal === null ? (
-                  <div className="w-12 h-4 bg-sky-100 animate-pulse rounded" />
-                ) : (
-                  <span className="inline-flex items-center text-[10px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md font-mono">
-                    <ArrowUpRight className="w-3 h-3 mr-0.5" />
-                    {(fixRateVal || 0) > 0 ? '+100%' : '0%'}
-                  </span>
-                )}
-              </div>
-
-              <p className="text-[11px] font-semibold text-sky-600 mt-1.5 flex items-center space-x-1">
-                {fixRateVal === null ? (
-                  <div className="w-24 h-3 bg-zinc-200 animate-pulse rounded" />
-                ) : (
-                  <>
-                    <span>Single Visit</span>
-                    <span className="text-zinc-300">•</span>
-                    <span className="text-zinc-400 font-normal">{(completedVal || 0) > 0 ? 'Top Tier' : 'No Completed Jobs'}</span>
-                  </>
-                )}
-              </p>
-
-              {/* Tiny Progress Bar */}
-              <div className="w-full bg-sky-100 h-1 rounded-full mt-3 overflow-hidden">
-                <div className="bg-sky-500 h-full rounded-full transition-all duration-500" style={{ width: `${fixRateVal || 0}%` }} />
-              </div>
-            </div>
-
-            {/* 6. Safety Score */}
-            <div className="bg-white border border-zinc-200/90 rounded-2xl p-5 shadow-2xs hover:shadow-md hover:border-emerald-300/80 hover:-translate-y-0.5 transition-all duration-200 group relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">SAFETY SCORE</span>
-                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors duration-200 flex items-center justify-center">
-                  <ShieldAlert className="w-4 h-4" />
-                </div>
-              </div>
-
-              <div className="mt-3 flex items-baseline justify-between">
-                {safetyVal === null ? (
-                  <div className="w-14 h-8 bg-zinc-200 animate-pulse rounded-lg" />
-                ) : (
-                  <p className="text-3xl font-black text-zinc-900 tracking-tight">{safetyVal}%</p>
-                )}
-                {safetyVal === null ? (
-                  <div className="w-12 h-4 bg-emerald-100 animate-pulse rounded" />
-                ) : (
-                  <span className="inline-flex items-center text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-mono">
-                    ★ {safetyVal === 100 ? 'Perfect' : 'N/A'}
-                  </span>
-                )}
-              </div>
-
-              <p className="text-[11px] font-semibold text-emerald-600 mt-1.5 flex items-center space-x-1">
-                <span>Zero Incidents</span>
-                <span className="text-zinc-300">•</span>
-                <span className="text-zinc-400 font-normal">{jobs.length > 0 ? 'LOTO Verified' : 'No Active Job'}</span>
-              </p>
-
-            </div>
+        {/* 4. Hours Logged */}
+        <div className="bg-gradient-to-br from-indigo-50/80 via-white to-indigo-50/20 dark:from-slate-900 dark:to-slate-800 border border-indigo-200/70 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex items-center justify-between min-w-0">
+          <div className="min-w-0 pr-1">
+            <span className="text-[9px] sm:text-[10px] font-black text-indigo-800/70 dark:text-indigo-400 uppercase tracking-wider block mb-1 truncate">HOURS LOGGED</span>
+            <p className="text-2xl sm:text-3xl font-black text-indigo-600 dark:text-indigo-400 leading-none">
+              {(hoursVal ?? 0).toFixed(1)} <span className="text-[10px] sm:text-xs font-bold text-indigo-400">hrs</span>
+            </p>
+            <span className="text-[10px] sm:text-[11px] font-bold text-indigo-600/80 mt-1.5 block truncate">Target: 8.0h</span>
+          </div>
+          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold shrink-0 shadow-md shadow-indigo-500/20">
+            <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
+          </div>
+        </div>
       </div>
 
       {/* Active Working Job Dark Navy Hero Banner */}
@@ -450,101 +255,8 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
         </div>
       )}
 
-      {/* Main Content Split Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Left Column (2/3 width): Daily Technician Shift Log & Feedback Hub */}
-        <div className="lg:col-span-2 space-y-6">
-          
-          {/* Card 1: Daily Shift Experience & Field Feedback Form */}
-          <div className="bg-white border border-zinc-200/90 rounded-2xl p-5 space-y-4 shadow-2xs">
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
-              <div className="flex items-center space-x-2">
-                <MessageSquarePlus className="w-4 h-4 text-zinc-800" />
-                <h3 className="text-sm font-bold text-zinc-900">
-                  Daily Shift Log & Dispatch Feedback
-                </h3>
-              </div>
-              <span className="text-[10px] font-mono font-bold bg-amber-50 text-amber-700 px-2.5 py-0.5 rounded border border-amber-200">
-                DAILY SHIFT LOG ACTIVE
-              </span>
-            </div>
-
-            {submitted ? (
-              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-center space-y-2">
-                <ThumbsUp className="w-6 h-6 text-emerald-600 mx-auto" />
-                <p className="text-xs font-bold text-emerald-900">Shift Log & Feedback Submitted Successfully!</p>
-                <p className="text-[11px] text-emerald-700">Thank you. Dispatch and Supervisor team have received your site report.</p>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmitFeedback} className="space-y-4 text-xs">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Category Selector */}
-                  <div>
-                    <label className="block text-[11px] font-semibold text-zinc-700 mb-1">Feedback Category</label>
-                    <select
-                      value={feedbackCategory}
-                      onChange={(e) => setFeedbackCategory(e.target.value)}
-                      className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-medium text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-800"
-                    >
-                      <option value="Safety & Parts">Safety & Parts Inventory</option>
-                      <option value="Dispatch Schedule">Dispatch Schedule & Timing</option>
-                      <option value="Site Access & Gate">Site Access & Customer Clearance</option>
-                      <option value="Equipment Manuals">Equipment Manual Clarity</option>
-                    </select>
-                  </div>
-
-                  {/* Rating Stars */}
-                  <div>
-                    <label className="block text-[11px] font-semibold text-zinc-700 mb-1">Site Condition Rating</label>
-                    <div className="flex items-center space-x-1.5 pt-1.5">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <button
-                          key={star}
-                          type="button"
-                          onClick={() => setRating(star)}
-                          className="p-1 cursor-pointer hover:scale-110 transition-transform"
-                        >
-                          <Star className={`w-4 h-4 ${star <= rating ? 'text-amber-400 fill-amber-400' : 'text-zinc-300'}`} />
-                        </button>
-                      ))}
-                      <span className="text-[11px] font-mono text-zinc-500 font-semibold ml-2">({rating}/5 Stars)</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Feedback Note Input */}
-                <div>
-                  <label className="block text-[11px] font-semibold text-zinc-700 mb-1">Daily Field Notes & Safety Feedback</label>
-                  <textarea
-                    rows={2}
-                    required
-                    value={noteText}
-                    onChange={(e) => setNoteText(e.target.value)}
-                    placeholder="Log any site issues, missing parts, customer delays, or safety suggestions..."
-                    className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-800"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-[10px] text-zinc-400 font-mono">Synced with Supervisor Portal</span>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs rounded-xl flex items-center space-x-1.5 transition-colors cursor-pointer"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                    <span>Submit Daily Report</span>
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
-
-
-
-        {/* Right Column (1/3 width): Pending Dispatch Queue */}
-        <div className="bg-white border border-zinc-200/90 rounded-2xl p-5 space-y-4 shadow-2xs flex flex-col justify-between">
+      {/* Pending Dispatch Queue */}
+      <div className="bg-white border border-zinc-200/90 rounded-2xl p-5 space-y-4 shadow-2xs">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
               <div className="flex items-center space-x-2">
@@ -592,8 +304,6 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
-
-      </div>
     </div>
   );
 };

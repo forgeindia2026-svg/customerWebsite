@@ -5,13 +5,32 @@ interface GeneralReportModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: any) => void;
+  checkInTimestamp?: string | null;
 }
 
-export const GeneralReportModal: React.FC<GeneralReportModalProps> = ({ isOpen, onClose, onSubmit }) => {
+export const GeneralReportModal: React.FC<GeneralReportModalProps> = ({ isOpen, onClose, onSubmit, checkInTimestamp }) => {
+  const getInitialHours = () => {
+    const authUser = JSON.parse(localStorage.getItem('tech_user') || '{}');
+    const techId = authUser.id || authUser._id || 'TECH-01';
+    const checkInTime = checkInTimestamp || localStorage.getItem(`tech_checkin_${techId}`);
+    if (checkInTime) {
+      const diffMs = Date.now() - new Date(checkInTime).getTime();
+      return Math.max(0.5, Math.round((diffMs / (1000 * 60 * 60)) * 10) / 10);
+    }
+    return 8;
+  };
+
   const [activityType, setActivityType] = useState('Office Work');
-  const [hoursWorked, setHoursWorked] = useState(8);
+  const [hoursWorked, setHoursWorked] = useState<number>(getInitialHours());
   const [workDescription, setWorkDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Recalculate dynamic hours every time modal is opened
+  React.useEffect(() => {
+    if (isOpen) {
+      setHoursWorked(getInitialHours());
+    }
+  }, [isOpen, checkInTimestamp]);
 
   if (!isOpen) return null;
 
@@ -58,19 +77,6 @@ export const GeneralReportModal: React.FC<GeneralReportModalProps> = ({ isOpen, 
             </select>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Hours Worked</label>
-            <input
-              type="number"
-              min="0.5"
-              max="24"
-              step="0.5"
-              value={hoursWorked}
-              onChange={(e) => setHoursWorked(parseFloat(e.target.value))}
-              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-slate-800 dark:text-white"
-              required
-            />
-          </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Work Description</label>

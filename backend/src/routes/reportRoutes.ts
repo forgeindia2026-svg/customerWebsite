@@ -80,4 +80,32 @@ router.put('/:id/approve', async (req: Request, res: Response) => {
   }
 });
 
+// DELETE single report
+router.delete('/:id', async (req: Request, res: Response) => {
+  try {
+    const deleted = await TechnicianReport.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ message: 'Report not found' });
+    res.json({ success: true, message: 'Report deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// DELETE cleanup test/mock reports
+router.delete('/cleanup/all-test', async (req: Request, res: Response) => {
+  try {
+    await TechnicianReport.deleteMany({
+      $or: [
+        { technicianName: { $regex: /unknown|mock|test/i } },
+        { technicianId: { $regex: /unknown|mock|test/i } },
+        { workDescription: { $regex: /test|mock/i } },
+        { activityType: { $regex: /test|mock/i } }
+      ]
+    });
+    res.json({ success: true, message: 'All test reports cleaned up' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 export default router;

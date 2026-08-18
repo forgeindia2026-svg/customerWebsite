@@ -27,8 +27,9 @@ export default function Workstation() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const [dbReports, setDbReports] = useState([]);
+  const [liveAttendance, setLiveAttendance] = useState([]);
 
-  // Fetch live reports and dashboard data on mount
+  // Fetch live reports, attendance and dashboard data on mount
   React.useEffect(() => {
     dispatch(fetchDashboardData());
     const fetchLiveReports = async () => {
@@ -42,7 +43,19 @@ export default function Workstation() {
         console.error('Error fetching live reports for workstation', err);
       }
     };
+    const fetchLiveAttendance = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/attendance/today`);
+        if (res.ok) {
+          const data = await res.json();
+          setLiveAttendance(Array.isArray(data) ? data : []);
+        }
+      } catch (err) {
+        console.error('Error fetching live attendance', err);
+      }
+    };
     fetchLiveReports();
+    fetchLiveAttendance();
   }, [dispatch]);
 
   // Default fallback technician list if store is empty or initializing
@@ -306,6 +319,18 @@ export default function Workstation() {
             <FiTool size={16} />
             <span>🛠️ Technicians Roster ({(allTechnicians || []).length})</span>
           </button>
+
+          <button
+            onClick={() => setMainTab('attendance')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer ${
+              mainTab === 'attendance'
+                ? 'bg-slate-900 text-white dark:bg-blue-600 shadow-md'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <FiClock size={16} />
+            <span>⏰ Daily Attendance ({liveAttendance.length})</span>
+          </button>
         </div>
 
         <div className="text-[11px] font-mono text-slate-400 font-bold hidden md:block px-3">
@@ -322,6 +347,73 @@ export default function Workstation() {
       {mainTab === 'technicians' && (
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-2 shadow-xs">
           <Technicians />
+        </div>
+      )}
+
+      {mainTab === 'attendance' && (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-xs space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+            <div>
+              <h3 className="font-bold text-base text-slate-900 dark:text-white">Daily Technician Attendance & Shift Punch Logs</h3>
+              <p className="text-xs text-slate-500">Live morning punch-in & evening punch-out records for today ({new Date().toLocaleDateString()})</p>
+            </div>
+            <span className="px-3 py-1 bg-emerald-100 text-emerald-800 font-extrabold text-xs rounded-full">
+              {liveAttendance.filter(a => a.status === 'PRESENT').length} Active on Duty
+            </span>
+          </div>
+
+          {liveAttendance.length === 0 ? (
+            <div className="p-8 text-center text-slate-400 text-xs bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+              No technicians have punched in yet for today.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                    <th className="py-3 px-3">Technician</th>
+                    <th className="py-3 px-3">Date</th>
+                    <th className="py-3 px-3">Punch-In Time</th>
+                    <th className="py-3 px-3">Punch-Out Time</th>
+                    <th className="py-3 px-3">Total Shift Hours</th>
+                    <th className="py-3 px-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {liveAttendance.map((att) => {
+                    const isDuty = att.status === 'PRESENT' && !att.checkOutTimestamp;
+                    return (
+                      <tr key={att._id || att.technicianId} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="py-3 px-3 font-bold text-slate-900 dark:text-white">
+                          {att.technicianName}
+                          <span className="block text-[10px] text-slate-400 font-mono font-normal">{att.technicianId}</span>
+                        </td>
+                        <td className="py-3 px-3 font-mono text-slate-600 dark:text-slate-300">{att.date}</td>
+                        <td className="py-3 px-3 font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                          {att.checkInTime || '-'}
+                        </td>
+                        <td className="py-3 px-3 font-mono text-slate-600 dark:text-slate-300">
+                          {att.checkOutTime || (isDuty ? '🟢 Active in Shift' : '-')}
+                        </td>
+                        <td className="py-3 px-3 font-mono font-bold text-slate-800 dark:text-slate-200">
+                          {att.totalHours ? `${att.totalHours} Hours` : isDuty ? 'Counting...' : '-'}
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-full border uppercase ${
+                            isDuty 
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                              : 'bg-slate-100 text-slate-700 border-slate-200'
+                          }`}>
+                            {isDuty ? '🟢 ON DUTY' : '🏁 SHIFT ENDED'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 

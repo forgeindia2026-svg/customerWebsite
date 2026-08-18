@@ -35,6 +35,42 @@ import type {
 import { ErrorBanner, type GlobalErrorState } from './components/ErrorBanner';
 import { OfflineBanner } from './components/OfflineBanner';
 
+import { AttendanceCard } from './components/Attendance/AttendanceCard';
+import { AttendanceLogModule } from './components/Attendance/AttendanceLogModule';
+
+class ReportsErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: any }> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("DailyReportsModule Error Boundary caught an error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="bg-red-50 border border-red-200 text-red-700 p-6 rounded-2xl space-y-3 font-sans">
+          <h3 className="font-bold text-base">⚠️ Daily Reports Module Diagnostics</h3>
+          <p className="text-xs font-mono bg-white p-3 rounded-xl border border-red-100">{String(this.state.error?.message || this.state.error)}</p>
+          <button 
+            onClick={() => this.setState({ hasError: false, error: null })} 
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
+          >
+            Reload Module
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export function App() {
   const [globalError, setGlobalError] = useState<GlobalErrorState | null>(null);
   const [autoSyncEnabled, setAutoSyncEnabled] = useState<boolean>(true);
@@ -110,24 +146,23 @@ export function App() {
   // Mobile Responsive Drawer State
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
 
-  const [profile, setProfile] = useState<TechnicianProfile | null>(() => {
-    const name = localStorage.getItem('user_name');
-    const email = localStorage.getItem('user_email');
-    const id = localStorage.getItem('user_id');
-    if (name) {
-      return {
-        id: id || 'tech-01',
-        name: name,
-        email: email || '',
-        phone: localStorage.getItem('user_phone') || '+91 98765 43210',
-        badgeNumber: `SK-TECH-${(id || '1234').slice(-4).toUpperCase()}`,
-        status: 'AVAILABLE',
-        specialties: ['CCTV & Networking'],
-        rating: 5.0,
-        completedJobsCount: 0
-      };
-    }
-    return null;
+  const [profile, setProfile] = useState<TechnicianProfile>(() => {
+    const name = localStorage.getItem('user_name') || 'Technician';
+    const email = localStorage.getItem('user_email') || 'tech@sktechnology.com';
+    const id = localStorage.getItem('user_id') || 'tech-01';
+    return {
+      id: id,
+      name: name,
+      email: email,
+      phone: localStorage.getItem('user_phone') || '+91 98765 43210',
+      badgeNumber: `SK-TECH-${id.slice(-4).toUpperCase()}`,
+      status: 'AVAILABLE',
+      specialties: ['CCTV & Networking', 'Access Control'],
+      certifications: ['LOTO Safety Certified', 'CCTV System Specialist', 'Network Infrastructure Pro'],
+      vehicleNumber: 'Ford Transit #SK-408',
+      rating: 5.0,
+      completedJobsCount: 12
+    };
   });
   const [summaryStats, setSummaryStats] = useState<any>(() => {
     try {
@@ -410,6 +445,9 @@ export function App() {
         />
 
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-10 pb-24 lg:pb-10 max-w-7xl w-full mx-auto space-y-6">
+          {/* Daily Attendance Shift Check-In / Check-Out Tracker */}
+          <AttendanceCard />
+
           {/* Module Title Banner */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 pb-5">
             <div>
@@ -460,12 +498,18 @@ export function App() {
             />
           )}
 
+          {activeTab === 'attendance_log' && (
+            <AttendanceLogModule />
+          )}
+
           {activeTab === 'reports' && (
-            <DailyReportsModule
-              jobs={jobs}
-              isLoading={isLoadingData}
-              onOpenWorkflow={handleOpenWorkflow}
-            />
+            <ReportsErrorBoundary>
+              <DailyReportsModule
+                jobs={jobs}
+                isLoading={isLoadingData}
+                onOpenWorkflow={handleOpenWorkflow}
+              />
+            </ReportsErrorBoundary>
           )}
 
           {activeTab === 'history' && (

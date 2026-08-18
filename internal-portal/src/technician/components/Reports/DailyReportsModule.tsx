@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Job } from '../../types/job';
 import { 
   FileText, 
@@ -86,21 +86,18 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
   };
 
   const handleCreateReport = () => {
-    // 1. Pick an IN_PROGRESS or ACCEPTED active job first
     const activeJob = jobs.find(j => j.status === 'IN_PROGRESS' || j.status === 'ACCEPTED');
     if (activeJob) {
       onOpenWorkflow(activeJob);
       return;
     }
 
-    // 2. Pick any assigned job that is not completed
     const nonCompletedJob = jobs.find(j => j.status !== 'COMPLETED' && j.status !== 'VERIFIED');
     if (nonCompletedJob) {
       onOpenWorkflow(nonCompletedJob);
       return;
     }
 
-    // 3. Fallback to general report if no jobs available
     if (jobs[0]) {
       onOpenWorkflow(jobs[0]);
     } else {
@@ -118,10 +115,21 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
-        setDbReports(data);
+        if (Array.isArray(data)) {
+          setDbReports(data);
+        } else if (data && Array.isArray(data.data)) {
+          setDbReports(data.data);
+        } else if (data && Array.isArray(data.reports)) {
+          setDbReports(data.reports);
+        } else {
+          setDbReports([]);
+        }
+      } else {
+        setDbReports([]);
       }
     } catch (e) {
       console.error('Failed to fetch DB reports', e);
+      setDbReports([]);
     }
   };
 
@@ -132,10 +140,12 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
   const handleGeneralReportSubmit = async (data: any) => {
     try {
       const authUser = JSON.parse(localStorage.getItem('tech_user') || '{}');
+      const realName = authUser.name || localStorage.getItem('user_name') || 'Technician';
+      const realId = authUser.id || authUser._id || localStorage.getItem('user_id') || 'TECH-01';
       
       const payload = {
-        technicianId: authUser.id || authUser._id || 'TECH-UNKNOWN',
-        technicianName: authUser.name || 'Technician',
+        technicianId: realId,
+        technicianName: realName,
         ...data
       };
 
@@ -157,77 +167,70 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
     }
   };
 
-  // Dynamically extract submitted daily reports and workflow completion reports from jobs database
-  const jobReports = jobs.flatMap((job) => {
-    const list: any[] = [];
-
-    // 1. Explicit daily reports array
-    if (job.dailyReports && job.dailyReports.length > 0) {
-      job.dailyReports.forEach((report, idx) => {
-        list.push({
-          id: report.id || `REP-${job.jobCode}-${idx + 1}`,
-          date: report.date || new Date(report.createdAt || job.updatedAt || Date.now()).toISOString().split('T')[0],
-          jobCode: job.jobCode,
-          jobTitle: job.title,
-          customer: job.customer?.name || 'Client',
-          customerAddress: `${job.customer?.address || ''}, ${job.customer?.city || ''}`,
-          technician: report.technicianName || job.assignedTechnician?.name || 'Technician',
-          hoursLogged: report.hoursWorked || 8,
-          status: report.approvedByAdmin ? 'VERIFIED' : 'PENDING_REVIEW',
-          summary: report.workDone || 'Daily work report submitted.',
-          photosCount: (job.beforePhotos?.length || 0) + (job.afterPhotos?.length || 0),
-          beforePhotos: job.beforePhotos || [],
-          afterPhotos: job.afterPhotos || [],
-          safetyCheck: 'PASSED (4/4)',
-          supervisorApproval: report.approvedByAdmin ? 'Approved by Admin' : 'Pending Admin Verification',
-        });
-      });
-    }
-
-    // 2. Synthesize completion & site evidence reports for all assigned jobs
-    if (!job.dailyReports || job.dailyReports.length === 0) {
-      const isApproved = job.approvedByAdmin === true || job.status === 'COMPLETED' || job.status === 'APPROVED' || job.status === 'DELIVERED' || localStorage.getItem(`report_approved_${job.jobCode}`) === 'true';
-      list.push({
-        id: `REP-${job.jobCode}-WORKFLOW`,
-        date: new Date(job.updatedAt || Date.now()).toISOString().split('T')[0],
-        jobCode: job.jobCode,
-        jobTitle: job.title,
-        customer: job.customer?.name || 'Client',
-        customerAddress: `${job.customer?.address || ''}, ${job.customer?.city || ''}`,
-        technician: job.assignedTechnician?.name || 'Technician',
-        hoursLogged: 8,
-        status: isApproved ? 'VERIFIED' : 'PENDING_REVIEW',
-        summary: job.fieldNotes || `Field execution work report for ${job.title}. Status: ${job.status.replace(/_/g, ' ')}`,
-        photosCount: (job.beforePhotos?.length || 0) + (job.afterPhotos?.length || 0),
-        beforePhotos: job.beforePhotos || [],
-        afterPhotos: job.afterPhotos || [],
-        safetyCheck: 'PASSED (4/4)',
-        supervisorApproval: isApproved ? 'Approved by Admin' : 'Pending Admin Verification',
-      });
-    }
-
-    return list;
+  const jobReports = (jobs || []).flatMap((job) => {
+    if (!job || !job.dailyReports || job.dailyReports.length === 0) return [];
+    
+    return job.dailyReports.map((report, idx) => ({
+      id: report.id || `REP-${job.jobCode}-${idx + 1}`,
+      date: report.date || new Date(report.createdAt || job.updatedAt || Date.now()).toISOString().split('T')[0],
+      time: report.time || (report.createdAt ? new Date(report.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : ''),
+      jobCode: job.jobCode || 'JOB-001',
+      jobTitle: job.title || 'CCTV Service Work',
+      customer: job.customer?.name || 'Client',
+      customerAddress: `${job.customer?.address || ''}, ${job.customer?.city || ''}`,
+      technician: report.technicianName || job.assignedTechnician?.name || 'Technician',
+      hoursLogged: report.hoursWorked || 1,
+      status: report.approvedByAdmin ? 'VERIFIED' : 'PENDING_REVIEW',
+      summary: report.workDone || 'Daily work report submitted.',
+      photosCount: (job.beforePhotos?.length || 0) + (job.afterPhotos?.length || 0),
+      beforePhotos: job.beforePhotos || [],
+      afterPhotos: job.afterPhotos || [],
+      safetyCheck: 'PASSED (4/4)',
+      supervisorApproval: report.approvedByAdmin ? 'Approved by Admin' : 'Pending Admin Verification',
+    }));
   });
 
-  const dbReportsFormatted = dbReports.map((gr) => ({
-    id: gr._id || `REP-DB-${Math.random()}`,
-    date: gr.createdAt ? gr.createdAt.split('T')[0] : (gr.date || new Date().toISOString().split('T')[0]),
-    jobCode: gr.jobCode || gr.jobId || 'GENERAL-TASK',
-    jobTitle: gr.activityType || 'Daily Work Log',
-    customer: gr.customerName || 'Internal / Office',
-    customerAddress: gr.location || 'Location Unspecified',
-    technician: gr.technicianName || 'Technician',
-    hoursLogged: gr.hoursWorked !== undefined ? gr.hoursWorked : 0,
-    status: gr.approvedByAdmin ? 'VERIFIED' : (gr.status || 'PENDING_REVIEW'),
-    summary: gr.workDescription || 'Daily report log',
-    photosCount: (gr.beforePhotos?.length || 0) + (gr.afterPhotos?.length || 0),
-    beforePhotos: gr.beforePhotos || [],
-    afterPhotos: gr.afterPhotos || [],
-    safetyCheck: ((gr.beforePhotos?.length || 0) + (gr.afterPhotos?.length || 0) > 0) ? 'PASSED (Site Evidence Uploaded)' : 'PENDING (Site Photos Pending)',
-    supervisorApproval: gr.approvedByAdmin ? 'Approved by Admin' : 'Pending Admin Verification',
-  }));
+  const dbReportsFormatted = (Array.isArray(dbReports) ? dbReports : [])
+    .filter((gr) => {
+      const name = (gr.technicianName || '').toLowerCase();
+      const techId = (gr.technicianId || '').toLowerCase();
+      if (name.includes('unknown') || techId.includes('unknown')) return false;
+      // Filter out pure Check-In/Attendance logs so only actual work reports are displayed here
+      if (gr.activityType === 'Check-In' || (gr.workDescription && gr.workDescription.includes('Punched in'))) return false;
+      return true;
+    })
+    .map((gr) => {
+      let timeStr = gr.checkInTime || '';
+      if (!timeStr && gr.createdAt) {
+        try {
+          timeStr = new Date(gr.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+        } catch (_) {}
+      }
+      return {
+        id: gr._id || `REP-DB-${Math.random()}`,
+        date: gr.createdAt ? gr.createdAt.split('T')[0] : (gr.date || new Date().toISOString().split('T')[0]),
+        time: timeStr || '',
+        jobCode: gr.jobCode || gr.jobId || 'GENERAL-TASK',
+        jobTitle: gr.activityType || 'Daily Work Log',
+        customer: gr.customerName || 'Internal / Office',
+        customerAddress: gr.location || 'Location Unspecified',
+        technician: gr.technicianName || 'Technician',
+        hoursLogged: gr.hoursWorked !== undefined && Number(gr.hoursWorked) > 0 ? Number(gr.hoursWorked) : 1,
+        status: gr.approvedByAdmin ? 'VERIFIED' : (gr.status || 'PENDING_REVIEW'),
+        summary: gr.workDescription || 'Daily report log',
+        photosCount: (gr.beforePhotos?.length || 0) + (gr.afterPhotos?.length || 0),
+        beforePhotos: gr.beforePhotos || [],
+        afterPhotos: gr.afterPhotos || [],
+        safetyCheck: ((gr.beforePhotos?.length || 0) + (gr.afterPhotos?.length || 0) > 0) ? 'PASSED (Site Evidence Uploaded)' : 'PASSED (Daily Log)',
+        supervisorApproval: gr.approvedByAdmin ? 'Approved by Admin' : 'Pending Admin Verification',
+      };
+    });
 
-  const reports = [...jobReports, ...dbReportsFormatted].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const reports = [...jobReports, ...dbReportsFormatted].sort((a, b) => {
+    const timeA = a.date ? new Date(a.date).getTime() : 0;
+    const timeB = b.date ? new Date(b.date).getTime() : 0;
+    return (isNaN(timeB) ? 0 : timeB) - (isNaN(timeA) ? 0 : timeA);
+  });
 
   const filteredReports = reports.filter((r) => {
     if (filterType === 'VERIFIED') return r.status === 'VERIFIED';
@@ -235,14 +238,14 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
     return true;
   });
 
-  const activeReport = selectedReportIndex !== null ? filteredReports[selectedReportIndex] || filteredReports[0] : filteredReports[0];
+  const activeReport = (selectedReportIndex !== null && filteredReports[selectedReportIndex])
+    ? filteredReports[selectedReportIndex]
+    : (filteredReports[0] || null);
 
-  // Printable Formatted PDF Generator Trigger
   const handleExportPDF = (report: typeof reports[0]) => {
     setIsExporting(true);
 
     setTimeout(() => {
-      // Create a printable HTML document blob for the formatted PDF report
       const printContent = `
         <!DOCTYPE html>
         <html>
@@ -334,915 +337,232 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
     }, 400);
   };
 
-  // Dynamic Calculation of Total Hours Logged & Days Worked
-  const totalHoursLogged = reports.reduce((sum, r) => sum + r.hoursLogged, 0);
-  const totalDaysWorked = new Set(reports.map(r => r.date)).size;
   const verifiedCount = reports.filter(r => r.status === 'VERIFIED').length;
-  const approvalRate = reports.length > 0 ? (verifiedCount / reports.length) * 100 : 100;
-
-  // CSV Data File Downloader for current selected report or full log
-  const handleExportCSV = () => {
-    const targetReports = activeReport ? [activeReport] : reports;
-    const headers = ['Report ID', 'Date', 'Job Code', 'Job Title', 'Customer', 'Technician', 'Logged Hours', 'Safety Status', 'Supervisor Approval', 'Technical Summary'];
-    const rows = targetReports.map(r => [
-      r.id,
-      r.date,
-      r.jobCode,
-      `"${r.jobTitle.replace(/"/g, '""')}"`,
-      `"${r.customer.replace(/"/g, '""')}"`,
-      `"${r.technician.replace(/"/g, '""')}"`,
-      r.hoursLogged,
-      `"${r.safetyCheck}"`,
-      `"${r.supervisorApproval.replace(/"/g, '""')}"`,
-      `"${r.summary.replace(/"/g, '""')}"`
-    ]);
-
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `${activeReport ? activeReport.id : 'SK_Field_Daily_Reports'}_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   return (
-    <div className="space-y-6 text-zinc-900 font-sans">
-
-      {/* 🕒 Top Attendance Punch Clock Banner */}
-      <div className="bg-slate-900 text-white rounded-2xl p-5 shadow-lg border border-slate-800 space-y-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <Clock className="w-5 h-5 text-emerald-400" />
-              <h3 className="font-extrabold text-sm text-white uppercase tracking-wider">Shift Attendance & Punch Clock</h3>
-              {punchStatus === 'PUNCHED_IN' ? (
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 animate-pulse">
-                  ● PUNCHED IN (ACTIVE SHIFT)
-                </span>
-              ) : (
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-800 text-slate-400 border border-slate-700">
-                  ○ OFF SHIFT
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-slate-300">
-              {punchStatus === 'PUNCHED_IN'
-                ? `Check-in recorded at ${checkInTimestamp ? new Date(checkInTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '09:00 AM'}. Log your daily work or check out when done.`
-                : 'Start your shift by tapping Check-In. Your working hours will be logged automatically for admin.'}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3 w-full sm:w-auto justify-end shrink-0">
-            {punchStatus === 'PUNCHED_IN' ? (
-              <button
-                onClick={() => setShowGeneralReportModal(true)}
-                className="w-full sm:w-auto px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
-              >
-                <Square size={16} fill="currentColor" />
-                <span>Check Out & End Shift</span>
-              </button>
-            ) : (
-              <button
-                onClick={handleCheckIn}
-                className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
-              >
-                <Play size={16} fill="currentColor" />
-                <span>Check In (Start Shift)</span>
-              </button>
-            )}
-          </div>
+    <div className="space-y-8 bg-[#f4f7fa] p-4 sm:p-8 min-h-[calc(100vh-80px)] font-sans -m-4 sm:-m-8">
+      {/* Header Section */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-black text-[#0B1527] tracking-tight uppercase">DAILY REPORTS</h1>
+          <p className="text-sm text-slate-500 font-medium mt-1">Documenting today's progress for tomorrow's success.</p>
         </div>
-      </div>
-
-      {/* Table Format: Header Bar & Filter Controls */}
-      <div className="bg-white border border-zinc-200/90 rounded-2xl p-4 sm:p-5 space-y-4 shadow-2xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-100 pb-3">
-          <div>
-            <h2 className="text-base font-bold text-zinc-900 flex items-center space-x-2">
-              <FileText className="w-4.5 h-4.5 text-zinc-800" />
-              <span>Completed Work Reports Table</span>
-            </h2>
-            <p className="text-xs text-zinc-500 mt-0.5">List of verified site completion logs and evidence submitted by field technicians</p>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            {/* Filter Pills */}
-            <div className="flex items-center space-x-1 bg-zinc-100 p-1 rounded-lg">
-              <button
-                onClick={() => setFilterType('ALL')}
-                className={`px-2.5 py-1 text-xs font-bold rounded cursor-pointer ${
-                  filterType === 'ALL' ? 'bg-white text-zinc-900 shadow-2xs' : 'text-zinc-500'
-                }`}
-              >
-                All ({reports.length})
-              </button>
-              <button
-                onClick={() => setFilterType('VERIFIED')}
-                className={`px-2.5 py-1 text-xs font-bold rounded cursor-pointer ${
-                  filterType === 'VERIFIED' ? 'bg-white text-zinc-900 shadow-2xs' : 'text-zinc-500'
-                }`}
-              >
-                Approved ({verifiedCount})
-              </button>
+        
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          {/* Date Picker Placeholder */}
+          <div className="flex-1 sm:flex-none flex items-center justify-between sm:justify-start bg-white border border-slate-200 px-4 py-3 rounded-xl text-sm font-bold text-slate-700 shadow-sm cursor-pointer hover:border-slate-300 transition-colors">
+            <div className="flex items-center">
+              <span className="text-slate-400">📅</span>
+              <span className="ml-2">{new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</span>
             </div>
-
-            <button 
-              onClick={handleCreateReport}
-              className="px-3.5 py-2 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 transition-all cursor-pointer shadow-xs shrink-0"
-            >
-              <Plus className="w-4 h-4 text-emerald-400" />
-              <span>+ Create Report</span>
-            </button>
+            <span className="ml-4 text-[10px] text-slate-400">▼</span>
           </div>
-        </div>
-
-        {/* 📱 Mobile View (block md:hidden) - Exact Match to User Screenshots 1, 2, and 3 */}
-        <div className="block md:hidden space-y-4">
           
-          {/* Top Mobile Filter Tabs: All | Submitted | In Progress | Drafts */}
-          <div className="bg-white border-b border-zinc-200 -mx-4 px-4 pt-1 flex items-center justify-between overflow-x-auto shadow-2xs">
-            {['All', 'Submitted', 'In Progress', 'Drafts'].map((tab) => {
-              const isActive = mobileSubTab === tab;
-              return (
-                <button
-                  key={tab}
-                  onClick={() => setMobileSubTab(tab as any)}
-                  className={`py-2.5 px-3 text-xs font-bold transition-all relative shrink-0 cursor-pointer ${
-                    isActive ? 'text-red-600 font-extrabold' : 'text-zinc-500 hover:text-zinc-800'
-                  }`}
-                >
-                  <span>{tab}</span>
-                  {isActive && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-600 rounded-t-full" />}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Sub Filter Row: Date & Filter */}
-          <div className="flex items-center justify-between text-xs text-zinc-600 pt-1">
-            <div className="flex items-center space-x-1 cursor-pointer hover:text-zinc-900 font-semibold">
-              <span>📅 Date</span>
-              <span className="text-[10px]">▼</span>
-            </div>
-            <div className="flex items-center space-x-1 cursor-pointer hover:text-zinc-900 font-semibold">
-              <span>🌪️ Filter</span>
-            </div>
-          </div>
-
-          {/* List of Mobile Task Cards (Screenshot 1 ONLY) */}
-          <div className="space-y-3">
-            {filteredReports.length === 0 ? (
-              <div className="p-6 text-center text-zinc-400 text-xs bg-zinc-50 rounded-2xl border border-zinc-200">
-                No submitted task reports found.
-              </div>
-            ) : (
-              filteredReports.map((report) => {
-                const isCompleted = report.status === 'VERIFIED' || report.status === 'COMPLETED';
-                const mainPhoto = report.afterPhotos?.[0] || report.beforePhotos?.[0] || 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?q=80&w=200&auto=format&fit=crop';
-                const photoUrl = typeof mainPhoto === 'string' ? mainPhoto : mainPhoto.url;
-
-                return (
-                  /* Compact Card Item (Screenshot 1 ONLY) */
-                  <div
-                    key={`mob-card-${report.id}`}
-                    onClick={() => setMobileQuickDetailReport(report)}
-                    className="bg-white border border-zinc-200/90 hover:border-red-500 rounded-2xl p-4 transition-all cursor-pointer shadow-2xs active:scale-[0.99]"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-1">
-                        <span className={`text-xs font-bold block ${isCompleted ? 'text-emerald-600' : 'text-sky-600'}`}>
-                          {isCompleted ? 'Completed' : 'In Progress'}
-                        </span>
-                        <h4 className="text-xs font-bold text-zinc-900">Task ID: #{report.jobCode}</h4>
-                        <p className="text-xs text-zinc-600">Customer: <strong className="text-zinc-900">{report.customer}</strong></p>
-                        <p className="text-xs text-zinc-500 truncate max-w-[200px]">Location: {report.customerAddress || 'Chennai, Tamil Nadu'}</p>
-                        <span className="text-[10px] text-zinc-400 font-mono block pt-1">{report.date} 03:45 PM</span>
-                      </div>
-
-                      <div className="flex items-center space-x-2 shrink-0">
-                        <img src={photoUrl} alt="Task" className="w-14 h-14 object-cover rounded-xl border border-zinc-200" />
-                        <span className="text-zinc-400 font-bold text-sm">›</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-
-        {/* 📱 Mobile Quick Detail Modal Sheet (Screenshot 2) */}
-        {mobileQuickDetailReport && (
-          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-0 sm:p-4 animate-fade-in font-sans">
-            <div className="bg-white w-full max-w-md h-full sm:h-auto sm:max-h-[92vh] rounded-none sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-              
-              {/* Header with Back Button */}
-              <div className="px-4 py-3 border-b border-zinc-200 bg-white flex items-center justify-between shrink-0">
-                <button
-                  onClick={() => setMobileQuickDetailReport(null)}
-                  className="flex items-center space-x-1.5 text-xs font-bold text-zinc-700 hover:text-zinc-900 cursor-pointer"
-                >
-                  <span className="text-sm font-bold">‹</span>
-                  <span>Back to Reports List</span>
-                </button>
-
-                <button
-                  onClick={() => setMobileQuickDetailReport(null)}
-                  className="p-1 rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Quick Detail Sheet Content (Screenshot 2) */}
-              <div className="p-4 flex-1 overflow-y-auto space-y-4 text-xs text-zinc-900">
-                {/* Task ID Header */}
-                <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
-                  <div>
-                    <span className="text-[10px] text-zinc-400 font-mono uppercase font-semibold">TASK ID</span>
-                    <h3 className="text-base font-extrabold text-zinc-900">#{mobileQuickDetailReport.jobCode}</h3>
-                  </div>
-                  <span className={`px-3 py-1 text-[11px] font-bold rounded-full border ${
-                    mobileQuickDetailReport.status === 'VERIFIED' || mobileQuickDetailReport.status === 'COMPLETED'
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                      : 'bg-sky-50 text-sky-700 border-sky-200'
-                  }`}>
-                    {mobileQuickDetailReport.status === 'VERIFIED' || mobileQuickDetailReport.status === 'COMPLETED' ? 'Completed' : 'In Progress'}
-                  </span>
-                </div>
-
-                {/* Customer Information List */}
-                <div className="space-y-3.5 text-xs">
-                  <div className="flex items-start space-x-3">
-                    <span className="text-zinc-400 text-sm">👤</span>
-                    <div>
-                      <span className="text-[10px] text-zinc-400 font-semibold block">Customer Name</span>
-                      <span className="font-bold text-zinc-900 text-xs">{mobileQuickDetailReport.customer}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-start space-x-3">
-                      <span className="text-zinc-400 text-sm">📞</span>
-                      <div>
-                        <span className="text-[10px] text-zinc-400 font-semibold block">Phone Number</span>
-                        <span className="font-bold text-zinc-900 text-xs">+91 98765 43210</span>
-                      </div>
-                    </div>
-                    <a href="tel:+919876543210" className="p-2 bg-red-50 text-red-600 rounded-full hover:bg-red-100">
-                      📞
-                    </a>
-                  </div>
-
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start space-x-3">
-                      <span className="text-zinc-400 text-sm">📍</span>
-                      <div>
-                        <span className="text-[10px] text-zinc-400 font-semibold block">Location</span>
-                        <span className="font-bold text-zinc-900 leading-snug text-xs">{mobileQuickDetailReport.customerAddress || 'No. 45, 5th Street, Anna Nagar, Chennai - 600040'}</span>
-                      </div>
-                    </div>
-                    <span className="text-red-600 text-sm p-1">📍</span>
-                  </div>
-
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start space-x-3">
-                      <span className="text-zinc-400 text-sm">👤</span>
-                      <div>
-                        <span className="text-[10px] text-zinc-400 font-semibold block">Technician</span>
-                        <span className="font-bold text-zinc-900 text-xs">{mobileQuickDetailReport.technician}</span>
-                      </div>
-                    </div>
-                    <span className="text-red-600 text-xs font-bold">👤</span>
-                  </div>
-
-                  <div className="flex items-start space-x-3">
-                    <span className="text-zinc-400 text-sm">📅</span>
-                    <div>
-                      <span className="text-[10px] text-zinc-400 font-semibold block">Date & Time</span>
-                      <span className="font-bold text-zinc-900 text-xs">{mobileQuickDetailReport.date} 03:45 PM</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start space-x-3">
-                    <span className="text-zinc-400 text-sm">📋</span>
-                    <div>
-                      <span className="text-[10px] text-zinc-400 font-semibold block">Task Description</span>
-                      <span className="font-bold text-zinc-900 text-xs">{mobileQuickDetailReport.jobTitle}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Report Summary Section */}
-                <div className="border-t border-zinc-100 pt-3 space-y-2.5">
-                  <h4 className="text-xs font-extrabold text-zinc-900">Report Summary</h4>
-                  <div className="bg-zinc-50 rounded-xl divide-y divide-zinc-200/80 border border-zinc-200/80 text-xs">
-                    
-                    {/* Before Photos Row */}
-                    <div className="p-3 flex items-center justify-between">
-                      <span className="text-zinc-700 font-medium">Before Work Photos</span>
-                      <div className="flex items-center space-x-2">
-                        <div className="flex space-x-1">
-                          {mobileQuickDetailReport.beforePhotos?.slice(0, 2).map((p: any, pI: number) => (
-                            <img key={pI} src={typeof p === 'string' ? p : p.url} alt="B" className="w-6 h-6 object-cover rounded border" />
-                          ))}
-                        </div>
-                        <span className="bg-zinc-200 text-zinc-700 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                          {mobileQuickDetailReport.beforePhotos?.length || 2}
-                        </span>
-                        <span className="text-zinc-400 font-bold">›</span>
-                      </div>
-                    </div>
-
-                    {/* After Photos Row */}
-                    <div className="p-3 flex items-center justify-between">
-                      <span className="text-zinc-700 font-medium">After Work Photos</span>
-                      <div className="flex items-center space-x-2">
-                        <div className="flex space-x-1">
-                          {mobileQuickDetailReport.afterPhotos?.slice(0, 2).map((p: any, pI: number) => (
-                            <img key={pI} src={typeof p === 'string' ? p : p.url} alt="A" className="w-6 h-6 object-cover rounded border" />
-                          ))}
-                        </div>
-                        <span className="bg-zinc-200 text-zinc-700 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                          {mobileQuickDetailReport.afterPhotos?.length || 1}
-                        </span>
-                        <span className="text-zinc-400 font-bold">›</span>
-                      </div>
-                    </div>
-
-                    {/* Inspection Comments */}
-                    <div className="p-3 flex items-center justify-between">
-                      <span className="text-zinc-700 font-medium">Inspection Comments</span>
-                      <span className="text-zinc-900 font-medium text-right max-w-[150px] truncate">
-                        {mobileQuickDetailReport.summary}
-                      </span>
-                    </div>
-
-                    {/* Voice Report */}
-                    <div className="p-3 flex items-center justify-between">
-                      <span className="text-zinc-700 font-medium">Voice Report</span>
-                      <button
-                        onClick={() => setIsPlayingAudio(!isPlayingAudio)}
-                        className="px-2.5 py-1 bg-zinc-200 hover:bg-zinc-300 rounded-full font-bold text-[10px] flex items-center space-x-1 cursor-pointer"
-                      >
-                        <span>▶</span>
-                        <span>00:45</span>
-                      </button>
-                    </div>
-
-                    {/* Completion Status */}
-                    <div className="p-3 flex items-center justify-between">
-                      <span className="text-zinc-700 font-medium">Completion Status</span>
-                      <span className="font-bold text-emerald-600">Completed</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* View Full Report Red Button (Screenshot 2) */}
-                <button
-                  onClick={() => {
-                    const r = mobileQuickDetailReport;
-                    setMobileQuickDetailReport(null);
-                    setMobileFullReportModal(r);
-                  }}
-                  className="w-full py-3.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl flex items-center justify-center space-x-2 shadow-sm cursor-pointer transition-colors"
-                >
-                  <span>👁️</span>
-                  <span>View Full Report</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 💻 Desktop Table View (hidden md:block) */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-zinc-50 border-y border-zinc-200/80 text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                <th className="py-3 px-3">Job ID & Equipment Title</th>
-                <th className="py-3 px-3">Technician & Customer</th>
-                <th className="py-3 px-3">Date & Time Spent</th>
-                <th className="py-3 px-3">Evidence Photos & Audio</th>
-                <th className="py-3 px-3">Status</th>
-                <th className="py-3 px-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100">
-              {filteredReports.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="py-8 text-center text-zinc-400">
-                    No submitted reports found matching criteria.
-                  </td>
-                </tr>
-              ) : (
-                filteredReports.map((report, idx) => {
-                  const isSelected = activeReport?.id === report.id;
-                  const hasVoice = report.summary?.includes('Voice Memo Attached');
-                  return (
-                    <React.Fragment key={report.id}>
-                      <tr 
-                        onClick={() => setSelectedReportIndex(idx)}
-                        className={`hover:bg-zinc-50/80 transition-colors cursor-pointer ${
-                          isSelected ? 'bg-emerald-50/40 font-semibold' : ''
-                        }`}
-                      >
-                        {/* Job ID & Title */}
-                        <td className="py-3.5 px-3">
-                          <span className="font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[11px]">
-                            {report.jobCode}
-                          </span>
-                          <p className="font-bold text-zinc-900 mt-1 line-clamp-1">{report.jobTitle}</p>
-                        </td>
-
-                        {/* Technician & Customer */}
-                        <td className="py-3.5 px-3">
-                          <p className="font-bold text-zinc-900">{report.technician}</p>
-                          <p className="text-[11px] text-zinc-500 mt-0.5 truncate max-w-[150px]">{report.customer}</p>
-                        </td>
-
-                        {/* Date & Time Spent */}
-                        <td className="py-3.5 px-3">
-                          <p className="font-mono font-bold text-zinc-800">{report.hoursLogged} Hours</p>
-                          <p className="text-[10px] text-zinc-400 font-mono mt-0.5">{report.date}</p>
-                        </td>
-
-                        {/* Evidence Photos & Voice Memo */}
-                        <td className="py-3.5 px-3">
-                          <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
-                            <span className="px-2 py-0.5 bg-zinc-100 text-zinc-700 font-mono font-bold text-[10px] rounded flex items-center space-x-1">
-                              <Camera className="w-3 h-3 text-zinc-500" />
-                              <span>{report.photosCount} Photos</span>
-                            </span>
-                            {hasVoice && (
-                              <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold text-[10px] rounded flex items-center space-x-1">
-                                <Volume2 className="w-3 h-3 text-emerald-600" />
-                                <span>Voice Memo</span>
-                              </span>
-                            )}
-                          </div>
-                        </td>
-
-                        {/* Status */}
-                        <td className="py-3.5 px-3">
-                          <span className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold ${
-                            report.status === 'VERIFIED'
-                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                              : 'bg-amber-100 text-amber-800 border border-amber-200'
-                          }`}>
-                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                            <span>{report.status === 'VERIFIED' ? '✓ APPROVED' : 'PENDING'}</span>
-                          </span>
-                        </td>
-
-                        {/* Actions */}
-                        <td className="py-3.5 px-3 text-right">
-                          <div className="flex items-center justify-end space-x-1.5">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedReportIndex(idx);
-                              }}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1 transition-all cursor-pointer ${
-                                isSelected
-                                  ? 'bg-zinc-900 text-white shadow-xs'
-                                  : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800'
-                              }`}
-                            >
-                              <Eye className="w-3.5 h-3.5" />
-                              <span>{isSelected ? 'Viewing' : 'View Report'}</span>
-                            </button>
-
-                            <a
-                              href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
-                                `*SK Technology CCTV Service Report*\n\nJob: ${report.jobCode} - ${report.jobTitle}\nCustomer: ${report.customer}\nTechnician: ${report.technician}\nStatus: ${report.status}\nSummary: ${report.summary}`
-                              )}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg border border-emerald-200 transition-colors"
-                              title="Share via WhatsApp"
-                            >
-                              <span className="text-xs">🟢</span>
-                            </a>
-                          </div>
-                        </td>
-                      </tr>
-
-                      {/* 🔽 Expandable Detailed Report View */}
-                      {isSelected && (
-                        <tr>
-                          <td colSpan={6} className="p-0 bg-zinc-50/50">
-                            <div className="p-5 bg-white border-y border-zinc-200/90 space-y-5 my-2 mx-2 rounded-xl shadow-xs">
-                              {/* Header & Export Actions */}
-                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-100 pb-3">
-                                <div>
-                                  <div className="flex items-center space-x-2">
-                                    <span className="text-xs font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                                      JOB ID: {activeReport.jobCode}
-                                    </span>
-                                    <span className="text-xs text-zinc-300">•</span>
-                                    <span className="text-xs font-mono text-zinc-500">{activeReport.date}</span>
-                                  </div>
-                                  <h3 className="text-base font-bold text-zinc-900 mt-1">{activeReport.jobTitle}</h3>
-                                  <p className="text-xs text-zinc-500">Customer: <strong className="text-zinc-800">{activeReport.customer}</strong> {activeReport.customerAddress && `(${activeReport.customerAddress})`}</p>
-                                </div>
-
-                                <div className="flex items-center space-x-2">
-                                  <button 
-                                    onClick={handleExportCSV}
-                                    className="px-3 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border border-zinc-200 font-bold text-xs rounded-xl flex items-center space-x-1.5 transition-all cursor-pointer"
-                                  >
-                                    <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-                                    <span>Excel Data</span>
-                                  </button>
-
-                                  <button 
-                                    onClick={() => handleExportPDF(activeReport)}
-                                    disabled={isExporting}
-                                    className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer ${
-                                      exportSuccess
-                                        ? 'bg-emerald-600 text-white'
-                                        : 'bg-zinc-900 hover:bg-zinc-800 text-white shadow-xs'
-                                    }`}
-                                  >
-                                    {exportSuccess ? (
-                                      <>
-                                        <Check className="w-4 h-4" />
-                                        <span>Downloaded</span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Download className="w-4 h-4 text-emerald-400" />
-                                        <span>{isExporting ? 'Generating...' : 'Download PDF Report'}</span>
-                                      </>
-                                    )}
-                                  </button>
-                                </div>
-                              </div>
-
-                              {/* Chronological Step-by-Step Field Evidence Report */}
-                              <div className="space-y-4 pt-1">
-                                
-                                {/* Step 1 & Step 2: Before & After Photos Side-by-Side Grid */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                  {/* Step 1: Before Work Photo */}
-                                  <div className="p-3.5 bg-amber-50/50 border border-amber-200/80 rounded-2xl space-y-2">
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-xs font-bold text-amber-900 flex items-center space-x-1.5">
-                                        <Camera className="w-4 h-4 text-amber-700" />
-                                        <span>Step 1: Before Work Photo (வேலை தொடங்கும் முன்)</span>
-                                      </span>
-                                    </div>
-                                    {activeReport.beforePhotos && activeReport.beforePhotos.length > 0 ? (
-                                      activeReport.beforePhotos.map((photo: any, pIdx: number) => {
-                                        const imgUrl = typeof photo === 'string' ? photo : photo.url;
-                                        const caption = typeof photo === 'string' ? 'Site Condition Before Work' : photo.caption || 'Before Photo';
-                                        return (
-                                          <div
-                                            key={`before-${pIdx}`}
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setPreviewPhoto({ url: imgUrl, caption });
-                                            }}
-                                            className="group relative border border-amber-200 rounded-xl overflow-hidden bg-white cursor-pointer hover:shadow-md transition-all"
-                                          >
-                                            <img src={imgUrl} alt={caption} className="w-full h-36 object-cover group-hover:scale-105 transition-transform duration-300" />
-                                            <div className="p-2 bg-white flex items-center justify-between border-t border-amber-100">
-                                              <span className="text-[10px] font-bold text-amber-800 uppercase font-mono">BEFORE PHOTO</span>
-                                              <span className="text-[10px] text-amber-600 font-medium">Click to Zoom</span>
-                                            </div>
-                                          </div>
-                                        );
-                                      })
-                                    ) : (
-                                      <div className="p-4 text-center text-amber-700/60 text-xs italic bg-white/60 rounded-xl border border-amber-100">
-                                        No before-work photo attached
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  {/* Step 2: After Work Photo */}
-                                  <div className="p-3.5 bg-emerald-50/50 border border-emerald-200/80 rounded-2xl space-y-2">
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-xs font-bold text-emerald-900 flex items-center space-x-1.5">
-                                        <Camera className="w-4 h-4 text-emerald-700" />
-                                        <span>Step 2: After Work Photo (வேலை முடிந்த பின்)</span>
-                                      </span>
-                                    </div>
-                                    {activeReport.afterPhotos && activeReport.afterPhotos.length > 0 ? (
-                                      activeReport.afterPhotos.map((photo: any, pIdx: number) => {
-                                        const imgUrl = typeof photo === 'string' ? photo : photo.url;
-                                        const caption = typeof photo === 'string' ? 'Completed Work Evidence' : photo.caption || 'After Photo';
-                                        return (
-                                          <div
-                                            key={`after-${pIdx}`}
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setPreviewPhoto({ url: imgUrl, caption });
-                                            }}
-                                            className="group relative border border-emerald-200 rounded-xl overflow-hidden bg-white cursor-pointer hover:shadow-md transition-all"
-                                          >
-                                            <img src={imgUrl} alt={caption} className="w-full h-36 object-cover group-hover:scale-105 transition-transform duration-300" />
-                                            <div className="p-2 bg-white flex items-center justify-between border-t border-emerald-100">
-                                              <span className="text-[10px] font-bold text-emerald-800 uppercase font-mono">AFTER PHOTO</span>
-                                              <span className="text-[10px] text-emerald-600 font-medium">Click to Zoom</span>
-                                            </div>
-                                          </div>
-                                        );
-                                      })
-                                    ) : (
-                                      <div className="p-4 text-center text-emerald-700/60 text-xs italic bg-white/60 rounded-xl border border-emerald-100">
-                                        No after-work photo attached
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-
-                                {/* Step 3: Work Execution Notes (இன்றைய பணி அறிக்கை) */}
-                                <div className="p-4 bg-zinc-50 border border-zinc-200/90 rounded-2xl space-y-2">
-                                  <h4 className="text-xs font-bold text-zinc-900 flex items-center space-x-1.5 uppercase tracking-wider">
-                                    <FileText className="w-4 h-4 text-zinc-700" />
-                                    <span>Step 3: Work Report Notes (இன்றைய பணி விவரம்)</span>
-                                  </h4>
-                                  <p className="text-xs text-zinc-800 leading-relaxed font-medium bg-white p-3.5 rounded-xl border border-zinc-200/80">
-                                    {activeReport.summary}
-                                  </p>
-                                </div>
-
-                                {/* Step 4: Voice Message Clip (குரல் செய்தி பதிவு) */}
-                                {activeReport.summary?.includes('Voice Memo Attached') && (
-                                  <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-2xl space-y-2">
-                                    <h4 className="text-xs font-bold text-emerald-900 flex items-center space-x-1.5 uppercase tracking-wider">
-                                      <Volume2 className="w-4 h-4 text-emerald-700" />
-                                      <span>Step 4: Voice Message Clip (குரல் செய்தி)</span>
-                                    </h4>
-
-                                    <div className="p-3 bg-white border border-emerald-200/90 rounded-xl flex items-center justify-between shadow-2xs">
-                                      <div className="flex items-center space-x-3">
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setIsPlayingAudio(!isPlayingAudio);
-                                          }}
-                                          className={`w-10 h-10 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-sm ${
-                                            isPlayingAudio
-                                              ? 'bg-red-500 text-white animate-pulse'
-                                              : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                                          }`}
-                                        >
-                                          {isPlayingAudio ? <Square className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
-                                        </button>
-
-                                        <div>
-                                          <div className="flex items-center space-x-2">
-                                            <span className="font-bold text-zinc-900 text-xs">Technician Audio Voice Memo</span>
-                                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-mono font-bold rounded-full">
-                                              {isPlayingAudio ? '▶ PLAYING AUDIO...' : '0:08s RECORDED'}
-                                            </span>
-                                          </div>
-                                          <p className="text-[11px] text-zinc-500 mt-0.5">Click play button to listen to site voice summary</p>
-                                        </div>
-                                      </div>
-
-                                      <div className="flex items-center space-x-1 font-mono text-xs text-zinc-500">
-                                        <div className="flex items-center space-x-0.5 h-5">
-                                          {[40, 70, 30, 90, 50, 80, 40, 60].map((h, i) => (
-                                            <div
-                                              key={i}
-                                              className={`w-1 rounded-full transition-all duration-300 ${
-                                                isPlayingAudio ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-300'
-                                              }`}
-                                              style={{ height: `${isPlayingAudio ? h : 35}%` }}
-                                            />
-                                          ))}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+          {/* Create Entry Button */}
+          <button 
+            onClick={handleCreateReport}
+            className="flex-1 sm:flex-none bg-[#2663ff] hover:bg-[#1a50db] text-white px-5 py-3 rounded-xl text-sm font-bold flex items-center justify-center shadow-md shadow-blue-500/20 transition-all active:scale-[0.98]"
+          >
+            <Plus className="w-4 h-4 mr-1.5" />
+            <span className="uppercase tracking-wide">CREATE ENTRY</span>
+          </button>
         </div>
       </div>
 
-      {/* 🔍 Photo Zoom Lightbox Modal */}
-      {previewPhoto && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-4 max-w-xl w-full space-y-3 shadow-2xl relative">
-            <div className="flex items-center justify-between pb-2 border-b border-zinc-100">
-              <h3 className="text-xs font-bold text-zinc-900">📸 Site Evidence Photo Preview</h3>
-              <button
-                onClick={() => setPreviewPhoto(null)}
-                className="p-1 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="rounded-xl overflow-hidden bg-black flex items-center justify-center max-h-[70vh]">
-              <img src={previewPhoto.url} alt={previewPhoto.caption} className="max-w-full max-h-[65vh] object-contain" />
-            </div>
-            {previewPhoto.caption && (
-              <p className="text-xs text-zinc-700 font-semibold text-center bg-zinc-50 p-2.5 rounded-xl border border-zinc-200/80">
-                {previewPhoto.caption}
-              </p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* 📱 Mobile Full Report Sheet Modal (Screenshot 3) */}
-      {mobileFullReportModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-0 sm:p-4 animate-fade-in font-sans">
-          <div className="bg-white w-full max-w-md h-full sm:h-auto sm:max-h-[92vh] rounded-none sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start">
+        {/* Left Column: Report Cards (3 columns wide) */}
+        <div className="xl:col-span-3 space-y-4">
+          {filteredReports.length === 0 ? (
+             <div className="bg-white rounded-2xl p-10 text-center border border-slate-200 shadow-sm">
+               <span className="text-slate-400 font-medium">No reports generated today.</span>
+             </div>
+          ) : filteredReports.map((report) => {
+            const reportDate = new Date(report.date);
+            const month = reportDate.toLocaleString('en-US', { month: 'short' }).toUpperCase();
+            const day = reportDate.getDate();
             
-            {/* Red Top Bar Header */}
-            <div className="bg-red-600 px-4 py-3 text-white flex items-center justify-between shrink-0 shadow-xs">
-              <button
-                onClick={() => setMobileFullReportModal(null)}
-                className="flex items-center space-x-1.5 font-bold text-xs hover:opacity-80 transition-opacity"
-              >
-                <span>‹</span>
-                <span>Report #{mobileFullReportModal.jobCode}</span>
-              </button>
+            return (
+              <div key={report.id} className="bg-white rounded-3xl p-5 sm:p-7 shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100 hover:shadow-lg hover:border-blue-100 transition-all duration-300 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-[#2663ff] opacity-80 rounded-l-3xl"></div>
+                {/* Top row: Badges and Date */}
+                <div className="flex justify-between items-start mb-5 pl-3">
+                  <div className="flex flex-wrap gap-2">
+                    <span className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 text-[10px] sm:text-[11px] font-black rounded-lg uppercase flex items-center gap-1.5 shadow-sm tracking-wide">
+                      <span className="text-[#2663ff]">💼</span> {report.jobCode}
+                    </span>
+                    
+                    <span className={`px-3 py-1.5 text-[10px] sm:text-[11px] font-black rounded-lg uppercase flex items-center gap-1.5 shadow-sm tracking-wide ${
+                      report.status === 'VERIFIED' || report.status === 'COMPLETED' ? 'bg-[#f0f9ff] text-[#0284c7] border border-[#bae6fd]' : 'bg-[#e0e7ff] text-[#4f46e5] border border-[#c7d2fe]'
+                    }`}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
+                      {report.status}
+                    </span>
 
-              <button
-                onClick={() => handleExportPDF(mobileFullReportModal)}
-                className="p-1.5 hover:bg-red-700 rounded-lg transition-colors"
-                title="Download PDF"
-              >
-                <Download className="w-4 h-4 text-white" />
-              </button>
-            </div>
+                    <span className="px-3 py-1.5 bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe] text-[10px] sm:text-[11px] font-black rounded-lg uppercase shadow-sm whitespace-nowrap tracking-wide">
+                      {report.technician}
+                    </span>
 
-            {/* Modal Body - Single Scroll matching Screenshot 3 */}
-            <div className="p-4 flex-1 overflow-y-auto space-y-4 text-xs text-zinc-900">
-              {/* Task Description */}
-              <div className="space-y-1 pb-3 border-b border-zinc-100">
-                <span className="font-bold text-zinc-900 block text-xs">Task Description</span>
-                <p className="text-zinc-600 leading-relaxed font-medium">
-                  {mobileFullReportModal.jobTitle || 'Remove old camera and add new Playback system'}
-                </p>
-              </div>
-
-              {/* Before Work Photos */}
-              <div className="space-y-2 pb-3 border-b border-zinc-100">
-                <span className="font-bold text-zinc-900 block text-xs">Before Work Photos</span>
-                <div className="flex items-center space-x-3 overflow-x-auto">
-                  {mobileFullReportModal.beforePhotos?.length > 0 ? (
-                    mobileFullReportModal.beforePhotos.map((p: any, i: number) => {
-                      const url = typeof p === 'string' ? p : p.url;
-                      return (
-                        <img
-                          key={i}
-                          src={url}
-                          alt="Before"
-                          onClick={() => setPreviewPhoto({ url, caption: 'Before Work Photo' })}
-                          className="w-32 h-28 object-cover rounded-xl border border-zinc-200 cursor-pointer"
-                        />
-                      );
-                    })
-                  ) : (
-                    <img
-                      src="https://images.unsplash.com/photo-1558002038-1055907df827?q=80&w=400&auto=format&fit=crop"
-                      alt="Before"
-                      className="w-32 h-28 object-cover rounded-xl border border-zinc-200"
-                    />
-                  )}
+                    <span className="px-3 py-1.5 bg-[#ecfdf5] text-[#059669] border border-[#a7f3d0] text-[10px] sm:text-[11px] font-black rounded-lg uppercase shadow-sm tracking-wide">
+                      WORK REPORT
+                    </span>
+                  </div>
+                  
+                  {/* Date Badge */}
+                  <div className="flex flex-col items-center justify-center bg-white border border-slate-200 rounded-2xl px-4 py-2 shadow-sm shrink-0 ml-4 min-w-[55px]">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{month}</span>
+                    <span className="text-xl font-black text-[#0B1527] leading-none mt-1">{day}</span>
+                  </div>
                 </div>
-              </div>
 
-              {/* Inspection Comments */}
-              <div className="space-y-1 pb-3 border-b border-zinc-100">
-                <span className="font-bold text-zinc-900 block text-xs">Inspection Comments</span>
-                <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-200/80 text-zinc-800 font-medium">
-                  {mobileFullReportModal.summary || 'Everything is working fine.'}
-                </div>
-              </div>
+                {/* Description */}
+                <h3 className="text-base sm:text-[17px] font-black text-[#0B1527] leading-relaxed mb-6 pl-3 pr-2">
+                  {report.summary}
+                </h3>
 
-              {/* After Work Photos */}
-              <div className="space-y-2 pb-3 border-b border-zinc-100">
-                <span className="font-bold text-zinc-900 block text-xs">After Work Photos</span>
-                <div className="flex items-center space-x-3 overflow-x-auto">
-                  {mobileFullReportModal.afterPhotos?.length > 0 ? (
-                    mobileFullReportModal.afterPhotos.map((p: any, i: number) => {
-                      const url = typeof p === 'string' ? p : p.url;
-                      return (
-                        <img
-                          key={i}
-                          src={url}
-                          alt="After"
-                          onClick={() => setPreviewPhoto({ url, caption: 'After Work Photo' })}
-                          className="w-32 h-28 object-cover rounded-xl border border-zinc-200 cursor-pointer"
-                        />
-                      );
-                    })
-                  ) : (
-                    <img
-                      src="https://images.unsplash.com/photo-1541888946425-d0fbb186a5b7?q=80&w=400&auto=format&fit=crop"
-                      alt="After"
-                      className="w-32 h-28 object-cover rounded-xl border border-zinc-200"
-                    />
-                  )}
-                </div>
-              </div>
-
-              {/* Voice Report with Red Play Button & Waveform */}
-              <div className="space-y-2 pb-3 border-b border-zinc-100">
-                <span className="font-bold text-zinc-900 block text-xs">Voice Report</span>
-                <div className="p-3 bg-zinc-50 border border-zinc-200/80 rounded-2xl flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <button
-                      onClick={() => setIsPlayingAudio(!isPlayingAudio)}
-                      className={`w-9 h-9 rounded-full flex items-center justify-center text-white transition-colors cursor-pointer ${
-                        isPlayingAudio ? 'bg-red-500 animate-pulse' : 'bg-red-600 hover:bg-red-700'
-                      }`}
-                    >
-                      {isPlayingAudio ? <Square className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current ml-0.5" />}
-                    </button>
-
-                    {/* Waveform Bar */}
-                    <div className="flex items-center space-x-0.5 h-4">
-                      {[30, 60, 40, 80, 50, 90, 40, 70, 50, 80, 30, 60].map((h, i) => (
-                        <div
-                          key={i}
-                          className={`w-0.5 rounded-full transition-all duration-300 ${
-                            isPlayingAudio ? 'bg-red-600 animate-pulse' : 'bg-zinc-300'
-                          }`}
-                          style={{ height: `${isPlayingAudio ? h : 40}%` }}
-                        />
-                      ))}
+                {/* Multimedia Details (Photos & Audio) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 pt-5 border-t border-slate-100/80 pl-3">
+                  
+                  {/* Before Photos */}
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                       <Camera className="w-3 h-3" /> BEFORE WORK
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {report.beforePhotos && report.beforePhotos.length > 0 ? (
+                        report.beforePhotos.slice(0, 3).map((p: any, i: number) => (
+                          <img 
+                            key={i} 
+                            src={typeof p === 'string' ? p : p.url} 
+                            alt="Before" 
+                            onClick={() => setPreviewPhoto({ url: typeof p === 'string' ? p : p.url, caption: 'Before Work Photo' })}
+                            className="w-16 h-16 rounded-xl object-cover border border-slate-200 shadow-sm cursor-pointer hover:border-[#2663ff] hover:scale-105 transition-all" 
+                          />
+                        ))
+                      ) : (
+                        <span className="text-xs text-slate-400 font-medium italic py-3 bg-slate-50 w-full text-center rounded-xl border border-slate-100">No photos</span>
+                      )}
                     </div>
                   </div>
 
-                  <span className="font-mono text-zinc-500 font-bold text-xs">00:45</span>
+                  {/* After Photos */}
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                      <Camera className="w-3 h-3" /> AFTER WORK
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {report.afterPhotos && report.afterPhotos.length > 0 ? (
+                        report.afterPhotos.slice(0, 3).map((p: any, i: number) => (
+                          <img 
+                            key={i} 
+                            src={typeof p === 'string' ? p : p.url} 
+                            alt="After" 
+                            onClick={() => setPreviewPhoto({ url: typeof p === 'string' ? p : p.url, caption: 'After Work Photo' })}
+                            className="w-16 h-16 rounded-xl object-cover border border-slate-200 shadow-sm cursor-pointer hover:border-[#2663ff] hover:scale-105 transition-all" 
+                          />
+                        ))
+                      ) : (
+                        <span className="text-xs text-slate-400 font-medium italic py-3 bg-slate-50 w-full text-center rounded-xl border border-slate-100">No photos</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Voice Report */}
+                  <div className="flex flex-col gap-2">
+                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                       <Volume2 className="w-3 h-3" /> VOICE MEMO
+                     </span>
+                     {report.summary?.includes('Voice Memo') ? (
+                       <div 
+                         onClick={() => setIsPlayingAudio(!isPlayingAudio)}
+                         className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between cursor-pointer hover:bg-[#f0f9ff] hover:border-[#bae6fd] shadow-sm transition-colors max-w-[170px]"
+                       >
+                         <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white shadow-md ${isPlayingAudio ? 'bg-[#2663ff] animate-pulse' : 'bg-[#0B1527]'}`}>
+                            {isPlayingAudio ? <Square className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
+                         </div>
+                         <div className="flex items-center gap-0.5 px-2">
+                           {[30, 70, 40, 80, 50, 60, 40].map((h, i) => (
+                             <div key={i} className={`w-[2.5px] rounded-full ${isPlayingAudio ? 'bg-[#2663ff] animate-pulse' : 'bg-slate-300'}`} style={{ height: `${isPlayingAudio ? h : 40}%`, minHeight: '14px' }}></div>
+                           ))}
+                         </div>
+                       </div>
+                     ) : (
+                       <span className="text-xs text-slate-400 font-medium italic py-3 bg-slate-50 w-full text-center rounded-xl border border-slate-100">No audio</span>
+                     )}
+                  </div>
                 </div>
+                
+                {/* Actions Footer */}
+                <div className="mt-6 pt-5 border-t border-slate-100 flex items-center justify-between pl-3">
+                    <div className="flex items-center gap-2">
+                       <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-md text-[10px] font-bold uppercase tracking-wider">{report.hoursLogged} Hours Logged</span>
+                    </div>
+                    <button
+                      onClick={() => handleExportPDF(report)}
+                      className="text-[#2663ff] hover:text-[#1a50db] bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-sm"
+                    >
+                      <Download className="w-4 h-4" /> Download Report
+                    </button>
+                </div>
+                
               </div>
+            );
+          })}
+        </div>
 
-              {/* Completion Status & Submitter Details */}
-              <div className="space-y-2 text-xs pt-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-zinc-600 font-medium">Completion Status</span>
-                  <span className="font-bold text-emerald-600">Completed</span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-zinc-600 font-medium">Submitted By</span>
-                  <span className="font-bold text-zinc-900">{mobileFullReportModal.technician || 'Ramesh'}</span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-zinc-600 font-medium">Submitted On</span>
-                  <span className="font-mono font-bold text-zinc-900">{mobileFullReportModal.date} 03:45 PM</span>
-                </div>
+        {/* Right Column: Entry Metrics widget */}
+        <div className="xl:col-span-1">
+          <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 sticky top-6">
+            <div className="flex items-center gap-2 mb-6 bg-slate-50 p-3 rounded-2xl border border-slate-100">
+              <span className="text-[#2663ff]">✨</span>
+              <h2 className="text-[13px] font-black tracking-widest text-[#0B1527] uppercase">ENTRY METRICS</h2>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-white border border-slate-100 rounded-3xl py-7 flex flex-col items-center justify-center shadow-[0_2px_12px_rgb(0,0,0,0.02)]">
+                <span className="text-4xl font-black text-[#0B1527] mb-2">{reports.length}</span>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">REPORTS</span>
+              </div>
+              
+              <div className="bg-white border border-slate-100 rounded-3xl py-7 flex flex-col items-center justify-center shadow-[0_2px_12px_rgb(0,0,0,0.02)]">
+                <span className="text-4xl font-black text-[#059669] mb-2">{verifiedCount}</span>
+                <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">CLOSED</span>
               </div>
             </div>
-
-            {/* Bottom Action Buttons (Technician View: Download PDF & WhatsApp Share) */}
-            <div className="p-4 border-t border-zinc-200 bg-white grid grid-cols-2 gap-3 shrink-0">
-              <button
-                onClick={() => handleExportPDF(mobileFullReportModal)}
-                disabled={isExporting}
-                className="py-3 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer text-center flex items-center justify-center space-x-1.5"
-              >
-                <Download className="w-4 h-4" />
-                <span>{isExporting ? 'Downloading...' : 'Download PDF'}</span>
-              </button>
-
-              <a
-                href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
-                  `*SK Technology CCTV Field Service Report*\n\nJob: ${mobileFullReportModal.jobCode}\nCustomer: ${mobileFullReportModal.customer}\nTechnician: ${mobileFullReportModal.technician}\nStatus: ${mobileFullReportModal.status}\nSummary: ${mobileFullReportModal.summary}`
-                )}`}
-                target="_blank"
-                rel="noreferrer"
-                className="py-3 bg-white hover:bg-zinc-50 text-red-600 border border-red-600 font-bold text-xs rounded-xl transition-colors cursor-pointer text-center flex items-center justify-center space-x-1.5"
-              >
-                <span>🟢</span>
-                <span>WhatsApp Share</span>
-              </a>
-            </div>
-
           </div>
         </div>
-      )}
+      </div>
 
       {/* General Report Modal */}
       <GeneralReportModal 
         isOpen={showGeneralReportModal} 
         onClose={() => setShowGeneralReportModal(false)} 
         onSubmit={handleGeneralReportSubmit} 
+        checkInTimestamp={checkInTimestamp}
       />
+      
+      {/* Photo Preview Modal */}
+      {previewPhoto && (
+        <div className="fixed inset-0 z-[110] bg-slate-900/90 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-4 max-w-2xl w-full shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4 px-2">
+              <h3 className="text-sm font-black text-[#0B1527] uppercase tracking-wider">📸 Site Evidence Photo</h3>
+              <button
+                onClick={() => setPreviewPhoto(null)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="rounded-2xl overflow-hidden bg-slate-50 border border-slate-100 flex items-center justify-center">
+              <img src={previewPhoto.url} alt={previewPhoto.caption} className="max-w-full max-h-[70vh] object-contain" />
+            </div>
+            {previewPhoto.caption && (
+               <p className="mt-4 mb-1 text-center text-xs font-bold text-slate-500 uppercase tracking-widest">{previewPhoto.caption}</p>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

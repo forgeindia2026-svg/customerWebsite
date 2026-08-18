@@ -4,7 +4,8 @@ import {
   Award, 
   Truck, 
   CheckCircle2, 
-  Star 
+  Star,
+  LogOut 
 } from 'lucide-react';
 
 interface ProfileModuleProps {
@@ -45,48 +46,21 @@ export const ProfileModule: React.FC<ProfileModuleProps> = ({
           </div>
         </div>
 
+        <button
+          onClick={() => {
+            localStorage.removeItem('internal_token');
+            localStorage.removeItem('internal_role');
+            localStorage.removeItem('sk_tech_token');
+            localStorage.removeItem('tech_user');
+            window.location.href = '/login';
+          }}
+          className="w-full sm:w-auto flex items-center justify-center space-x-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer shadow-xs"
+        >
+          <LogOut className="w-4 h-4" />
+          <span>Log Out Account</span>
+        </button>
       </div>
 
-      {/* Certifications & Inventory Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Certifications */}
-        <div className="bg-white border border-zinc-200 rounded-xl p-5 space-y-4 shadow-xs">
-          <h3 className="text-sm font-semibold text-zinc-900 flex items-center space-x-2">
-            <Award className="w-4 h-4 text-zinc-800" />
-            <span>Active Certifications & Credentials</span>
-          </h3>
-          <div className="space-y-2 text-xs">
-            {profile.certifications.map((cert, index) => (
-              <div key={index} className="p-3 bg-zinc-50 border border-zinc-200 rounded-lg flex items-center justify-between font-medium text-zinc-800">
-                <span>{cert}</span>
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Equipment & Vehicle Information */}
-        <div className="bg-white border border-zinc-200 rounded-xl p-5 space-y-4 shadow-xs">
-          <h3 className="text-sm font-semibold text-zinc-900 flex items-center space-x-2">
-            <Truck className="w-4 h-4 text-zinc-800" />
-            <span>Assigned Fleet Vehicle & Tool Kit</span>
-          </h3>
-          <div className="space-y-3 text-xs">
-            <div className="p-3 bg-zinc-50 border border-zinc-200 rounded-lg flex items-center justify-between">
-              <span className="text-zinc-500">Service Vehicle ID</span>
-              <span className="font-mono font-bold text-zinc-900">{profile.vehicleNumber}</span>
-            </div>
-            <div className="p-3 bg-zinc-50 border border-zinc-200 rounded-lg flex items-center justify-between">
-              <span className="text-zinc-500">Standard Issue Toolkit</span>
-              <span className="font-medium text-zinc-900">SK-HV-KIT-PRO (Calibrated)</span>
-            </div>
-            <div className="p-3 bg-zinc-50 border border-zinc-200 rounded-lg flex items-center justify-between">
-              <span className="text-zinc-500">Offline Sync Buffer</span>
-              <span className="font-semibold text-emerald-600">Active (100% Persisted)</span>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

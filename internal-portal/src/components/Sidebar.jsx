@@ -40,19 +40,14 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
 
   const menuItems = [
     { name: 'Dashboard', path: '/admin', icon: FiGrid },
-    { name: 'Orders', path: '/admin/orders', icon: FiShoppingCart },
-    { name: 'Technicians', path: '/admin/technicians', icon: FiTool },
     { name: 'Live Workstation', path: '/admin/workstation', icon: FiActivity },
     { name: 'Projects', path: '/admin/projects', icon: FiBriefcase },
-    { name: 'Project & Field Reports', path: '/admin/reports', icon: FiBarChart2 },
+    { name: 'Reports', path: '/admin/reports', icon: FiBarChart2 },
     { name: 'Announcements', path: '/admin/announcements', icon: FiVolume2 },
     { name: 'Service Requests', path: '/admin/service-requests', icon: FiTool },
     { name: 'Queries', path: '/admin/queries', icon: FiHelpCircle },
     { name: 'Products', path: '/admin/products', icon: FiBox },
-    { name: 'Categories', path: '/admin/categories', icon: FiGrid },
     { name: 'Banners', path: '/admin/banners', icon: FiImage },
-    { name: 'Brands', path: '/admin/brands', icon: FiAward },
-    { name: 'Inventory', path: '/admin/inventory', icon: FiPackage },
     { name: 'Payments', path: '/admin/payments', icon: FiCreditCard },
     { name: 'Notifications', path: '/admin/notifications', icon: FiBell, badgeCount: unreadCount },
   ];

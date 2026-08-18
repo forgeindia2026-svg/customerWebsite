@@ -48,6 +48,8 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'CCTV eCommerce Backend API & Socket Server is running', timestamp: new Date() });
 });
 
+import attendanceRoutes from './routes/attendanceRoutes';
+
 // API Routes
 app.use('/api/products', productRoutes);
 app.use('/api/jobs', jobRoutes);
@@ -59,6 +61,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/attendance', attendanceRoutes);
 
 import Job from './models/Job';
 

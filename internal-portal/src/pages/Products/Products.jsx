@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { addProduct, deleteProduct, editProduct, setProducts } from '../../redux/dashboardSlice';
-import { FiPlus, FiTrash2, FiSearch, FiLayers, FiDollarSign, FiInfo } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiSearch, FiLayers, FiDollarSign, FiInfo, FiBox, FiGrid, FiAward, FiPackage } from 'react-icons/fi';
 import Modal from '../../components/Modal';
+
+import Categories from '../Categories/Categories';
+import Brands from '../Brands/Brands';
+import Inventory from '../Inventory/Inventory';
 
 import { getApiUrl } from '../../utils/config';
 
@@ -183,6 +187,8 @@ function ProductCard({ prod, onDelete, onEdit }) {
 export default function Products() {
   const dispatch = useDispatch();
   const products = useSelector(state => state.dashboard.products);
+
+  const [prodTab, setProdTab] = useState('catalog'); // 'catalog', 'categories', 'brands', 'inventory'
 
   React.useEffect(() => {
     fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/products`)
@@ -500,7 +506,84 @@ export default function Products() {
 
   return (
     <div className="space-y-6">
-      
+
+      {/* 🎛️ Products Hub Primary Sub-Tabs Switcher */}
+      <div className="flex bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs justify-between items-center overflow-x-auto gap-2">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setProdTab('catalog')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer ${
+              prodTab === 'catalog'
+                ? 'bg-slate-900 text-white dark:bg-blue-600 shadow-md'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <FiBox size={16} />
+            <span>📦 Products Catalog ({products.length})</span>
+          </button>
+
+          <button
+            onClick={() => setProdTab('categories')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer ${
+              prodTab === 'categories'
+                ? 'bg-slate-900 text-white dark:bg-blue-600 shadow-md'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <FiGrid size={16} />
+            <span>🏷️ Categories</span>
+          </button>
+
+          <button
+            onClick={() => setProdTab('brands')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer ${
+              prodTab === 'brands'
+                ? 'bg-slate-900 text-white dark:bg-blue-600 shadow-md'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <FiAward size={16} />
+            <span>🏷️ Brands</span>
+          </button>
+
+          <button
+            onClick={() => setProdTab('inventory')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer ${
+              prodTab === 'inventory'
+                ? 'bg-slate-900 text-white dark:bg-blue-600 shadow-md'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <FiPackage size={16} />
+            <span>📊 Stock Inventory</span>
+          </button>
+        </div>
+
+        <div className="text-[11px] font-mono text-slate-400 font-bold hidden md:block px-3">
+          ● Products Hub
+        </div>
+      </div>
+
+      {prodTab === 'categories' && (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-2 shadow-xs">
+          <Categories />
+        </div>
+      )}
+
+      {prodTab === 'brands' && (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-2 shadow-xs">
+          <Brands />
+        </div>
+      )}
+
+      {prodTab === 'inventory' && (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-2 shadow-xs">
+          <Inventory />
+        </div>
+      )}
+
+      {prodTab === 'catalog' && (
+        <>
       {/* Header Controls */}
       <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col md:flex-row gap-4 justify-between items-center transition-colors">
         
@@ -611,6 +694,8 @@ export default function Products() {
           ))
         )}
       </div>
+      </>
+      )}
 
       {/* Modal Add Product */}
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Register New CCTV Device">
