@@ -42,14 +42,22 @@ export default function Reports() {
   const fieldReportsList = orders.map((order) => {
     const beforeCount = order.beforePhotos?.length || 0;
     const afterCount = order.afterPhotos?.length || 0;
+    
+    // Map status
+    let mappedStatus = 'Submitted';
+    const rawStatus = order.status?.toUpperCase() || '';
+    if (rawStatus === 'IN PROGRESS' || rawStatus === 'IN_PROGRESS' || rawStatus === 'PENDING') mappedStatus = 'Under Review';
+    if (rawStatus === 'COMPLETED' || rawStatus === 'APPROVED' || localStorage.getItem(`report_approved_${order.jobCode || order.id}`) === 'true') mappedStatus = 'Verified';
+    if (rawStatus === 'REJECTED') mappedStatus = 'Rejected';
+
     return {
       id: order._id || order.id,
       jobCode: order.jobCode || order.id || 'SK-ORD-1001',
       title: order.title || order.serviceType || 'CCTV Installation & Service',
-      customer: order.customerName || order.customer?.name || 'Customer Client',
-      address: order.address || order.customer?.address || 'Site Location',
-      technician: order.assignedTechnicianName || order.technician || 'Technician Engineer',
-      status: order.status || 'IN_PROGRESS',
+      customer: order.customerName || order.customer || 'Unknown Customer',
+      address: order.location || order.address || 'Unknown Location',
+      technician: order.assignedTechnicianName || order.technician || 'Unassigned Technician',
+      status: mappedStatus,
       notes: order.fieldNotes || order.workDone || 'Technician site service report submitted.',
       beforePhotos: order.beforePhotos || [],
       afterPhotos: order.afterPhotos || [],
@@ -64,7 +72,7 @@ export default function Reports() {
     customer: 'N/A (General)',
     address: 'Internal / Office / Other',
     technician: gr.technicianName,
-    status: 'COMPLETED',
+    status: 'Verified',
     notes: gr.workDescription,
     beforePhotos: [],
     afterPhotos: [],
@@ -364,9 +372,9 @@ export default function Reports() {
 
             <div className="bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xs flex items-center justify-between">
               <div>
-                <span className="text-slate-400 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider block truncate">COMPLETED AUDITS</span>
+                <span className="text-slate-400 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider block truncate">VERIFIED REPORTS</span>
                 <span className="text-lg sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 block mt-0.5 font-mono">
-                  {allReportsList.filter(r => r.status === 'COMPLETED' || r.status === 'Completed' || r.status === 'Approved').length}
+                  {allReportsList.filter(r => r.status === 'Verified').length}
                 </span>
               </div>
               <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 flex items-center justify-center shrink-0">
@@ -388,7 +396,7 @@ export default function Reports() {
 
             <div className="bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xs flex items-center justify-between">
               <div>
-                <span className="text-slate-400 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider block truncate">ACTIVE ENGINEERS</span>
+                <span className="text-slate-400 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider block truncate">ACTIVE TECHNICIANS</span>
                 <span className="text-lg sm:text-2xl font-black text-amber-600 dark:text-amber-400 block mt-0.5 font-mono">{technicians.length} Techs</span>
               </div>
               <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-50 dark:bg-amber-900/30 text-amber-600 flex items-center justify-center shrink-0">
@@ -498,11 +506,15 @@ export default function Reports() {
 
                           <td className="py-4 px-3 align-middle text-center">
                             <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-full uppercase tracking-wider ${
-                              report.status === 'COMPLETED' || report.status === 'Completed'
+                              report.status === 'Verified'
                                 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                : report.status === 'Rejected'
+                                ? 'bg-red-50 text-red-700 border border-red-200'
+                                : report.status === 'Under Review'
+                                ? 'bg-amber-50 text-amber-700 border border-amber-200'
                                 : 'bg-sky-50 text-sky-700 border border-sky-200'
                             }`}>
-                              {report.status.replace(/_/g, ' ')}
+                              {report.status}
                             </span>
                           </td>
 
@@ -525,7 +537,13 @@ export default function Reports() {
 
                           <td className="py-4 px-3 align-middle text-right">
                             <div className="flex items-center justify-end space-x-2">
-                              {localStorage.getItem(`report_approved_${report.jobCode}`) === 'true' || report.status === 'Approved' ? (
+                              <button
+                                onClick={() => setSelectedPhotoModal(report)}
+                                className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+                              >
+                                View
+                              </button>
+                              {report.status === 'Verified' ? (
                                 <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 font-bold text-[10px] rounded-lg border border-emerald-200 flex items-center gap-1 font-mono">
                                   <FiCheckCircle size={12} />
                                   <span>Verified</span>
@@ -540,7 +558,7 @@ export default function Reports() {
                                   className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1"
                                 >
                                   <FiCheckCircle size={12} />
-                                  <span>Approve Report</span>
+                                  <span>Verify</span>
                                 </button>
                               )}
 

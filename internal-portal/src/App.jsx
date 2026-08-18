@@ -7,7 +7,6 @@ import { App as TechnicianApp } from './technician/App';
 // Admin Pages
 import Dashboard from './pages/Dashboard/Dashboard';
 import Orders from './pages/Orders/Orders';
-import Customers from './pages/Customers/Customers';
 import Technicians from './pages/Technicians/Technicians';
 import Projects from './pages/Projects/Projects';
 import ServiceRequests from './pages/ServiceRequests/ServiceRequests';
@@ -74,7 +73,6 @@ export default function App() {
           <Route path="/admin" element={<DashboardLayout />}>
             <Route index element={<Dashboard />} />
             <Route path="orders" element={<Orders />} />
-            <Route path="customers" element={<Customers />} />
             <Route path="technicians" element={<Technicians />} />
             <Route path="projects" element={<Projects />} />
             <Route path="service-requests" element={<ServiceRequests />} />
@@ -94,7 +92,6 @@ export default function App() {
 
         {/* Alias redirects for direct route access */}
         <Route path="/orders" element={<Navigate to="/admin/orders" replace />} />
-        <Route path="/customers" element={<Navigate to="/admin/customers" replace />} />
         <Route path="/technicians" element={<Navigate to="/admin/technicians" replace />} />
         <Route path="/projects" element={<Navigate to="/admin/projects" replace />} />
         <Route path="/service-requests" element={<Navigate to="/admin/service-requests" replace />} />

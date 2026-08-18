@@ -40,7 +40,6 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
   const menuItems = [
     { name: 'Dashboard', path: '/admin', icon: FiGrid },
     { name: 'Orders', path: '/admin/orders', icon: FiShoppingCart },
-    { name: 'Customers', path: '/admin/customers', icon: FiUsers },
     { name: 'Technicians', path: '/admin/technicians', icon: FiTool },
     { name: 'Projects', path: '/admin/projects', icon: FiBriefcase },
     { name: 'Project & Field Reports', path: '/admin/reports', icon: FiBarChart2 },

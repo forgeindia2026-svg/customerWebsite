@@ -56,43 +56,50 @@ export default function ServiceRequests() {
   const getStatusBadge = (status) => {
     switch (status) {
       case 'Resolved':
+      case 'Closed':
         return 'text-emerald-600 bg-emerald-50/60 dark:bg-emerald-950/10';
       case 'In Progress':
+      case 'Assigned':
         return 'text-blue-600 bg-blue-50/60 dark:bg-blue-955/10';
+      case 'Cancelled':
+        return 'text-red-600 bg-red-50/60 dark:bg-red-950/10';
       case 'Open':
       default:
         return 'text-amber-600 bg-amber-50/60 dark:bg-amber-955/10';
     }
   };
 
-  const getStatusButton = (status, id) => {
-    switch (status) {
-      case 'Resolved':
-        return (
-          <button className="flex items-center gap-1.5 py-2 px-3.5 bg-emerald-600 text-white text-xs font-semibold rounded-xl shadow-sm cursor-default">
-            Resolved
-          </button>
-        );
-      case 'In Progress':
-        return (
-          <button 
-            onClick={() => handleStatusUpdate(id, 'Resolved')}
-            className="flex items-center gap-1.5 py-2 px-3.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-colors"
-          >
-            Update
-          </button>
-        );
-      case 'Open':
-      default:
-        return (
-          <button 
-            onClick={() => handleStatusUpdate(id, 'In Progress')}
-            className="flex items-center gap-1.5 py-2 px-3.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-colors"
-          >
-            Assign
-          </button>
-        );
+  const getStatusButton = (req) => {
+    if (req.status === 'Resolved') {
+      return (
+        <button onClick={() => handleStatusUpdate(req.id, 'Closed')} className="px-2.5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-xl shadow-sm transition-colors border border-slate-700">Close</button>
+      );
     }
+    if (req.status === 'Closed' || req.status === 'Cancelled') {
+      return null;
+    }
+    if (req.status === 'In Progress' || req.status === 'Assigned') {
+      return (
+        <button onClick={() => handleStatusUpdate(req.id, 'Resolved')} className="px-2.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-colors border border-emerald-700">Resolve</button>
+      );
+    }
+    if (req.status === 'Open') {
+      return (
+        <button onClick={() => {
+            setEditingReq(req);
+            setRequestForm({
+              customer: req.clientName || req.customer,
+              contact: req.contact || '',
+              type: req.type || '',
+              priority: req.priority || 'Medium',
+              assignedTech: req.assignedTech || req.technician || 'Unassigned',
+              status: req.status || 'Open'
+            });
+            setEditModalOpen(true);
+        }} className="px-2.5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-colors border border-purple-700">Assign</button>
+      );
+    }
+    return null;
   };
 
   const getTechStatusColor = (status) => {
@@ -132,6 +139,26 @@ export default function ServiceRequests() {
   return (
     <div className="space-y-6">
       
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { title: 'Open', count: serviceRequests.filter(r => r.status === 'Open').length, color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/30' },
+          { title: 'Unassigned', count: serviceRequests.filter(r => !r.assignedTech || r.assignedTech === 'Unassigned').length, color: 'text-red-600 bg-red-50 dark:bg-red-900/30' },
+          { title: 'In Progress', count: serviceRequests.filter(r => r.status === 'In Progress').length, color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/30' },
+          { title: 'Resolved', count: serviceRequests.filter(r => r.status === 'Resolved').length, color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30' }
+        ].map(card => (
+          <div key={card.title} className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center justify-between">
+            <div>
+              <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider block">{card.title}</span>
+              <span className="text-2xl font-black text-slate-800 dark:text-slate-100 block mt-0.5">{card.count}</span>
+            </div>
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold ${card.color}`}>
+              {card.count}
+            </div>
+          </div>
+        ))}
+      </div>
+
       {/* Search & Actions Panel Toolbar */}
       <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col xl:flex-row gap-4 justify-between items-center transition-colors">
         <div className="flex flex-col md:flex-row items-center gap-3.5 w-full xl:max-w-4xl">
@@ -170,8 +197,11 @@ export default function ServiceRequests() {
           >
             <option>All Status</option>
             <option>Open</option>
+            <option>Assigned</option>
             <option>In Progress</option>
             <option>Resolved</option>
+            <option>Closed</option>
+            <option>Cancelled</option>
           </select>
 
           {/* Type filter */}
@@ -189,7 +219,10 @@ export default function ServiceRequests() {
         </div>
 
         <button 
-          onClick={() => setModalOpen(true)}
+          onClick={() => {
+            setRequestForm({ customer: '', contact: '', type: 'Camera not working properly', priority: 'Medium', assignedTech: 'Unassigned', status: 'Open' });
+            setModalOpen(true);
+          }}
           className="w-full xl:w-auto flex items-center justify-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors"
         >
           <FiPlus /> New Service Request
@@ -278,7 +311,7 @@ export default function ServiceRequests() {
                   >
                     Edit
                   </button>
-                  {getStatusButton(req.status, req.id)}
+                  {getStatusButton(req)}
                 </div>
 
               </div>
@@ -288,16 +321,20 @@ export default function ServiceRequests() {
       </div>
 
       {/* Pagination Bar */}
-      <div className="flex items-center justify-between border-t border-slate-150/60 dark:border-slate-800/80 pt-6">
-        <span className="text-xs text-slate-500 font-semibold">Showing 1 to {filteredRequests.length} of {filteredRequests.length} requests</span>
-        <div className="flex items-center gap-1.5">
-          <button className="p-2 border border-slate-100 dark:border-slate-800 rounded-xl text-slate-450 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"><FiChevronLeft /></button>
-          <button className="w-8 h-8 flex items-center justify-center bg-blue-600 text-white text-xs font-semibold rounded-xl shadow-sm">1</button>
-          <button className="w-8 h-8 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-650 dark:text-slate-300 text-xs font-semibold rounded-xl transition-colors">2</button>
-          <button className="w-8 h-8 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-650 dark:text-slate-300 text-xs font-semibold rounded-xl transition-colors">3</button>
-          <button className="p-2 border border-slate-100 dark:border-slate-800 rounded-xl text-slate-450 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"><FiChevronRight /></button>
+      {filteredRequests.length > 0 && (
+        <div className="flex items-center justify-between border-t border-slate-150/60 dark:border-slate-800/80 pt-6">
+          <span className="text-xs text-slate-500 font-semibold">Showing 1 to {filteredRequests.length} of {filteredRequests.length} requests</span>
+          {filteredRequests.length > 10 && (
+            <div className="flex items-center gap-1.5">
+              <button className="p-2 border border-slate-100 dark:border-slate-800 rounded-xl text-slate-450 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"><FiChevronLeft /></button>
+              <button className="w-8 h-8 flex items-center justify-center bg-blue-600 text-white text-xs font-semibold rounded-xl shadow-sm">1</button>
+              <button className="w-8 h-8 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-650 dark:text-slate-300 text-xs font-semibold rounded-xl transition-colors">2</button>
+              <button className="w-8 h-8 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-650 dark:text-slate-300 text-xs font-semibold rounded-xl transition-colors">3</button>
+              <button className="p-2 border border-slate-100 dark:border-slate-800 rounded-xl text-slate-450 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"><FiChevronRight /></button>
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
       {/* Modal Add Service Request */}
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Log New CCTV Service Request">
@@ -470,8 +507,11 @@ export default function ServiceRequests() {
                 className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
               >
                 <option value="Open">Open</option>
+                <option value="Assigned">Assigned</option>
                 <option value="In Progress">In Progress</option>
                 <option value="Resolved">Resolved</option>
+                <option value="Closed">Closed</option>
+                <option value="Cancelled">Cancelled</option>
               </select>
             </div>
             <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">

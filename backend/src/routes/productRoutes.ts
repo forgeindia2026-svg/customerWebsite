@@ -39,7 +39,7 @@ router.get('/', async (req: Request, res: Response) => {
       query.$or = orClauses.flatMap(c => c.$or);
     }
 
-    const rawProducts = await Product.find(query).sort({ createdAt: -1 });
+    const rawProducts = await Product.find(query).sort({ createdAt: 1 });
     
     // Normalize products so Admin Web, Customer App & Customer Web all get name, title, image, and imageUrl!
     const products = rawProducts.map(p => {
