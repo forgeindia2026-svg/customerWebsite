@@ -16,7 +16,7 @@ export default function Reports() {
   const technicians = useSelector(state => state.dashboard.technicians);
   const projects = useSelector(state => state.dashboard.projects);
 
-  const [activeTab, setActiveTab] = useState('Field Reports'); // 'Field Reports', 'Overview', 'Technicians', 'Financials'
+  const [activeTab, setActiveTab] = useState('Attendance'); // 'Attendance', 'Field Reports', 'Overview', 'Technicians'
   const [selectedPhotoModal, setSelectedPhotoModal] = useState(null);
   const [adminQuickDetailReport, setAdminQuickDetailReport] = useState(null);
   const [adminFullReportModal, setAdminFullReportModal] = useState(null);
@@ -362,22 +362,190 @@ export default function Reports() {
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex bg-slate-50 dark:bg-slate-800 p-1 rounded-xl border border-slate-200/40 dark:border-slate-700/50 self-start md:self-auto overflow-x-auto max-w-full">
-          {['Field Reports', 'Overview', 'Technicians', 'Financials'].map(tab => (
+        <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-200/50 dark:border-slate-700/50 self-start md:self-auto overflow-x-auto max-w-full gap-1">
+          {[
+            { id: 'Attendance', label: '🕒 Attendance & Timesheet (1-31 Days)' },
+            { id: 'Field Reports', label: '📸 Job Evidence Reports' },
+            { id: 'Technicians', label: '⭐ Technician Performance' },
+            { id: 'Overview', label: '📊 Executive Overview' }
+          ].map(tab => (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`text-xs font-semibold px-4 py-2 rounded-lg transition-all shrink-0 ${
-                activeTab === tab 
-                  ? 'bg-white dark:bg-slate-700 text-slate-850 dark:text-white shadow-xs' 
-                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`text-xs font-bold px-4 py-2.5 rounded-xl transition-all shrink-0 cursor-pointer ${
+                activeTab === tab.id 
+                  ? 'bg-slate-900 text-white shadow-md' 
+                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
               }`}
             >
-              {tab === 'Field Reports' ? '📸 Technician Field Reports' : tab === 'Overview' ? 'Executive Overview' : tab === 'Technicians' ? 'Technician Performance' : 'Financial Ledger'}
+              {tab.label}
             </button>
           ))}
         </div>
       </div>
+
+      {/* Tab Contents: Attendance & Timesheet (1-31 Days View) */}
+      {activeTab === 'Attendance' && (
+        <div className="space-y-6">
+          {/* KPI Attendance Summary Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xs flex items-center justify-between">
+              <div>
+                <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider block">PRESENT TODAY</span>
+                <span className="text-xl sm:text-2xl font-black text-emerald-600 block mt-0.5 font-mono">
+                  {allReportsList.filter(r => r.status === 'PRESENT' || r.status === 'Verified' || r.status === 'Submitted').length} Techs
+                </span>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                <FiCheckCircle size={18} />
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xs flex items-center justify-between">
+              <div>
+                <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider block">ON FIELD / SITE</span>
+                <span className="text-xl sm:text-2xl font-black text-blue-600 block mt-0.5 font-mono">
+                  {allReportsList.filter(r => r.jobCode && r.jobCode !== 'GENERAL-TASK').length} Jobs
+                </span>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                <FiActivity size={18} />
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xs flex items-center justify-between">
+              <div>
+                <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider block">TOTAL HOURS LOGGED</span>
+                <span className="text-xl sm:text-2xl font-black text-purple-600 block mt-0.5 font-mono">
+                  {allReportsList.reduce((sum, r) => sum + (r.hoursWorked || 8), 0)} Hours
+                </span>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+                <FiClock size={18} />
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xs flex items-center justify-between">
+              <div>
+                <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider block">ACTIVE TECHNICIANS</span>
+                <span className="text-xl sm:text-2xl font-black text-amber-600 block mt-0.5 font-mono">{technicians.length} Techs</span>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                <FiUsers size={18} />
+              </div>
+            </div>
+          </div>
+
+          {/* Monthly Timesheet & Attendance Table */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm p-6 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div>
+                <h3 className="font-black text-slate-900 dark:text-white text-lg tracking-tight flex items-center gap-2">
+                  <span>📅 Technician Monthly Attendance Timesheet</span>
+                  <span className="text-xs font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded-lg">Day 1 to 31 Log</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">Consolidated daily check-in/out timestamps, working hours, and activity logs</p>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={handleExportMonthlyExcel}
+                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl flex items-center gap-2 transition-all shadow-md cursor-pointer active:scale-95"
+                >
+                  <FiDownload size={15} />
+                  <span>Export Monthly Attendance (Excel / CSV)</span>
+                </button>
+
+                <button
+                  onClick={handleDownloadAllPDF}
+                  className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl flex items-center gap-2 transition-all shadow-md cursor-pointer active:scale-95"
+                >
+                  <FiDownload size={15} />
+                  <span>Export Reports (PDF)</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Attendance Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-bold uppercase tracking-wider text-[11px]">
+                    <th className="py-3 px-3">Date</th>
+                    <th className="py-3 px-3">Technician</th>
+                    <th className="py-3 px-3 text-center">Check-In</th>
+                    <th className="py-3 px-3 text-center">Check-Out</th>
+                    <th className="py-3 px-3 text-center">Hours</th>
+                    <th className="py-3 px-3 text-center">Status</th>
+                    <th className="py-3 px-3">Activity / Job Code</th>
+                    <th className="py-3 px-3">Work Summary</th>
+                    <th className="py-3 px-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
+                  {allReportsList.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="py-12 text-center text-slate-400 text-sm font-medium">
+                        No attendance or daily logs found for this period.
+                      </td>
+                    </tr>
+                  ) : (
+                    allReportsList.map((report) => {
+                      const dateStr = report.updatedAt ? report.updatedAt.split('T')[0] : (report.date || new Date().toISOString().split('T')[0]);
+                      const isFieldJob = report.jobCode && report.jobCode !== 'GENERAL-TASK';
+                      return (
+                        <tr key={`att-${report.id}`} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                          <td className="py-3.5 px-3 align-middle font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                            {dateStr}
+                          </td>
+                          <td className="py-3.5 px-3 align-middle font-bold text-slate-900 dark:text-white">
+                            {report.technician}
+                          </td>
+                          <td className="py-3.5 px-3 align-middle text-center font-mono text-emerald-600 font-bold">
+                            {report.checkInTime || '09:00 AM'}
+                          </td>
+                          <td className="py-3.5 px-3 align-middle text-center font-mono text-red-600 font-bold">
+                            {report.checkOutTime || '06:00 PM'}
+                          </td>
+                          <td className="py-3.5 px-3 align-middle text-center font-mono font-black text-slate-900 dark:text-white">
+                            {report.hoursWorked || 8} hrs
+                          </td>
+                          <td className="py-3.5 px-3 align-middle text-center">
+                            <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-full uppercase tracking-wider border ${
+                              isFieldJob
+                                ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                : report.title === 'On Leave' || report.title === 'Leave'
+                                ? 'bg-red-50 text-red-700 border-red-200'
+                                : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            }`}>
+                              {isFieldJob ? 'FIELD JOB' : (report.title === 'On Leave' ? 'ON LEAVE' : 'PRESENT')}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-3 align-middle font-mono font-extrabold text-slate-900 dark:text-white">
+                            <div>{report.jobCode}</div>
+                            <div className="text-[10px] font-sans font-medium text-slate-400 truncate max-w-[150px]">{report.title}</div>
+                          </td>
+                          <td className="py-3.5 px-3 align-middle">
+                            <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 max-w-xs">{report.notes}</p>
+                          </td>
+                          <td className="py-3.5 px-3 align-middle text-right">
+                            <button
+                              onClick={() => setSelectedPhotoModal(report)}
+                              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs transition-all cursor-pointer"
+                            >
+                              View
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tab Contents: Technician Field Reports */}
       {activeTab === 'Field Reports' && (
