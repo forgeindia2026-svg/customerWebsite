@@ -21,6 +21,7 @@ import Announcements from './pages/Announcements/Announcements';
 import Banners from './pages/Banners/Banners';
 import Brands from './pages/Brands/Brands';
 import Categories from './pages/Categories/Categories';
+import Workstation from './pages/Workstation/Workstation';
 import ToastContainer from './components/Toast';
 
 // Route guard for Admin role
@@ -83,6 +84,7 @@ export default function App() {
             <Route path="inventory" element={<Inventory />} />
             <Route path="payments" element={<Payments />} />
             <Route path="reports" element={<Reports />} />
+            <Route path="workstation" element={<Workstation />} />
             <Route path="notifications" element={<Notifications />} />
             <Route path="settings" element={<Settings />} />
             <Route path="queries" element={<Queries />} />

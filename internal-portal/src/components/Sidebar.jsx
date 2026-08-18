@@ -18,7 +18,8 @@ import {
   FiHelpCircle,
   FiVolume2,
   FiImage,
-  FiAward
+  FiAward,
+  FiActivity
 } from 'react-icons/fi';
 import { useSelector } from 'react-redux';
 
@@ -41,6 +42,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
     { name: 'Dashboard', path: '/admin', icon: FiGrid },
     { name: 'Orders', path: '/admin/orders', icon: FiShoppingCart },
     { name: 'Technicians', path: '/admin/technicians', icon: FiTool },
+    { name: 'Live Workstation', path: '/admin/workstation', icon: FiActivity },
     { name: 'Projects', path: '/admin/projects', icon: FiBriefcase },
     { name: 'Project & Field Reports', path: '/admin/reports', icon: FiBarChart2 },
     { name: 'Announcements', path: '/admin/announcements', icon: FiVolume2 },
