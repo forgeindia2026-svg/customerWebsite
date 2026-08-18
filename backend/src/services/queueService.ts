@@ -1,7 +1,7 @@
 import Job from '../models/Job';
 import User from '../models/User';
 import Dashboard from '../models/Dashboard';
-import { emitToRole } from '../server';
+import { emitToRole } from '../socket';
 
 export const processWaitingQueue = async () => {
   try {
