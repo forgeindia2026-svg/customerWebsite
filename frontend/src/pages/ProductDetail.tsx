@@ -493,13 +493,13 @@ export default function ProductDetail() {
                 </span>
               </div>
 
-              {(product.promotionalOffer || product.offers) && (
+              {(product.promotionalOffer || (product.offers && product.offers.length > 0)) && (
                 <div className="bg-orange-50 border border-orange-100 rounded-lg p-3 mt-4">
                   <div className="flex items-center gap-2">
                     <span className="text-orange-600 font-bold text-xs uppercase tracking-wider">Special Offer</span>
                   </div>
                   <p className="text-sm font-medium text-orange-800 mt-1">
-                    {product.promotionalOffer || product.offers}
+                    {product.promotionalOffer || (typeof product.offers === 'string' ? product.offers : (product.offers?.[0]?.subtitle || ''))}
                   </p>
                 </div>
               )}
@@ -695,12 +695,12 @@ export default function ProductDetail() {
               <div className="space-y-4">
                 <h3 className="text-lg font-bold text-slate-900">Key Features & Highlights</h3>
                 <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {product.specs.map((spec, i) => (
+                  {(product.specs || []).map((spec: any, i: number) => (
                     <li key={i} className="flex items-start gap-2.5 text-sm text-slate-650">
                       <span className="h-5 w-5 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
                         <Check className="h-3.5 w-3.5" />
                       </span>
-                      <span>{spec}</span>
+                      <span>{typeof spec === 'string' ? spec : `${spec.name}: ${spec.value}`}</span>
                     </li>
                   ))}
                   <li className="flex items-start gap-2.5 text-sm text-slate-650">
