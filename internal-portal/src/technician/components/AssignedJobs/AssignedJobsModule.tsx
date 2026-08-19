@@ -88,12 +88,14 @@ export const AssignedJobsModule: React.FC<AssignedJobsModuleProps> = ({ jobs, su
 
   const handleUpdateStatus = async (jobId: string, newStatus: JobStatus, note?: string) => {
     try {
-      const job = response?.data.find(j => j.id === jobId);
       let updatedJob;
 
-      if (newStatus === 'ACCEPTED' && (!job?.assignedTechnician || !job.assignedTechnician.id)) {
+      if (newStatus === 'ACCEPTED') {
         const profile = await JobsApiService.getTechnicianProfile();
         updatedJob = await JobsApiService.acceptJob(jobId, profile);
+      } else if (newStatus === 'ON_HOLD') {
+        const profile = await JobsApiService.getTechnicianProfile();
+        updatedJob = await JobsApiService.rejectJob(jobId, profile, note);
       } else {
         updatedJob = await JobsApiService.updateJobStatus(jobId, newStatus, note);
       }
