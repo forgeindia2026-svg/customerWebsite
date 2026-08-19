@@ -1,6 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { fetchDashboardData } from '../../redux/dashboardSlice';
+import { socket } from '../../socket';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
+
 import { 
   FiActivity, FiCheckCircle, FiClock, FiUsers, FiPhoneCall, 
   FiMapPin, FiSend, FiZap, FiPlusCircle, FiTrendingUp, FiFilter,
@@ -28,6 +40,7 @@ export default function Workstation() {
 
   const [dbReports, setDbReports] = useState([]);
   const [liveAttendance, setLiveAttendance] = useState([]);
+  const [liveLocations, setLiveLocations] = useState({});
 
   // Fetch live reports, attendance and dashboard data on mount
   React.useEffect(() => {
@@ -56,6 +69,24 @@ export default function Workstation() {
     };
     fetchLiveReports();
     fetchLiveAttendance();
+
+    socket.emit('join_role', 'admin');
+    const handleLocation = (data) => {
+      setLiveLocations(prev => ({
+        ...prev,
+        [data.technicianId || data.technicianName]: {
+          lat: data.lat,
+          lng: data.lng,
+          jobCode: data.jobCode,
+          updatedAt: data.updatedAt,
+        }
+      }));
+    };
+    socket.on('job:location_updated', handleLocation);
+
+    return () => {
+      socket.off('job:location_updated', handleLocation);
+    };
   }, [dispatch]);
 
   // Master Technician List dynamically resolved from Backend API & Redux Store
@@ -772,6 +803,42 @@ export default function Workstation() {
         ))}
       </div>
 
+      {/* 🗺️ Live Technician Map */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm p-6 space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+          <h3 className="font-black text-slate-900 dark:text-white text-lg tracking-tight flex items-center gap-2">
+            <FiMapPin className="text-emerald-500" />
+            <span>Live GPS Radar</span>
+          </h3>
+          <span className="text-xs font-bold bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full animate-pulse">
+            {Object.keys(liveLocations).length} Active Trackers
+          </span>
+        </div>
+        <div className="h-[400px] w-full rounded-xl overflow-hidden border border-slate-200 shadow-inner z-0">
+          <MapContainer 
+            center={[12.9716, 77.5946]} // Default Bangalore, will be overridden by markers
+            zoom={11} 
+            scrollWheelZoom={true} 
+            style={{ height: '100%', width: '100%' }}
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            {Object.entries(liveLocations).map(([id, loc]) => (
+              <Marker key={id} position={[loc.lat, loc.lng]}>
+                <Popup>
+                  <div className="text-xs">
+                    <p className="font-bold text-sm mb-1">{allTechnicians.find(t => t.id === id || t.name === id)?.name || id}</p>
+                    <p><strong>Job:</strong> {loc.jobCode}</p>
+                    <p className="text-slate-500 text-[10px]">Updated: {new Date(loc.updatedAt).toLocaleTimeString()}</p>
+                  </div>
+                </Popup>
+              </Marker>
+            ))}
+          </MapContainer>
+        </div>
+      </div>
       {/* 📋 Live Fleet Monitoring Matrix & Leaderboard Table */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm p-6 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
