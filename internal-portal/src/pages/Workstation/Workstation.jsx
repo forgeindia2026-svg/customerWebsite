@@ -106,6 +106,7 @@ export default function Workstation() {
     // Find all assigned orders for this technician
     const techOrders = (ordersFromStore || []).filter(o => 
       (o?.assignedTechnicianName && techName && o.assignedTechnicianName.toLowerCase().includes(techName.toLowerCase())) ||
+      (o?.assignedTechnician && techName && o.assignedTechnician.toLowerCase().includes(techName.toLowerCase())) ||
       (o?.technician && techName && o.technician.toLowerCase().includes(techName.toLowerCase())) ||
       (o?.assignedTechnicians?.[0]?.name && techName && o.assignedTechnicians[0].name.toLowerCase().includes(techName.toLowerCase()))
     );
@@ -124,7 +125,9 @@ export default function Workstation() {
     const lastActionTimeStr = latestReport?.createdAt ? `${Math.max(1, Math.round((Date.now() - new Date(latestReport.createdAt).getTime()) / (1000 * 60)))} mins ago` : 'No Recent Activity';
 
     // Active order info
-    const activeOrder = techOrders.find(o => o.status === 'IN_PROGRESS' || o.status === 'PENDING' || o.status === 'ACCEPTED') || techOrders[0];
+    const activeOrder = techOrders.find(o => 
+      ['IN_PROGRESS', 'PENDING', 'ACCEPTED', 'In Progress', 'Approved', 'Pending Approval'].includes(o.status)
+    );
     const activeJobCode = activeOrder?.jobCode || activeOrder?.id || (latestReport?.jobCode && latestReport.jobCode !== 'GENERAL-TASK' ? latestReport.jobCode : 'NO-ACTIVE-JOB');
     const customerName = activeOrder?.customerName || activeOrder?.customer || latestReport?.customerName || 'No Active Order';
     const location = activeOrder?.location || activeOrder?.address || latestReport?.location || 'Location Not Specified';
