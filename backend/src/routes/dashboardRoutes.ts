@@ -160,7 +160,7 @@ router.get('/', async (req: Request, res: Response) => {
           dashboardStatus = 'Completed';
         } else if (job.status === 'IN_PROGRESS') {
           dashboardStatus = 'In Progress';
-        } else if (job.status === 'ASSIGNED' || job.status === 'ACCEPTED') {
+        } else if (job.status === 'ASSIGNED' || job.acceptanceStatus === 'ACCEPTED') {
           dashboardStatus = 'Approved';
         } else if (job.status === 'PENDING') {
           // If auto-assigned, it has technicians but is pending acceptance
