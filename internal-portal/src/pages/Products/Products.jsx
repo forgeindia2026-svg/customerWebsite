@@ -215,6 +215,7 @@ export default function Products() {
             offers: item.promotionalOffer || item.badge || '',
             features: item.features || [],
             offersList: item.offers || [],
+            relatedProducts: item.relatedProducts || [],
           }));
           dispatch(setProducts(mapped));
         }
@@ -267,7 +268,8 @@ export default function Products() {
     isBestSeller: false,
     isFlashDeal: false,
     dynamicFeatures: [],
-    dynamicOffers: []
+    dynamicOffers: [],
+    relatedProducts: []
   });
 
   const [isUploading, setIsUploading] = useState(false);
@@ -408,6 +410,7 @@ export default function Products() {
       isBestSeller: productForm.isBestSeller || false,
       features: productForm.dynamicFeatures || [],
       offers: productForm.dynamicOffers || [],
+      relatedProducts: productForm.relatedProducts || [],
     };
 
     fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/products`, {
@@ -447,6 +450,7 @@ export default function Products() {
             isFlashDeal: productForm.isFlashDeal || false,
             features: item.features || [],
             offersList: item.offers || [],
+            relatedProducts: item.relatedProducts || [],
           }));
         }
       })
@@ -477,7 +481,8 @@ export default function Products() {
       isBestSeller: false,
       isFlashDeal: false,
       dynamicFeatures: [],
-      dynamicOffers: []
+      dynamicOffers: [],
+      relatedProducts: []
     });
     setModalOpen(false);
   };
@@ -671,7 +676,8 @@ export default function Products() {
                   isBestSeller: p.isBestSeller || false,
                   isFlashDeal: p.isFlashDeal || false,
                   dynamicFeatures: p.features || [],
-                  dynamicOffers: p.offersList || [] // Wait, the mapping from api to redux needs to include features/offers. Let's fix that too. We'll map the raw p.dbFeatures.
+                  dynamicOffers: p.offersList || [],
+                  relatedProducts: p.relatedProducts || [],
                 });
                 setEditModalOpen(true);
               }}
@@ -1086,6 +1092,7 @@ export default function Products() {
                       isFlashDeal: productForm.isFlashDeal || false,
                       features: productForm.dynamicFeatures || [],
                       offersList: productForm.dynamicOffers || [],
+                      relatedProducts: productForm.relatedProducts || [],
                     }));
                   }
                 })
@@ -1274,6 +1281,25 @@ export default function Products() {
                   className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Related Products (Frequently Bought Together)</label>
+              <select
+                multiple
+                value={productForm.relatedProducts || []}
+                onChange={(e) => {
+                  const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
+                  setProductForm({ ...productForm, relatedProducts: selectedOptions });
+                }}
+                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+                style={{ minHeight: '100px' }}
+              >
+                {products.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name} - {p.model}</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-slate-400 mt-1">Hold Ctrl (Windows) or Command (Mac) to select multiple products.</p>
             </div>
 
             <div className="flex gap-6 py-1">

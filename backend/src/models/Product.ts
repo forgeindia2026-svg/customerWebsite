@@ -24,6 +24,7 @@ export interface IProduct extends Document {
   promotionalOffer?: string;
   features?: { iconName: string; label: string }[];
   offers?: { title: string; subtitle: string }[];
+  relatedProducts?: mongoose.Types.ObjectId[] | IProduct[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -63,6 +64,7 @@ const ProductSchema: Schema = new Schema(
         subtitle: { type: String },
       },
     ],
+    relatedProducts: [{ type: Schema.Types.ObjectId, ref: 'Product' }],
   },
   { timestamps: true }
 );

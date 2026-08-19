@@ -44,10 +44,13 @@ interface Product {
   modelName?: string;
   discount?: number;
   promotionalOffer?: string;
-  offers?: string;
-  resolution: string;
-  specs: string[];
   description?: string;
+  features?: { iconName: string; label: string }[];
+  offers?: { title: string; subtitle: string }[];
+  specs?: { name: string; value: string }[] | string[];
+  resolution?: string;
+  delivery?: string;
+  relatedProducts?: any[];
 }
 
 // Fallback lists if API fails
@@ -153,11 +156,25 @@ export default function ProductDetail() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Frequently bought together accessories
-  const accessories = useMemo(() => [
-    { id: 1001, name: "SK Professional 3+1 Coaxial CCTV Cable (90m Reel)", price: 1499, originalPrice: 1999, image: "https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=300&q=80", checked: true },
-    { id: 1002, name: "Seagate SkyHawk 2TB Surveillance Hard Drive", price: 4499, originalPrice: 5999, image: "https://images.unsplash.com/photo-1580894732444-8ecded7900cd?auto=format&fit=crop&w=300&q=80", checked: true }
-  ], []);
-  const [checkedAddons, setCheckedAddons] = useState<number[]>([1001, 1002]);
+  const accessories = useMemo(() => {
+    if (!product || !product.relatedProducts || !Array.isArray(product.relatedProducts)) return [];
+    return product.relatedProducts.map(rp => ({
+      id: rp._id || rp.id,
+      name: rp.title || rp.name,
+      price: rp.price,
+      originalPrice: rp.originalPrice || rp.price,
+      image: rp.image || rp.imageUrl || (rp.images && rp.images[0]) || "https://via.placeholder.com/150",
+      checked: true
+    }));
+  }, [product]);
+
+  const [checkedAddons, setCheckedAddons] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (accessories.length > 0) {
+      setCheckedAddons(accessories.map(a => a.id));
+    }
+  }, [accessories]);
 
   // Fetch product detail
   useEffect(() => {

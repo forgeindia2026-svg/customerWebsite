@@ -65,7 +65,7 @@ router.get('/', async (req: Request, res: Response) => {
 // GET single product by ID
 router.get('/:id', async (req: Request, res: Response) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const product = await Product.findById(req.params.id).populate('relatedProducts');
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
