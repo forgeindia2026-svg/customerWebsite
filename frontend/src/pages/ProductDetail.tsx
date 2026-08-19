@@ -40,6 +40,11 @@ interface Product {
   warranty: string;
   freeDelivery: boolean;
   image: string;
+  images?: string[];
+  modelName?: string;
+  discount?: number;
+  promotionalOffer?: string;
+  offers?: string;
   resolution: string;
   specs: string[];
   description?: string;
