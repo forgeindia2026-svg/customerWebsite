@@ -150,12 +150,9 @@ const defaultDailyLogs = {
 
 const loadCachedDashboardData = () => {
   try {
-    const cached = localStorage.getItem('sk_admin_dashboard_cache');
-    if (cached) {
-      return JSON.parse(cached);
-    }
+    localStorage.removeItem('sk_admin_dashboard_cache');
   } catch (e) {
-    console.warn('Failed to parse cached dashboard data:', e);
+    console.warn('Failed to clear cached dashboard data:', e);
   }
   return null;
 };

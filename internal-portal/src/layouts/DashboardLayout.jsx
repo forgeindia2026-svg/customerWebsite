@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
+import { setDashboardData } from '../redux/dashboardSlice';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import { getApiUrl } from '../utils/config';

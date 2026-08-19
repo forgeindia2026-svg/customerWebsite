@@ -58,19 +58,8 @@ export default function Workstation() {
     fetchLiveAttendance();
   }, [dispatch]);
 
-  // Default fallback technician list if store is empty or initializing
-  const defaultTechNames = [
-    { id: 'TECH-01', name: 'Kathir', phone: '9876543210', avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=120&auto=format&fit=crop' },
-    { id: 'TECH-02', name: 'Kavin', phone: '9876543211', avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=120&auto=format&fit=crop' },
-    { id: 'TECH-03', name: 'Mari', phone: '9876543212', avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=120&auto=format&fit=crop' },
-    { id: 'TECH-04', name: 'Selvam', phone: '9876543213', avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=120&auto=format&fit=crop' },
-    { id: 'TECH-05', name: 'Kavi', phone: '9876543214', avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=120&auto=format&fit=crop' }
-  ];
-
   // Master Technician List dynamically resolved from Backend API & Redux Store
-  const masterTechList = (techniciansFromStore && techniciansFromStore.length > 0)
-    ? techniciansFromStore
-    : defaultTechNames;
+  const masterTechList = techniciansFromStore || [];
 
   // Synthesize 100% Live Backend Data for every Technician
   const allTechnicians = (masterTechList || []).map((t, idx) => {
