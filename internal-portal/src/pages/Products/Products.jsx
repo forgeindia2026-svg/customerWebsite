@@ -198,26 +198,21 @@ export default function Products() {
           const mapped = data.data.map(item => ({
             id: item._id,
             name: item.title,
-            category: item.category === 'ip' ? 'IP Camera' : 
-                      item.category === 'bullet' ? 'Analog Camera' :
-                      item.category === 'nvr' ? 'NVR' :
-                      item.category === 'dvr' ? 'DVR' :
-                      item.category === 'harddisk' ? 'Hard Disk' :
-                      item.category === 'ssd' ? 'SSD' :
-                      item.category === 'pendrive' ? 'Pendrive' :
-                      item.category === 'accessories' ? 'Cables' : item.category,
-            model: item.specs?.[0] || 'Generic Model',
+            category: item.category || 'CCTV Cameras',
+            subCategory: item.subCategory || '',
+            brand: item.brand || '',
+            model: item.specs?.[0] || item.modelName || '',
             price: item.price,
             offerPrice: item.originalPrice ? item.price : '', 
             stock: item.stock || 0,
             description: item.description || '',
             imageUrl: item.image,
-            imageUrls: [item.image],
+            imageUrls: item.images || [item.image],
             discount: item.badge || '',
             delivery: item.delivery || '',
             warranty: item.warranty || '',
-            rating: item.rating || 4.5,
-            offers: item.badge || '', // this is the old badge string
+            rating: item.rating || '',
+            offers: item.promotionalOffer || item.badge || '',
             features: item.features || [],
             offersList: item.offers || [],
           }));
@@ -252,6 +247,7 @@ export default function Products() {
 
   const [productForm, setProductForm] = useState({ 
     name: '', 
+    brand: '',
     category: 'CCTV Cameras', 
     subCategory: 'IP Cameras',
     customCategory: '',
@@ -389,31 +385,18 @@ export default function Products() {
     e.preventDefault();
     const finalCategory = productForm.category === 'Other' ? (productForm.customCategory || 'Other') : productForm.category;
 
-    // Map admin category to backend enum
-    let dbCategory = 'cctv';
-    const c = finalCategory.toLowerCase();
-    if (c.includes('ip camera')) dbCategory = 'ip';
-    else if (c.includes('analog camera')) dbCategory = 'bullet';
-    else if (c.includes('nvr')) dbCategory = 'nvr';
-    else if (c.includes('dvr')) dbCategory = 'dvr';
-    else if (c.includes('hard disk')) dbCategory = 'harddisk';
-    else if (c.includes('ssd')) dbCategory = 'ssd';
-    else if (c.includes('pendrive')) dbCategory = 'pendrive';
-    else if (c.includes('hdmi')) dbCategory = 'hdmi';
-    else if (c.includes('cables') || c.includes('cable') || c.includes('accessory') || c.includes('accessories') || c.includes('power supply')) dbCategory = 'accessories';
-
     const dbProduct = {
       title: productForm.name,
-      category: dbCategory,
+      category: finalCategory,
       subCategory: productForm.subCategory || '',
-      brand: 'SK-Vision',
+      brand: productForm.brand || '',
       price: parseFloat(productForm.offerPrice) > 0 ? parseFloat(productForm.offerPrice) : parseFloat(productForm.price),
       originalPrice: parseFloat(productForm.offerPrice) > 0 ? parseFloat(productForm.price) : undefined,
       badge: productForm.offers || (productForm.discount ? `${productForm.discount}% OFF` : undefined),
-      rating: parseFloat(productForm.rating) || 4.5,
-      image: productForm.imageUrl || getFallbackSrc(finalCategory),
+      rating: parseFloat(productForm.rating) || undefined,
+      image: productForm.imageUrl || '',
       images: productForm.imageUrls || [],
-      specs: productForm.model ? [productForm.model] : ['SK-Vision Surveillance System'],
+      specs: productForm.model ? [productForm.model] : [],
       modelName: productForm.model || '',
       discount: parseFloat(productForm.discount) || 0,
       stock: parseInt(productForm.stock) || 0,
@@ -474,7 +457,9 @@ export default function Products() {
 
     setProductForm({ 
       name: '', 
-      category: 'IP Camera', 
+      brand: '',
+      category: 'CCTV Cameras', 
+      subCategory: 'IP Cameras',
       customCategory: '',
       price: '', 
       offerPrice: '',
@@ -700,7 +685,7 @@ export default function Products() {
       {/* Modal Add Product */}
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Register New CCTV Device">
         <form onSubmit={handleAddProduct} className="space-y-4 text-left">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1.5">Product Name</label>
               <input 
@@ -720,6 +705,17 @@ export default function Products() {
                 placeholder="e.g. CP-UNC-DA21L2" 
                 value={productForm.model}
                 onChange={(e) => setProductForm({ ...productForm, model: e.target.value })}
+                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Brand</label>
+              <input 
+                required
+                type="text" 
+                placeholder="e.g. CP Plus, Hikvision" 
+                value={productForm.brand}
+                onChange={(e) => setProductForm({ ...productForm, brand: e.target.value })}
                 className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
               />
             </div>
@@ -1027,32 +1023,20 @@ export default function Products() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-
-              // Map admin category to backend enum
-              let dbCategory = 'cctv';
-              const c = productForm.category.toLowerCase();
-              if (c.includes('ip camera')) dbCategory = 'ip';
-              else if (c.includes('analog camera')) dbCategory = 'bullet';
-              else if (c.includes('nvr')) dbCategory = 'nvr';
-              else if (c.includes('dvr')) dbCategory = 'dvr';
-              else if (c.includes('hard disk')) dbCategory = 'harddisk';
-              else if (c.includes('ssd')) dbCategory = 'ssd';
-              else if (c.includes('pendrive')) dbCategory = 'pendrive';
-              else if (c.includes('hdmi')) dbCategory = 'hdmi';
-              else if (c.includes('cables') || c.includes('cable') || c.includes('accessory') || c.includes('accessories') || c.includes('power supply')) dbCategory = 'accessories';
+              const finalCategory = productForm.category === 'Other' ? (productForm.customCategory || 'Other') : productForm.category;
 
               const dbProduct = {
                 title: productForm.name,
-                category: dbCategory,
+                category: finalCategory,
                 subCategory: productForm.subCategory || '',
-                brand: 'SK-Vision',
+                brand: productForm.brand || '',
                 price: parseFloat(productForm.offerPrice) > 0 ? parseFloat(productForm.offerPrice) : parseFloat(productForm.price),
                 originalPrice: parseFloat(productForm.offerPrice) > 0 ? parseFloat(productForm.price) : undefined,
                 badge: productForm.offers || (productForm.discount ? `${productForm.discount}% OFF` : undefined),
-                rating: parseFloat(productForm.rating) || 4.5,
-                image: productForm.imageUrl || getFallbackSrc(productForm.category),
+                rating: parseFloat(productForm.rating) || undefined,
+                image: productForm.imageUrl || '',
                 images: productForm.imageUrls || [],
-                specs: productForm.model ? [productForm.model] : ['SK-Vision Surveillance System'],
+                specs: productForm.model ? [productForm.model] : [],
                 modelName: productForm.model || '',
                 discount: parseFloat(productForm.discount) || 0,
                 stock: parseInt(productForm.stock) || 0,
@@ -1115,7 +1099,7 @@ export default function Products() {
             }}
             className="space-y-4 text-left"
           >
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-500 mb-1.5">Product Name</label>
                 <input
@@ -1132,6 +1116,16 @@ export default function Products() {
                   type="text"
                   value={productForm.model}
                   onChange={(e) => setProductForm({ ...productForm, model: e.target.value })}
+                  className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5">Brand</label>
+                <input
+                  required
+                  type="text"
+                  value={productForm.brand}
+                  onChange={(e) => setProductForm({ ...productForm, brand: e.target.value })}
                   className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
                 />
               </div>
