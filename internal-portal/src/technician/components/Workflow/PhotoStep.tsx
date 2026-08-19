@@ -52,11 +52,12 @@ export const PhotoStep: React.FC<PhotoStepProps> = ({
 
   const handleUpload = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (!selectedPhoto) return; // Prevent upload without a photo
+
     const finalCaption = caption.trim() || `${type === 'BEFORE' ? 'Before Installation Site Evidence' : 'After Installation Completion Photo'} - ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 
     setIsSubmitting(true);
-    const chosenUrl = selectedPhoto || sampleImages[photoIndex % sampleImages.length];
-    setPhotoIndex((prev) => prev + 1);
+    const chosenUrl = selectedPhoto;
 
     try {
       await onUploadPhoto(job.id, chosenUrl, finalCaption, type);
@@ -151,7 +152,7 @@ export const PhotoStep: React.FC<PhotoStepProps> = ({
 
           <button
             type="submit"
-            disabled={isSubmitting || (!selectedPhoto && !caption.trim())}
+            disabled={isSubmitting || !selectedPhoto}
             className="w-full py-2.5 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 text-white text-xs font-semibold rounded-lg flex items-center justify-center space-x-2 transition-colors shadow-xs cursor-pointer"
           >
             <Camera className="w-3.5 h-3.5" />

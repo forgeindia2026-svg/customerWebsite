@@ -2,20 +2,52 @@ import { Router, Request, Response } from 'express';
 import Job from '../models/Job';
 import Order from '../models/Order';
 import Dashboard from '../models/Dashboard';
+import TechnicianReport from '../models/TechnicianReport';
 import { emitToUser, emitToRole, emitToJob, broadcastEvent } from '../socket';
 
 const router = Router();
 
-// ⚡ High-Speed Aggregated Dashboard Summary (< 20ms)
+// ⚡ High-Speed Aggregated Dashboard Summary (< 20ms) - Filtered per Technician
 router.get('/dashboard-summary', async (req: Request, res: Response) => {
   const startTime = Date.now();
   try {
-    const [totalAssigned, inProgress, pending, completed] = await Promise.all([
-      Job.countDocuments(),
-      Job.countDocuments({ status: { $in: ['IN_PROGRESS', 'ACCEPTED', 'ASSIGNED'] } } as any),
-      Job.countDocuments({ status: { $in: ['PENDING', 'PENDING APPROVAL'] } } as any),
-      Job.countDocuments({ status: { $in: ['COMPLETED', 'DELIVERED', 'APPROVED'] } } as any)
+    const { technicianId, technicianName } = req.query;
+    let jobFilter: any = {};
+
+    if (technicianId || technicianName) {
+      const techOrMatch: any[] = [];
+      if (technicianId) {
+        techOrMatch.push({ 'assignedTechnicians.id': technicianId });
+      }
+      if (technicianName) {
+        techOrMatch.push({ 'assignedTechnicians.name': { $regex: `${technicianName}`, $options: 'i' } });
+        techOrMatch.push({ 'assignedTechnician': { $regex: `${technicianName}`, $options: 'i' } });
+      }
+      if (techOrMatch.length > 0) {
+        jobFilter.$or = techOrMatch;
+      }
+    }
+
+    let reportQuery: any = {};
+    if (technicianId) {
+      reportQuery.technicianId = technicianId;
+    } else if (technicianName) {
+      reportQuery.technicianName = { $regex: `${technicianName}`, $options: 'i' };
+    }
+
+    const [totalAssigned, inProgress, pending, completed, techReports] = await Promise.all([
+      Job.countDocuments(jobFilter),
+      Job.countDocuments({ ...jobFilter, status: { $in: ['IN_PROGRESS', 'ACCEPTED', 'ASSIGNED'] } } as any),
+      Job.countDocuments({ ...jobFilter, status: { $in: ['PENDING', 'PENDING APPROVAL'] } } as any),
+      Job.countDocuments({ ...jobFilter, status: { $in: ['COMPLETED', 'DELIVERED', 'APPROVED'] } } as any),
+      TechnicianReport.find(reportQuery)
     ]);
+
+    // Compute actual hours logged from real reports submitted by this technician
+    const hoursLogged = (techReports || []).reduce((acc: number, r: any) => {
+      if (r.activityType === 'Check-In' || (r.workDescription && r.workDescription.includes('Punched in'))) return acc;
+      return acc + (Number(r.hoursWorked) || 0);
+    }, 0);
 
     const executionTimeMs = Date.now() - startTime;
 
@@ -28,7 +60,7 @@ router.get('/dashboard-summary', async (req: Request, res: Response) => {
         inProgress,
         pending,
         completedToday: completed,
-        hoursLogged: 0.0,
+        hoursLogged: parseFloat(hoursLogged.toFixed(1)),
         shiftTarget: 8,
         firstTimeFix: completed > 0 ? 100.0 : 0.0,
         safetyScore: totalAssigned > 0 ? 100 : 0

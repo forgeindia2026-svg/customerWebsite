@@ -32,17 +32,16 @@ router.post('/', async (req: Request, res: Response) => {
       isMultiDay, dayNumber, beforePhotos, afterPhotos 
     } = req.body;
     
-    if (!technicianId || !technicianName) {
-      return res.status(400).json({ message: 'Missing technician information' });
-    }
+    const finalTechId = technicianId || 'TECH-01';
+    const finalTechName = technicianName || 'Field Technician';
 
     const report = new TechnicianReport({
-      technicianId,
-      technicianName,
+      technicianId: finalTechId,
+      technicianName: finalTechName,
       date: date || new Date().toISOString().split('T')[0],
       activityType: activityType || 'General Work',
-      workDescription: workDescription || 'Shift logged',
-      hoursWorked: hoursWorked != null ? hoursWorked : 8,
+      workDescription: workDescription || 'General daily log submitted',
+      hoursWorked: hoursWorked != null ? Number(hoursWorked) : 8,
       checkInTime: checkInTime || '',
       checkOutTime: checkOutTime || '',
       status: status || 'PRESENT',
@@ -57,11 +56,11 @@ router.post('/', async (req: Request, res: Response) => {
       approvedByAdmin: false
     });
 
-    await report.save();
-    res.status(201).json(report);
-  } catch (error) {
+    const savedReport = await report.save();
+    res.status(201).json({ success: true, data: savedReport, message: 'Report submitted successfully' });
+  } catch (error: any) {
     console.error('Error creating report:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ success: false, message: error.message || 'Failed to submit report' });
   }
 });
 

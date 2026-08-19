@@ -169,14 +169,24 @@ export const JobDetailDrawer = ({
                 </div>
                 <div className="flex items-center space-x-2">
                   {(job.isAvailableToAccept || !job.isAssignedToMe || job.status === 'PENDING') && job.status !== 'COMPLETED' && (
-                    <button
-                      disabled={isSubmitting}
-                      onClick={() => onUpdateStatus(job.id, 'ACCEPTED')}
-                      className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg flex items-center space-x-2 transition-colors shadow-sm cursor-pointer"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Accept Job</span>
-                    </button>
+                    <>
+                      <button
+                        disabled={isSubmitting}
+                        onClick={() => onUpdateStatus(job.id, 'ACCEPTED')}
+                        className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg flex items-center space-x-2 transition-colors shadow-sm cursor-pointer"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Accept Job</span>
+                      </button>
+                      <button
+                        disabled={isSubmitting}
+                        onClick={() => onUpdateStatus(job.id, 'ON_HOLD')}
+                        className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg flex items-center space-x-2 transition-colors shadow-sm cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        <span>Decline Job</span>
+                      </button>
+                    </>
                   )}
                   {job.isAssignedToMe && job.status === 'ACCEPTED' && (
                     <button
@@ -230,96 +240,9 @@ export const JobDetailDrawer = ({
                 </div>
               </div>
 
-              {/* Schedule Info */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 rounded-lg border border-zinc-200 bg-white">
-                  <div className="flex items-center space-x-2 text-zinc-500 text-xs font-medium mb-1">
-                    <Clock className="w-4 h-4" />
-                    <span>Scheduled Slot</span>
-                  </div>
-                  <p className="text-sm font-semibold text-zinc-900">{formatDate(job.scheduledDate)}</p>
-                  <p className="text-xs text-zinc-600">{job.scheduledTimeSlot}</p>
-                </div>
 
-                <div className="p-4 rounded-lg border border-zinc-200 bg-white">
-                  <div className="flex items-center space-x-2 text-zinc-500 text-xs font-medium mb-1">
-                    <Wrench className="w-4 h-4" />
-                    <span>Category & Duration</span>
-                  </div>
-                  <p className="text-sm font-semibold text-zinc-900">{job.category}</p>
-                  <p className="text-xs text-zinc-600">Est. {job.estimatedDuration}</p>
-                </div>
-              </div>
 
-              {/* Date Tracking & Day Calculation Card */}
-              {(() => {
-                const daysStats = calculateJobDaysStats(job);
-                return (
-                  <div className="border border-sky-100 rounded-xl p-5 bg-gradient-to-br from-sky-50/50 to-white space-y-4 shadow-2xs">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-sky-900 flex items-center space-x-2">
-                        <Clock className="w-4 h-4 text-sky-600" />
-                        <span>Project Date Schedule & Day Calculation</span>
-                      </h3>
-                      <span className={`text-xs font-bold font-mono px-2.5 py-1 rounded-full ${daysStats.isOverdue
-                        ? 'bg-rose-100 text-rose-700'
-                        : job.status === 'COMPLETED'
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : 'bg-sky-100 text-sky-800'
-                        }`}>
-                        {daysStats.statusLabel}
-                      </span>
-                    </div>
 
-                    <div className="grid grid-cols-3 gap-3 text-xs">
-                      <div className="p-3 bg-white border border-zinc-200/80 rounded-lg">
-                        <span className="text-zinc-400 block font-medium">Start Date</span>
-                        <span className="font-bold text-zinc-900">{formatDate(daysStats.startDate)}</span>
-                      </div>
-                      <div className="p-3 bg-white border border-zinc-200/80 rounded-lg">
-                        <span className="text-zinc-400 block font-medium">Target Finish</span>
-                        <span className="font-bold text-zinc-900">{formatDate(daysStats.targetCompletionDate)}</span>
-                      </div>
-                      <div className="p-3 bg-white border border-zinc-200/80 rounded-lg">
-                        <span className="text-zinc-400 block font-medium">Actual Finish</span>
-                        <span className="font-bold text-zinc-900">
-                          {daysStats.actualCompletionDate ? formatDate(daysStats.actualCompletionDate) : 'Ongoing'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Progress Bar & Role Specific Day Breakdowns */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs font-medium text-zinc-600">
-                        <span>Timeline Progress ({daysStats.elapsedDays} of {daysStats.totalTargetDays} Days Elapsed)</span>
-                        <span className="font-bold text-zinc-900">{daysStats.dayProgressPercentage}%</span>
-                      </div>
-                      <div className="w-full bg-zinc-100 h-2 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${daysStats.isOverdue ? 'bg-rose-500' : job.status === 'COMPLETED' ? 'bg-emerald-500' : 'bg-sky-500'
-                            }`}
-                          style={{ width: `${daysStats.dayProgressPercentage}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="pt-2 border-t border-zinc-100 grid grid-cols-1 md:grid-cols-3 gap-2 text-[11px]">
-                      <div className="p-2 bg-sky-50/80 rounded border border-sky-100">
-                        <span className="font-bold text-sky-900 block">👤 Admin Metric</span>
-                        <span className="text-sky-700">{daysStats.totalTargetDays} Total Days Allocated</span>
-                      </div>
-                      <div className="p-2 bg-amber-50/80 rounded border border-amber-100">
-                        <span className="font-bold text-amber-900 block">🛠️ Tech Logged</span>
-                        <span className="text-amber-700">{daysStats.totalReportedDays} Work Days Logged</span>
-                      </div>
-                      <div className="p-2 bg-emerald-50/80 rounded border border-emerald-100">
-                        <span className="font-bold text-emerald-900 block">🏢 Customer Timeline</span>
-                        <span className="text-emerald-700">Est. {daysStats.totalTargetDays} Days Project</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
 
               {/* Installation Details Card */}
               <div className="border border-zinc-200 rounded-xl p-5 bg-white space-y-3">

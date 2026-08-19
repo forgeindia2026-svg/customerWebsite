@@ -31,6 +31,7 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
   onOpenWorkflow,
 }) => {
   const [filterType, setFilterType] = useState<'ALL' | 'VERIFIED' | 'PENDING'>('ALL');
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [selectedReportIndex, setSelectedReportIndex] = useState<number | null>(0);
   const [isExporting, setIsExporting] = useState(false);
   const [exportSuccess, setExportSuccess] = useState(false);
@@ -65,7 +66,8 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
     setPunchStatus('PUNCHED_IN');
 
     try {
-      await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/reports`, {
+      const baseUrl = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
+      await fetch(`${baseUrl}/api/reports`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -109,9 +111,8 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
 
   const fetchDbReports = async () => {
     try {
-      const authUser = JSON.parse(localStorage.getItem('tech_user') || '{}');
-      const techId = authUser.id || authUser._id;
-      const url = `${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/reports${techId ? `?technicianId=${techId}` : ''}`;
+      const baseUrl = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
+      const url = `${baseUrl}/api/reports?t=${Date.now()}`;
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
@@ -140,7 +141,7 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
   const handleGeneralReportSubmit = async (data: any) => {
     try {
       const authUser = JSON.parse(localStorage.getItem('tech_user') || '{}');
-      const realName = authUser.name || localStorage.getItem('user_name') || 'Technician';
+      const realName = authUser.name || localStorage.getItem('user_name') || 'Field Technician';
       const realId = authUser.id || authUser._id || localStorage.getItem('user_id') || 'TECH-01';
       
       const payload = {
@@ -149,21 +150,24 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
         ...data
       };
 
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/reports`, {
+      const baseUrl = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
+      const res = await fetch(`${baseUrl}/api/reports`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
-      if (res.ok) {
-        alert('General report submitted successfully!');
+      const resData = await res.json().catch(() => ({}));
+
+      if (res.ok && (resData.success || resData._id || resData.data)) {
+        alert('General daily log submitted successfully!');
         fetchDbReports();
       } else {
-        alert('Failed to submit report.');
+        alert(resData.message || 'Failed to submit report. Please try again.');
       }
-    } catch (e) {
-      console.error(e);
-      alert('Error submitting report.');
+    } catch (e: any) {
+      console.error('Submit report error:', e);
+      alert(e.message || 'Error submitting report.');
     }
   };
 
@@ -179,7 +183,7 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
       customer: job.customer?.name || 'Client',
       customerAddress: `${job.customer?.address || ''}, ${job.customer?.city || ''}`,
       technician: report.technicianName || job.assignedTechnician?.name || 'Technician',
-      hoursLogged: report.hoursWorked || 1,
+      hoursLogged: report.hoursWorked || 0,
       status: report.approvedByAdmin ? 'VERIFIED' : 'PENDING_REVIEW',
       summary: report.workDone || 'Daily work report submitted.',
       photosCount: (job.beforePhotos?.length || 0) + (job.afterPhotos?.length || 0),
@@ -190,15 +194,13 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
     }));
   });
 
-  const dbReportsFormatted = (Array.isArray(dbReports) ? dbReports : [])
-    .filter((gr) => {
-      const name = (gr.technicianName || '').toLowerCase();
-      const techId = (gr.technicianId || '').toLowerCase();
-      if (name.includes('unknown') || techId.includes('unknown')) return false;
-      // Filter out pure Check-In/Attendance logs so only actual work reports are displayed here
-      if (gr.activityType === 'Check-In' || (gr.workDescription && gr.workDescription.includes('Punched in'))) return false;
-      return true;
-    })
+    const dbReportsFormatted = (Array.isArray(dbReports) ? dbReports : [])
+      .filter((gr) => {
+        // Filter out pure Check-In/Attendance logs so only actual work reports are displayed here
+        if (gr.activityType === 'Check-In' || (gr.workDescription && gr.workDescription.includes('Punched in'))) return false;
+        
+        return true;
+      })
     .map((gr) => {
       let timeStr = gr.checkInTime || '';
       if (!timeStr && gr.createdAt) {
@@ -215,7 +217,7 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
         customer: gr.customerName || 'Internal / Office',
         customerAddress: gr.location || 'Location Unspecified',
         technician: gr.technicianName || 'Technician',
-        hoursLogged: gr.hoursWorked !== undefined && Number(gr.hoursWorked) > 0 ? Number(gr.hoursWorked) : 1,
+        hoursLogged: gr.hoursWorked !== undefined && gr.hoursWorked !== null ? Number(gr.hoursWorked) : 0,
         status: gr.approvedByAdmin ? 'VERIFIED' : (gr.status || 'PENDING_REVIEW'),
         summary: gr.workDescription || 'Daily report log',
         photosCount: (gr.beforePhotos?.length || 0) + (gr.afterPhotos?.length || 0),
@@ -226,15 +228,23 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
       };
     });
 
-  const reports = [...jobReports, ...dbReportsFormatted].sort((a, b) => {
-    const timeA = a.date ? new Date(a.date).getTime() : 0;
-    const timeB = b.date ? new Date(b.date).getTime() : 0;
-    return (isNaN(timeB) ? 0 : timeB) - (isNaN(timeA) ? 0 : timeA);
-  });
+  const jobReportCodes = new Set(jobReports.map(r => r.jobCode));
+
+  const reports = [...jobReports, ...dbReportsFormatted.filter(dbR => !jobReportCodes.has(dbR.jobCode) || dbR.jobCode === 'GENERAL-TASK')]
+    .filter((r) => {
+      const reportDateStr = r.date || new Date().toISOString().split('T')[0];
+      return reportDateStr === selectedDate;
+    })
+    .sort((a, b) => {
+      const timeA = a.date ? new Date(a.date).getTime() : 0;
+      const timeB = b.date ? new Date(b.date).getTime() : 0;
+      return (isNaN(timeB) ? 0 : timeB) - (isNaN(timeA) ? 0 : timeA);
+    });
 
   const filteredReports = reports.filter((r) => {
-    if (filterType === 'VERIFIED') return r.status === 'VERIFIED';
-    if (filterType === 'PENDING') return r.status === 'PENDING_REVIEW';
+    // Filter by status if not ALL
+    if (filterType === 'VERIFIED' && r.status !== 'VERIFIED') return false;
+    if (filterType === 'PENDING' && r.status !== 'PENDING_REVIEW') return false;
     return true;
   });
 
@@ -349,13 +359,20 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
         </div>
         
         <div className="flex items-center gap-3 w-full sm:w-auto">
-          {/* Date Picker Placeholder */}
-          <div className="flex-1 sm:flex-none flex items-center justify-between sm:justify-start bg-white border border-slate-200 px-4 py-3 rounded-xl text-sm font-bold text-slate-700 shadow-sm cursor-pointer hover:border-slate-300 transition-colors">
-            <div className="flex items-center">
-              <span className="text-slate-400">📅</span>
-              <span className="ml-2">{new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</span>
+          {/* Date Picker */}
+          <div className="flex-1 sm:flex-none relative">
+            <div className="flex items-center justify-between sm:justify-start bg-white border border-slate-200 px-4 py-3 rounded-xl text-sm font-bold text-slate-700 shadow-sm hover:border-slate-300 transition-colors cursor-pointer w-full focus-within:ring-2 focus-within:ring-blue-500">
+              <div className="flex items-center w-full relative">
+                <span className="text-slate-400 absolute left-0 pointer-events-none z-10">📅</span>
+                <input 
+                  type="date" 
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="pl-7 bg-transparent border-none outline-none w-full text-slate-700 cursor-pointer font-bold appearance-none"
+                  style={{ colorScheme: 'light' }}
+                />
+              </div>
             </div>
-            <span className="ml-4 text-[10px] text-slate-400">▼</span>
           </div>
           
           {/* Create Entry Button */}
@@ -369,9 +386,49 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start">
-        {/* Left Column: Report Cards (3 columns wide) */}
-        <div className="xl:col-span-3 space-y-4">
+      {/* Top 3 KPI Metric Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+        {/* 1. Total Reports */}
+        <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-xs flex items-center justify-between min-w-0">
+          <div className="min-w-0 pr-1">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1 truncate">TOTAL REPORTS</span>
+            <p className="text-2xl font-black text-[#0B1527] leading-none">{reports.length}</p>
+            <span className="text-[10px] font-bold text-blue-600 mt-1 block truncate">Generated Today</span>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#2663ff] flex items-center justify-center font-bold shrink-0">
+            <FileText className="w-5 h-5" />
+          </div>
+        </div>
+
+        {/* 2. Closed / Verified */}
+        <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-xs flex items-center justify-between min-w-0">
+          <div className="min-w-0 pr-1">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1 truncate">VERIFIED & CLOSED</span>
+            <p className="text-2xl font-black text-emerald-600 leading-none">{verifiedCount}</p>
+            <span className="text-[10px] font-bold text-emerald-600 mt-1 block truncate">Approved by Admin</span>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold shrink-0">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+        </div>
+
+
+        {/* 4. Photos Attached */}
+        <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-xs flex items-center justify-between min-w-0">
+          <div className="min-w-0 pr-1">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1 truncate">SITE EVIDENCE PHOTOS</span>
+            <p className="text-2xl font-black text-amber-600 leading-none">
+              {reports.reduce((acc, r) => acc + (r.photos?.length || 0), 0)} <span className="text-xs font-bold text-slate-400">photos</span>
+            </p>
+            <span className="text-[10px] font-bold text-amber-600 mt-1 block truncate">Proof of Completion</span>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold shrink-0">
+            <Camera className="w-5 h-5" />
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-4">
           {filteredReports.length === 0 ? (
              <div className="bg-white rounded-2xl p-10 text-center border border-slate-200 shadow-sm">
                <span className="text-slate-400 font-medium">No reports generated today.</span>
@@ -503,34 +560,10 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
                       <Download className="w-4 h-4" /> Download Report
                     </button>
                 </div>
-                
               </div>
             );
           })}
         </div>
-
-        {/* Right Column: Entry Metrics widget */}
-        <div className="xl:col-span-1">
-          <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 sticky top-6">
-            <div className="flex items-center gap-2 mb-6 bg-slate-50 p-3 rounded-2xl border border-slate-100">
-              <span className="text-[#2663ff]">✨</span>
-              <h2 className="text-[13px] font-black tracking-widest text-[#0B1527] uppercase">ENTRY METRICS</h2>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-white border border-slate-100 rounded-3xl py-7 flex flex-col items-center justify-center shadow-[0_2px_12px_rgb(0,0,0,0.02)]">
-                <span className="text-4xl font-black text-[#0B1527] mb-2">{reports.length}</span>
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">REPORTS</span>
-              </div>
-              
-              <div className="bg-white border border-slate-100 rounded-3xl py-7 flex flex-col items-center justify-center shadow-[0_2px_12px_rgb(0,0,0,0.02)]">
-                <span className="text-4xl font-black text-[#059669] mb-2">{verifiedCount}</span>
-                <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">CLOSED</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* General Report Modal */}
       <GeneralReportModal 

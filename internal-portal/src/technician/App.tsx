@@ -363,6 +363,14 @@ export function App() {
       if (selectedJob?.id === jobId) setSelectedJob(updated);
       if (workflowJob?.id === jobId) setWorkflowJob(updated);
 
+      // Re-fetch summary stats so dashboard immediately shows updated completed jobs and hours
+      try {
+        const newSummary = await JobsApiService.getDashboardSummary();
+        if (newSummary) setSummaryStats(newSummary);
+      } catch (e) {
+        console.warn('Failed to refresh summary stats:', e);
+      }
+
       // 🔔 1. Broadcast Notification to All Technicians
       const techName = profile?.name || 'Alex Vance';
       const newNotif: NotificationItem = {

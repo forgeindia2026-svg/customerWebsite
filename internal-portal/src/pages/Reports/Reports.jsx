@@ -26,7 +26,7 @@ export default function Reports() {
   useEffect(() => {
     const fetchGeneralReports = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/reports`);
+        const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/reports?t=${Date.now()}`);
         if (res.ok) {
           const data = await res.json();
           setGeneralReports(data);

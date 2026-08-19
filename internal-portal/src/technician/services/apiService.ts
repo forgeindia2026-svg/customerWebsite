@@ -15,19 +15,17 @@ const MOCK_JOBS_DATABASE: Job[] = [];
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const getApiUrl = () => {
-  if (typeof window !== 'undefined') {
-    const host = window.location.hostname;
-    return `http://${host}:5000`;
-  }
-  return import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  return 'https://65.0.45.64.sslip.io';
 };
 
 export const JobsApiService = {
   async getDashboardSummary(): Promise<any> {
     try {
-      const baseUrl = getApiUrl();
-      const techId = localStorage.getItem('user_id') || 'tech-kathir';
-      const res = await fetch(`${baseUrl}/api/jobs/dashboard-summary?technicianId=${techId}`);
+      const authUser = JSON.parse(localStorage.getItem('tech_user') || '{}');
+      const techId = authUser.id || authUser._id || localStorage.getItem('user_id') || 'tech-kathir';
+      const techName = authUser.name || localStorage.getItem('user_name') || 'kathir';
+      const res = await fetch(`${baseUrl}/api/jobs/dashboard-summary?technicianId=${techId}&technicianName=${encodeURIComponent(techName)}`);
       const resData = await res.json();
       if (resData && resData.success && resData.data) {
         return resData.data;
@@ -47,7 +45,7 @@ export const JobsApiService = {
       const baseUrl = getApiUrl();
       const searchVal = options.searchQuery || '';
       const statusVal = options.status && options.status !== 'ALL' ? options.status : '';
-      const url = `${baseUrl}/api/jobs?technicianId=${techId}&technicianName=${encodeURIComponent(techName)}&includeAvailable=true&status=${statusVal}&search=${encodeURIComponent(searchVal)}`;
+      const url = `${baseUrl}/api/jobs?technicianId=${techId}&technicianName=${encodeURIComponent(techName)}&status=${statusVal}&search=${encodeURIComponent(searchVal)}`;
       const res = await fetch(url);
       const resData = await res.json();
       let rawJobs = resData.data || [];
@@ -80,17 +78,21 @@ export const JobsApiService = {
       // Map backend Mongoose jobs schema to what the Technician frontend expects
       const mappedJobs = rawJobs.map((j: any) => {
         const assignedTechName = getAssignedTechName(j) || 'kathir';
-        const rawStatus = (j.status || 'IN_PROGRESS').toString().toUpperCase();
+        const rawStatus = (j.status || 'PENDING').toString().toUpperCase();
         
-        let normStatus: JobStatus = 'IN_PROGRESS';
+        let normStatus: JobStatus = 'PENDING';
         if (rawStatus === 'COMPLETED' || rawStatus === 'DELIVERED' || rawStatus === 'APPROVED') {
           normStatus = 'COMPLETED';
-        } else if (rawStatus === 'PENDING' || rawStatus === 'PENDING APPROVAL') {
+        } else if (rawStatus === 'PENDING' || rawStatus === 'PENDING APPROVAL' || rawStatus === 'ASSIGNED' || rawStatus === 'WAITING_FOR_TECH' || rawStatus === 'ASSIGNMENT_PENDING_ACCEPTANCE') {
           normStatus = 'PENDING';
+        } else if (rawStatus === 'ACCEPTED') {
+          normStatus = 'ACCEPTED';
         } else if (rawStatus === 'ON_HOLD') {
           normStatus = 'ON_HOLD';
-        } else {
+        } else if (rawStatus === 'IN_PROGRESS') {
           normStatus = 'IN_PROGRESS';
+        } else {
+          normStatus = 'PENDING';
         }
 
         const unassigned = !j.assignedTechnician && (!j.assignedTechnicians || j.assignedTechnicians.length === 0);
@@ -367,16 +369,73 @@ export const JobsApiService = {
 
   async completeJob(jobId: string, completionNotes: string, signatureData?: string): Promise<Job> {
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/jobs/${jobId}`, {
+      const baseUrl = getApiUrl();
+      const techName = localStorage.getItem('user_name') || 'Field Technician';
+      const techId = localStorage.getItem('user_id') || 'TECH-01';
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      const res = await fetch(`${baseUrl}/api/jobs/${jobId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({ 
           status: 'COMPLETED',
-          fieldNotes: completionNotes
+          fieldNotes: completionNotes,
+          dailyReport: {
+            technicianId: techId,
+            technicianName: techName,
+            date: new Date().toISOString().split('T')[0],
+            hoursWorked: 8,
+            workDone: completionNotes || 'Field work completed on site',
+            status: 'PRESENT'
+          }
         })
       });
       const resData = await res.json();
-      return this.mapJob(resData.data);
+      clearTimeout(timeoutId);
+      
+      if (!res.ok || resData.success === false) {
+        throw new Error(resData.message || 'Failed to complete job');
+      }
+      const updatedJob = this.mapJob(resData.data);
+
+      // Auto-post report to /api/reports MongoDB collection so it appears in Daily Reports & Admin Dashboard
+      try {
+        const authUser = JSON.parse(localStorage.getItem('tech_user') || '{}');
+        const techName = authUser.name || localStorage.getItem('user_name') || 'Field Technician';
+        const techId = authUser.id || authUser._id || localStorage.getItem('user_id') || 'TECH-01';
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+        await fetch(`${baseUrl}/api/reports`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({
+            technicianId: techId,
+            technicianName: techName,
+            date: new Date().toISOString().split('T')[0],
+            activityType: updatedJob.category || 'Customer Job',
+            workDescription: completionNotes || 'Field work completed on site',
+            hoursWorked: 8,
+            status: 'PRESENT',
+            jobId: updatedJob.id,
+            jobCode: updatedJob.jobCode,
+            customerName: updatedJob.customer?.name || '',
+            location: updatedJob.customer?.city || updatedJob.customer?.address || '',
+            beforePhotos: updatedJob.beforePhotos || [],
+            afterPhotos: updatedJob.afterPhotos || []
+          })
+        });
+        clearTimeout(timeoutId);
+      } catch (syncErr) {
+        console.warn('TechnicianReport sync warning:', syncErr);
+      }
+
+      return updatedJob;
     } catch (err) {
       console.error('Error completing job:', err);
       throw err;

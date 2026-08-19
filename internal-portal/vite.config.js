@@ -8,5 +8,12 @@ export default defineConfig({
     host: true,
     port: 5175,
     strictPort: true,
+    proxy: {
+      '/api': {
+        target: 'https://65.0.45.64.sslip.io',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
 })
