@@ -151,7 +151,7 @@ export default function Workstation() {
       badgeId: displayBadgeId,
       name: techName,
       phone: t.phone || `987654321${idx}`,
-      avatar: t.avatarUrl || t.avatar || defaultTechNames[idx % 5].avatar,
+      avatar: t.avatarUrl || t.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(techName)}&background=random`,
       status,
       statusText,
       currentStepText: latestReport?.workDescription || (assignedCount > 0 ? `Step ${Math.min(assignedCount, totalCompleted + 1)}/${assignedCount}: Active CCTV Installation` : 'No Active Job Assigned'),
