@@ -25,8 +25,8 @@ router.post('/', async (req: Request, res: Response) => {
     const orderNumber = `SK-ORD-${Math.floor(10000 + Math.random() * 90000)}`;
     const newOrder = new Order({ ...req.body, orderNumber });
     
-    // If it's a Delivery & Installation order, automate the assignment
-    if (req.body.serviceType === 'DELIVERY_INSTALLATION') {
+    // Always automate the assignment for all orders (Option A requested by user)
+    if (true) {
       newOrder.orderStatus = 'PROCESSING';
       
       // 1. Fetch available technicians (isAvailable: true)
