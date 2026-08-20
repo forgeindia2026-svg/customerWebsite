@@ -879,19 +879,20 @@ export default function Products() {
 
           <div className="md:col-span-2 py-1">
             <label className="block text-xs font-semibold text-slate-500 mb-1.5">Related Products (Frequently Bought Together)</label>
-            <Select
-              isMulti
-              name="relatedProducts"
-              options={relatedProductsOptions}
-              className="basic-multi-select text-sm"
-              classNamePrefix="select"
-              value={relatedProductsOptions.filter(option => productForm.relatedProducts?.includes(option.value))}
-              onChange={(selectedOptions) => {
-                const selectedValues = selectedOptions ? selectedOptions.map(option => option.value) : [];
-                setProductForm({ ...productForm, relatedProducts: selectedValues });
+            <select
+              multiple
+              value={productForm.relatedProducts || []}
+              onChange={(e) => {
+                const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
+                setProductForm({ ...productForm, relatedProducts: selectedOptions });
               }}
-              placeholder="Select related products..."
-            />
+              className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+              style={{ minHeight: '100px' }}
+            >
+              {products.map((p) => (
+                <option key={p.id} value={p.id}>{p.name} - {p.model}</option>
+              ))}
+            </select>
           </div>
 
           <div className="flex gap-6 py-1">
