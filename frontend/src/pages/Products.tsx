@@ -1274,7 +1274,7 @@ export default function Products() {
                   >
                     {/* Image Area */}
                     <div
-                      className={`relative bg-gray-50/80 overflow-hidden flex items-center justify-center p-2 sm:p-4 ${
+                      className={`relative bg-white overflow-hidden flex items-center justify-center ${
                         viewMode === "grid" ? "h-36 sm:h-48 w-full" : "h-40 w-full sm:w-48 shrink-0 rounded-xl"
                       }`}
                     >
@@ -1311,7 +1311,7 @@ export default function Products() {
                           onError={(e) => {
                             (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=600&q=80';
                           }}
-                          className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300"
+                          className="h-full w-full object-cover object-center group-hover:scale-105 transition-transform duration-300 mix-blend-multiply"
                         />
                       </Link>
                     </div>
