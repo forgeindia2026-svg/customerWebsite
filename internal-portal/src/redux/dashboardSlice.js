@@ -482,6 +482,14 @@ const dashboardSlice = createSlice({
         category: 'System',
         read: false
       });
+      try {
+        const cached = JSON.parse(localStorage.getItem('sk_admin_dashboard_cache') || '{}');
+        if (cached) {
+          cached.products = state.products;
+          cached.inventory = state.inventory;
+          localStorage.setItem('sk_admin_dashboard_cache', JSON.stringify(cached));
+        }
+      } catch (e) {}
     },
     deleteProduct: (state, action) => {
       state.products = state.products.filter(p => p.id !== action.payload);
@@ -730,6 +738,15 @@ const dashboardSlice = createSlice({
           inv.totalStock = Number(stock);
           inv.status = Number(stock) > 5 ? 'In Stock' : 'Low Stock';
         }
+
+        try {
+          const cached = JSON.parse(localStorage.getItem('sk_admin_dashboard_cache') || '{}');
+          if (cached) {
+            cached.products = state.products;
+            cached.inventory = state.inventory;
+            localStorage.setItem('sk_admin_dashboard_cache', JSON.stringify(cached));
+          }
+        } catch (e) {}
       }
     },
     editBanner: (state, action) => {
@@ -741,6 +758,20 @@ const dashboardSlice = createSlice({
         banner.position = position;
         banner.status = status;
         banner.imageUrl = imageUrl;
+      }
+    },
+    updatePaymentStatus: (state, action) => {
+      const { id, status } = action.payload;
+      const payment = state.payments.find(p => p.id === id);
+      if (payment) {
+        payment.status = status;
+        try {
+          const cached = JSON.parse(localStorage.getItem('sk_admin_dashboard_cache') || '{}');
+          if (cached) {
+            cached.payments = state.payments;
+            localStorage.setItem('sk_admin_dashboard_cache', JSON.stringify(cached));
+          }
+        } catch (e) {}
       }
     }
   },
@@ -785,7 +816,8 @@ export const {
   toggleBrandStatus,
   editBrand,
   deleteTechnician,
-  toggleTechnicianActivation
+  toggleTechnicianActivation,
+  updatePaymentStatus
 } = dashboardSlice.actions;
 
 export default dashboardSlice.reducer;
