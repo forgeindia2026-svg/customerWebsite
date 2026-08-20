@@ -670,10 +670,10 @@ export default function Products() {
                   model: p.model || '',
                   imageUrl: p.imageUrl || '',
                   imageUrls: p.imageUrls || [],
-                  discount: p.discount || '',
+                  discount: p.discount !== undefined && p.discount !== null ? p.discount : '',
                   delivery: p.delivery || '',
                   warranty: p.warranty || '',
-                  rating: p.rating || '',
+                  rating: p.rating !== undefined && p.rating !== null ? p.rating : '',
                   offers: p.offers || '',
                   isNew: p.isNew || false,
                   isBestSeller: p.isBestSeller || false,
@@ -1057,6 +1057,7 @@ export default function Products() {
                 isBestSeller: productForm.isBestSeller || false,
                 features: productForm.dynamicFeatures || [],
                 offers: productForm.dynamicOffers || [],
+                relatedProducts: productForm.relatedProducts || [],
               };
 
               fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/products/${editingProduct.id}`, {

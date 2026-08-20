@@ -708,7 +708,8 @@ const dashboardSlice = createSlice({
     editProduct: (state, action) => {
       const { 
         id, name, category, model, price, stock, description, imageUrl, imageUrls,
-        discount, delivery, warranty, rating, offers, isNew, isBestSeller, offerPrice, isFlashDeal 
+        discount, delivery, warranty, rating, offers, isNew, isBestSeller, offerPrice, isFlashDeal,
+        features, offersList, relatedProducts
       } = action.payload;
       const prod = state.products.find(p => p.id === id);
       if (prod) {
@@ -729,6 +730,9 @@ const dashboardSlice = createSlice({
         prod.isBestSeller = isBestSeller;
         prod.offerPrice = offerPrice;
         prod.isFlashDeal = isFlashDeal;
+        prod.features = features;
+        prod.offersList = offersList;
+        prod.relatedProducts = relatedProducts;
 
         // Also update inventory
         const inv = state.inventory.find(i => i.productName === name || i.sku.includes(id.slice(-3)));
