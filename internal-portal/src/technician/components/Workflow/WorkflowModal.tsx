@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { Job, InspectionSummary, DailyReport } from '../../types/job';
+import { JobsApiService } from '../../services/apiService';
 import { 
   X, 
   Camera, 
@@ -51,6 +52,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingBefore, setIsUploadingBefore] = useState(false);
+  const [isUploadingAfter, setIsUploadingAfter] = useState(false);
 
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
@@ -172,40 +175,50 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   if (!isOpen || !job) return null;
 
   // Real File Upload Handler for Before Photos
-  const handleBeforeFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBeforeFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          const photoUrl = event.target.result as string;
-          setBeforePhotos((prev) => [...prev, photoUrl]);
-          onUploadPhoto(job.id, photoUrl, 'Before Work Site Condition', 'BEFORE');
-        }
-      };
-      reader.readAsDataURL(file);
-    });
+    setIsUploadingBefore(true);
+    for (const file of Array.from(files)) {
+      try {
+        // Show temporary local preview
+        const tempUrl = URL.createObjectURL(file);
+        setBeforePhotos((prev) => [...prev, tempUrl]);
+        
+        // Upload to S3
+        const s3Url = await JobsApiService.uploadImageToS3(file);
+        
+        // Update job record with S3 URL
+        await onUploadPhoto(job.id, s3Url, 'Before Work Site Condition', 'BEFORE');
+      } catch (err) {
+        console.error('Failed to upload before photo:', err);
+        alert('Failed to upload photo. Please try again.');
+      }
+    }
+    setIsUploadingBefore(false);
     e.target.value = '';
   };
 
   // Real File Upload Handler for After Photos
-  const handleAfterFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAfterFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          const photoUrl = event.target.result as string;
-          setAfterPhotos((prev) => [...prev, photoUrl]);
-          onUploadPhoto(job.id, photoUrl, 'Completed Work Evidence', 'AFTER');
-        }
-      };
-      reader.readAsDataURL(file);
-    });
+    setIsUploadingAfter(true);
+    for (const file of Array.from(files)) {
+      try {
+        const tempUrl = URL.createObjectURL(file);
+        setAfterPhotos((prev) => [...prev, tempUrl]);
+        
+        const s3Url = await JobsApiService.uploadImageToS3(file);
+        await onUploadPhoto(job.id, s3Url, 'Completed Work Evidence', 'AFTER');
+      } catch (err) {
+        console.error('Failed to upload after photo:', err);
+        alert('Failed to upload photo. Please try again.');
+      }
+    }
+    setIsUploadingAfter(false);
     e.target.value = '';
   };
 
@@ -479,14 +492,14 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
         {/* Modal Footer - Big Submit Report Button */}
         <div className="p-4 border-t border-zinc-200 bg-white shrink-0">
-          <button
+          <button 
             type="button"
             onClick={handleSubmitReport}
-            disabled={isSubmitting}
-            className="w-full py-3.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl flex items-center justify-center space-x-2 shadow-md transition-all cursor-pointer"
+            disabled={isSubmitting || isUploadingBefore || isUploadingAfter}
+            className={`w-full py-3.5 ${isSubmitting || isUploadingBefore || isUploadingAfter ? 'bg-red-400' : 'bg-red-600 hover:bg-red-700'} text-white font-bold text-xs rounded-xl flex items-center justify-center space-x-2 shadow-md transition-all cursor-pointer`}
           >
             <Send className="w-4 h-4" />
-            <span>{isSubmitting ? 'Submitting Report...' : 'SUBMIT WORK REPORT'}</span>
+            <span>{isSubmitting ? 'Submitting Report...' : (isUploadingBefore || isUploadingAfter) ? 'Uploading Photos...' : 'SUBMIT WORK REPORT'}</span>
           </button>
         </div>
 

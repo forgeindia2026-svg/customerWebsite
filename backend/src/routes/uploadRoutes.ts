@@ -25,7 +25,8 @@ const upload = multer({
     },
     key: function (req: any, file: any, cb: any) {
       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-      cb(null, 'products/' + uniqueSuffix + '-' + file.originalname.replace(/\s+/g, '-'));
+      const folder = req.body.folder || 'reports';
+      cb(null, folder + '/' + uniqueSuffix + '-' + file.originalname.replace(/\s+/g, '-'));
     },
   }),
 });

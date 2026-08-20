@@ -341,6 +341,29 @@ export const JobsApiService = {
     }
   },
 
+  async uploadImageToS3(file: File): Promise<string> {
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('folder', 'reports');
+
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const resData = await res.json();
+      if (!res.ok || !resData.success) {
+        throw new Error(resData.message || 'Failed to upload image to S3');
+      }
+
+      return resData.imageUrl;
+    } catch (err) {
+      console.error('Error uploading to S3:', err);
+      throw err;
+    }
+  },
+
   async uploadJobPhoto(jobId: string, photoUrl: string, caption: string, type: 'BEFORE' | 'AFTER'): Promise<Job> {
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/jobs/${jobId}`, {

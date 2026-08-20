@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import type { Job } from '../../types/job';
+import { JobsApiService } from '../../services/apiService';
 import { 
   Camera, 
   Upload, 
@@ -24,6 +25,7 @@ export const PhotoStep: React.FC<PhotoStepProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -42,37 +44,38 @@ export const PhotoStep: React.FC<PhotoStepProps> = ({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setSelectedPhoto(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      setSelectedFile(file);
+      setSelectedPhoto(URL.createObjectURL(file));
     }
   };
 
   const handleUpload = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!selectedPhoto) return; // Prevent upload without a photo
+    if (!selectedPhoto || !selectedFile) return; // Prevent upload without a photo
 
     const finalCaption = caption.trim() || `${type === 'BEFORE' ? 'Before Installation Site Evidence' : 'After Installation Completion Photo'} - ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 
     setIsSubmitting(true);
-    const chosenUrl = selectedPhoto;
 
     try {
-      await onUploadPhoto(job.id, chosenUrl, finalCaption, type);
+      const s3Url = await JobsApiService.uploadImageToS3(selectedFile);
+      await onUploadPhoto(job.id, s3Url, finalCaption, type);
       setCaption('');
       setSelectedPhoto(null);
+      setSelectedFile(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+    } catch (err) {
+      console.error('Upload failed:', err);
+      alert('Failed to upload photo. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleContinueStep = async () => {
-    if (selectedPhoto) {
+    if (selectedPhoto && selectedFile) {
       await handleUpload();
     }
     onNextStep();
