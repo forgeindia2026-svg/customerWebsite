@@ -120,7 +120,13 @@ router.get('/', async (req: Request, res: Response) => {
         customer: job.customer?.name || 'Unknown Customer',
         location: job.customer?.address || 'Chennai Area',
         submissionDate: job.scheduledDate || new Date(job.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        status: (job.status === 'COMPLETED' || job.status === 'ASSIGNED' || job.status === 'IN_PROGRESS') ? 'Approved' : (job.status === 'PENDING' ? 'Pending Approval' : 'Rework'),
+        status: (() => {
+          if (job.status === 'PENDING') return 'Pending';
+          if (job.status === 'ASSIGNED' || job.status === 'IN_PROGRESS') return 'In Progress';
+          if (job.status === 'WAITING_ADMIN_APPROVAL') return 'Completed';
+          if (job.status === 'COMPLETED') return 'Approved';
+          return 'Rework';
+        })(),
         details: job.scopeOfWork?.join(', ') || job.title,
         devicesCount: job.equipmentList?.length || 0,
         dailyLogs: job.fieldNotes ? [{ date: new Date(job.updatedAt).toLocaleDateString('en-US'), status: job.status, report: job.fieldNotes, photos: [] }] : []
@@ -134,7 +140,7 @@ router.get('/', async (req: Request, res: Response) => {
           customer: order.customerName,
           location: order.shippingAddress || 'Chennai Area',
           submissionDate: new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-          status: order.orderStatus === 'DELIVERED' ? 'Approved' : 'Pending Approval',
+          status: order.orderStatus === 'DELIVERED' ? 'Approved' : 'Pending',
           details: order.items?.map((item: any) => item.title).join(', ') || 'CCTV Installation',
           devicesCount: order.items?.length || 1,
           dailyLogs: []

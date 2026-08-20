@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { approveProject, reworkProject } from '../../redux/dashboardSlice';
+import { adminApproveJob, reworkProject } from '../../redux/dashboardSlice';
 import { FiCheck, FiRefreshCw, FiAlertCircle, FiUserCheck, FiCalendar, FiMapPin, FiLayers, FiEye, FiGrid, FiList, FiClock, FiFileText, FiChevronDown } from 'react-icons/fi';
 import Modal from '../../components/Modal';
 
@@ -19,8 +19,12 @@ export default function Projects() {
     switch (status) {
       case 'Approved':
         return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-900/40';
-      case 'Pending Approval':
+      case 'Pending':
         return 'bg-amber-50 text-amber-700 dark:bg-amber-955/20 dark:text-amber-300 border border-amber-100 dark:border-amber-900/40';
+      case 'In Progress':
+        return 'bg-blue-50 text-blue-700 dark:bg-blue-955/20 dark:text-blue-300 border border-blue-100 dark:border-blue-900/40';
+      case 'Completed':
+        return 'bg-purple-50 text-purple-700 dark:bg-purple-955/20 dark:text-purple-300 border border-purple-100 dark:border-purple-900/40';
       case 'Rework':
         return 'bg-red-50 text-red-700 dark:bg-red-955/20 dark:text-red-300 border border-red-100 dark:border-red-900/40';
       default:
@@ -32,6 +36,28 @@ export default function Projects() {
     switch (status) {
       case 'Approved':
         return {
+          idBg: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-955/20 dark:text-emerald-400',
+          iconBg: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400',
+          icon: () => (
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          ),
+          accentText: 'text-emerald-600 dark:text-emerald-400',
+        };
+      case 'Pending':
+        return {
+          idBg: 'bg-amber-50 text-amber-600 dark:bg-amber-955/20 dark:text-amber-400',
+          iconBg: 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400',
+          icon: () => (
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          ),
+          accentText: 'text-amber-600 dark:text-amber-400',
+        };
+      case 'In Progress':
+        return {
           idBg: 'bg-blue-50 text-blue-600 dark:bg-blue-955/20 dark:text-blue-400',
           iconBg: 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
           icon: () => (
@@ -41,16 +67,16 @@ export default function Projects() {
           ),
           accentText: 'text-blue-600 dark:text-blue-400',
         };
-      case 'Pending Approval':
+      case 'Completed':
         return {
-          idBg: 'bg-amber-50 text-amber-600 dark:bg-amber-955/20 dark:text-amber-400',
-          iconBg: 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400',
+          idBg: 'bg-purple-50 text-purple-600 dark:bg-purple-955/20 dark:text-purple-400',
+          iconBg: 'bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400',
           icon: () => (
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           ),
-          accentText: 'text-amber-600 dark:text-amber-400',
+          accentText: 'text-purple-600 dark:text-purple-400',
         };
       case 'Rework':
       default:
@@ -59,7 +85,7 @@ export default function Projects() {
           iconBg: 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400',
           icon: () => (
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
           ),
           accentText: 'text-red-600 dark:text-red-400',
@@ -85,7 +111,7 @@ export default function Projects() {
         {/* Left Side: Status Tabs */}
         <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar">
           <span className="text-xs text-slate-400 font-semibold flex-shrink-0">Projects:</span>
-          {['All', 'Pending Approval', 'Approved', 'Rework'].map(status => (
+          {['All', 'Pending', 'In Progress', 'Completed', 'Approved', 'Rework'].map(status => (
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
@@ -212,10 +238,10 @@ export default function Projects() {
                       <FiEye className="w-3.5 h-3.5" /> View Daily Logs & Details
                     </button>
 
-                    {proj.status === 'Pending Approval' && (
+                    {proj.status === 'Completed' && (
                       <div className="flex gap-2">
                         <button 
-                          onClick={() => dispatch(approveProject(proj.id))}
+                          onClick={() => dispatch(adminApproveJob(proj.id))}
                           className="flex-1 flex items-center justify-center gap-0.5 py-1.5 px-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-300 text-[11px] font-semibold rounded-xl transition-colors border border-emerald-100 dark:border-emerald-900/30"
                         >
                           <FiCheck size={11} /> Approve
@@ -307,28 +333,32 @@ export default function Projects() {
                                 <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
                                   Quick Actions
                                 </div>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    dispatch(approveProject(proj.id));
-                                    setActiveStatusDropdown(null);
-                                  }}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-left text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 font-bold transition-colors cursor-pointer"
-                                >
-                                  <FiCheck className="w-3.5 h-3.5" />
-                                  <span>Approve Project</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    dispatch(reworkProject(proj.id));
-                                    setActiveStatusDropdown(null);
-                                  }}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-left text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/20 font-bold transition-colors cursor-pointer"
-                                >
-                                  <FiRefreshCw className="w-3.5 h-3.5" />
-                                  <span>Request Rework</span>
-                                </button>
+                                {proj.status === 'Completed' && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        dispatch(adminApproveJob(proj.id));
+                                        setActiveStatusDropdown(null);
+                                      }}
+                                      className="w-full flex items-center gap-2 px-3 py-2 text-left text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 font-bold transition-colors cursor-pointer"
+                                    >
+                                      <FiCheck className="w-3.5 h-3.5" />
+                                      <span>Approve Project</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        dispatch(reworkProject(proj.id));
+                                        setActiveStatusDropdown(null);
+                                      }}
+                                      className="w-full flex items-center gap-2 px-3 py-2 text-left text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/20 font-bold transition-colors cursor-pointer"
+                                    >
+                                      <FiRefreshCw className="w-3.5 h-3.5" />
+                                      <span>Request Rework</span>
+                                    </button>
+                                  </>
+                                )}
                                 <button
                                   type="button"
                                   onClick={() => {
