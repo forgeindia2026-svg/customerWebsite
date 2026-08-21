@@ -5,6 +5,7 @@ export interface IProduct extends Omit<Document, 'isNew'> {
   category: string; // e.g. 'ip', 'bullet', 'dvr', 'vdp', 'cctv', 'accessories'
   brand: string;
   price: number;
+  offerPrice?: number;
   originalPrice?: number;
   badge?: string;
   rating: number;
@@ -36,6 +37,7 @@ const ProductSchema: Schema = new Schema(
     category: { type: String, required: true },
     brand: { type: String, required: true },
     price: { type: Number, required: true },
+    offerPrice: { type: Number },
     originalPrice: { type: Number },
     badge: { type: String },
     rating: { type: Number, default: 4.5 },

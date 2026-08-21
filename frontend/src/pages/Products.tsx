@@ -129,17 +129,17 @@ export default function Products() {
             const titleStr = item.name || item.title || 'CCTV Security Product';
             const imgStr = item.imageUrl || item.image || (Array.isArray(item.photoUrls) ? item.photoUrls[0] : '') || 'https://images.unsplash.com/photo-1557597774-9d273605dfa9';
 
-            const rawPrice = Number(item.price) || 0;
-            const rawOriginalPrice = Number(item.originalPrice) || 0;
-            const rawDiscount = Number(item.discount) || (item.badge && item.badge.includes('%') ? parseInt(item.badge) : 0);
+            const rawMrp = Number(item.price) || 0;
+            const rawOfferPrice = Number(item.offerPrice) || (item.originalPrice && item.originalPrice > item.price ? Number(item.price) : 0);
+            const actualMrp = (item.originalPrice && item.originalPrice > item.price) ? Number(item.originalPrice) : rawMrp;
 
-            const hasOffer = rawOriginalPrice > rawPrice && rawPrice > 0;
-            const finalPrice = rawPrice;
-            const finalOriginalPrice = hasOffer ? rawOriginalPrice : rawPrice;
+            const hasOffer = rawOfferPrice > 0 && rawOfferPrice < actualMrp;
+            const finalPrice = hasOffer ? rawOfferPrice : actualMrp;
+            const finalOriginalPrice = actualMrp;
 
             const computedDiscountPercent = hasOffer
               ? Math.round(((finalOriginalPrice - finalPrice) / finalOriginalPrice) * 100)
-              : (rawDiscount > 0 ? rawDiscount : 0);
+              : (Number(item.discount) > 0 ? Number(item.discount) : 0);
 
             const badgeStr = hasOffer || computedDiscountPercent > 0
               ? (item.badge || `${computedDiscountPercent}% OFF`)

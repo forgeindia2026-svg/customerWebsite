@@ -37,15 +37,12 @@ function ProductCard({ prod, onDelete, onEdit }) {
 
   const currentImage = images[activeImageIndex] || images[0] || getFallbackSrc(prod.category);
 
-  const hasOfferPrice = prod.offerPrice && Number(prod.offerPrice) > 0;
+  const hasOfferPrice = prod.offerPrice && Number(prod.offerPrice) > 0 && Number(prod.offerPrice) < Number(prod.price);
+  const displayPrice = hasOfferPrice ? Number(prod.offerPrice) : Number(prod.price);
+  const originalPrice = hasOfferPrice ? Number(prod.price) : null;
   const computedDiscount = hasOfferPrice && Number(prod.price) > 0
     ? Math.round(((Number(prod.price) - Number(prod.offerPrice)) / Number(prod.price)) * 100)
-    : Number(prod.discount || 0);
-
-  const displayPrice = hasOfferPrice ? prod.offerPrice : prod.price;
-  const originalPrice = hasOfferPrice 
-    ? prod.price 
-    : (Number(prod.discount) > 0 ? Math.round(prod.price * (1 + Number(prod.discount) / 100)) : null);
+    : (prod.discount ? Number(prod.discount) : 0);
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm p-5 flex flex-col justify-between hover:border-primary/20 dark:hover:border-primary/20 transition-all text-left relative overflow-hidden">
@@ -222,9 +219,15 @@ export default function Products() {
       .then(data => {
         if (data.success && Array.isArray(data.data)) {
           const mapped = data.data.map(item => {
-            const hasSpecialOffer = item.originalPrice && item.originalPrice > item.price;
-            const originalMrp = hasSpecialOffer ? item.originalPrice : item.price;
-            const effectiveOfferPrice = hasSpecialOffer ? item.price : '';
+            let effectiveOfferPrice = item.offerPrice || '';
+            let finalMrp = item.price || 0;
+
+            if (item.originalPrice && item.originalPrice > item.price) {
+              finalMrp = item.originalPrice;
+              if (!effectiveOfferPrice) {
+                effectiveOfferPrice = item.price;
+              }
+            }
 
             return {
               id: item._id || item.id,
@@ -233,7 +236,7 @@ export default function Products() {
               subCategory: item.subCategory || '',
               brand: item.brand || '',
               model: item.specs?.[0] || item.modelName || '',
-              price: originalMrp,
+              price: finalMrp,
               offerPrice: effectiveOfferPrice,
               stock: item.stock || 0,
               description: item.description || '',
@@ -446,8 +449,9 @@ export default function Products() {
       category: finalCategory,
       subCategory: productForm.subCategory || '',
       brand: productForm.brand || '',
-      price: parseFloat(productForm.offerPrice) > 0 ? parseFloat(productForm.offerPrice) : parseFloat(productForm.price),
-      originalPrice: parseFloat(productForm.offerPrice) > 0 ? parseFloat(productForm.price) : undefined,
+      price: parseFloat(productForm.price) || 0,
+      offerPrice: parseFloat(productForm.offerPrice) > 0 ? parseFloat(productForm.offerPrice) : undefined,
+      originalPrice: parseFloat(productForm.price) || 0,
       badge: productForm.offers || (productForm.discount ? `${productForm.discount}% OFF` : undefined),
       rating: parseFloat(productForm.rating) || undefined,
       image: productForm.imageUrl || '',
@@ -1116,8 +1120,9 @@ export default function Products() {
                 category: finalCategory,
                 subCategory: productForm.subCategory || '',
                 brand: productForm.brand || '',
-                price: parseFloat(productForm.offerPrice) > 0 ? parseFloat(productForm.offerPrice) : parseFloat(productForm.price),
-                originalPrice: parseFloat(productForm.offerPrice) > 0 ? parseFloat(productForm.price) : undefined,
+                price: parseFloat(productForm.price) || 0,
+                offerPrice: parseFloat(productForm.offerPrice) > 0 ? parseFloat(productForm.offerPrice) : undefined,
+                originalPrice: parseFloat(productForm.price) || 0,
                 badge: productForm.offers || (productForm.discount ? `${productForm.discount}% OFF` : undefined),
                 rating: parseFloat(productForm.rating) || undefined,
                 image: productForm.imageUrl || '',

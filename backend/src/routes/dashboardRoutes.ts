@@ -221,9 +221,15 @@ router.get('/', async (req: Request, res: Response) => {
 
     // Map live Products
     const mappedProducts = liveProducts.map((prod: any) => {
-      const hasSpecialOffer = prod.originalPrice && prod.originalPrice > prod.price;
-      const originalMrp = hasSpecialOffer ? prod.originalPrice : prod.price;
-      const effectiveOfferPrice = hasSpecialOffer ? prod.price : '';
+      let effectiveOfferPrice = prod.offerPrice || '';
+      let finalMrp = prod.price || 0;
+
+      if (prod.originalPrice && prod.originalPrice > prod.price) {
+        finalMrp = prod.originalPrice;
+        if (!effectiveOfferPrice) {
+          effectiveOfferPrice = prod.price;
+        }
+      }
 
       return {
         id: prod._id.toString(),
@@ -232,7 +238,7 @@ router.get('/', async (req: Request, res: Response) => {
         category: prod.category || 'CCTV Cameras',
         subCategory: prod.subCategory || '',
         model: prod.specs?.[0] || prod.modelName || '',
-        price: originalMrp,
+        price: finalMrp,
         offerPrice: effectiveOfferPrice,
         stock: prod.stock || 0,
         description: prod.description || '',
