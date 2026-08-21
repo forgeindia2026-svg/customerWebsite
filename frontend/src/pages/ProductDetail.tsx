@@ -187,16 +187,40 @@ export default function ProductDetail() {
       })
       .then((data) => {
         if (data.success && data.data) {
-          // Format backend fields to fit layout
-          const item = data.data;
+          const rawPrice = Number(item.price) || 0;
+          const rawOriginalPrice = Number(item.originalPrice) || 0;
+          const rawDiscount = Number(item.discount) || 0;
+
+          let finalPrice = rawPrice;
+          let finalOriginalPrice = rawOriginalPrice;
+
+          if (rawOriginalPrice > rawPrice && rawPrice > 0) {
+            finalPrice = rawPrice;
+            finalOriginalPrice = rawOriginalPrice;
+          } else if (rawDiscount > 0 && rawPrice > 0) {
+            finalPrice = Math.round(rawPrice * (1 - rawDiscount / 100));
+            finalOriginalPrice = rawPrice;
+          } else {
+            finalPrice = rawPrice;
+            finalOriginalPrice = rawPrice;
+          }
+
+          const computedDiscountPercent = finalOriginalPrice > finalPrice
+            ? Math.round(((finalOriginalPrice - finalPrice) / finalOriginalPrice) * 100)
+            : 0;
+
+          const badgeStr = item.badge 
+            ? item.badge 
+            : (computedDiscountPercent > 0 ? `${computedDiscountPercent}% OFF` : undefined);
+
           setProduct({
             id: item._id || item.id,
             brand: item.brand || 'SK BRAND',
             name: item.title || item.name,
             category: item.category,
-            price: item.price,
-            originalPrice: item.originalPrice || Math.round(item.price * 1.25),
-            discountBadge: item.badge || '-20%',
+            price: finalPrice,
+            originalPrice: finalOriginalPrice,
+            discountBadge: badgeStr,
             rating: item.rating || 4.5,
             reviewsCount: item.reviewsCount || 42,
             inStock: item.stock > 0,
@@ -485,12 +509,16 @@ export default function ProductDetail() {
                 <span className="text-3xl font-black text-slate-900">
                   ₹{product.price.toLocaleString("en-IN")}
                 </span>
-                <span className="text-sm text-gray-400 line-through">
-                  ₹{product.originalPrice.toLocaleString("en-IN")}
-                </span>
-                <span className="text-sm font-extrabold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-lg border border-emerald-100">
-                  {product.discountBadge ? `${product.discountBadge.replace('-', '')} OFF` : (product.discount ? `${product.discount}% OFF` : '2% OFF')}
-                </span>
+                {product.originalPrice > product.price && (
+                  <span className="text-sm text-gray-400 line-through">
+                    ₹{product.originalPrice.toLocaleString("en-IN")}
+                  </span>
+                )}
+                {product.discountBadge && (
+                  <span className="text-sm font-extrabold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-lg border border-emerald-100">
+                    {product.discountBadge.toUpperCase().includes('OFF') ? product.discountBadge : `${product.discountBadge.replace('-', '')} OFF`}
+                  </span>
+                )}
               </div>
 
               {(product.promotionalOffer || (product.offers && product.offers.length > 0)) && (

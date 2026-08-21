@@ -502,15 +502,41 @@ export default function Products() {
             const titleStr = item.name || item.title || 'CCTV Security Product';
             const imgStr = item.imageUrl || item.image || (Array.isArray(item.photoUrls) ? item.photoUrls[0] : '') || 'https://images.unsplash.com/photo-1557597774-9d273605dfa9';
 
+            const rawPrice = Number(item.price) || 0;
+            const rawOriginalPrice = Number(item.originalPrice) || 0;
+            const rawDiscount = Number(item.discount) || 0;
+
+            let finalPrice = rawPrice;
+            let finalOriginalPrice = rawOriginalPrice;
+
+            if (rawOriginalPrice > rawPrice && rawPrice > 0) {
+              finalPrice = rawPrice;
+              finalOriginalPrice = rawOriginalPrice;
+            } else if (rawDiscount > 0 && rawPrice > 0) {
+              finalPrice = Math.round(rawPrice * (1 - rawDiscount / 100));
+              finalOriginalPrice = rawPrice;
+            } else {
+              finalPrice = rawPrice;
+              finalOriginalPrice = rawPrice;
+            }
+
+            const computedDiscountPercent = finalOriginalPrice > finalPrice
+              ? Math.round(((finalOriginalPrice - finalPrice) / finalOriginalPrice) * 100)
+              : 0;
+
+            const badgeStr = item.badge 
+              ? item.badge 
+              : (computedDiscountPercent > 0 ? `${computedDiscountPercent}% OFF` : undefined);
+
             return {
               id: item._id || item.id || idx + 100,
               brand: (item.brand || 'SK-VISION').toUpperCase(),
               name: titleStr,
               category: mainCat,
               subCategory: subCat,
-              price: item.price || item.offerPrice || 0,
-              originalPrice: item.originalPrice || Math.round((item.price || 1000) * 1.25),
-              discountBadge: item.badge || (item.originalPrice ? `-${Math.round((item.originalPrice - item.price) / item.originalPrice * 100)}%` : undefined),
+              price: finalPrice,
+              originalPrice: finalOriginalPrice,
+              discountBadge: badgeStr,
               rating: item.rating || 4.5,
               reviewsCount: item.reviewsCount || 10,
               inStock: (item.stock ?? 1) > 0,
@@ -1357,12 +1383,16 @@ export default function Products() {
                           <span className="text-base font-black text-gray-900">
                             ₹{product.price.toLocaleString("en-IN")}
                           </span>
-                          <span className="text-xs text-gray-400 line-through">
-                            ₹{product.originalPrice.toLocaleString("en-IN")}
-                          </span>
+                          {product.originalPrice > product.price && (
+                            <span className="text-xs text-gray-400 line-through">
+                              ₹{product.originalPrice.toLocaleString("en-IN")}
+                            </span>
+                          )}
                           {product.discountBadge && (
                             <span className="text-[11px] font-bold text-emerald-600">
-                              {product.discountBadge.replace('-', '')} off
+                              {product.discountBadge.toUpperCase().includes('OFF') 
+                                ? product.discountBadge 
+                                : `${product.discountBadge.replace('-', '')} off`}
                             </span>
                           )}
                         </div>

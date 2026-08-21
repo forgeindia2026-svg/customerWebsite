@@ -35,19 +35,47 @@ export default function BestSellers() {
         if (data.success && data.data) {
           const bestSellers = data.data
             .filter((p: any) => p.isBestSeller)
-            .map((item: any) => ({
-              id: item._id,
-              brand: item.brand || 'SK-Vision',
-              name: item.title,
-              price: item.price,
-              originalPrice: item.originalPrice || item.price,
-              rating: item.rating || 4.5,
-              reviews: item.reviewsCount || Math.floor(Math.random() * 100) + 10,
-              image: item.image ? item.image.replace('https://65.0.45.64.sslip.io', import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io') : '',
-              badge: item.badge,
-              isNew: item.isNew,
-              specs: item.specs || []
-            }));
+            .map((item: any) => {
+              const rawPrice = Number(item.price) || 0;
+              const rawOriginalPrice = Number(item.originalPrice) || 0;
+              const rawDiscount = Number(item.discount) || 0;
+
+              let finalPrice = rawPrice;
+              let finalOriginalPrice = rawOriginalPrice;
+
+              if (rawOriginalPrice > rawPrice && rawPrice > 0) {
+                finalPrice = rawPrice;
+                finalOriginalPrice = rawOriginalPrice;
+              } else if (rawDiscount > 0 && rawPrice > 0) {
+                finalPrice = Math.round(rawPrice * (1 - rawDiscount / 100));
+                finalOriginalPrice = rawPrice;
+              } else {
+                finalPrice = rawPrice;
+                finalOriginalPrice = rawPrice;
+              }
+
+              const computedDiscountPercent = finalOriginalPrice > finalPrice
+                ? Math.round(((finalOriginalPrice - finalPrice) / finalOriginalPrice) * 100)
+                : 0;
+
+              const badgeStr = item.badge 
+                ? item.badge 
+                : (computedDiscountPercent > 0 ? `${computedDiscountPercent}% OFF` : undefined);
+
+              return {
+                id: item._id,
+                brand: item.brand || 'SK-Vision',
+                name: item.title,
+                price: finalPrice,
+                originalPrice: finalOriginalPrice,
+                rating: item.rating || 4.5,
+                reviews: item.reviewsCount || Math.floor(Math.random() * 100) + 10,
+                image: item.image ? item.image.replace('https://65.0.45.64.sslip.io', import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io') : '',
+                badge: badgeStr,
+                isNew: item.isNew,
+                specs: item.specs || []
+              };
+            });
           setProducts(bestSellers);
         }
       })
@@ -202,9 +230,11 @@ export default function BestSellers() {
                       <span className="text-base font-extrabold text-gray-900">
                         ₹{product.price.toLocaleString("en-IN")}
                       </span>
-                      <span className="text-xs text-gray-400 line-through">
-                        ₹{product.originalPrice.toLocaleString("en-IN")}
-                      </span>
+                      {product.originalPrice > product.price && (
+                        <span className="text-xs text-gray-400 line-through">
+                          ₹{product.originalPrice.toLocaleString("en-IN")}
+                        </span>
+                      )}
                     </div>
 
                     {/* Rating */}
