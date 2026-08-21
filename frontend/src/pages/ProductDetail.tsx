@@ -189,25 +189,17 @@ export default function ProductDetail() {
         if (data.success && data.data) {
           const rawPrice = Number(item.price) || 0;
           const rawOriginalPrice = Number(item.originalPrice) || 0;
-          const rawDiscount = Number(item.discount) || 0;
+          const rawDiscount = Number(item.discount) || (item.badge && item.badge.includes('%') ? parseInt(item.badge) : 0);
 
-          let finalPrice = rawPrice;
-          let finalOriginalPrice = rawOriginalPrice;
-
-          if (rawOriginalPrice > rawPrice && rawPrice > 0) {
-            finalPrice = rawPrice;
-            finalOriginalPrice = rawOriginalPrice;
-          } else if (rawDiscount > 0 && rawPrice > 0) {
-            finalPrice = Math.round(rawPrice * (1 - rawDiscount / 100));
-            finalOriginalPrice = rawPrice;
-          } else {
-            finalPrice = rawPrice;
-            finalOriginalPrice = rawPrice;
-          }
+          const hasOffer = rawOriginalPrice > rawPrice && rawPrice > 0;
+          const finalPrice = rawPrice;
+          const finalOriginalPrice = hasOffer 
+            ? rawOriginalPrice 
+            : (rawDiscount > 0 ? Math.round(rawPrice * (1 + rawDiscount / 100)) : rawPrice);
 
           const computedDiscountPercent = finalOriginalPrice > finalPrice
             ? Math.round(((finalOriginalPrice - finalPrice) / finalOriginalPrice) * 100)
-            : 0;
+            : rawDiscount;
 
           const badgeStr = item.badge 
             ? item.badge 
