@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-export interface IProduct extends Document {
+export interface IProduct extends Omit<Document, 'isNew'> {
   title: string;
   category: string; // e.g. 'ip', 'bullet', 'dvr', 'vdp', 'cctv', 'accessories'
   brand: string;
