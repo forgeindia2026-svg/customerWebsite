@@ -221,31 +221,37 @@ export default function Products() {
       .then(res => res.json())
       .then(data => {
         if (data.success && Array.isArray(data.data)) {
-          const mapped = data.data.map(item => ({
-            id: item._id,
-            name: item.title,
-            category: item.category || 'CCTV Cameras',
-            subCategory: item.subCategory || '',
-            brand: item.brand || '',
-            model: item.specs?.[0] || item.modelName || '',
-            price: item.originalPrice ? item.originalPrice : item.price,
-            offerPrice: item.originalPrice ? item.price : '', 
-            stock: item.stock || 0,
-            description: item.description || '',
-            imageUrl: item.image,
-            imageUrls: item.images || [item.image],
-            discount: item.discount || (item.badge && item.badge.includes('%') ? parseInt(item.badge) : ''),
-            delivery: item.delivery || '',
-            warranty: item.warranty || '',
-            rating: item.rating || '',
-            offers: item.promotionalOffer || '',
-            isNew: item.isNew || false,
-            isBestSeller: item.isBestSeller || false,
-            isFlashDeal: item.isFlashDeal || false,
-            features: item.features || [],
-            offersList: item.offers || [],
-            relatedProducts: item.relatedProducts || [],
-          }));
+          const mapped = data.data.map(item => {
+            const hasSpecialOffer = item.originalPrice && item.originalPrice > item.price;
+            const originalMrp = hasSpecialOffer ? item.originalPrice : item.price;
+            const effectiveOfferPrice = hasSpecialOffer ? item.price : '';
+
+            return {
+              id: item._id || item.id,
+              name: item.title,
+              category: item.category || 'CCTV Cameras',
+              subCategory: item.subCategory || '',
+              brand: item.brand || '',
+              model: item.specs?.[0] || item.modelName || '',
+              price: originalMrp,
+              offerPrice: effectiveOfferPrice,
+              stock: item.stock || 0,
+              description: item.description || '',
+              imageUrl: item.image,
+              imageUrls: item.images || [item.image],
+              discount: item.discount || (item.badge && item.badge.includes('%') ? parseInt(item.badge) : ''),
+              delivery: item.delivery || '',
+              warranty: item.warranty || '',
+              rating: item.rating || '',
+              offers: item.promotionalOffer || '',
+              isNew: item.isNew || false,
+              isBestSeller: item.isBestSeller || false,
+              isFlashDeal: item.isFlashDeal || false,
+              features: item.features || [],
+              offersList: item.offers || [],
+              relatedProducts: item.relatedProducts || [],
+            };
+          });
           dispatch(setProducts(mapped));
         }
       })
@@ -411,6 +417,7 @@ export default function Products() {
       warranty: productForm.warranty || '',
       delivery: productForm.delivery || '',
       promotionalOffer: productForm.offers || '',
+      isNew: productForm.isNew || false,
       isFlashDeal: productForm.isFlashDeal || false,
       isBestSeller: productForm.isBestSeller || false,
       features: productForm.dynamicFeatures || [],
@@ -437,7 +444,9 @@ export default function Products() {
           dispatch(addProduct({
             id: item._id,
             name: item.title,
+            brand: productForm.brand || item.brand || '',
             category: finalCategory,
+            subCategory: productForm.subCategory || item.subCategory || '',
             model: item.specs?.[0] || 'Generic Model',
             price: parseFloat(productForm.price) || 0,
             offerPrice: parseFloat(productForm.offerPrice) || '',
@@ -666,7 +675,9 @@ export default function Products() {
                 const isDefault = defaultCategories.includes(p.category);
                 setProductForm({
                   name: p.name,
+                  brand: p.brand || '',
                   category: isDefault ? p.category : 'Other',
+                  subCategory: p.subCategory || 'IP Cameras',
                   customCategory: isDefault ? '' : p.category,
                   price: p.price,
                   offerPrice: p.offerPrice || '',
@@ -1076,6 +1087,7 @@ export default function Products() {
                 warranty: productForm.warranty || '',
                 delivery: productForm.delivery || '',
                 promotionalOffer: productForm.offers || '',
+                isNew: productForm.isNew || false,
                 isFlashDeal: productForm.isFlashDeal || false,
                 isBestSeller: productForm.isBestSeller || false,
                 features: productForm.dynamicFeatures || [],
@@ -1101,7 +1113,9 @@ export default function Products() {
                     dispatch(editProduct({
                       id: editingProduct.id,
                       name: productForm.name,
+                      brand: productForm.brand || '',
                       category: productForm.category,
+                      subCategory: productForm.subCategory || '',
                       price: parseFloat(productForm.price) || 0,
                       offerPrice: parseFloat(productForm.offerPrice) || '',
                       stock: parseInt(productForm.stock) || 0,
@@ -1114,7 +1128,7 @@ export default function Products() {
                       warranty: productForm.warranty,
                       rating: parseFloat(productForm.rating) || 4.5,
                       offers: productForm.offers,
-                       isNew: productForm.isNew || false,
+                      isNew: productForm.isNew || false,
                       isBestSeller: productForm.isBestSeller || false,
                       isFlashDeal: productForm.isFlashDeal || false,
                       features: productForm.dynamicFeatures || [],

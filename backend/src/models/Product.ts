@@ -16,6 +16,7 @@ export interface IProduct extends Document {
   description?: string;
   warranty?: string;
   delivery?: string;
+  isNew?: boolean;
   isFlashDeal?: boolean;
   isBestSeller?: boolean;
   subCategory?: string;
@@ -46,6 +47,7 @@ const ProductSchema: Schema = new Schema(
     description: { type: String },
     warranty: { type: String },
     delivery: { type: String },
+    isNew: { type: Boolean, default: false },
     isFlashDeal: { type: Boolean, default: false },
     isBestSeller: { type: Boolean, default: false },
     subCategory: { type: String },

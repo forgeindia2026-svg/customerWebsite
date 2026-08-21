@@ -707,13 +707,15 @@ const dashboardSlice = createSlice({
     },
     editProduct: (state, action) => {
       const { 
-        id, name, category, model, price, stock, description, imageUrl, imageUrls,
+        id, name, brand, category, subCategory, model, price, stock, description, imageUrl, imageUrls,
         discount, delivery, warranty, rating, offers, isNew, isBestSeller, offerPrice, isFlashDeal,
         features, offersList, relatedProducts
       } = action.payload;
       const prod = state.products.find(p => p.id === id);
       if (prod) {
         prod.name = name;
+        if (brand !== undefined) prod.brand = brand;
+        if (subCategory !== undefined) prod.subCategory = subCategory;
         prod.category = category;
         prod.model = model;
         prod.price = price;
