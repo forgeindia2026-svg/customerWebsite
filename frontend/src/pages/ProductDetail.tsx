@@ -110,17 +110,15 @@ export default function ProductDetail() {
 
           const hasOffer = rawOriginalPrice > rawPrice && rawPrice > 0;
           const finalPrice = rawPrice;
-          const finalOriginalPrice = hasOffer 
-            ? rawOriginalPrice 
-            : (rawDiscount > 0 ? Math.round(rawPrice * (1 + rawDiscount / 100)) : rawPrice);
+          const finalOriginalPrice = hasOffer ? rawOriginalPrice : rawPrice;
 
-          const computedDiscountPercent = finalOriginalPrice > finalPrice
+          const computedDiscountPercent = hasOffer
             ? Math.round(((finalOriginalPrice - finalPrice) / finalOriginalPrice) * 100)
-            : rawDiscount;
+            : (rawDiscount > 0 ? rawDiscount : 0);
 
-          const badgeStr = item.badge 
-            ? item.badge 
-            : (computedDiscountPercent > 0 ? `${computedDiscountPercent}% OFF` : undefined);
+          const badgeStr = hasOffer || computedDiscountPercent > 0
+            ? (item.badge || `${computedDiscountPercent}% OFF`)
+            : undefined;
 
           setProduct({
             id: item._id || item.id,
