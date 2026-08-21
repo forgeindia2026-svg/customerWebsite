@@ -285,6 +285,49 @@ export default function Products() {
 
   const [isUploading, setIsUploading] = useState(false);
 
+  // 2-Way Auto Calculation Handlers for Price, Offer Price, and Discount
+  const handlePriceChange = (val) => {
+    const newPrice = val;
+    if (newPrice && productForm.offerPrice && Number(newPrice) > 0 && Number(productForm.offerPrice) > 0) {
+      if (Number(newPrice) >= Number(productForm.offerPrice)) {
+        const newDisc = Math.round(((Number(newPrice) - Number(productForm.offerPrice)) / Number(newPrice)) * 100);
+        setProductForm(prev => ({ ...prev, price: newPrice, discount: newDisc }));
+        return;
+      }
+    } else if (newPrice && productForm.discount && Number(newPrice) > 0 && Number(productForm.discount) > 0) {
+      const calculatedOffer = Math.round(Number(newPrice) * (1 - Number(productForm.discount) / 100));
+      setProductForm(prev => ({ ...prev, price: newPrice, offerPrice: calculatedOffer }));
+      return;
+    }
+    setProductForm(prev => ({ ...prev, price: newPrice }));
+  };
+
+  const handleOfferPriceChange = (val) => {
+    const newOffer = val;
+    let newDiscount = productForm.discount;
+    if (productForm.price && newOffer && Number(productForm.price) > 0 && Number(newOffer) > 0) {
+      if (Number(productForm.price) >= Number(newOffer)) {
+        newDiscount = Math.round(((Number(productForm.price) - Number(newOffer)) / Number(productForm.price)) * 100);
+      } else {
+        newDiscount = '';
+      }
+    } else if (!newOffer) {
+      newDiscount = '';
+    }
+    setProductForm(prev => ({ ...prev, offerPrice: newOffer, discount: newDiscount }));
+  };
+
+  const handleDiscountChange = (val) => {
+    const newDiscount = val;
+    let newOffer = productForm.offerPrice;
+    if (productForm.price && newDiscount && Number(productForm.price) > 0 && Number(newDiscount) > 0) {
+      newOffer = Math.round(Number(productForm.price) * (1 - Number(newDiscount) / 100));
+    } else if (!newDiscount) {
+      newOffer = '';
+    }
+    setProductForm(prev => ({ ...prev, discount: newDiscount, offerPrice: newOffer }));
+  };
+
     const handleImageUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -804,8 +847,8 @@ export default function Products() {
                 type="number" 
                 placeholder="2500" 
                 value={productForm.price}
-                onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
-                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+                onChange={(e) => handlePriceChange(e.target.value)}
+                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100 font-bold"
               />
             </div>
             <div>
@@ -814,8 +857,8 @@ export default function Products() {
                 type="number" 
                 placeholder="Discounted selling price" 
                 value={productForm.offerPrice}
-                onChange={(e) => setProductForm({ ...productForm, offerPrice: e.target.value })}
-                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+                onChange={(e) => handleOfferPriceChange(e.target.value)}
+                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100 font-bold text-emerald-600 dark:text-emerald-400"
               />
             </div>
           </div>
@@ -841,8 +884,8 @@ export default function Products() {
                 type="number" 
                 placeholder="e.g. 10" 
                 value={productForm.discount}
-                onChange={(e) => setProductForm({ ...productForm, discount: e.target.value })}
-                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+                onChange={(e) => handleDiscountChange(e.target.value)}
+                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100 font-bold text-blue-600 dark:text-blue-400"
               />
             </div>
             <div>
@@ -1235,8 +1278,8 @@ export default function Products() {
                   required
                   type="number"
                   value={productForm.price}
-                  onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
-                  className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+                  onChange={(e) => handlePriceChange(e.target.value)}
+                  className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100 font-bold"
                 />
               </div>
               <div>
@@ -1245,8 +1288,8 @@ export default function Products() {
                   type="number"
                   placeholder="Discounted selling price"
                   value={productForm.offerPrice}
-                  onChange={(e) => setProductForm({ ...productForm, offerPrice: e.target.value })}
-                  className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+                  onChange={(e) => handleOfferPriceChange(e.target.value)}
+                  className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100 font-bold text-emerald-600 dark:text-emerald-400"
                 />
               </div>
             </div>
@@ -1272,8 +1315,8 @@ export default function Products() {
                   type="number" 
                   placeholder="e.g. 10" 
                   value={productForm.discount}
-                  onChange={(e) => setProductForm({ ...productForm, discount: e.target.value })}
-                  className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+                  onChange={(e) => handleDiscountChange(e.target.value)}
+                  className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100 font-bold text-blue-600 dark:text-blue-400"
                 />
               </div>
               <div>
