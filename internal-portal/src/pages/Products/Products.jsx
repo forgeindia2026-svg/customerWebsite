@@ -184,6 +184,32 @@ function ProductCard({ prod, onDelete, onEdit }) {
   );
 }
 
+const emptyProductForm = {
+  name: '', 
+  brand: '',
+  category: 'CCTV Cameras', 
+  subCategory: 'IP Cameras',
+  customCategory: '',
+  price: '', 
+  offerPrice: '',
+  stock: '', 
+  description: '', 
+  model: '',
+  imageUrl: '',
+  imageUrls: [],
+  discount: '',
+  delivery: '',
+  warranty: '',
+  rating: '',
+  offers: '',
+  isNew: false,
+  isBestSeller: false,
+  isFlashDeal: false,
+  dynamicFeatures: [],
+  dynamicOffers: [],
+  relatedProducts: []
+};
+
 export default function Products() {
   const dispatch = useDispatch();
   const products = useSelector(state => state.dashboard.products);
@@ -249,31 +275,7 @@ export default function Products() {
 
   const defaultCategories = Object.keys(subCategoriesMap);
 
-  const [productForm, setProductForm] = useState({ 
-    name: '', 
-    brand: '',
-    category: 'CCTV Cameras', 
-    subCategory: 'IP Cameras',
-    customCategory: '',
-    price: '', 
-    offerPrice: '',
-    stock: '', 
-    description: '', 
-    model: '',
-    imageUrl: '',
-    imageUrls: [],
-    discount: '',
-    delivery: '',
-    warranty: '',
-    rating: '',
-    offers: '',
-    isNew: false,
-    isBestSeller: false,
-    isFlashDeal: false,
-    dynamicFeatures: [],
-    dynamicOffers: [],
-    relatedProducts: []
-  });
+  const [productForm, setProductForm] = useState(emptyProductForm);
 
   const [isUploading, setIsUploading] = useState(false);
 
@@ -614,7 +616,10 @@ export default function Products() {
           </select>
 
           <button 
-            onClick={() => setModalOpen(true)}
+            onClick={() => {
+              setProductForm(emptyProductForm);
+              setModalOpen(true);
+            }}
             className="flex items-center gap-1.5 px-3 py-2 bg-primary hover:bg-primary-dark text-white rounded-xl text-xs font-semibold shadow-sm transition-colors"
           >
             <FiPlus /> Add Product
@@ -692,7 +697,7 @@ export default function Products() {
       )}
 
       {/* Modal Add Product */}
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Register New CCTV Device">
+      <Modal isOpen={modalOpen} onClose={() => { setModalOpen(false); setProductForm(emptyProductForm); }} title="Register New CCTV Device">
         <form onSubmit={handleAddProduct} className="space-y-4 text-left">
           <div className="grid grid-cols-3 gap-4">
             <div>
@@ -1029,7 +1034,7 @@ export default function Products() {
           <div className="pt-2 flex justify-end gap-2.5">
             <button 
               type="button" 
-              onClick={() => setModalOpen(false)}
+              onClick={() => { setModalOpen(false); setProductForm(emptyProductForm); }}
               className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-500 text-xs font-semibold rounded-xl"
             >
               Cancel
