@@ -220,17 +220,37 @@ router.get('/', async (req: Request, res: Response) => {
     });
 
     // Map live Products
-    const mappedProducts = liveProducts.map((prod: any) => ({
-      id: prod._id.toString(),
-      name: prod.title || prod.name,
-      category: prod.category === 'ip' ? 'IP Camera' : (prod.category === 'dvr' ? 'DVR/NVR' : prod.category),
-      price: prod.price,
-      stock: prod.stock,
-      model: prod.specs?.join(', ') || '',
-      description: prod.description || '',
-      imageUrl: prod.image || '',
-      isFlashDeal: prod.isFlashDeal || false
-    }));
+    const mappedProducts = liveProducts.map((prod: any) => {
+      const hasSpecialOffer = prod.originalPrice && prod.originalPrice > prod.price;
+      const originalMrp = hasSpecialOffer ? prod.originalPrice : prod.price;
+      const effectiveOfferPrice = hasSpecialOffer ? prod.price : '';
+
+      return {
+        id: prod._id.toString(),
+        name: prod.title || prod.name || 'CCTV Product',
+        brand: prod.brand || '',
+        category: prod.category || 'CCTV Cameras',
+        subCategory: prod.subCategory || '',
+        model: prod.specs?.[0] || prod.modelName || '',
+        price: originalMrp,
+        offerPrice: effectiveOfferPrice,
+        stock: prod.stock || 0,
+        description: prod.description || '',
+        imageUrl: prod.image || prod.imageUrl || '',
+        imageUrls: prod.images || (prod.image ? [prod.image] : []),
+        discount: prod.discount || (prod.badge && prod.badge.includes('%') ? parseInt(prod.badge) : ''),
+        delivery: prod.delivery || '',
+        warranty: prod.warranty || '',
+        rating: prod.rating || '',
+        offers: prod.promotionalOffer || '',
+        isNew: prod.isNew || false,
+        isBestSeller: prod.isBestSeller || false,
+        isFlashDeal: prod.isFlashDeal || false,
+        features: prod.features || [],
+        offersList: prod.offers || [],
+        relatedProducts: prod.relatedProducts || [],
+      };
+    });
 
     // Map live Payments from liveOrders
     const mappedPayments = liveOrders.map((o: any, idx: number) => ({
