@@ -187,6 +187,7 @@ export default function ProductDetail() {
       })
       .then((data) => {
         if (data.success && data.data) {
+          const item = data.data;
           const rawPrice = Number(item.price) || 0;
           const rawOriginalPrice = Number(item.originalPrice) || 0;
           const rawDiscount = Number(item.discount) || (item.badge && item.badge.includes('%') ? parseInt(item.badge) : 0);
