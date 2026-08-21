@@ -53,90 +53,6 @@ interface Product {
   relatedProducts?: any[];
 }
 
-// Fallback lists if API fails
-const mockProductsList: Product[] = [
-  {
-    id: 1,
-    brand: "HIKVISION",
-    name: "Hikvision 2MP Full HD Bullet Camera",
-    category: "cctv",
-    subCategory: "bullet",
-    price: 2499,
-    originalPrice: 3199,
-    discountBadge: "-20%",
-    rating: 4.7,
-    reviewsCount: 96,
-    inStock: true,
-    stockCount: 45,
-    warranty: "2 Years Warranty",
-    freeDelivery: true,
-    image: "https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=600&q=80",
-    resolution: "1080p (2MP)",
-    specs: ["1080p Full HD", "20m Smart IR Night Vision", "IP67 Weatherproof metal housing"],
-    description: "The Hikvision 2MP Full HD Bullet Camera provides high-definition analog output. With infrared smart IR technology, it ensures up to 20 meters of visibility even in pitch darkness. Designed with an IP67 weatherproof rating, this camera is highly robust and operates seamlessly in harsh environmental conditions."
-  },
-  {
-    id: 2,
-    brand: "DAHUA",
-    name: "Dahua 4MP IP Dome Camera",
-    category: "cctv",
-    subCategory: "dome",
-    price: 3999,
-    originalPrice: 5499,
-    isNew: true,
-    rating: 4.7,
-    reviewsCount: 96,
-    inStock: true,
-    stockCount: 28,
-    warranty: "2 Years Warranty",
-    freeDelivery: true,
-    image: "https://images.unsplash.com/photo-1580894732444-8ecded7900cd?auto=format&fit=crop&w=600&q=80",
-    resolution: "4MP (2K)",
-    specs: ["4MP Real-Time Resolution", "IK10 Vandal-Proof Rating", "PoE Easy Installation"],
-    description: "The Dahua 4MP IP Dome Camera offers state-of-the-art surveillance. It comes equipped with PoE support for ease of wiring, an IK10 vandal-proof housing, and smart motion detection technology. Perfect for both outdoor office entries and indoor shop security monitoring."
-  },
-  {
-    id: 3,
-    brand: "CP PLUS",
-    name: "CP Plus 2MP HD Bullet Camera",
-    category: "cctv",
-    subCategory: "bullet",
-    price: 2199,
-    originalPrice: 2599,
-    discountBadge: "-15%",
-    rating: 4.6,
-    reviewsCount: 75,
-    inStock: true,
-    stockCount: 60,
-    warranty: "1 Year Warranty",
-    freeDelivery: true,
-    image: "https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=600&q=80",
-    resolution: "1080p (2MP)",
-    specs: ["20m IR Distance", "Full HD Clarity", "Plug and Play"],
-    description: "The CP Plus 2MP HD Bullet Camera is an economical and practical solution for home and retail store security. It operates on a plug-and-play basis and offers high-resolution night recording up to 20 meters."
-  },
-  {
-    id: 4,
-    brand: "HIKVISION",
-    name: "Hikvision 2MP PTZ Speed Dome Camera",
-    category: "cctv",
-    subCategory: "ptz",
-    price: 8999,
-    originalPrice: 10999,
-    isNew: true,
-    rating: 4.9,
-    reviewsCount: 64,
-    inStock: true,
-    stockCount: 12,
-    warranty: "2 Years Warranty",
-    freeDelivery: true,
-    image: "https://images.unsplash.com/photo-1580894732444-8ecded7900cd?auto=format&fit=crop&w=600&q=80",
-    resolution: "2MP (1080p)",
-    specs: ["4x Optical Zoom", "Pan-Tilt-Zoom Function", "Smart Intrusion Detection"],
-    description: "The Hikvision 2MP PTZ Camera allows remote pan, tilt, and zoom movements via phone apps or NVR dashboards. It offers a 4x optical zoom lens to capture fine details, intelligent human alerts, and smart night vision filtering."
-  }
-];
-
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -229,10 +145,9 @@ export default function ProductDetail() {
           throw new Error("No data");
         }
       })
-      .catch(() => {
-        // Fallback to mock product
-        const fallback = mockProductsList.find((p) => p.id === Number(id)) || mockProductsList[0];
-        setProduct(fallback);
+      .catch((err) => {
+        console.error('Failed to fetch live product detail:', err);
+        setProduct(null);
       })
       .finally(() => {
         setLoading(false);
@@ -391,6 +306,35 @@ export default function ProductDetail() {
     const item = accessories.find(a => a.id === currentId);
     return sum + (item ? item.price : 0);
   }, 0);
+
+  if (loading) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center bg-white">
+        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        <p className="mt-4 text-sm font-semibold text-slate-600">Loading product details...</p>
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center bg-white px-4 text-center">
+        <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
+          <ShieldCheck className="h-8 w-8" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900 mb-2">Product Not Found</h2>
+        <p className="text-sm text-slate-500 max-w-md mb-6">
+          The product you are looking for does not exist or has been removed from our catalog.
+        </p>
+        <Link
+          to="/products"
+          className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-xl transition-all shadow-md hover:shadow-lg text-sm"
+        >
+          Explore All Products
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white text-gray-800 font-sans min-h-screen">
@@ -975,37 +919,41 @@ export default function ProductDetail() {
         </div>
 
         {/* ================== RELATED & SIMILAR PRODUCTS ================== */}
-        <div className="border-t border-gray-100 pt-10 text-left">
-          <h3 className="text-lg font-bold text-slate-900 mb-6">Similar Products You May Like</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {mockProductsList.filter(p => p.id !== product.id).map(similar => (
-              <Link 
-                key={similar.id} 
-                to={`/products/${similar.id}`}
-                className="bg-white border border-gray-200/80 rounded-2xl overflow-hidden p-5 flex flex-col justify-between shadow-sm hover:shadow-md hover:border-blue-400 transition-all group"
-              >
-                <div>
-                  <div className="relative h-40 bg-gray-50/50 rounded-xl flex items-center justify-center p-3 mb-4 overflow-hidden">
-                    <img src={similar.image} alt={similar.name} className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform" />
-                  </div>
-                  <span className="text-[9px] font-black tracking-wider text-blue-600 block mb-1">{similar.brand}</span>
-                  <h4 className="font-bold text-xs text-gray-900 line-clamp-2 leading-tight group-hover:text-blue-600 transition-colors mb-2">{similar.name}</h4>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <div className="flex items-center gap-0.5 bg-emerald-600 text-white text-[9px] font-bold px-1 rounded">
-                      <span>{similar.rating}</span>
-                      <Star className="h-2 w-2 fill-white text-white" />
+        {product.relatedProducts && product.relatedProducts.length > 0 && (
+          <div className="border-t border-gray-100 pt-10 text-left">
+            <h3 className="text-lg font-bold text-slate-900 mb-6">Similar Products You May Like</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {product.relatedProducts.map((similar: any) => (
+                <Link 
+                  key={similar._id || similar.id} 
+                  to={`/products/${similar._id || similar.id}`}
+                  className="bg-white border border-gray-200/80 rounded-2xl overflow-hidden p-5 flex flex-col justify-between shadow-sm hover:shadow-md hover:border-blue-400 transition-all group"
+                >
+                  <div>
+                    <div className="relative h-40 bg-gray-50/50 rounded-xl flex items-center justify-center p-3 mb-4 overflow-hidden">
+                      <img src={similar.image || similar.imageUrl || (similar.images && similar.images[0]) || "https://images.unsplash.com/photo-1557597774-9d273605dfa9"} alt={similar.title || similar.name} className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform" />
                     </div>
-                    <span className="text-[10px] text-gray-400">({similar.reviewsCount})</span>
+                    <span className="text-[9px] font-black tracking-wider text-blue-600 block mb-1">{similar.brand || product.brand}</span>
+                    <h4 className="font-bold text-xs text-gray-900 line-clamp-2 leading-tight group-hover:text-blue-600 transition-colors mb-2">{similar.title || similar.name}</h4>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <div className="flex items-center gap-0.5 bg-emerald-600 text-white text-[9px] font-bold px-1 rounded">
+                        <span>{similar.rating || 4.5}</span>
+                        <Star className="h-2 w-2 fill-white text-white" />
+                      </div>
+                      <span className="text-[10px] text-gray-400">({similar.reviewsCount || 10})</span>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-baseline gap-2 pt-1.5 border-t border-gray-50 mt-1">
-                  <span className="text-sm font-extrabold text-slate-900">₹{similar.price.toLocaleString("en-IN")}</span>
-                  <span className="text-[10px] text-gray-400 line-through">₹{similar.originalPrice.toLocaleString("en-IN")}</span>
-                </div>
-              </Link>
-            ))}
+                  <div className="flex items-baseline gap-2 pt-1.5 border-t border-gray-50 mt-1">
+                    <span className="text-sm font-extrabold text-slate-900">₹{(similar.price || 0).toLocaleString("en-IN")}</span>
+                    {similar.originalPrice && similar.originalPrice > similar.price && (
+                      <span className="text-[10px] text-gray-400 line-through">₹{similar.originalPrice.toLocaleString("en-IN")}</span>
+                    )}
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
       </div>
     </div>
