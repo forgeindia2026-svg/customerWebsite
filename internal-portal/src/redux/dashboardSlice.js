@@ -148,34 +148,23 @@ const defaultDailyLogs = {
   ]
 };
 
-const loadCachedDashboardData = () => {
-  try {
-    localStorage.removeItem('sk_admin_dashboard_cache');
-  } catch (e) {
-    console.warn('Failed to clear cached dashboard data:', e);
-  }
-  return null;
-};
-
-const cachedData = loadCachedDashboardData();
-
 const initialState = {
   isLoading: false,
-  orders: Array.isArray(cachedData?.orders) ? cachedData.orders : [],
-  customers: Array.isArray(cachedData?.customers) ? cachedData.customers : [],
-  technicians: Array.isArray(cachedData?.technicians) ? cachedData.technicians : [],
-  projects: Array.isArray(cachedData?.projects) ? cachedData.projects : [],
-  serviceRequests: Array.isArray(cachedData?.serviceRequests) ? cachedData.serviceRequests : [],
-  products: Array.isArray(cachedData?.products) ? cachedData.products : [],
-  inventory: Array.isArray(cachedData?.inventory) ? cachedData.inventory : [],
-  payments: Array.isArray(cachedData?.payments) ? cachedData.payments : [],
-  notifications: Array.isArray(cachedData?.notifications) ? cachedData.notifications : [],
-  settings: cachedData?.settings || {},
-  chartData: Array.isArray(cachedData?.chartData) ? cachedData.chartData : [],
-  queries: Array.isArray(cachedData?.queries) ? cachedData.queries : [],
-  announcements: Array.isArray(cachedData?.announcements) ? cachedData.announcements : [],
-  banners: Array.isArray(cachedData?.banners) ? cachedData.banners : [],
-  brands: Array.isArray(cachedData?.brands) ? cachedData.brands : [],
+  orders: [],
+  customers: [],
+  technicians: [],
+  projects: [],
+  serviceRequests: [],
+  products: [],
+  inventory: [],
+  payments: [],
+  notifications: [],
+  settings: {},
+  chartData: [],
+  queries: [],
+  announcements: [],
+  banners: [],
+  brands: [],
   darkMode: false,
 };
 
@@ -186,10 +175,6 @@ const dashboardSlice = createSlice({
     setLoading: (state, action) => { state.isLoading = action.payload; },
     setDashboardData: (state, action) => {
       const payload = action.payload || {};
-      try {
-        localStorage.setItem('sk_admin_dashboard_cache', JSON.stringify(payload));
-      } catch (e) {}
-
       const rawOrders = Array.isArray(payload.orders) ? payload.orders : (state.orders || []);
       const normalizedOrders = rawOrders.map(o => ({
         ...o,
@@ -482,24 +467,9 @@ const dashboardSlice = createSlice({
         category: 'System',
         read: false
       });
-      try {
-        const cached = JSON.parse(localStorage.getItem('sk_admin_dashboard_cache') || '{}');
-        if (cached) {
-          cached.products = state.products;
-          cached.inventory = state.inventory;
-          localStorage.setItem('sk_admin_dashboard_cache', JSON.stringify(cached));
-        }
-      } catch (e) {}
     },
     deleteProduct: (state, action) => {
       state.products = state.products.filter(p => p.id !== action.payload);
-      try {
-        const cached = JSON.parse(localStorage.getItem('sk_admin_dashboard_cache') || '{}');
-        if (cached && Array.isArray(cached.products)) {
-          cached.products = state.products;
-          localStorage.setItem('sk_admin_dashboard_cache', JSON.stringify(cached));
-        }
-      } catch (e) {}
     },
     // Notifications actions
     markNotificationAsRead: (state, action) => {
@@ -744,15 +714,6 @@ const dashboardSlice = createSlice({
           inv.totalStock = Number(stock);
           inv.status = Number(stock) > 5 ? 'In Stock' : 'Low Stock';
         }
-
-        try {
-          const cached = JSON.parse(localStorage.getItem('sk_admin_dashboard_cache') || '{}');
-          if (cached) {
-            cached.products = state.products;
-            cached.inventory = state.inventory;
-            localStorage.setItem('sk_admin_dashboard_cache', JSON.stringify(cached));
-          }
-        } catch (e) {}
       }
     },
     editBanner: (state, action) => {
