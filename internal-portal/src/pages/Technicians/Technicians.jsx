@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { updateTechnicianStatus, addTechnician, editTechnician, deleteTechnician, toggleTechnicianActivation, fetchDashboardData } from '../../redux/dashboardSlice';
 import { 
-  FiSliders, FiPhone, FiMail, FiStar, FiUserCheck, FiPlus, 
+  FiSliders, FiPhone, FiMail, FiStar, FiPlus, 
   FiChevronDown, FiGrid, FiList, FiSearch, FiEdit, FiInfo,
   FiEye, FiEyeOff, FiTrash2, FiPower
 } from 'react-icons/fi';
@@ -34,20 +34,6 @@ export default function Technicians() {
   const [showAddPassword, setShowAddPassword] = useState(false);
   const [showEditPassword, setShowEditPassword] = useState(false);
 
-  const handleFileChange = (e, isEdit = false) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (isEdit) {
-          setEditingTech({ ...editingTech, avatarUrl: reader.result });
-        } else {
-          setTechForm({ ...techForm, avatarUrl: reader.result });
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
 
   const getTechAvatar = (tech) => {
     if (tech.avatarUrl) return tech.avatarUrl;
@@ -631,31 +617,7 @@ export default function Technicians() {
               </div>
             </div>
           </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-2">Upload Profile Photo</label>
-            <div className="flex items-center gap-4 border border-dashed border-slate-200 dark:border-slate-800 p-3.5 rounded-2xl bg-slate-50/50 dark:bg-slate-800/10 transition-colors">
-              <div className="w-14 h-14 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden flex-shrink-0">
-                {techForm.avatarUrl ? (
-                  <img src={techForm.avatarUrl} alt="Preview" className="w-full h-full object-cover" />
-                ) : (
-                  <FiUserCheck className="text-slate-400 w-6 h-6" />
-                )}
-              </div>
-              <div className="flex-1 text-left min-w-0">
-                <p className="text-xs font-semibold text-slate-755 dark:text-slate-200">Add technician picture</p>
-                <p className="text-xs text-slate-400 dark:text-slate-550 mt-0.5">Supports PNG, JPG, or GIF formats</p>
-                <label className="inline-block mt-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors">
-                  Choose Photo
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    className="hidden" 
-                    onChange={handleFileChange} 
-                  />
-                </label>
-              </div>
-            </div>
-          </div>
+
           <div className="pt-2 flex justify-end gap-2.5">
             <button 
               type="button" 
@@ -760,31 +722,7 @@ export default function Technicians() {
                 </div>
               </div>
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-2">Upload Profile Photo</label>
-              <div className="flex items-center gap-4 border border-dashed border-slate-200 dark:border-slate-800 p-3.5 rounded-2xl bg-slate-50/50 dark:bg-slate-800/10 transition-colors">
-                <div className="w-14 h-14 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden flex-shrink-0">
-                  {editingTech.avatarUrl ? (
-                    <img src={editingTech.avatarUrl} alt="Preview" className="w-full h-full object-cover" />
-                  ) : (
-                    <FiUserCheck className="text-slate-400 w-6 h-6" />
-                  )}
-                </div>
-                <div className="flex-1 text-left min-w-0">
-                  <p className="text-xs font-semibold text-slate-755 dark:text-slate-200">Change technician picture</p>
-                  <p className="text-xs text-slate-400 dark:text-slate-550 mt-0.5">Supports PNG, JPG, or GIF formats</p>
-                  <label className="inline-block mt-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors">
-                    Choose Photo
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      className="hidden" 
-                      onChange={(e) => handleFileChange(e, true)} 
-                    />
-                  </label>
-                </div>
-              </div>
-            </div>
+
             <div className="pt-2 flex justify-end gap-2.5">
               <button 
                 type="button" 
