@@ -11,10 +11,10 @@ import {
 } from 'recharts';
 
 export default function Reports() {
-  const orders = useSelector(state => state.dashboard.orders);
-  const payments = useSelector(state => state.dashboard.payments);
-  const technicians = useSelector(state => state.dashboard.technicians);
-  const projects = useSelector(state => state.dashboard.projects);
+  const orders = useSelector(state => state.dashboard?.orders) || [];
+  const payments = useSelector(state => state.dashboard?.payments) || [];
+  const technicians = useSelector(state => state.dashboard?.technicians) || [];
+  const projects = useSelector(state => state.dashboard?.projects) || [];
 
   const [activeTab, setActiveTab] = useState('Attendance'); // 'Attendance', 'Field Reports', 'Overview', 'Technicians'
   const [selectedPhotoModal, setSelectedPhotoModal] = useState(null);
@@ -30,7 +30,7 @@ export default function Reports() {
         const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/reports?t=${Date.now()}`);
         if (res.ok) {
           const data = await res.json();
-          setGeneralReports(data);
+          setGeneralReports(Array.isArray(data) ? data : []);
         }
       } catch (err) {
         console.error('Failed to fetch general reports', err);
@@ -54,7 +54,7 @@ export default function Reports() {
   }, []);
 
   // Extract technician reports live from orders store
-  const fieldReportsList = orders.map((order) => {
+  const fieldReportsList = (orders || []).map((order) => {
     const beforeCount = order.beforePhotos?.length || 0;
     const afterCount = order.afterPhotos?.length || 0;
     
@@ -89,7 +89,7 @@ export default function Reports() {
     };
   });
 
-  const generalReportsFormatted = generalReports.map((gr) => ({
+  const generalReportsFormatted = (generalReports || []).map((gr) => ({
     id: gr._id,
     jobCode: gr.jobId || gr.jobCode || 'GENERAL-TASK',
     title: gr.activityType || 'General Daily Work',
@@ -102,7 +102,7 @@ export default function Reports() {
     notes: gr.workDescription || 'Shift logged',
     beforePhotos: gr.beforePhotos || [],
     afterPhotos: gr.afterPhotos || [],
-    updatedAt: gr.createdAt || gr.date,
+    updatedAt: gr.createdAt || gr.date || new Date().toISOString(),
     hoursWorked: gr.hoursWorked || 8
   }));
 
@@ -125,20 +125,20 @@ export default function Reports() {
   }));
 
   // Calculations
-  const totalCollected = payments.filter(p => p.status === 'Paid').reduce((sum, p) => sum + p.amount, 0);
-  const pendingCollection = payments.filter(p => p.status === 'Pending').reduce((sum, p) => sum + p.amount, 0);
-  const completedProjectsCount = projects.filter(p => p.status === 'Completed' || p.status === 'Approved').length;
+  const totalCollected = (payments || []).filter(p => p && p.status === 'Paid').reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  const pendingCollection = (payments || []).filter(p => p && p.status === 'Pending').reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  const completedProjectsCount = (projects || []).filter(p => p && (p.status === 'Completed' || p.status === 'Approved')).length;
 
   // Aggregate technician performance dynamically
-  const technicianPerformance = technicians.map((tech, idx) => {
+  const technicianPerformance = (technicians || []).map((tech, idx) => {
     // Count orders assigned to this technician name
-    const techOrders = orders.filter(o => o.technician?.toLowerCase() === tech.name?.toLowerCase());
+    const techOrders = (orders || []).filter(o => o && o.technician?.toLowerCase() === tech.name?.toLowerCase());
     const completedOrders = techOrders.filter(o => o.status === 'Approved' || o.status === 'Completed').length;
-    const totalBillingHandled = techOrders.reduce((sum, o) => sum + (o.amount || 0), 0);
+    const totalBillingHandled = techOrders.reduce((sum, o) => sum + (Number(o.amount) || 0), 0);
 
     // Mock completion rate and response speed based on rating
-    const onTimeRate = Math.min(100, Math.round(80 + tech.rating * 4));
-    const successRate = Math.min(100, Math.round(85 + tech.rating * 3));
+    const onTimeRate = Math.min(100, Math.round(80 + (Number(tech.rating) || 4.5) * 4));
+    const successRate = Math.min(100, Math.round(85 + (Number(tech.rating) || 4.5) * 3));
 
     return {
       ...tech,
@@ -151,15 +151,15 @@ export default function Reports() {
   });
 
   // Financial Chart Data (Collections by Date / Invoice)
-  const collectionsData = payments.map(p => ({
-    name: p.customer.slice(0, 10),
-    Amount: p.amount,
-    Status: p.status
+  const collectionsData = (payments || []).map(p => ({
+    name: (p.customer || 'Customer').slice(0, 10),
+    Amount: Number(p.amount) || 0,
+    Status: p.status || 'Pending'
   }));
 
   // Pie chart data for Project types
-  const projectTypes = projects.reduce((acc, proj) => {
-    const type = proj.type || 'General CCTV';
+  const projectTypes = (projects || []).reduce((acc, proj) => {
+    const type = proj?.type || 'General CCTV';
     acc[type] = (acc[type] || 0) + 1;
     return acc;
   }, {});
