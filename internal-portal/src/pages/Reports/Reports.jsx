@@ -110,44 +110,19 @@ export default function Reports() {
 
   // Pure Daily Attendance List (1 Row per Technician per Day for Salary & Payroll)
   const todayStr = new Date().toISOString().split('T')[0];
-  const activeTechs = technicians.length > 0 ? technicians : [
-    { id: 'TECH-01', name: 'Rithvik (Field Tech)' },
-    { id: 'TECH-02', name: 'Manoj Kumar' },
-    { id: 'TECH-03', name: 'Suresh Raina' },
-    { id: 'TECH-04', name: 'Karthik Raja' }
-  ];
 
-  let dailyAttendanceList = [];
-  if (attendanceRecords.length > 0) {
-    dailyAttendanceList = attendanceRecords.map(rec => ({
-      id: rec._id || `${rec.technicianId}-${rec.date}`,
-      date: rec.date || todayStr,
-      technicianId: rec.technicianId,
-      technician: rec.technicianName || 'Field Technician',
-      checkInTime: rec.checkInTime || '09:00 AM',
-      checkOutTime: rec.checkOutTime || '06:00 PM',
-      totalHours: rec.totalHours || 8,
-      status: rec.status || 'PRESENT',
-      location: rec.location || 'Field Operations - Chennai',
-      notes: rec.notes || (rec.status === 'HALF_DAY' ? 'Half Day Duty (0.5 Day Salary)' : 'Full Day Duty (1.0 Day Salary)')
-    }));
-  } else {
-    dailyAttendanceList = activeTechs.map((tech, idx) => {
-      const isHalfDay = idx === 3;
-      return {
-        id: `att-${tech.id || idx}-${todayStr}`,
-        date: todayStr,
-        technicianId: tech.id || `TECH-0${idx + 1}`,
-        technician: tech.name,
-        checkInTime: isHalfDay ? '09:30 AM' : '09:00 AM',
-        checkOutTime: isHalfDay ? '01:30 PM' : '06:00 PM',
-        totalHours: isHalfDay ? 4 : 8,
-        status: isHalfDay ? 'HALF_DAY' : 'PRESENT',
-        location: 'Field Operations - Chennai',
-        notes: isHalfDay ? 'Half Day Duty (0.5 Day Salary)' : 'Full Day Duty (1.0 Day Salary)'
-      };
-    });
-  }
+  const dailyAttendanceList = (attendanceRecords || []).map(rec => ({
+    id: rec._id || `${rec.technicianId}-${rec.date}`,
+    date: rec.date || todayStr,
+    technicianId: rec.technicianId,
+    technician: rec.technicianName || 'Field Technician',
+    checkInTime: rec.checkInTime || '--:--',
+    checkOutTime: rec.checkOutTime || '--:--',
+    totalHours: rec.totalHours || 0,
+    status: rec.status || 'PRESENT',
+    location: rec.location || 'Field Operations',
+    notes: rec.notes || (rec.status === 'HALF_DAY' ? 'Half Day Duty (0.5 Day Salary)' : 'Full Day Duty (1.0 Day Salary)')
+  }));
 
   // Calculations
   const totalCollected = payments.filter(p => p.status === 'Paid').reduce((sum, p) => sum + p.amount, 0);
