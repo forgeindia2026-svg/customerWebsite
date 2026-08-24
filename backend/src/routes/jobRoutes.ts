@@ -220,8 +220,8 @@ router.get('/', async (req: Request, res: Response) => {
         techOrMatch.push({ 'assignedTechnicians.id': technicianId });
       }
       if (technicianName) {
-        techOrMatch.push({ 'assignedTechnicians.name': { $regex: `${technicianName}`, $options: 'i' } });
-        techOrMatch.push({ 'assignedTechnician': { $regex: `${technicianName}`, $options: 'i' } });
+        techOrMatch.push({ 'assignedTechnicians.name': { $regex: `^${technicianName}`, $options: 'i' } });
+        techOrMatch.push({ 'assignedTechnician': { $regex: `^${technicianName}`, $options: 'i' } });
       }
 
       if (includeAvailable === 'true') {
@@ -254,7 +254,11 @@ router.get('/', async (req: Request, res: Response) => {
       filter.$and = andClauses;
     }
 
-    const jobs = await Job.find(filter).sort({ createdAt: -1 });
+    const jobs = await Job.find(filter)
+      .select('-beforePhotos.url -afterPhotos.url -proofImages.url')
+      .sort({ createdAt: -1 })
+      .lean();
+
     res.json({ success: true, count: jobs.length, data: jobs });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });

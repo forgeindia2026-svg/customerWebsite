@@ -131,15 +131,39 @@ export const AssignedJobsModule: React.FC<AssignedJobsModuleProps> = ({ jobs, su
   const pendingCountVal = response?.stats?.pendingCount ?? summaryStats?.pending ?? (jobs && jobs.length > 0 ? jobs.filter((j) => j.status === 'PENDING').length : (isLoading ? null : 0));
   const completedCountVal = response?.stats?.completedCount ?? summaryStats?.completedToday ?? (jobs && jobs.length > 0 ? jobs.filter((j) => j.status === 'COMPLETED').length : (isLoading ? null : 0));
 
+  // Combine passed jobs or response data with active filter options
+  const rawJobList = (response && response.data && response.data.length > 0) ? response.data : (jobs || []);
+
+  const filteredJobs = rawJobList.filter((job) => {
+    if (filters.status && filters.status !== 'ALL' && job.status !== filters.status) return false;
+    if (filters.priority && filters.priority !== 'ALL' && job.priority !== filters.priority) return false;
+    if (filters.searchQuery) {
+      const q = filters.searchQuery.toLowerCase().trim();
+      const matchCode = job.jobCode?.toLowerCase().includes(q);
+      const matchTitle = job.title?.toLowerCase().includes(q);
+      const matchCust = job.customer?.name?.toLowerCase().includes(q);
+      if (!matchCode && !matchTitle && !matchCust) return false;
+    }
+    return true;
+  });
+
   return (
     <div className="space-y-6">
-      {/* Sleek Professional Metrics Cards - Responsive 2x2 Grid */}
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">Assigned Jobs</h1>
+          <p className="text-sm text-zinc-500 mt-1">Field service daily activity logs and customer work reports.</p>
+        </div>
+      </div>
+
+      {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* 1. Total Assigned */}
         <div className="bg-white border border-zinc-200/90 rounded-2xl p-4 sm:p-5 shadow-2xs hover:shadow-md transition-all relative overflow-hidden group">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Total Assigned</span>
-            <div className="w-8 h-8 rounded-xl bg-zinc-100 text-zinc-700 flex items-center justify-center group-hover:bg-red-600 group-hover:text-white transition-colors">
+            <div className="w-8 h-8 rounded-xl bg-zinc-100 text-zinc-600 flex items-center justify-center group-hover:bg-zinc-900 group-hover:text-white transition-colors">
               <Briefcase className="w-4 h-4" />
             </div>
           </div>
@@ -149,11 +173,11 @@ export const AssignedJobsModule: React.FC<AssignedJobsModuleProps> = ({ jobs, su
             ) : (
               <span className="text-2xl sm:text-3xl font-extrabold text-zinc-900 tracking-tight font-mono">{totalAssignedVal}</span>
             )}
-            <span className="text-[10px] font-bold text-zinc-700 bg-zinc-100 px-2 py-0.5 rounded-full border border-zinc-200">
+            <span className="text-[10px] font-bold text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded-full">
               Orders
             </span>
           </div>
-          <p className="text-[11px] text-zinc-500 font-medium mt-1">Assigned work orders</p>
+          <p className="text-[11px] text-zinc-400 font-medium mt-1">Assigned work orders</p>
         </div>
 
         {/* 2. In Progress */}
@@ -228,45 +252,44 @@ export const AssignedJobsModule: React.FC<AssignedJobsModuleProps> = ({ jobs, su
       />
 
       {/* Table / Grid Content */}
-      {response && (
-        <div className="space-y-4">
-          {/* Live Result Count Bar */}
-          <div className="flex items-center justify-between px-1 text-xs font-medium text-zinc-500">
-            <span>
-              Showing <strong className="text-zinc-900 font-mono font-bold">{response.data.length}</strong> of{' '}
-              <strong className="text-zinc-900 font-mono font-bold">{response.total}</strong> jobs
-            </span>
-            {response.data.length === 0 && (
-              <button
-                onClick={handleResetFilters}
-                className="text-xs text-sky-600 hover:text-sky-700 font-semibold underline cursor-pointer"
-              >
-                Reset filters
-              </button>
-            )}
-          </div>
-
-          <AssignedJobsTable
-            jobs={response.data}
-            onSelectJob={(job) => {
-              setSelectedJob(job);
-              setIsDrawerOpen(true);
-            }}
-            onOpenWorkflow={onOpenWorkflow}
-            onUpdateStatus={handleUpdateStatus}
-          />
-
-          {response.data.length > 0 && (
-            <Pagination
-              currentPage={response.page}
-              totalPages={response.totalPages}
-              totalItems={response.total}
-              itemsPerPage={response.limit}
-              onPageChange={(page) => handleFilterChange({ page })}
-            />
+      <div className="space-y-4">
+        {/* Live Result Count Bar */}
+        <div className="flex items-center justify-between px-1 text-xs font-medium text-zinc-500">
+          <span>
+            Showing <strong className="text-zinc-900 font-mono font-bold">{filteredJobs.length}</strong> of{' '}
+            <strong className="text-zinc-900 font-mono font-bold">{rawJobList.length}</strong> jobs
+          </span>
+          {(filters.searchQuery || filters.status !== 'ALL' || filters.priority !== 'ALL') && (
+            <button
+              onClick={handleResetFilters}
+              className="text-xs text-sky-600 hover:text-sky-700 font-semibold underline cursor-pointer"
+            >
+              Reset filters
+            </button>
           )}
         </div>
-      )}
+
+        <AssignedJobsTable
+          jobs={filteredJobs}
+          isLoading={isFetching && rawJobList.length === 0}
+          onSelectJob={(job) => {
+            setSelectedJob(job);
+            setIsDrawerOpen(true);
+          }}
+          onOpenWorkflow={onOpenWorkflow}
+          onUpdateStatus={handleUpdateStatus}
+        />
+
+        {filteredJobs.length > 0 && (
+          <Pagination
+            currentPage={response?.page || 1}
+            totalPages={response?.totalPages || 1}
+            totalItems={filteredJobs.length}
+            itemsPerPage={response?.limit || 50}
+            onPageChange={(page) => handleFilterChange({ page })}
+          />
+        )}
+      </div>
 
       {/* Job Detail Drawer */}
       <JobDetailDrawer
