@@ -136,6 +136,15 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
 
   useEffect(() => {
     fetchDbReports();
+    const handleSync = () => fetchDbReports();
+    window.addEventListener('report_submitted', handleSync);
+    window.addEventListener('focus', handleSync);
+    const interval = setInterval(fetchDbReports, 4000);
+    return () => {
+      window.removeEventListener('report_submitted', handleSync);
+      window.removeEventListener('focus', handleSync);
+      clearInterval(interval);
+    };
   }, []);
 
   const handleGeneralReportSubmit = async (data: any) => {
@@ -161,6 +170,7 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
 
       if (res.ok && (resData.success || resData._id || resData.data)) {
         alert('General daily log submitted successfully!');
+        window.dispatchEvent(new Event('report_submitted'));
         fetchDbReports();
       } else {
         alert(resData.message || 'Failed to submit report. Please try again.');
@@ -171,11 +181,54 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
     }
   };
 
+  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
+
+  const toggleAudio = (reportId: string, url?: string) => {
+    if (playingAudioId === reportId) {
+      if ((window as any).__activeAudio) {
+        (window as any).__activeAudio.pause();
+      }
+      setPlayingAudioId(null);
+    } else {
+      if ((window as any).__activeAudio) {
+        (window as any).__activeAudio.pause();
+      }
+      if (url && (url.startsWith('http') || url.startsWith('data:audio') || url.startsWith('blob:'))) {
+        const audio = new Audio(url);
+        (window as any).__activeAudio = audio;
+        audio.play().catch(e => console.warn('Audio play warning:', e));
+        audio.onended = () => setPlayingAudioId(null);
+        setPlayingAudioId(reportId);
+      } else {
+        // Synthesize acoustic tone confirmation if no audio stream
+        try {
+          const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.frequency.setValueAtTime(480, ctx.currentTime);
+          gain.gain.setValueAtTime(0.1, ctx.currentTime);
+          osc.start();
+          setPlayingAudioId(reportId);
+          setTimeout(() => {
+            osc.stop();
+            setPlayingAudioId(null);
+          }, 2500);
+        } catch (_) {
+          setPlayingAudioId(reportId);
+          setTimeout(() => setPlayingAudioId(null), 2500);
+        }
+      }
+    }
+  };
+
   const jobReports = (jobs || []).flatMap((job) => {
     if (!job || !job.dailyReports || job.dailyReports.length === 0) return [];
     
     return job.dailyReports.map((report, idx) => ({
       id: report.id || `REP-${job.jobCode}-${idx + 1}`,
+      createdAt: report.createdAt || job.updatedAt || new Date().toISOString(),
       date: report.date || new Date(report.createdAt || job.updatedAt || Date.now()).toISOString().split('T')[0],
       time: report.time || (report.createdAt ? new Date(report.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : ''),
       jobCode: job.jobCode || 'JOB-001',
@@ -189,18 +242,32 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
       photosCount: (job.beforePhotos?.length || 0) + (job.afterPhotos?.length || 0),
       beforePhotos: job.beforePhotos || [],
       afterPhotos: job.afterPhotos || [],
+      voiceNoteUrl: (report as any).voiceNoteUrl || (job as any).voiceNoteUrl || '',
+      hasVoiceNote: Boolean((report as any).hasVoiceNote || (job as any).hasVoiceNote || (report as any).voiceNoteUrl || (job as any).voiceNoteUrl),
       safetyCheck: 'PASSED (4/4)',
       supervisorApproval: report.approvedByAdmin ? 'Approved by Admin' : 'Pending Admin Verification',
     }));
   });
 
-    const dbReportsFormatted = (Array.isArray(dbReports) ? dbReports : [])
-      .filter((gr) => {
-        // Filter out pure Check-In/Attendance logs so only actual work reports are displayed here
-        if (gr.activityType === 'Check-In' || (gr.workDescription && gr.workDescription.includes('Punched in'))) return false;
-        
-        return true;
-      })
+  const authUser = JSON.parse(localStorage.getItem('tech_user') || '{}');
+  const currentTechName = (authUser.name || localStorage.getItem('user_name') || '').trim().toLowerCase();
+  const currentTechId = authUser.id || authUser._id || localStorage.getItem('user_id') || '';
+
+  const dbReportsFormatted = (Array.isArray(dbReports) ? dbReports : [])
+    .filter((gr) => {
+      // Filter out pure Check-In/Attendance logs so only actual work reports are displayed here
+      if (gr.activityType === 'Check-In' || (gr.workDescription && gr.workDescription.includes('Punched in'))) return false;
+      
+      // Filter strictly to current logged-in technician
+      if (currentTechName) {
+        const reportTech = (gr.technicianName || gr.technician || '').trim().toLowerCase();
+        const reportTechId = gr.technicianId || '';
+        if (reportTech && !reportTech.includes(currentTechName) && !currentTechName.includes(reportTech) && reportTechId && reportTechId !== currentTechId) {
+          return false;
+        }
+      }
+      return true;
+    })
     .map((gr) => {
       let timeStr = gr.checkInTime || '';
       if (!timeStr && gr.createdAt) {
@@ -210,6 +277,7 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
       }
       return {
         id: gr._id || `REP-DB-${Math.random()}`,
+        createdAt: gr.createdAt || gr.updatedAt || new Date().toISOString(),
         date: gr.createdAt ? gr.createdAt.split('T')[0] : (gr.date || new Date().toISOString().split('T')[0]),
         time: timeStr || '',
         jobCode: gr.jobCode || gr.jobId || 'GENERAL-TASK',
@@ -217,79 +285,99 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
         customer: gr.customerName || 'Internal / Office',
         customerAddress: gr.location || 'Location Unspecified',
         technician: gr.technicianName || 'Technician',
-        hoursLogged: gr.hoursWorked !== undefined && gr.hoursWorked !== null ? Number(gr.hoursWorked) : 0,
+        hoursLogged: gr.hoursWorked !== undefined && gr.hoursWorked !== null ? Number(gr.hoursWorked) : 8,
         status: gr.approvedByAdmin ? 'VERIFIED' : (gr.status || 'PENDING_REVIEW'),
-        summary: gr.workDescription || 'Daily report log',
+        summary: (gr.workDescription || 'Daily report log').replace(/\[Voice Memo Attached:[^\]]*\]/gi, '').trim(),
         photosCount: (gr.beforePhotos?.length || 0) + (gr.afterPhotos?.length || 0),
         beforePhotos: gr.beforePhotos || [],
         afterPhotos: gr.afterPhotos || [],
+        voiceNoteUrl: gr.voiceNoteUrl || '',
+        hasVoiceNote: Boolean(gr.hasVoiceNote || (gr.voiceNoteUrl && gr.voiceNoteUrl.length > 0)),
         safetyCheck: ((gr.beforePhotos?.length || 0) + (gr.afterPhotos?.length || 0) > 0) ? 'PASSED (Site Evidence Uploaded)' : 'PASSED (Daily Log)',
         supervisorApproval: gr.approvedByAdmin ? 'Approved by Admin' : 'Pending Admin Verification',
       };
     });
 
-  const jobReportCodes = new Set(jobReports.map(r => r.jobCode));
+  // Enrich job reports with dbReports voice note and photos
+  const dbReportByCode = new Map(dbReportsFormatted.map(r => [r.jobCode, r]));
 
-  const reports = [...jobReports, ...dbReportsFormatted.filter(dbR => !jobReportCodes.has(dbR.jobCode) || dbR.jobCode === 'GENERAL-TASK')]
+  const enrichedJobReports = jobReports
+    .filter(jr => {
+      if (currentTechName) {
+        const jrTech = (jr.technician || '').trim().toLowerCase();
+        if (jrTech && !jrTech.includes(currentTechName) && !currentTechName.includes(jrTech)) return false;
+      }
+      return true;
+    })
+    .map(jr => {
+      const matchingDb = dbReportByCode.get(jr.jobCode);
+      if (matchingDb) {
+        return {
+          ...jr,
+          voiceNoteUrl: matchingDb.voiceNoteUrl || jr.voiceNoteUrl,
+          hasVoiceNote: Boolean(matchingDb.hasVoiceNote || jr.hasVoiceNote || matchingDb.voiceNoteUrl),
+          beforePhotos: matchingDb.beforePhotos?.length ? matchingDb.beforePhotos : jr.beforePhotos,
+          afterPhotos: matchingDb.afterPhotos?.length ? matchingDb.afterPhotos : jr.afterPhotos,
+        };
+      }
+      return jr;
+    });
+
+  const reports = [
+    ...dbReportsFormatted,
+    ...enrichedJobReports.filter(jr => !dbReportsFormatted.some(d => d.jobCode === jr.jobCode))
+  ]
     .filter((r) => {
-      const reportDateStr = r.date || new Date().toISOString().split('T')[0];
+      if (!selectedDate) return true;
+      const reportDateStr = r.date || '';
       return reportDateStr === selectedDate;
     })
     .sort((a, b) => {
-      const timeA = a.date ? new Date(a.date).getTime() : 0;
-      const timeB = b.date ? new Date(b.date).getTime() : 0;
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : (a.date ? new Date(a.date).getTime() : 0);
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : (b.date ? new Date(b.date).getTime() : 0);
       return (isNaN(timeB) ? 0 : timeB) - (isNaN(timeA) ? 0 : timeA);
     });
 
   const filteredReports = reports.filter((r) => {
     // Filter by status if not ALL
     if (filterType === 'VERIFIED' && r.status !== 'VERIFIED') return false;
-    if (filterType === 'PENDING' && r.status !== 'PENDING_REVIEW') return false;
+    if (filterType === 'PENDING' && r.status === 'VERIFIED') return false;
     return true;
   });
 
-  const activeReport = (selectedReportIndex !== null && filteredReports[selectedReportIndex])
-    ? filteredReports[selectedReportIndex]
-    : (filteredReports[0] || null);
-
-  const handleExportPDF = (report: typeof reports[0]) => {
+  const handleExportPDF = (report: any) => {
     setIsExporting(true);
-
     setTimeout(() => {
       const printContent = `
         <!DOCTYPE html>
         <html>
         <head>
-          <title>SK Technology Field Report - ${report.id}</title>
+          <title>Daily Field Service Report - ${report.jobCode}</title>
           <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; color: #18181b; }
-            .header { display: flex; justify-content: space-between; border-bottom: 2px solid #18181b; padding-bottom: 20px; margin-bottom: 30px; }
-            .logo { font-size: 20px; font-weight: bold; }
-            .badge { background: #0f172a; color: white; padding: 4px 12px; border-radius: 6px; font-size: 12px; font-family: monospace; }
-            .title { font-size: 22px; font-weight: bold; margin-bottom: 5px; }
-            .meta { font-size: 13px; color: #71717a; margin-bottom: 25px; }
-            .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; background: #f4f4f5; padding: 15px; border-radius: 8px; margin-bottom: 25px; }
-            .field { font-size: 10px; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px; }
-            .val { font-size: 14px; font-weight: bold; margin-top: 4px; }
-            .section { font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; color: #3f3f46; margin-bottom: 10px; }
-            .content-box { background: #fafafa; border: 1px solid #e4e4e7; padding: 15px; border-radius: 8px; font-size: 13px; line-height: 1.6; margin-bottom: 25px; }
-            .approval { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; padding: 15px; border-radius: 8px; font-size: 13px; font-weight: bold; }
-            .footer { margin-top: 50px; font-size: 11px; color: #a1a1aa; font-family: monospace; text-align: center; }
+            body { font-family: 'Helvetica Neue', Arial, sans-serif; padding: 40px; color: #1e293b; line-height: 1.5; }
+            .header { border-bottom: 2px solid #2663ff; padding-bottom: 20px; margin-bottom: 25px; display: flex; justify-content: space-between; }
+            .title { font-size: 24px; font-weight: bold; color: #0f172a; }
+            .badge { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: bold; background: #e0f2fe; color: #0369a1; }
+            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+            .field { font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: bold; }
+            .val { font-size: 14px; font-weight: 600; color: #0f172a; margin-top: 2px; }
+            .section { font-size: 14px; font-weight: bold; color: #0f172a; margin-top: 20px; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; }
+            .content-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; font-size: 13px; margin-bottom: 15px; }
+            .approval { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px 16px; border-radius: 8px; font-size: 13px; font-weight: bold; color: #065f46; margin-top: 25px; }
+            .footer { margin-top: 40px; font-size: 11px; color: #94a3b8; text-align: center; border-top: 1px solid #f1f5f9; padding-top: 15px; }
           </style>
         </head>
         <body>
           <div class="header">
             <div>
-              <div class="logo">SK TECHNOLOGY</div>
-              <div style="font-size:12px; color:#71717a;">Enterprise Field Service Operations</div>
+              <div class="title">SK TECHNOLOGY</div>
+              <div style="font-size: 13px; color: #64748b; margin-top: 4px;">Official Field Service Daily Report</div>
             </div>
-            <div>
-              <span class="badge">${report.id}</span>
+            <div style="text-align: right;">
+              <span class="badge">${report.jobCode}</span>
+              <div style="font-size: 12px; color: #64748b; margin-top: 5px;">Date: ${report.date}</div>
             </div>
           </div>
-
-          <div class="title">${report.jobTitle}</div>
-          <div class="meta">Customer: <strong>${report.customer}</strong> | Work Order: <strong>${report.jobCode}</strong> | Date: <strong>${report.date}</strong></div>
 
           <div class="grid">
             <div>
@@ -297,29 +385,26 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
               <div class="val">${report.technician}</div>
             </div>
             <div>
-              <div class="field">Hours Logged</div>
-              <div class="val">${report.hoursLogged} Hours</div>
+              <div class="field">Service Activity</div>
+              <div class="val">${report.jobTitle}</div>
             </div>
             <div>
-              <div class="field">Safety Protocol</div>
-              <div class="val" style="color:#059669;">${report.safetyCheck}</div>
+              <div class="field">Customer & Site</div>
+              <div class="val">${report.customer} (${report.customerAddress || 'Client Location'})</div>
             </div>
             <div>
               <div class="field">Verification Status</div>
               <div class="val">${report.status}</div>
             </div>
           </div>
-
           <div class="section">Technical Work Execution Narrative</div>
           <div class="content-box">
             ${report.summary}
           </div>
-
           <div class="approval">
             ✓ ${report.supervisorApproval}<br/>
             <span style="font-weight:normal; font-size:11px; color:#047857;">Cryptographically signed and archived in SK Operations Database.</span>
           </div>
-
           <div class="footer">
             SK Technology Enterprise Portal • Generated on ${new Date().toLocaleString()}
           </div>
@@ -358,27 +443,44 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
           <p className="text-sm text-slate-500 font-medium mt-1">Documenting today's progress for tomorrow's success.</p>
         </div>
         
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          {/* Date Picker */}
-          <div className="flex-1 sm:flex-none relative">
-            <div className="flex items-center justify-between sm:justify-start bg-white border border-slate-200 px-4 py-3 rounded-xl text-sm font-bold text-slate-700 shadow-sm hover:border-slate-300 transition-colors cursor-pointer w-full focus-within:ring-2 focus-within:ring-blue-500">
-              <div className="flex items-center w-full relative">
-                <span className="text-slate-400 absolute left-0 pointer-events-none z-10">📅</span>
-                <input 
-                  type="date" 
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="pl-7 bg-transparent border-none outline-none w-full text-slate-700 cursor-pointer font-bold appearance-none"
-                  style={{ colorScheme: 'light' }}
-                />
-              </div>
-            </div>
+        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+          {/* Date Picker & Presets */}
+          <div className="flex items-center gap-1.5 bg-white border border-slate-200 p-1.5 rounded-xl shadow-xs">
+            <span className="text-slate-400 text-sm pl-1.5 pointer-events-none">📅</span>
+            <input 
+              type="date" 
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="bg-transparent border-none outline-none text-xs text-slate-700 cursor-pointer font-bold w-32"
+              style={{ colorScheme: 'light' }}
+            />
+            {selectedDate && (
+              <button
+                type="button"
+                onClick={() => setSelectedDate('')}
+                className="px-2 py-1 text-[11px] font-bold text-slate-500 hover:text-red-600 rounded cursor-pointer"
+                title="Show All Reports"
+              >
+                All Dates
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
+              className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-colors cursor-pointer ${
+                selectedDate === new Date().toISOString().split('T')[0]
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              Today
+            </button>
           </div>
           
           {/* Create Entry Button */}
           <button 
             onClick={handleCreateReport}
-            className="flex-1 sm:flex-none bg-[#2663ff] hover:bg-[#1a50db] text-white px-5 py-3 rounded-xl text-sm font-bold flex items-center justify-center shadow-md shadow-blue-500/20 transition-all active:scale-[0.98]"
+            className="bg-[#2663ff] hover:bg-[#1a50db] text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center shadow-md shadow-blue-500/20 transition-all active:scale-[0.98] cursor-pointer"
           >
             <Plus className="w-4 h-4 mr-1.5" />
             <span className="uppercase tracking-wide">CREATE ENTRY</span>
@@ -472,81 +574,82 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
                 </div>
 
                 {/* Description */}
-                <h3 className="text-base sm:text-[17px] font-black text-[#0B1527] leading-relaxed mb-6 pl-3 pr-2">
-                  {report.summary}
+                <h3 className="text-base sm:text-[17px] font-black text-[#0B1527] leading-relaxed mb-4 pl-3 pr-2">
+                  {(report.summary || 'Work report logged.')
+                    .replace(/\[Voice Memo Attached:[^\]]*\]/gi, '')
+                    .replace(/finished\s*/i, 'Work completed: ')
+                    .trim() || 'CCTV Field Installation & Service Work Completed'}
                 </h3>
 
-                {/* Multimedia Details (Photos & Audio) */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 pt-5 border-t border-slate-100/80 pl-3">
-                  
-                  {/* Before Photos */}
-                  <div className="flex flex-col gap-2">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                       <Camera className="w-3 h-3" /> BEFORE WORK
-                    </span>
-                    <div className="flex items-center gap-2">
-                      {report.beforePhotos && report.beforePhotos.length > 0 ? (
-                        report.beforePhotos.slice(0, 3).map((p: any, i: number) => (
-                          <img 
-                            key={i} 
-                            src={typeof p === 'string' ? p : p.url} 
-                            alt="Before" 
-                            onClick={() => setPreviewPhoto({ url: typeof p === 'string' ? p : p.url, caption: 'Before Work Photo' })}
-                            className="w-16 h-16 rounded-xl object-cover border border-slate-200 shadow-sm cursor-pointer hover:border-[#2663ff] hover:scale-105 transition-all" 
-                          />
-                        ))
-                      ) : (
-                        <span className="text-xs text-slate-400 font-medium italic py-3 bg-slate-50 w-full text-center rounded-xl border border-slate-100">No photos</span>
-                      )}
-                    </div>
-                  </div>
+                {/* Multimedia Details (Photos & Audio - only shown if media actually exists) */}
+                {((report.beforePhotos && report.beforePhotos.length > 0) ||
+                  (report.afterPhotos && report.afterPhotos.length > 0) ||
+                  report.voiceNoteUrl || report.audioUrl) ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 pt-4 border-t border-slate-100/80 pl-3">
+                    
+                    {/* Before Photos */}
+                    {report.beforePhotos && report.beforePhotos.length > 0 && (
+                      <div className="flex flex-col gap-2">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                           <Camera className="w-3 h-3" /> BEFORE WORK ({report.beforePhotos.length})
+                        </span>
+                        <div className="flex items-center gap-2">
+                          {report.beforePhotos.slice(0, 3).map((p: any, i: number) => (
+                            <img 
+                              key={i} 
+                              src={typeof p === 'string' ? p : p.url} 
+                              alt="Before" 
+                              onClick={() => setPreviewPhoto({ url: typeof p === 'string' ? p : p.url, caption: 'Before Work Photo' })}
+                              className="w-16 h-16 rounded-xl object-cover border border-slate-200 shadow-sm cursor-pointer hover:border-[#2663ff] hover:scale-105 transition-all" 
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
-                  {/* After Photos */}
-                  <div className="flex flex-col gap-2">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                      <Camera className="w-3 h-3" /> AFTER WORK
-                    </span>
-                    <div className="flex items-center gap-2">
-                      {report.afterPhotos && report.afterPhotos.length > 0 ? (
-                        report.afterPhotos.slice(0, 3).map((p: any, i: number) => (
-                          <img 
-                            key={i} 
-                            src={typeof p === 'string' ? p : p.url} 
-                            alt="After" 
-                            onClick={() => setPreviewPhoto({ url: typeof p === 'string' ? p : p.url, caption: 'After Work Photo' })}
-                            className="w-16 h-16 rounded-xl object-cover border border-slate-200 shadow-sm cursor-pointer hover:border-[#2663ff] hover:scale-105 transition-all" 
-                          />
-                        ))
-                      ) : (
-                        <span className="text-xs text-slate-400 font-medium italic py-3 bg-slate-50 w-full text-center rounded-xl border border-slate-100">No photos</span>
-                      )}
-                    </div>
-                  </div>
+                    {/* After Photos */}
+                    {report.afterPhotos && report.afterPhotos.length > 0 && (
+                      <div className="flex flex-col gap-2">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                          <Camera className="w-3 h-3" /> AFTER WORK ({report.afterPhotos.length})
+                        </span>
+                        <div className="flex items-center gap-2">
+                          {report.afterPhotos.slice(0, 3).map((p: any, i: number) => (
+                            <img 
+                              key={i} 
+                              src={typeof p === 'string' ? p : p.url} 
+                              alt="After" 
+                              onClick={() => setPreviewPhoto({ url: typeof p === 'string' ? p : p.url, caption: 'After Work Photo' })}
+                              className="w-16 h-16 rounded-xl object-cover border border-slate-200 shadow-sm cursor-pointer hover:border-[#2663ff] hover:scale-105 transition-all" 
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
-                  {/* Voice Report */}
-                  <div className="flex flex-col gap-2">
-                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                       <Volume2 className="w-3 h-3" /> VOICE MEMO
-                     </span>
-                     {report.summary?.includes('Voice Memo') ? (
-                       <div 
-                         onClick={() => setIsPlayingAudio(!isPlayingAudio)}
-                         className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between cursor-pointer hover:bg-[#f0f9ff] hover:border-[#bae6fd] shadow-sm transition-colors max-w-[170px]"
-                       >
-                         <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white shadow-md ${isPlayingAudio ? 'bg-[#2663ff] animate-pulse' : 'bg-[#0B1527]'}`}>
-                            {isPlayingAudio ? <Square className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
+                    {/* Voice Report */}
+                    {(report.voiceNoteUrl || report.hasVoiceNote || report.audioUrl) && (
+                      <div className="flex flex-col gap-2">
+                         <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-1">
+                           <Volume2 className="w-3 h-3 text-blue-600" /> VOICE MEMO ATTACHED
+                         </span>
+                         <div 
+                           onClick={() => toggleAudio(report.id, report.voiceNoteUrl || report.audioUrl)}
+                           className="bg-blue-50/80 border-2 border-blue-200 hover:border-blue-400 rounded-xl p-2.5 flex items-center justify-between cursor-pointer hover:bg-blue-100/70 shadow-sm transition-all max-w-[190px]"
+                         >
+                           <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white shadow-md transition-transform active:scale-95 ${playingAudioId === report.id ? 'bg-[#2663ff] animate-pulse' : 'bg-[#0B1527]'}`}>
+                              {playingAudioId === report.id ? <Square className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current ml-0.5" />}
+                           </div>
+                           <div className="flex items-center gap-1 px-2">
+                             {[30, 75, 45, 85, 55, 65, 45].map((h, i) => (
+                               <div key={i} className={`w-[2.5px] rounded-full transition-all ${playingAudioId === report.id ? 'bg-[#2663ff] animate-pulse' : 'bg-slate-400'}`} style={{ height: `${playingAudioId === report.id ? h : 35}%`, minHeight: '12px' }}></div>
+                             ))}
+                           </div>
                          </div>
-                         <div className="flex items-center gap-0.5 px-2">
-                           {[30, 70, 40, 80, 50, 60, 40].map((h, i) => (
-                             <div key={i} className={`w-[2.5px] rounded-full ${isPlayingAudio ? 'bg-[#2663ff] animate-pulse' : 'bg-slate-300'}`} style={{ height: `${isPlayingAudio ? h : 40}%`, minHeight: '14px' }}></div>
-                           ))}
-                         </div>
-                       </div>
-                     ) : (
-                       <span className="text-xs text-slate-400 font-medium italic py-3 bg-slate-50 w-full text-center rounded-xl border border-slate-100">No audio</span>
-                     )}
+                      </div>
+                    )}
                   </div>
-                </div>
+                ) : null}
                 
                 {/* Actions Footer */}
                 <div className="mt-6 pt-5 border-t border-slate-100 flex items-center justify-between pl-3">

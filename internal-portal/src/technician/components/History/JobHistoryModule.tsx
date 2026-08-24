@@ -29,15 +29,12 @@ export const JobHistoryModule: React.FC<JobHistoryModuleProps> = ({ jobs }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
 
-  const completedJobs = jobs && jobs.length > 0 ? jobs.filter(j => COMPLETED_HISTORY_STATUSES.includes(j.status)) : [];
-
-  // Fallback to all assigned jobs if no explicit completed status is set yet
-  const displayJobs = completedJobs.length > 0 ? completedJobs : (jobs && jobs.length > 0 ? jobs : []);
+  const completedJobs = jobs && jobs.length > 0 ? jobs.filter(j => j.status === 'COMPLETED' || j.status === 'DELIVERED' || j.status === 'APPROVED') : [];
 
   const techName = localStorage.getItem('user_name') || 'Technician';
 
   // Dynamically map completed jobs from backend
-  const completedJobsList = displayJobs.map((job) => ({
+  const completedJobsList = completedJobs.map((job) => ({
     id: job.id,
     jobCode: job.jobCode,
     title: job.title,
@@ -60,34 +57,9 @@ export const JobHistoryModule: React.FC<JobHistoryModuleProps> = ({ jobs }) => {
 
   return (
     <div className="space-y-6 text-zinc-900 font-sans">
-      {/* Top Banner Header */}
-      <div className="bg-white border border-zinc-200/90 rounded-2xl p-6 shadow-2xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-100 pb-4">
-          <div>
-            <div className="flex items-center space-x-2">
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-mono font-bold border border-emerald-200">
-                ARCHIVED SERVICE RECORDS
-              </span>
-              <span className="text-xs text-zinc-400 font-mono">{techName}</span>
-            </div>
-            <h2 className="text-xl font-extrabold text-zinc-900 tracking-tight mt-1 flex items-center space-x-2">
-              <History className="w-5 h-5 text-zinc-700" />
-              <span>Job History</span>
-            </h2>
-            <p className="text-xs text-zinc-500 mt-0.5">
-              Historical record of signed-off field jobs, completed work orders, customer ratings, and supervisor sign-offs.
-            </p>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <span className="text-xs font-mono font-bold bg-zinc-100 px-3 py-1.5 rounded-xl text-zinc-800 border border-zinc-200">
-              Total Completed: {completedJobsList.length} Orders
-            </span>
-          </div>
-        </div>
-
-        {/* Search & Filter Bar */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
+      {/* Search & Filter Bar */}
+      <div className="bg-white border border-zinc-200/90 rounded-2xl p-5 shadow-2xs">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="relative flex-1 w-full">
             <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
@@ -99,15 +71,21 @@ export const JobHistoryModule: React.FC<JobHistoryModuleProps> = ({ jobs }) => {
             />
           </div>
 
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="w-full sm:w-auto px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-bold text-zinc-700 focus:outline-none cursor-pointer"
-          >
-            <option value="ALL">All Categories</option>
-            <option value="CCTV">CCTV Installation & Setup</option>
-            <option value="Maintenance">Maintenance & Repair</option>
-          </select>
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-bold text-zinc-700 focus:outline-none cursor-pointer"
+            >
+              <option value="ALL">All Categories</option>
+              <option value="CCTV">CCTV Installation & Setup</option>
+              <option value="Maintenance">Maintenance & Repair</option>
+            </select>
+
+            <span className="text-xs font-mono font-bold bg-zinc-100 px-3 py-2 rounded-xl text-zinc-800 border border-zinc-200 shrink-0">
+              Completed: {completedJobsList.length}
+            </span>
+          </div>
         </div>
       </div>
 

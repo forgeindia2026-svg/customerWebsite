@@ -18,6 +18,8 @@ export interface ITechnicianReport extends Document {
   dayNumber?: number;
   beforePhotos?: string[];
   afterPhotos?: string[];
+  voiceNoteUrl?: string;
+  hasVoiceNote?: boolean;
   approvedByAdmin?: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -46,6 +48,8 @@ const TechnicianReportSchema: Schema = new Schema(
     dayNumber: { type: Number, default: 1 },
     beforePhotos: [{ type: String }],
     afterPhotos: [{ type: String }],
+    voiceNoteUrl: { type: String, default: '' },
+    hasVoiceNote: { type: Boolean, default: false },
     approvedByAdmin: { type: Boolean, default: false },
   },
   { timestamps: true }

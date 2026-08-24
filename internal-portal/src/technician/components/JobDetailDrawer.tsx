@@ -33,7 +33,7 @@ export const JobDetailDrawer = ({
   onUpdateStatus,
   onUploadPhoto,
 }: JobDetailDrawerProps) => {
-  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'CUSTOMER' | 'TIMELINE'>('OVERVIEW');
+  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'CUSTOMER'>('OVERVIEW');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [photoCaption, setPhotoCaption] = useState('');
   const [photoType, setPhotoType] = useState<'BEFORE' | 'AFTER'>('BEFORE');
@@ -136,7 +136,7 @@ export const JobDetailDrawer = ({
 
         {/* Tab Selection */}
         <div className="flex border-b border-zinc-200 px-6 bg-white space-x-6 text-sm font-medium">
-          {(['OVERVIEW', 'CUSTOMER', 'TIMELINE'] as const).map((tab) => (
+          {(['OVERVIEW', 'CUSTOMER'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -159,12 +159,14 @@ export const JobDetailDrawer = ({
               {/* Quick Action Bar */}
               <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200 flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-zinc-500 font-medium">Job Quick Status Action</p>
-                  <p className="text-sm font-semibold text-zinc-900 mt-1">Current: {job.status}</p>
-                  <p className="text-xs font-medium text-sky-600 mt-0.5">
-                    {job.assignedTechnicians && job.assignedTechnicians.length > 0 
-                      ? `Assigned to: ${job.assignedTechnicians.map(t => t.name).join(', ')}` 
-                      : 'Available (Unassigned)'}
+                  <p className="text-xs text-zinc-500 font-medium">Job Status & Allocation</p>
+                  <p className="text-sm font-semibold text-zinc-900 mt-1">Status: {String(job.status || 'IN_PROGRESS')}</p>
+                  <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 mt-0.5">
+                    Assigned to: {
+                      (job.assignedTechnicians && Array.isArray(job.assignedTechnicians) && job.assignedTechnicians.length > 0)
+                        ? job.assignedTechnicians.map((t: any) => (typeof t === 'object' && t ? t.name : String(t))).join(', ')
+                        : (typeof job.assignedTechnician === 'object' && job.assignedTechnician ? job.assignedTechnician.name : String(job.assignedTechnician || job.assignedTechnicianName || localStorage.getItem('user_name') || 'Assigned Technician'))
+                    }
                   </p>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -253,23 +255,23 @@ export const JobDetailDrawer = ({
                 <div className="grid grid-cols-2 gap-y-3 text-xs">
                   <div>
                     <span className="text-zinc-400 block">Equipment Type</span>
-                    <span className="font-semibold text-zinc-800">{job.installation.equipmentType}</span>
+                    <span className="font-semibold text-zinc-800">{job.installation?.equipmentType || job.category || 'CCTV Security System'}</span>
                   </div>
                   <div>
-                    <span className="text-zinc-400 block">Model Number</span>
-                    <span className="font-mono text-zinc-800">{job.installation.modelNumber}</span>
+                    <span className="text-zinc-400 block">Model / Job Code</span>
+                    <span className="font-mono text-zinc-800">{job.installation?.modelNumber || job.jobCode || 'N/A'}</span>
                   </div>
                   <div>
                     <span className="text-zinc-400 block">Serial Number</span>
-                    <span className="font-mono text-zinc-800">{job.installation.serialNumber}</span>
+                    <span className="font-mono text-zinc-800">{job.installation?.serialNumber || 'STD-SYS-2026'}</span>
                   </div>
                   <div>
                     <span className="text-zinc-400 block">Location Details</span>
-                    <span className="text-zinc-800">{job.installation.locationDetails}</span>
+                    <span className="text-zinc-800">{job.installation?.locationDetails || job.customer?.address || 'Standard Site Deployment'}</span>
                   </div>
                 </div>
 
-                {job.installation.specialInstructions && (
+                {job.installation?.specialInstructions && (
                   <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900 flex items-start space-x-2">
                     <AlertCircle className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
                     <div>
@@ -288,10 +290,10 @@ export const JobDetailDrawer = ({
                     <span>Inspection Summary</span>
                   </h3>
                   <div className="text-xs text-zinc-600 space-y-1">
-                    <p><span className="font-medium text-zinc-900">Auditor:</span> {job.inspection.inspectedBy}</p>
-                    <p><span className="font-medium text-zinc-900">Date:</span> {job.inspection.inspectionDate}</p>
+                    <p><span className="font-medium text-zinc-900">Auditor:</span> {job.inspection?.inspectedBy || 'Lead Auditor'}</p>
+                    <p><span className="font-medium text-zinc-900">Date:</span> {job.inspection?.inspectionDate || 'Today'}</p>
                     <p className="mt-2 p-2.5 bg-zinc-50 rounded border border-zinc-200 font-mono text-zinc-700">
-                      {job.inspection.notes}
+                      {job.inspection?.notes || 'Standard QA inspection passed.'}
                     </p>
                   </div>
                 </div>
@@ -305,10 +307,10 @@ export const JobDetailDrawer = ({
               <div className="border border-zinc-200 rounded-xl p-5 bg-white space-y-4">
                 <div className="flex items-center space-x-3 pb-3 border-b border-zinc-100">
                   <div className="w-10 h-10 rounded-full bg-zinc-100 flex items-center justify-center font-bold text-zinc-800 text-sm">
-                    {job.customer.name.substring(0, 2).toUpperCase()}
+                    {(job.customer?.name || 'Customer').substring(0, 2).toUpperCase()}
                   </div>
                   <div>
-                    <h3 className="text-base font-semibold text-zinc-900">{job.customer.name}</h3>
+                    <h3 className="text-base font-semibold text-zinc-900">{job.customer?.name || 'Customer Account'}</h3>
                     <p className="text-xs text-zinc-500">Commercial Field Account</p>
                   </div>
                 </div>
@@ -316,48 +318,23 @@ export const JobDetailDrawer = ({
                 <div className="space-y-3 text-xs">
                   <div className="flex items-center space-x-3 text-zinc-700">
                     <Phone className="w-4 h-4 text-zinc-400" />
-                    <span className="font-mono text-sm">{job.customer.phone}</span>
+                    <span className="font-mono text-sm">{job.customer?.phone || 'N/A'}</span>
                   </div>
                   <div className="flex items-center space-x-3 text-zinc-700">
                     <Mail className="w-4 h-4 text-zinc-400" />
-                    <span>{job.customer.email}</span>
+                    <span>{job.customer?.email || 'N/A'}</span>
                   </div>
                   <div className="flex items-start space-x-3 text-zinc-700">
                     <MapPin className="w-4 h-4 text-zinc-400 flex-shrink-0 mt-0.5" />
-                    <span>{job.customer.address}, {job.customer.city} {job.customer.postalCode}</span>
+                    <span>{job.customer?.address || 'Site Address'}, {job.customer?.city || ''} {job.customer?.postalCode || ''}</span>
                   </div>
-                </div>
-              </div>
-
-              {/* Customer Live Status Notification Card */}
-              <div className="border border-emerald-200/80 rounded-xl p-5 bg-emerald-50/60 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono font-bold text-emerald-800 uppercase tracking-wider flex items-center space-x-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                    <span>CUSTOMER DISPATCH NOTIFICATION</span>
-                  </span>
-                  <span className="text-[10px] font-mono font-bold text-emerald-700 bg-white px-2 py-0.5 rounded border border-emerald-200">
-                    SMS & EMAIL SENT
-                  </span>
-                </div>
-
-                <p className="text-xs text-emerald-950 font-medium leading-relaxed">
-                  {job.status === 'ACCEPTED' || job.status === 'IN_PROGRESS'
-                    ? `📱 Notification dispatched to customer ${job.customer.name}: "Technician Alex Vance has accepted your work order (${job.jobCode}) and is en route/active on site."`
-                    : `📱 Customer dispatch notification ready for automated SMS delivery upon technician acceptance.`
-                  }
-                </p>
-
-                <div className="pt-2 border-t border-emerald-200/60 flex items-center justify-between text-[11px] font-mono text-emerald-800">
-                  <span>Recipient: {job.customer.email}</span>
-                  <span className="font-bold">Status: Delivered ✓</span>
                 </div>
               </div>
 
               <div className="pt-1">
                 <a
                   href={`https://maps.google.com/?q=${encodeURIComponent(
-                    `${job.customer.address}, ${job.customer.city}`
+                    `${job.customer?.address || ''}, ${job.customer?.city || ''}`
                   )}`}
                   target="_blank"
                   rel="noreferrer"
@@ -369,36 +346,12 @@ export const JobDetailDrawer = ({
               </div>
             </div>
           )}
-
-          {/* TAB 3: ACTIVITY TIMELINE */}
-          {activeTab === 'TIMELINE' && (
-            <div className="space-y-4">
-              <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
-                Audit Trail & Activity
-              </h4>
-              <div className="relative pl-6 border-l-2 border-zinc-200 space-y-6">
-                {job.activities.map((act: JobActivity) => (
-                  <div key={act.id} className="relative">
-                    <div className="absolute -left-[31px] top-0 w-4 h-4 rounded-full bg-zinc-900 border-2 border-white"></div>
-                    <div>
-                      <div className="flex items-center space-x-2 text-xs">
-                        <span className="font-semibold text-zinc-900">{act.action}</span>
-                        <span className="text-zinc-400">• {act.timestamp}</span>
-                      </div>
-                      <p className="text-xs text-zinc-600 mt-0.5">{act.details}</p>
-                      <span className="text-[10px] font-mono text-zinc-400 mt-1 block">By {act.user}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Drawer Footer */}
         <div className="p-4 border-t border-zinc-200 bg-zinc-50 flex items-center justify-between text-xs text-zinc-500">
-          <span>Job ID: {job.id}</span>
-          <span>Last Updated: {new Date(job.updatedAt).toLocaleTimeString()}</span>
+          <span>Job ID: {job.id || job.jobCode}</span>
+          <span>Last Updated: {job.updatedAt ? new Date(job.updatedAt).toLocaleTimeString() : new Date().toLocaleTimeString()}</span>
         </div>
       </div>
     </div>

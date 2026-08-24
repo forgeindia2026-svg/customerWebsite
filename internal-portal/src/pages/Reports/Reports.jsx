@@ -23,6 +23,10 @@ export default function Reports() {
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [generalReports, setGeneralReports] = useState([]);
   const [attendanceRecords, setAttendanceRecords] = useState([]);
+  const [filterDate, setFilterDate] = useState('');
+  const [filterTech, setFilterTech] = useState('ALL');
+  const [filterStatus, setFilterStatus] = useState('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const fetchGeneralReports = async () => {
@@ -53,60 +57,107 @@ export default function Reports() {
     fetchAttendance();
   }, []);
 
-  // Extract technician reports live from orders store
-  const fieldReportsList = (orders || []).map((order) => {
-    const beforeCount = order.beforePhotos?.length || 0;
-    const afterCount = order.afterPhotos?.length || 0;
-    
-    // Map status
-    let mappedStatus = 'Submitted';
-    const rawStatus = order.status?.toUpperCase() || '';
-    if (rawStatus === 'IN PROGRESS' || rawStatus === 'IN_PROGRESS' || rawStatus === 'PENDING') mappedStatus = 'Under Review';
-    if (rawStatus === 'COMPLETED' || rawStatus === 'APPROVED' || localStorage.getItem(`report_approved_${order.jobCode || order.id}`) === 'true') mappedStatus = 'Verified';
-    if (rawStatus === 'REJECTED') mappedStatus = 'Rejected';
+  // Extract ONLY actual technician reports submitted on orders (ignore unassigned shopping orders with no reports)
+  const orderReportsList = (orders || [])
+    .filter((order) => {
+      // Must have actual technician work notes, photos, or submitted dailyReports
+      const hasDailyReports = order.dailyReports && order.dailyReports.length > 0;
+      const hasFieldNotes = Boolean(order.fieldNotes && order.fieldNotes.trim().length > 0);
+      const hasPhotos = (order.beforePhotos?.length || 0) + (order.afterPhotos?.length || 0) > 0;
+      const isCompletedByTech = order.status?.toUpperCase() === 'COMPLETED' && order.assignedTechnicianName;
+      
+      return hasDailyReports || hasFieldNotes || hasPhotos || isCompletedByTech;
+    })
+    .map((order) => {
+      const mappedStatus = (order.status?.toUpperCase() === 'COMPLETED' || localStorage.getItem(`report_approved_${order.jobCode || order.id}`) === 'true')
+        ? 'Verified'
+        : 'Under Review';
 
-    const techName = 
-      order.assignedTechnicianName || 
-      order.technicianName || 
-      (typeof order.technician === 'string' ? order.technician : order.technician?.name) ||
-      order.assignedTechnicians?.[0]?.name || 
-      order.assignedTechnician?.name || 
-      order.techName ||
-      'Unassigned Tech';
+      const techName = 
+        order.assignedTechnicianName || 
+        order.technicianName || 
+        (typeof order.technician === 'string' ? order.technician : order.technician?.name) ||
+        order.assignedTechnicians?.[0]?.name || 
+        order.assignedTechnician?.name || 
+        'Field Technician';
 
-    return {
-      id: order._id || order.id,
-      jobCode: order.jobCode || order.id || 'SK-ORD-1001',
-      title: order.title || order.serviceType || 'CCTV Installation & Service',
-      customer: order.customerName || order.customer || 'Unknown Customer',
-      address: order.location || order.address || 'Unknown Location',
-      technician: techName,
-      status: mappedStatus,
-      notes: order.fieldNotes || order.workDone || 'Technician site service report submitted.',
-      beforePhotos: order.beforePhotos || [],
-      afterPhotos: order.afterPhotos || [],
-      updatedAt: order.updatedAt || new Date().toISOString(),
-    };
+      return {
+        id: order._id || order.id,
+        jobCode: order.jobCode || order.id || 'SK-ORD-1001',
+        title: order.title || order.serviceType || 'CCTV Installation & Service',
+        customer: order.customerName || order.customer || 'Customer Site',
+        address: order.location || order.address || 'Location Specified on Work Order',
+        technician: techName,
+        status: mappedStatus,
+        notes: order.fieldNotes || order.dailyReports?.[0]?.workDone || order.workDone || 'Work order completed on site.',
+        beforePhotos: order.beforePhotos || [],
+        afterPhotos: order.afterPhotos || [],
+        voiceNoteUrl: order.voiceNoteUrl || order.dailyReports?.[0]?.voiceNoteUrl || order.dailyReport?.voiceNoteUrl || '',
+        hasVoiceNote: Boolean(order.hasVoiceNote || order.voiceNoteUrl || order.dailyReports?.[0]?.hasVoiceNote || order.dailyReport?.hasVoiceNote),
+        updatedAt: order.updatedAt || new Date().toISOString(),
+        hoursWorked: order.dailyReports?.[0]?.hoursWorked || 8
+      };
+    });
+
+  const generalReportsFormatted = (generalReports || [])
+    .filter((gr) => {
+      // Filter out pure Check-In/Attendance logs so only actual work reports are displayed here
+      if (gr.activityType === 'Check-In' || (gr.workDescription && gr.workDescription.includes('Punched in'))) return false;
+      return true;
+    })
+    .map((gr) => {
+      const isCustomOrder = gr.jobCode && (gr.jobCode.startsWith('SK-ORD-') || gr.jobCode.startsWith('JOB-'));
+      const displayJobCode = isCustomOrder ? gr.jobCode : 'DAILY WORK LOG';
+      const displayTitle = gr.activityType || 'General Work Activity';
+
+      return {
+        id: gr._id,
+        jobCode: displayJobCode,
+        title: displayTitle,
+        customer: isCustomOrder ? (gr.customerName || 'Customer Site') : (gr.customerName || 'Office / Internal Activity'),
+        address: gr.location || 'Site Location',
+        technician: gr.technicianName || gr.technician || 'Field Technician',
+        status: gr.approvedByAdmin || localStorage.getItem(`report_approved_${gr.jobCode || gr._id}`) === 'true' ? 'Verified' : 'Under Review',
+        checkInTime: gr.checkInTime || '',
+        checkOutTime: gr.checkOutTime || '',
+        notes: (gr.workDescription || 'Daily report log submitted.').replace(/\[Voice Memo Attached:[^\]]*\]/gi, '').trim(),
+        beforePhotos: gr.beforePhotos || [],
+        afterPhotos: gr.afterPhotos || [],
+        voiceNoteUrl: gr.voiceNoteUrl || '',
+        hasVoiceNote: Boolean(gr.hasVoiceNote || (gr.voiceNoteUrl && gr.voiceNoteUrl.length > 0)),
+        updatedAt: gr.createdAt || gr.date || new Date().toISOString(),
+        hoursWorked: gr.hoursWorked !== undefined && gr.hoursWorked !== null ? Number(gr.hoursWorked) : 8
+      };
+    });
+
+  // Combine reports and avoid duplicates
+  const existingJobCodes = new Set(generalReportsFormatted.map(r => r.jobCode).filter(c => c && c !== 'DAILY WORK LOG'));
+  const allReportsList = [
+    ...generalReportsFormatted,
+    ...orderReportsList.filter(o => !existingJobCodes.has(o.jobCode))
+  ].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+
+  const uniqueTechNames = Array.from(new Set(allReportsList.map(r => r.technician).filter(Boolean)));
+
+  const filteredFieldReports = allReportsList.filter(report => {
+    if (filterDate) {
+      const repDate = (report.updatedAt || report.date || '').split('T')[0];
+      if (repDate !== filterDate) return false;
+    }
+    if (filterTech !== 'ALL' && report.technician !== filterTech) return false;
+    if (filterStatus !== 'ALL' && report.status !== filterStatus) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const match = 
+        report.jobCode?.toLowerCase().includes(q) ||
+        report.customer?.toLowerCase().includes(q) ||
+        report.technician?.toLowerCase().includes(q) ||
+        report.address?.toLowerCase().includes(q) ||
+        report.notes?.toLowerCase().includes(q);
+      if (!match) return false;
+    }
+    return true;
   });
-
-  const generalReportsFormatted = (generalReports || []).map((gr) => ({
-    id: gr._id,
-    jobCode: gr.jobId || gr.jobCode || 'GENERAL-TASK',
-    title: gr.activityType || 'General Daily Work',
-    customer: gr.customerName || 'N/A (General)',
-    address: gr.location || 'Internal / Office / Other',
-    technician: gr.technicianName || gr.technician || 'Field Technician',
-    status: gr.status || 'PRESENT',
-    checkInTime: gr.checkInTime || '09:00 AM',
-    checkOutTime: gr.checkOutTime || '06:00 PM',
-    notes: gr.workDescription || 'Shift logged',
-    beforePhotos: gr.beforePhotos || [],
-    afterPhotos: gr.afterPhotos || [],
-    updatedAt: gr.createdAt || gr.date || new Date().toISOString(),
-    hoursWorked: gr.hoursWorked || 8
-  }));
-
-  const allReportsList = [...fieldReportsList, ...generalReportsFormatted].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 
   // Pure Daily Attendance List (1 Row per Technician per Day for Salary & Payroll)
   const todayStr = new Date().toISOString().split('T')[0];
@@ -766,14 +817,120 @@ export default function Reports() {
               </div>
             </div>
 
+            {/* 🔍 Dynamic Date & Multi-Filter Bar */}
+            <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-200/70 dark:border-slate-700/60 mb-6 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">📅 Filter by Date:</span>
+                  <input 
+                    type="date"
+                    value={filterDate}
+                    onChange={(e) => setFilterDate(e.target.value)}
+                    className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-mono font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-red-500"
+                  />
+                  {filterDate && (
+                    <button
+                      onClick={() => setFilterDate('')}
+                      className="text-xs font-bold text-red-600 hover:text-red-700 underline cursor-pointer"
+                    >
+                      Clear Date
+                    </button>
+                  )}
+                  <div className="flex items-center gap-1.5 ml-1">
+                    <button
+                      onClick={() => setFilterDate(new Date().toISOString().split('T')[0])}
+                      className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
+                        filterDate === new Date().toISOString().split('T')[0]
+                          ? 'bg-red-600 text-white border-red-600'
+                          : 'bg-white dark:bg-slate-900 border-slate-200 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      Today
+                    </button>
+                    <button
+                      onClick={() => {
+                        const d = new Date();
+                        d.setDate(d.getDate() - 1);
+                        setFilterDate(d.toISOString().split('T')[0]);
+                      }}
+                      className="px-2.5 py-1 text-xs font-bold rounded-lg border border-slate-200 bg-white dark:bg-slate-900 text-slate-700 hover:bg-slate-100 transition-all cursor-pointer"
+                    >
+                      Yesterday
+                    </button>
+                    <button
+                      onClick={() => setFilterDate('')}
+                      className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
+                        !filterDate
+                          ? 'bg-slate-900 text-white border-slate-900'
+                          : 'bg-white dark:bg-slate-900 border-slate-200 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      All Dates
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Tech Dropdown */}
+                  <select
+                    value={filterTech}
+                    onChange={(e) => setFilterTech(e.target.value)}
+                    className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-900 dark:text-white outline-none"
+                  >
+                    <option value="ALL">All Technicians ({uniqueTechNames.length})</option>
+                    {uniqueTechNames.map(t => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+
+                  {/* Status Dropdown */}
+                  <select
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                    className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-900 dark:text-white outline-none"
+                  >
+                    <option value="ALL">All Status</option>
+                    <option value="Verified">Verified / Approved</option>
+                    <option value="Under Review">Under Review / In Progress</option>
+                    <option value="Submitted">Submitted</option>
+                  </select>
+
+                  {/* Search Query */}
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search task, tech, customer..."
+                    className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white outline-none w-48"
+                  />
+                </div>
+              </div>
+              <div className="text-[11px] text-slate-500 font-medium flex items-center justify-between pt-1">
+                <span>Showing <strong>{filteredFieldReports.length}</strong> of <strong>{allReportsList.length}</strong> reports</span>
+                {(filterDate || filterTech !== 'ALL' || filterStatus !== 'ALL' || searchQuery) && (
+                  <button
+                    onClick={() => {
+                      setFilterDate('');
+                      setFilterTech('ALL');
+                      setFilterStatus('ALL');
+                      setSearchQuery('');
+                    }}
+                    className="text-red-600 hover:text-red-700 font-bold underline cursor-pointer"
+                  >
+                    Reset All Filters
+                  </button>
+                )}
+              </div>
+            </div>
+
             {/* 📱 Mobile Card View (Screenshot 1) - Matching Technician Mobile Flow */}
             <div className="block md:hidden space-y-3">
-              {allReportsList.length === 0 ? (
+              {filteredFieldReports.length === 0 ? (
                 <div className="p-6 text-center text-slate-400 text-xs bg-slate-50 rounded-2xl border border-slate-200">
-                  No field service reports found.
+                  No field service reports found for selected filters.
                 </div>
               ) : (
-                allReportsList.map((report) => {
+                filteredFieldReports.map((report) => {
                   const isApproved = localStorage.getItem(`report_approved_${report.jobCode}`) === 'true' || report.status === 'Approved';
                   const mainPhoto = report.afterPhotos?.[0] || report.beforePhotos?.[0] || 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?q=80&w=200&auto=format&fit=crop';
                   const photoUrl = typeof mainPhoto === 'string' ? mainPhoto : mainPhoto.url;
@@ -815,30 +972,55 @@ export default function Reports() {
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-bold uppercase tracking-wider text-[11px]">
+                    <th className="py-3 px-3">Date & Time</th>
                     <th className="py-3 px-3">Job Code / Order</th>
                     <th className="py-3 px-3">Technician</th>
                     <th className="py-3 px-3">Customer & Location</th>
                     <th className="py-3 px-3 text-center">Status</th>
-                    <th className="py-3 px-3 text-center">Evidence Photos</th>
+                    <th className="py-3 px-3 text-center">Evidence & Media</th>
                     <th className="py-3 px-3">Technician Narrative / Notes</th>
                     <th className="py-3 px-3 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
-                  {allReportsList.length === 0 ? (
+                  {filteredFieldReports.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="py-12 text-center text-slate-400 text-sm">
-                        No field service reports found. Reports submitted by technicians will automatically appear here.
+                      <td colSpan={8} className="py-12 text-center text-slate-400 text-sm">
+                        No field service reports found for the selected date / filters.
                       </td>
                     </tr>
                   ) : (
-                    allReportsList.map((report) => {
-                      const totalPhotos = report.beforePhotos.length + report.afterPhotos.length;
+                    filteredFieldReports.map((report) => {
+                      const totalPhotos = (report.beforePhotos?.length || 0) + (report.afterPhotos?.length || 0);
+                      const hasVoice = Boolean(report.hasVoiceNote || (report.voiceNoteUrl && report.voiceNoteUrl.length > 0));
+
                       return (
                         <tr key={report.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                          <td className="py-4 px-3 align-middle font-mono font-extrabold text-slate-900 dark:text-white">
-                            <div>{report.jobCode}</div>
-                            <div className="text-[10px] font-sans font-medium text-slate-400 truncate max-w-[150px]">{report.title}</div>
+                          {/* 📅 Date & Time Column */}
+                          <td className="py-4 px-3 align-middle">
+                            <div className="font-bold text-slate-900 dark:text-white text-xs whitespace-nowrap">
+                              {new Date(report.updatedAt || report.date || Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                            </div>
+                            <div className="text-[10px] text-slate-400 font-mono mt-0.5 whitespace-nowrap">
+                              {report.time || (report.updatedAt ? new Date(report.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : '03:45 PM')}
+                            </div>
+                          </td>
+
+                          {/* 🏷️ Job Code / Order Column */}
+                          <td className="py-4 px-3 align-middle">
+                            {report.jobCode === 'DAILY WORK LOG' ? (
+                              <div>
+                                <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded text-[10px] font-bold uppercase tracking-wider">
+                                  DAILY LOG
+                                </span>
+                                <div className="text-xs font-bold text-slate-850 dark:text-slate-200 mt-1">{report.title}</div>
+                              </div>
+                            ) : (
+                              <div>
+                                <div className="font-mono font-extrabold text-slate-900 dark:text-white">#{report.jobCode}</div>
+                                <div className="text-[10px] font-sans font-medium text-slate-400 truncate max-w-[150px]">{report.title}</div>
+                              </div>
+                            )}
                           </td>
 
                           <td className="py-4 px-3 align-middle font-bold text-slate-800 dark:text-slate-200">
@@ -864,17 +1046,31 @@ export default function Reports() {
                             </span>
                           </td>
 
+                          {/* 📸 Evidence & Media Column (Photos + Voice Note) */}
                           <td className="py-4 px-3 align-middle text-center">
-                            {totalPhotos > 0 ? (
-                              <button
-                                onClick={() => setSelectedPhotoModal(report)}
-                                className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg text-[11px] font-bold transition-all cursor-pointer inline-flex items-center gap-1"
-                              >
-                                <span>📸 {totalPhotos} Photos</span>
-                              </button>
-                            ) : (
-                              <span className="text-[11px] text-slate-400 font-medium">No Photos</span>
-                            )}
+                            <div className="flex flex-col items-center gap-1.5 justify-center">
+                              {totalPhotos > 0 && (
+                                <button
+                                  onClick={() => setSelectedPhotoModal(report)}
+                                  className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 rounded-lg text-[11px] font-bold transition-all cursor-pointer inline-flex items-center gap-1 shadow-2xs hover:scale-105"
+                                >
+                                  <span>📸 {totalPhotos} Photos</span>
+                                </button>
+                              )}
+
+                              {hasVoice && (
+                                <button
+                                  onClick={() => setAdminFullReportModal(report)}
+                                  className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 rounded-lg text-[11px] font-bold transition-all cursor-pointer inline-flex items-center gap-1 shadow-2xs hover:scale-105"
+                                >
+                                  <span>🎙️ Voice Memo</span>
+                                </button>
+                              )}
+
+                              {totalPhotos === 0 && !hasVoice && (
+                                <span className="text-[11px] text-slate-400 font-medium">No Media</span>
+                              )}
+                            </div>
                           </td>
 
                           <td className="py-4 px-3 align-middle">
@@ -884,7 +1080,7 @@ export default function Reports() {
                           <td className="py-4 px-3 align-middle text-right">
                             <div className="flex items-center justify-end space-x-2">
                               <button
-                                onClick={() => setSelectedPhotoModal(report)}
+                                onClick={() => setAdminFullReportModal(report)}
                                 className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
                               >
                                 View
@@ -1367,21 +1563,23 @@ export default function Reports() {
                   <div className="p-3 flex items-center justify-between">
                     <span className="text-slate-700 dark:text-slate-300 font-medium">Inspection Comments</span>
                     <span className="text-slate-900 dark:text-white font-medium text-right max-w-[150px] truncate">
-                      {adminQuickDetailReport.notes}
+                      {(adminQuickDetailReport.notes || 'Work completed').replace(/\[Voice Memo Attached:[^\]]*\]/gi, '').trim()}
                     </span>
                   </div>
 
                   {/* Voice Report */}
-                  <div className="p-3 flex items-center justify-between">
-                    <span className="text-slate-700 dark:text-slate-300 font-medium">Voice Report</span>
-                    <button
-                      onClick={() => setIsPlayingAudio(!isPlayingAudio)}
-                      className="px-2.5 py-1 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 rounded-full font-bold text-[10px] flex items-center space-x-1 cursor-pointer"
-                    >
-                      <span>▶</span>
-                      <span>00:45</span>
-                    </button>
-                  </div>
+                  {(adminQuickDetailReport.hasVoiceNote || adminQuickDetailReport.voiceNoteUrl) && (
+                    <div className="p-3 flex items-center justify-between">
+                      <span className="text-slate-700 dark:text-slate-300 font-medium">Voice Report</span>
+                      <button
+                        onClick={() => setIsPlayingAudio(!isPlayingAudio)}
+                        className="px-2.5 py-1 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 text-red-600 rounded-full font-bold text-[10px] flex items-center space-x-1.5 cursor-pointer border border-red-200 dark:border-red-900"
+                      >
+                        <span>{isPlayingAudio ? '⏹ Stop' : '▶ Play Audio'}</span>
+                        <span className="font-mono">00:12</span>
+                      </button>
+                    </div>
+                  )}
 
                   {/* Completion Status */}
                   <div className="p-3 flex items-center justify-between">
@@ -1438,64 +1636,64 @@ export default function Reports() {
               <div className="space-y-1 pb-3 border-b border-slate-100 dark:border-slate-800">
                 <span className="font-bold text-slate-900 dark:text-white block text-xs">Task Description</span>
                 <p className="text-slate-600 dark:text-slate-300 font-medium">
-                  {adminFullReportModal.title || 'Remove old camera and add new Playback system'}
+                  {adminFullReportModal.title || 'CCTV Installation & Field Service Work'}
                 </p>
               </div>
 
               {/* Before Work Photos */}
-              <div className="space-y-2 pb-3 border-b border-slate-100 dark:border-slate-800">
-                <span className="font-bold text-slate-900 dark:text-white block text-xs">Before Work Photos</span>
-                <div className="flex items-center space-x-3 overflow-x-auto">
-                  {adminFullReportModal.beforePhotos?.length > 0 ? (
-                    adminFullReportModal.beforePhotos.map((p, i) => (
+              {adminFullReportModal.beforePhotos && adminFullReportModal.beforePhotos.length > 0 && (
+                <div className="space-y-2 pb-3 border-b border-slate-100 dark:border-slate-800">
+                  <span className="font-bold text-slate-900 dark:text-white block text-xs">Before Work Photos ({adminFullReportModal.beforePhotos.length})</span>
+                  <div className="flex items-center space-x-3 overflow-x-auto">
+                    {adminFullReportModal.beforePhotos.map((p, i) => (
                       <img key={i} src={typeof p === 'string' ? p : p.url} alt="Before" className="w-32 h-28 object-cover rounded-xl border border-slate-200" />
-                    ))
-                  ) : (
-                    <img src="https://images.unsplash.com/photo-1558002038-1055907df827?q=80&w=400&auto=format&fit=crop" alt="Before" className="w-32 h-28 object-cover rounded-xl border border-slate-200" />
-                  )}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Inspection Comments */}
               <div className="space-y-1 pb-3 border-b border-slate-100 dark:border-slate-800">
                 <span className="font-bold text-slate-900 dark:text-white block text-xs">Inspection Comments</span>
                 <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200/80 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-medium">
-                  {adminFullReportModal.notes || 'finished [Voice Memo Attached: 8s Audio Summary]'}
+                  {(adminFullReportModal.notes || 'Work completed on site.').replace(/\[Voice Memo Attached:[^\]]*\]/gi, '').trim()}
                 </div>
               </div>
 
               {/* After Work Photos */}
-              <div className="space-y-2 pb-3 border-b border-slate-100 dark:border-slate-800">
-                <span className="font-bold text-slate-900 dark:text-white block text-xs">After Work Photos</span>
-                <div className="flex items-center space-x-3 overflow-x-auto">
-                  {adminFullReportModal.afterPhotos?.length > 0 ? (
-                    adminFullReportModal.afterPhotos.map((p, i) => (
+              {adminFullReportModal.afterPhotos && adminFullReportModal.afterPhotos.length > 0 && (
+                <div className="space-y-2 pb-3 border-b border-slate-100 dark:border-slate-800">
+                  <span className="font-bold text-slate-900 dark:text-white block text-xs">After Work Photos ({adminFullReportModal.afterPhotos.length})</span>
+                  <div className="flex items-center space-x-3 overflow-x-auto">
+                    {adminFullReportModal.afterPhotos.map((p, i) => (
                       <img key={i} src={typeof p === 'string' ? p : p.url} alt="After" className="w-32 h-28 object-cover rounded-xl border border-slate-200" />
-                    ))
-                  ) : (
-                    <img src="https://images.unsplash.com/photo-1557597774-9d273605dfa9?q=80&w=400&auto=format&fit=crop" alt="After" className="w-32 h-28 object-cover rounded-xl border border-slate-200" />
-                  )}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Voice Report Player */}
-              <div className="space-y-2 pb-3 border-b border-slate-100 dark:border-slate-800">
-                <span className="font-bold text-slate-900 dark:text-white block text-xs">Voice Report</span>
-                <div className="p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-2xl flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <button
-                      onClick={() => setIsPlayingAudio(!isPlayingAudio)}
-                      className={`w-9 h-9 rounded-full flex items-center justify-center text-white transition-colors cursor-pointer ${
-                        isPlayingAudio ? 'bg-red-500 animate-pulse' : 'bg-red-600 hover:bg-red-700'
-                      }`}
-                    >
-                      {isPlayingAudio ? '⏹' : '▶'}
-                    </button>
-                    <span className="font-bold text-xs text-slate-900 dark:text-white">Audio Recording</span>
+              {(adminFullReportModal.hasVoiceNote || adminFullReportModal.voiceNoteUrl) && (
+                <div className="space-y-2 pb-3 border-b border-slate-100 dark:border-slate-800">
+                  <span className="font-bold text-slate-900 dark:text-white block text-xs">Voice Report</span>
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-2xl flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <button
+                        onClick={() => setIsPlayingAudio(!isPlayingAudio)}
+                        className={`w-9 h-9 rounded-full flex items-center justify-center text-white transition-colors cursor-pointer ${
+                          isPlayingAudio ? 'bg-red-500 animate-pulse' : 'bg-red-600 hover:bg-red-700'
+                        }`}
+                      >
+                        {isPlayingAudio ? '⏹' : '▶'}
+                      </button>
+                      <span className="font-bold text-xs text-slate-900 dark:text-white">
+                        {isPlayingAudio ? 'Playing Voice Memo...' : 'Audio Recording Summary'}
+                      </span>
+                    </div>
+                    <span className="font-mono text-slate-500 font-bold text-xs">00:12</span>
                   </div>
-                  <span className="font-mono text-slate-500 font-bold text-xs">00:45</span>
                 </div>
-              </div>
+              )}
 
               {/* Completion Status & Submitter Details */}
               <div className="space-y-2 text-xs pt-1">

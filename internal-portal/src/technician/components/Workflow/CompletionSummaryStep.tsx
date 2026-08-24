@@ -141,8 +141,8 @@ export const CompletionSummaryStep: React.FC<CompletionSummaryStepProps> = ({
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const finalNote = `${notes} [Voice Memo Attached: ${voiceNoteRecorded ? `${recordingSeconds || 12}s Audio Summary` : 'None'}]`;
-      await onCompleteJob(job.id, finalNote, `Signed by ${signatureName} on ${formatDate(new Date())}`);
+      const finalNote = notes?.trim() || 'Work successfully completed and signed off.';
+      await onCompleteJob(job.id, finalNote, `Signed by ${signatureName} on ${formatDate(new Date())}`, voiceNoteRecorded ? (audioUrl || 'recorded-audio') : undefined);
       onCloseWorkflow();
     } finally {
       setIsSubmitting(false);

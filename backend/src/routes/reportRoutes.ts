@@ -29,7 +29,8 @@ router.post('/', async (req: Request, res: Response) => {
       technicianId, technicianName, date, activityType, 
       workDescription, hoursWorked, checkInTime, checkOutTime, 
       status, jobId, jobCode, customerName, location, 
-      isMultiDay, dayNumber, beforePhotos, afterPhotos 
+      isMultiDay, dayNumber, beforePhotos, afterPhotos,
+      voiceNoteUrl, hasVoiceNote 
     } = req.body;
     
     const finalTechId = technicianId || 'TECH-01';
@@ -53,6 +54,8 @@ router.post('/', async (req: Request, res: Response) => {
       dayNumber: dayNumber || 1,
       beforePhotos: beforePhotos || [],
       afterPhotos: afterPhotos || [],
+      voiceNoteUrl: voiceNoteUrl || '',
+      hasVoiceNote: Boolean(hasVoiceNote || (voiceNoteUrl && voiceNoteUrl.length > 0)),
       approvedByAdmin: false
     });
 

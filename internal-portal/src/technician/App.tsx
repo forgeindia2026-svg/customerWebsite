@@ -418,9 +418,9 @@ export function App() {
     }
   };
 
-  const handleCompleteJob = async (jobId: string, closeoutNotes: string, customerSignature?: string) => {
+  const handleCompleteJob = async (jobId: string, closeoutNotes: string, customerSignature?: string, voiceNoteUrl?: string) => {
     try {
-      const updated = await JobsApiService.completeJob(jobId, closeoutNotes, customerSignature);
+      const updated = await JobsApiService.completeJob(jobId, closeoutNotes, customerSignature, voiceNoteUrl);
       setJobs((prev) => prev.map((j) => (j.id === jobId ? updated : j)));
       if (selectedJob?.id === jobId) setSelectedJob(updated);
       if (workflowJob?.id === jobId) setWorkflowJob(updated);
