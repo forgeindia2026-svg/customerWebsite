@@ -84,7 +84,7 @@ export const AttendanceCard: React.FC = () => {
       setIsPunching(true);
       const now = new Date();
       const today = now.toISOString().split('T')[0];
-      const checkInTimeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+      const checkInTimeStr = now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true });
 
       const localRecord: AttendanceRecord = {
         technicianId: techId,
@@ -106,7 +106,7 @@ export const AttendanceCard: React.FC = () => {
         body: JSON.stringify({
           technicianId: techId,
           technicianName: techName,
-          notes: 'Punch-In from Field App'
+          notes: 'Full Day Duty (1.0 Day Salary)'
         })
       });
 
@@ -129,7 +129,7 @@ export const AttendanceCard: React.FC = () => {
       setIsPunching(true);
       const now = new Date();
       const today = now.toISOString().split('T')[0];
-      const checkOutTimeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+      const checkOutTimeStr = now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true });
 
       let hours = 0;
       if (attendance?.checkInTimestamp) {
@@ -156,7 +156,7 @@ export const AttendanceCard: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           technicianId: techId,
-          notes: notes || 'Shift completed'
+          notes: notes || 'Full Day Duty (1.0 Day Salary)'
         })
       });
 

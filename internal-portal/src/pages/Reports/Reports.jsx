@@ -111,18 +111,47 @@ export default function Reports() {
   // Pure Daily Attendance List (1 Row per Technician per Day for Salary & Payroll)
   const todayStr = new Date().toISOString().split('T')[0];
 
-  const dailyAttendanceList = (attendanceRecords || []).map(rec => ({
-    id: rec._id || `${rec.technicianId}-${rec.date}`,
-    date: rec.date || todayStr,
-    technicianId: rec.technicianId,
-    technician: rec.technicianName || 'Field Technician',
-    checkInTime: rec.checkInTime || '--:--',
-    checkOutTime: rec.checkOutTime || '--:--',
-    totalHours: rec.totalHours || 0,
-    status: rec.status || 'PRESENT',
-    location: rec.location || 'Field Operations',
-    notes: rec.notes || (rec.status === 'HALF_DAY' ? 'Half Day Duty (0.5 Day Salary)' : 'Full Day Duty (1.0 Day Salary)')
-  }));
+  const dailyAttendanceList = (attendanceRecords || []).map(rec => {
+    // Format checkInTime properly in Indian Standard Time (IST)
+    let formattedCheckIn = rec.checkInTime || '--:--';
+    if (rec.checkInTimestamp) {
+      formattedCheckIn = new Date(rec.checkInTimestamp).toLocaleTimeString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    }
+
+    let formattedCheckOut = rec.checkOutTime || '--:--';
+    if (rec.checkOutTimestamp) {
+      formattedCheckOut = new Date(rec.checkOutTimestamp).toLocaleTimeString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    }
+
+    // Determine clean salary & payroll note
+    let salaryNote = 'Full Day Duty (1.0 Day Salary)';
+    if (rec.status === 'HALF_DAY') salaryNote = 'Half Day Duty (0.5 Day Salary)';
+    else if (rec.status === 'OVERTIME') salaryNote = 'Overtime Duty (1.5x Salary)';
+    else if (rec.status === 'OFF_DUTY') salaryNote = 'Full Day Duty (1.0 Day Salary)';
+
+    return {
+      id: rec._id || `${rec.technicianId}-${rec.date}`,
+      date: rec.date || todayStr,
+      technicianId: rec.technicianId,
+      technician: rec.technicianName || 'Field Technician',
+      checkInTime: formattedCheckIn,
+      checkOutTime: formattedCheckOut,
+      totalHours: rec.totalHours || 0,
+      status: rec.status || 'PRESENT',
+      location: rec.location || 'Chennai Operations',
+      notes: salaryNote
+    };
+  });
 
   // Calculations
   const totalCollected = (payments || []).filter(p => p && p.status === 'Paid').reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
@@ -577,7 +606,7 @@ export default function Reports() {
                     <th className="py-3 px-3 text-center">Evening Check-Out</th>
                     <th className="py-3 px-3 text-center">Working Hours</th>
                     <th className="py-3 px-3 text-center">Status</th>
-                    <th className="py-3 px-3">Shift / Location</th>
+                    <th className="py-3 px-3">Location</th>
                     <th className="py-3 px-3">Salary & Payroll Note</th>
                   </tr>
                 </thead>

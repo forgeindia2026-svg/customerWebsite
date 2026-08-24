@@ -45,7 +45,7 @@ router.post('/check-in', async (req: Request, res: Response) => {
 
     const now = new Date();
     const today = now.toISOString().split('T')[0];
-    const checkInTimeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+    const checkInTimeStr = now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true });
 
     // Check if already punched in today
     let record = await TechnicianAttendance.findOne({ technicianId, date: today });
@@ -67,8 +67,8 @@ router.post('/check-in', async (req: Request, res: Response) => {
       checkInTime: checkInTimeStr,
       checkInTimestamp: now,
       status: 'PRESENT',
-      location: location || 'Field Location',
-      notes: notes || 'Shift Started'
+      location: location || 'Field Operations',
+      notes: notes || 'Full Day Duty (1.0 Day Salary)'
     });
 
     await record.save();
@@ -89,7 +89,7 @@ router.post('/check-out', async (req: Request, res: Response) => {
 
     const now = new Date();
     const today = now.toISOString().split('T')[0];
-    const checkOutTimeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+    const checkOutTimeStr = now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true });
 
     let record = await TechnicianAttendance.findOne({ technicianId, date: today });
     if (!record) {
