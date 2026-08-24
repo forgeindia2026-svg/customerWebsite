@@ -73,24 +73,40 @@ router.get('/analytics', async (req: Request, res: Response) => {
   }
 });
 
+// In-memory High-Speed Cache for Dashboard (5 seconds TTL)
+let cachedDashboardState: any = null;
+let lastCacheTime = 0;
+const DASHBOARD_CACHE_TTL = 5000;
+
+export const clearDashboardCache = () => {
+  cachedDashboardState = null;
+  lastCacheTime = 0;
+};
+
 // GET entire dashboard state dynamically built from live database collections
 router.get('/', async (req: Request, res: Response) => {
   try {
+    const now = Date.now();
+    const forceRefresh = req.query.refresh === 'true';
+
+    if (!forceRefresh && cachedDashboardState && (now - lastCacheTime < DASHBOARD_CACHE_TTL)) {
+      return res.json({ success: true, data: cachedDashboardState, cached: true });
+    }
+
     // ⚡ Ultra-Fast Parallel MongoDB Query Execution
     let [dashboardDoc, liveOrders, liveProducts, liveTechnicians, liveCustomers, liveJobs] = await Promise.all([
-      Dashboard.findOne().lean(),
-      Order.find().sort({ createdAt: -1 }).lean(),
-      Product.find().lean(),
-      User.find({ role: 'TECHNICIAN' }).lean(),
-      User.find({ role: 'CUSTOMER' }).lean(),
-      Job.find().sort({ createdAt: -1 }).lean()
+      Dashboard.findOne().lean().catch(() => null),
+      Order.find().sort({ createdAt: -1 }).lean().catch(() => []),
+      Product.find().lean().catch(() => []),
+      User.find({ role: 'TECHNICIAN' }).lean().catch(() => []),
+      User.find({ role: 'CUSTOMER' }).lean().catch(() => []),
+      Job.find().sort({ createdAt: -1 }).lean().catch(() => [])
     ]);
 
-    let dashboardData = dashboardDoc;
+    let dashboardData: any = dashboardDoc;
 
     if (!dashboardData) {
-      // Create baseline document with empty fields if it doesn't exist
-      const newDoc = await Dashboard.create({
+      dashboardData = {
         orders: [],
         customers: [],
         technicians: [],
@@ -106,20 +122,41 @@ router.get('/', async (req: Request, res: Response) => {
         announcements: [],
         banners: [],
         brands: []
-      });
-      dashboardData = newDoc.toObject();
+      };
     }
 
+    // Pre-index collections for ultra-fast O(1) lookups
+    const jobByCode = new Map((liveJobs || []).map((j: any) => [j.jobCode, j]));
+    const ordersByEmail = new Map<string, any[]>();
+    (liveOrders || []).forEach((o: any) => {
+      const email = o.customerEmail?.toLowerCase() || '';
+      if (email) {
+        if (!ordersByEmail.has(email)) ordersByEmail.set(email, []);
+        ordersByEmail.get(email)!.push(o);
+      }
+    });
+
+    const activeJobByTechId = new Map<string, any>();
+    (liveJobs || []).forEach((j: any) => {
+      if (j.status !== 'COMPLETED' && j.status !== 'CANCELLED') {
+        (j.assignedTechnicians || []).forEach((t: any) => {
+          if (t.id && !activeJobByTechId.has(t.id.toString())) {
+            activeJobByTechId.set(t.id.toString(), j);
+          }
+        });
+      }
+    });
+
     // Map live Jobs/Projects (Combine Jobs & Orders so all 27 projects are returned)
-    const jobCodesSet = new Set(liveJobs.map(j => j.jobCode));
+    const jobCodesSet = new Set((liveJobs || []).map((j: any) => j.jobCode));
     const mappedProjects = [
-      ...liveJobs.map((job: any) => ({
+      ...(liveJobs || []).map((job: any) => ({
         id: job.jobCode,
         name: job.title,
         technician: (job.assignedTechnicians && job.assignedTechnicians.length > 0) ? job.assignedTechnicians.map((t: any) => t.name).join(', ') : 'Unassigned',
         customer: job.customer?.name || 'Unknown Customer',
         location: job.customer?.address || 'Chennai Area',
-        submissionDate: job.scheduledDate || new Date(job.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        submissionDate: job.scheduledDate || (job.createdAt ? new Date(job.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Today'),
         status: (() => {
           if (job.status === 'PENDING') return (job.assignedTechnicians && job.assignedTechnicians.length > 0) ? 'In Progress' : 'Pending';
           if (job.status === 'ASSIGNED' || job.status === 'IN_PROGRESS') return 'In Progress';
@@ -129,17 +166,17 @@ router.get('/', async (req: Request, res: Response) => {
         })(),
         details: job.scopeOfWork?.join(', ') || job.title,
         devicesCount: job.equipmentList?.length || 0,
-        dailyLogs: job.fieldNotes ? [{ date: new Date(job.updatedAt).toLocaleDateString('en-US'), status: job.status, report: job.fieldNotes, photos: [] }] : []
+        dailyLogs: job.fieldNotes ? [{ date: new Date(job.updatedAt || Date.now()).toLocaleDateString('en-US'), status: job.status, report: job.fieldNotes, photos: [] }] : []
       })),
-      ...liveOrders
-        .filter(o => !jobCodesSet.has(o.orderNumber))
+      ...(liveOrders || [])
+        .filter((o: any) => !jobCodesSet.has(o.orderNumber))
         .map((order: any) => ({
           id: order.orderNumber,
           name: order.items?.map((item: any) => item.title).join(', ') || 'CCTV Installation',
           technician: 'Unassigned',
           customer: order.customerName,
           location: order.shippingAddress || 'Chennai Area',
-          submissionDate: new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          submissionDate: order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Today',
           status: order.orderStatus === 'DELIVERED' ? 'Approved' : 'Pending',
           details: order.items?.map((item: any) => item.title).join(', ') || 'CCTV Installation',
           devicesCount: order.items?.length || 1,
@@ -148,8 +185,8 @@ router.get('/', async (req: Request, res: Response) => {
     ];
 
     // Map live Orders
-    const mappedOrders = liveOrders.map((order: any) => {
-      const job = liveJobs.find(j => j.jobCode === order.orderNumber);
+    const mappedOrders = (liveOrders || []).map((order: any) => {
+      const job = jobByCode.get(order.orderNumber);
       let dashboardStatus = 'Pending';
       if (order.orderStatus === 'DELIVERED') {
         dashboardStatus = 'Completed';
@@ -178,7 +215,7 @@ router.get('/', async (req: Request, res: Response) => {
         location: order.shippingAddress || 'Chennai Area',
         assignedTechnician: (job?.assignedTechnicians && job.assignedTechnicians.length > 0) ? job.assignedTechnicians.map((t: any) => t.name).join(', ') : 'Unassigned',
         status: dashboardStatus,
-        date: new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        date: order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Today',
         amount: order.totalAmount,
         createdAt: order.createdAt
       };
@@ -274,6 +311,9 @@ router.get('/', async (req: Request, res: Response) => {
       projects: mappedProjects,
       payments: mappedPayments
     };
+
+    cachedDashboardState = mergedData;
+    lastCacheTime = Date.now();
 
     res.json({ success: true, data: mergedData });
   } catch (error: any) {
