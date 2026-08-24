@@ -41,7 +41,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'assigned_jobs', label: 'Assigned Jobs', icon: Briefcase, badge: jobsCount > 0 ? String(jobsCount) : undefined },
-    { id: 'todays_jobs', label: "Today's Jobs", icon: CalendarCheck },
     { id: 'attendance_log', label: 'Attendance Log', icon: Clock },
     { id: 'reports', label: 'Daily Reports', icon: FileText },
     { id: 'history', label: 'Job History', icon: History },

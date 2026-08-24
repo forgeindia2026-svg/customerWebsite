@@ -33,7 +33,7 @@ export const JobDetailDrawer = ({
   onUpdateStatus,
   onUploadPhoto,
 }: JobDetailDrawerProps) => {
-  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'CUSTOMER' | 'PHOTOS' | 'TIMELINE'>('OVERVIEW');
+  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'CUSTOMER' | 'TIMELINE'>('OVERVIEW');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [photoCaption, setPhotoCaption] = useState('');
   const [photoType, setPhotoType] = useState<'BEFORE' | 'AFTER'>('BEFORE');
@@ -136,7 +136,7 @@ export const JobDetailDrawer = ({
 
         {/* Tab Selection */}
         <div className="flex border-b border-zinc-200 px-6 bg-white space-x-6 text-sm font-medium">
-          {(['OVERVIEW', 'CUSTOMER', 'PHOTOS', 'TIMELINE'] as const).map((tab) => (
+          {(['OVERVIEW', 'CUSTOMER', 'TIMELINE'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -370,94 +370,7 @@ export const JobDetailDrawer = ({
             </div>
           )}
 
-          {/* TAB 3: BEFORE & AFTER PHOTOS */}
-          {activeTab === 'PHOTOS' && (
-            <div className="space-y-6">
-              {/* Photo Upload Form */}
-              <form onSubmit={handleAddSamplePhoto} className="p-4 border border-zinc-200 rounded-xl bg-zinc-50 space-y-3">
-                <h4 className="text-xs font-semibold text-zinc-900 uppercase tracking-wider">
-                  Attach Inspection Photo
-                </h4>
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div>
-                    <label className="block text-zinc-500 mb-1">Photo Category</label>
-                    <select
-                      value={photoType}
-                      onChange={(e) => setPhotoType(e.target.value as 'BEFORE' | 'AFTER')}
-                      className="w-full p-2 bg-white border border-zinc-300 rounded-lg font-medium text-zinc-900"
-                    >
-                      <option value="BEFORE">Before Photo</option>
-                      <option value="AFTER">After Photo</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-zinc-500 mb-1">Caption / Description</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Wiring terminal setup"
-                      value={photoCaption}
-                      onChange={(e) => setPhotoCaption(e.target.value)}
-                      className="w-full p-2 bg-white border border-zinc-300 rounded-lg text-zinc-900 placeholder-zinc-400"
-                    />
-                  </div>
-                </div>
-                <button
-                  type="submit"
-                  disabled={isSubmitting || !photoCaption.trim()}
-                  className="w-full py-2 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 text-white text-xs font-semibold rounded-lg flex items-center justify-center space-x-2 transition-colors"
-                >
-                  <Upload className="w-3.5 h-3.5" />
-                  <span>Upload Inspection Evidence Photo</span>
-                </button>
-              </form>
-
-              {/* Before Photos Gallery */}
-              <div>
-                <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">
-                  Before Photos ({job.beforePhotos.length})
-                </h4>
-                {job.beforePhotos.length === 0 ? (
-                  <p className="text-xs text-zinc-400 italic">No before photos uploaded yet.</p>
-                ) : (
-                  <div className="grid grid-cols-2 gap-4">
-                    {job.beforePhotos.map((photo: JobPhoto) => (
-                      <div key={photo.id} className="border border-zinc-200 rounded-lg overflow-hidden bg-white shadow-xs">
-                        <img src={photo.url} alt={photo.caption} className="w-full h-32 object-cover" />
-                        <div className="p-2.5 text-xs">
-                          <p className="font-medium text-zinc-800 truncate">{photo.caption}</p>
-                          <p className="text-[10px] text-zinc-400 mt-0.5">{photo.uploadedAt}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* After Photos Gallery */}
-              <div>
-                <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">
-                  After Photos ({job.afterPhotos.length})
-                </h4>
-                {job.afterPhotos.length === 0 ? (
-                  <p className="text-xs text-zinc-400 italic">No after photos uploaded yet.</p>
-                ) : (
-                  <div className="grid grid-cols-2 gap-4">
-                    {job.afterPhotos.map((photo: JobPhoto) => (
-                      <div key={photo.id} className="border border-zinc-200 rounded-lg overflow-hidden bg-white shadow-xs">
-                        <img src={photo.url} alt={photo.caption} className="w-full h-32 object-cover" />
-                        <div className="p-2.5 text-xs">
-                          <p className="font-medium text-zinc-800 truncate">{photo.caption}</p>
-                          <p className="text-[10px] text-zinc-400 mt-0.5">{photo.uploadedAt}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* TAB 4: ACTIVITY TIMELINE */}
+          {/* TAB 3: ACTIVITY TIMELINE */}
           {activeTab === 'TIMELINE' && (
             <div className="space-y-4">
               <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">

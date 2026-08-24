@@ -85,7 +85,8 @@ export function App() {
     return Boolean(token && name);
   });
   const [activeTab, setActiveTab] = useState<string>(() => {
-    return localStorage.getItem('sk_tech_tab') || 'dashboard';
+    const saved = localStorage.getItem('sk_tech_tab') || 'dashboard';
+    return saved === 'todays_jobs' ? 'assigned_jobs' : saved;
   });
   const [globalSearchQuery, setGlobalSearchQuery] = useState<string>('');
 
