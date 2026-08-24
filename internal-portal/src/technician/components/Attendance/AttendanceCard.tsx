@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LogIn, LogOut, Clock, CheckCircle, AlertCircle, ShieldCheck } from 'lucide-react';
+import { getApiUrl } from '../../../utils/config';
 
 interface AttendanceRecord {
   _id?: string;
@@ -24,7 +25,7 @@ export const AttendanceCard: React.FC = () => {
 
   const authUser = JSON.parse(localStorage.getItem('tech_user') || '{}');
   const techId = authUser.id || authUser._id || localStorage.getItem('user_id') || 'TECH-01';
-  const techName = authUser.name || localStorage.getItem('user_name') || 'Technician';
+  const techName = authUser.name || localStorage.getItem('user_name') || 'Field Technician';
 
   const fetchAttendance = async () => {
     const today = new Date().toISOString().split('T')[0];
@@ -37,7 +38,7 @@ export const AttendanceCard: React.FC = () => {
 
     try {
       setIsLoading(true);
-      const res = await fetch(`/api/attendance?technicianId=${techId}&date=${today}`);
+      const res = await fetch(`${getApiUrl()}/api/attendance?technicianId=${techId}&date=${today}`);
       if (res.ok) {
         const records = await res.json();
         if (Array.isArray(records) && records.length > 0) {
@@ -99,7 +100,7 @@ export const AttendanceCard: React.FC = () => {
       localStorage.setItem(`sk_tech_attendance_${techId}_${today}`, JSON.stringify(localRecord));
 
       // 2. Sync to Backend API
-      const res = await fetch('/api/attendance/check-in', {
+      const res = await fetch(`${getApiUrl()}/api/attendance/check-in`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -150,7 +151,7 @@ export const AttendanceCard: React.FC = () => {
       setShowCheckoutConfirm(false);
 
       // 2. Sync to Backend API
-      const res = await fetch('/api/attendance/check-out', {
+      const res = await fetch(`${getApiUrl()}/api/attendance/check-out`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

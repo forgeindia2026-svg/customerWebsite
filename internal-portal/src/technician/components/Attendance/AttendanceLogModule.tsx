@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle2, ShieldCheck, Filter, ArrowUpRight, Zap, Award } from 'lucide-react';
+import { getApiUrl } from '../../../utils/config';
 
 interface AttendanceRecord {
   _id?: string;
@@ -26,7 +27,7 @@ export const AttendanceLogModule: React.FC = () => {
   const fetchAttendanceLogs = async () => {
     try {
       setIsLoading(true);
-      const res = await fetch(`/api/attendance?technicianId=${techId}&month=${filterMonth}`);
+      const res = await fetch(`${getApiUrl()}/api/attendance?technicianId=${techId}&month=${filterMonth}`);
       if (res.ok) {
         const data = await res.json();
         setRecords(Array.isArray(data) ? data : []);
