@@ -134,10 +134,10 @@ export default function Reports() {
     }
 
     // Determine clean salary & payroll note
-    let salaryNote = 'Full Day Duty (1.0 Day Salary)';
-    if (rec.status === 'HALF_DAY') salaryNote = 'Half Day Duty (0.5 Day Salary)';
-    else if (rec.status === 'OVERTIME') salaryNote = 'Overtime Duty (1.5x Salary)';
-    else if (rec.status === 'OFF_DUTY') salaryNote = 'Full Day Duty (1.0 Day Salary)';
+    let salaryNote = 'Full Day (1.0 Day)';
+    if (rec.status === 'HALF_DAY') salaryNote = 'Half Day (0.5 Day)';
+    else if (rec.status === 'OVERTIME') salaryNote = 'Overtime Duty';
+    else if (rec.status === 'OFF_DUTY') salaryNote = 'Full Day (1.0 Day)';
 
     return {
       id: rec._id || `${rec.technicianId}-${rec.date}`,

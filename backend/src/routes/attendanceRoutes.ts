@@ -68,7 +68,7 @@ router.post('/check-in', async (req: Request, res: Response) => {
       checkInTimestamp: now,
       status: 'PRESENT',
       location: location || 'Field Operations',
-      notes: notes || 'Full Day Duty (1.0 Day Salary)'
+      notes: notes || 'Full Day (1.0 Day)'
     });
 
     await record.save();

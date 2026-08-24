@@ -106,7 +106,7 @@ export const AttendanceCard: React.FC = () => {
         body: JSON.stringify({
           technicianId: techId,
           technicianName: techName,
-          notes: 'Full Day Duty (1.0 Day Salary)'
+          notes: 'Full Day (1.0 Day)'
         })
       });
 
@@ -156,7 +156,7 @@ export const AttendanceCard: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           technicianId: techId,
-          notes: notes || 'Full Day Duty (1.0 Day Salary)'
+          notes: notes || 'Full Day (1.0 Day)'
         })
       });
 
