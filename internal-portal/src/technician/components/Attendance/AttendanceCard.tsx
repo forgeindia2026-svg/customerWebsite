@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LogIn, LogOut, Clock, CheckCircle, AlertCircle, ShieldCheck } from 'lucide-react';
+import { LogIn, LogOut, Clock, CheckCircle, AlertCircle, ShieldCheck, MapPin } from 'lucide-react';
 import { getApiUrl } from '../../../utils/config';
 
 interface AttendanceRecord {
@@ -13,12 +13,59 @@ interface AttendanceRecord {
   checkOutTimestamp?: string;
   totalHours?: number;
   status: 'PRESENT' | 'HALF_DAY' | 'OVERTIME' | 'OFF_DUTY';
+  location?: string;
+  latitude?: number;
+  longitude?: number;
 }
+
+// Helper to get Live GPS Coordinates & Human-readable area
+const getLiveLocation = (): Promise<{ locationName: string; lat: number; lng: number }> => {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      return reject(new Error('Geolocation is not supported by your device. Please enable Location in your settings.'));
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        let locationName = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+
+        try {
+          // OpenStreetMap Reverse Geocoding
+          const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=14&addressdetails=1`);
+          if (geoRes.ok) {
+            const data = await geoRes.json();
+            const addr = data.address || {};
+            const area = addr.suburb || addr.neighbourhood || addr.city_district || addr.residential || addr.road || addr.village || '';
+            const city = addr.city || addr.town || addr.state_district || 'Chennai';
+            if (area) {
+              locationName = `${area}, ${city}`;
+            } else if (data.display_name) {
+              locationName = data.display_name.split(',').slice(0, 2).join(', ');
+            }
+          }
+        } catch (e) {
+          console.warn('Geocoding fallback:', e);
+        }
+
+        resolve({ locationName, lat, lng });
+      },
+      (err) => {
+        let msg = 'Live Location / GPS is required to Punch In. Please turn ON device GPS and allow location permission.';
+        if (err.code === 1) msg = 'Location permission denied. Please allow location access in your browser settings to Punch In.';
+        reject(new Error(msg));
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+    );
+  });
+};
 
 export const AttendanceCard: React.FC = () => {
   const [attendance, setAttendance] = useState<AttendanceRecord | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isPunching, setIsPunching] = useState<boolean>(false);
+  const [locationStatus, setLocationStatus] = useState<string | null>(null);
   const [elapsedTime, setElapsedTime] = useState<string>('00:00:00');
   const [notes, setNotes] = useState<string>('');
   const [showCheckoutConfirm, setShowCheckoutConfirm] = useState<boolean>(false);
@@ -80,8 +127,22 @@ export const AttendanceCard: React.FC = () => {
   }, [attendance]);
 
   const handlePunchIn = async () => {
+    setLocationStatus('Getting live GPS location...');
     try {
       setIsPunching(true);
+
+      // 1. Enforce live GPS Location
+      let coordsData;
+      try {
+        coordsData = await getLiveLocation();
+        setLocationStatus(`Location: ${coordsData.locationName}`);
+      } catch (locErr: any) {
+        setLocationStatus(null);
+        alert(locErr.message || 'Please turn on GPS and allow location permission to Punch In.');
+        setIsPunching(false);
+        return; // BLOCK punch in if location is not enabled
+      }
+
       const now = new Date();
       const today = now.toISOString().split('T')[0];
       const checkInTimeStr = now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true });
@@ -92,20 +153,26 @@ export const AttendanceCard: React.FC = () => {
         date: today,
         checkInTime: checkInTimeStr,
         checkInTimestamp: now.toISOString(),
-        status: 'PRESENT'
+        status: 'PRESENT',
+        location: coordsData.locationName,
+        latitude: coordsData.lat,
+        longitude: coordsData.lng
       };
 
-      // 1. Instant local UI update
+      // 2. Instant local UI update
       setAttendance(localRecord);
       localStorage.setItem(`sk_tech_attendance_${techId}_${today}`, JSON.stringify(localRecord));
 
-      // 2. Sync to Backend API
+      // 3. Sync to Backend API with exact live location
       const res = await fetch(`${getApiUrl()}/api/attendance/check-in`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           technicianId: techId,
           technicianName: techName,
+          location: coordsData.locationName,
+          latitude: coordsData.lat,
+          longitude: coordsData.lng,
           notes: 'Full Day (1.0 Day)'
         })
       });
@@ -121,6 +188,7 @@ export const AttendanceCard: React.FC = () => {
       console.warn('Punch-in API fallback engaged:', err);
     } finally {
       setIsPunching(false);
+      setLocationStatus(null);
     }
   };
 

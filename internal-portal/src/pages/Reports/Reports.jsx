@@ -72,7 +72,7 @@ export default function Reports() {
       order.assignedTechnicians?.[0]?.name || 
       order.assignedTechnician?.name || 
       order.techName ||
-      'Rithvik (Field Tech)';
+      'Unassigned Tech';
 
     return {
       id: order._id || order.id,
@@ -95,7 +95,7 @@ export default function Reports() {
     title: gr.activityType || 'General Daily Work',
     customer: gr.customerName || 'N/A (General)',
     address: gr.location || 'Internal / Office / Other',
-    technician: gr.technicianName || gr.technician || 'Rithvik (Field Tech)',
+    technician: gr.technicianName || gr.technician || 'Field Technician',
     status: gr.status || 'PRESENT',
     checkInTime: gr.checkInTime || '09:00 AM',
     checkOutTime: gr.checkOutTime || '06:00 PM',
@@ -148,7 +148,9 @@ export default function Reports() {
       checkOutTime: formattedCheckOut,
       totalHours: rec.totalHours || 0,
       status: rec.status || 'PRESENT',
-      location: rec.location || 'Chennai Operations',
+      location: rec.location || 'Field Location',
+      latitude: rec.latitude,
+      longitude: rec.longitude,
       notes: salaryNote
     };
   });
@@ -494,7 +496,7 @@ export default function Reports() {
         <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-200/50 dark:border-slate-700/50 self-start md:self-auto overflow-x-auto max-w-full gap-1">
           {[
             { id: 'Attendance', label: '🕒 Attendance & Timesheet (1-31 Days)' },
-            { id: 'Field Reports', label: '📸 Job Evidence Reports' },
+            { id: 'Field Reports', label: '📸 Technician Field Reports' },
             { id: 'Technicians', label: '⭐ Technician Performance' },
             { id: 'Overview', label: '📊 Executive Overview' }
           ].map(tab => (
@@ -656,7 +658,22 @@ export default function Reports() {
                             </span>
                           </td>
                           <td className="py-3.5 px-3 align-middle">
-                            <span className="text-xs text-slate-600 dark:text-slate-300 font-medium">{att.location || 'Chennai Operations'}</span>
+                            <div className="flex items-center space-x-1.5 max-w-[200px]">
+                              <span className="text-xs text-slate-700 dark:text-slate-200 font-medium truncate" title={att.location}>
+                                📍 {att.location || 'Field Location'}
+                              </span>
+                              {att.latitude && att.longitude && (
+                                <a 
+                                  href={`https://www.google.com/maps?q=${att.latitude},${att.longitude}`} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-[10px] text-blue-600 hover:text-blue-700 font-bold shrink-0 underline"
+                                  title="View exact live GPS location on Google Maps"
+                                >
+                                  (Map)
+                                </a>
+                              )}
+                            </div>
                           </td>
                           <td className="py-3.5 px-3 align-middle">
                             <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">

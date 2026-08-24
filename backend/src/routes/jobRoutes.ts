@@ -1,11 +1,118 @@
 import { Router, Request, Response } from 'express';
 import Job from '../models/Job';
 import Order from '../models/Order';
+import User from '../models/User';
 import Dashboard from '../models/Dashboard';
 import TechnicianReport from '../models/TechnicianReport';
 import { emitToUser, emitToRole, emitToJob, broadcastEvent } from '../socket';
 
 const router = Router();
+
+// 📡 Active Broadcast Endpoint (for 20-second Radar popup on incoming jobs)
+router.get('/active-broadcast', async (_req: Request, res: Response) => {
+  try {
+    // Find the most recent job created within the last 5 minutes
+    const cutoff = new Date(Date.now() - 5 * 60 * 1000);
+    const recentJob = await Job.findOne({
+      createdAt: { $gte: cutoff }
+    }).sort({ createdAt: -1 });
+
+    if (!recentJob) {
+      return res.json({ activeBroadcast: false });
+    }
+
+    const order = await Order.findOne({ orderNumber: recentJob.jobCode });
+
+    res.json({
+      activeBroadcast: true,
+      job: {
+        jobCode: recentJob.jobCode,
+        title: recentJob.title,
+        customerName: recentJob.customer?.name || 'Customer',
+        location: recentJob.customer?.address || 'Chennai Site',
+        itemsCount: recentJob.equipmentList?.length || 1,
+        amount: order?.totalAmount || 12500,
+        createdAt: recentJob.createdAt
+      }
+    });
+  } catch (err: any) {
+    res.status(500).json({ activeBroadcast: false, message: err.message });
+  }
+});
+
+// 🎯 Auto-Dispatch Completion (Executes after 20-second countdown)
+router.post('/auto-dispatch-complete', async (req: Request, res: Response) => {
+  try {
+    const { jobCode } = req.body;
+    if (!jobCode) {
+      return res.status(400).json({ success: false, message: 'jobCode is required' });
+    }
+
+    const job = await Job.findOne({ jobCode });
+    if (!job) {
+      return res.status(404).json({ success: false, message: 'Job not found' });
+    }
+
+    // Find best available technician
+    let assignedTech = await User.findOne({ role: 'TECHNICIAN', isAvailable: true, isActive: true });
+    if (!assignedTech) {
+      assignedTech = await User.findOne({ role: 'TECHNICIAN' });
+    }
+
+    const techName = assignedTech ? assignedTech.name : 'Dinesh';
+    const techId = assignedTech ? assignedTech._id.toString() : 'TECH-02';
+
+    // Assign to technician
+    job.status = 'IN_PROGRESS';
+    job.assignedTechnicians = [{
+      id: techId,
+      name: techName,
+      phone: assignedTech?.phone || ''
+    }];
+    await job.save();
+
+    if (assignedTech) {
+      assignedTech.isAvailable = false;
+      assignedTech.currentJobId = jobCode;
+      await assignedTech.save();
+    }
+
+    // Update order
+    await Order.updateOne({ orderNumber: jobCode }, {
+      $set: { assignedTechnicianName: techName }
+    });
+
+    // Notify Dashboard
+    let dashboardData = await Dashboard.findOne();
+    if (!dashboardData) dashboardData = new Dashboard();
+    dashboardData.notifications.push({
+      id: `notif-${Date.now()}`,
+      title: 'Smart Job Auto-Dispatch Confirmed',
+      message: `Order ${jobCode} has been auto-dispatched to ${techName}.`,
+      timestamp: new Date().toISOString(),
+      read: false,
+      type: 'ASSIGNMENT',
+      jobId: jobCode
+    });
+    await dashboardData.save();
+
+    // Broadcast to Sockets
+    broadcastEvent('job:auto_assigned', {
+      jobCode,
+      assignedTechnicianName: techName,
+      assignedTechnicianId: techId
+    });
+
+    res.json({
+      success: true,
+      jobCode,
+      assignedTechnicianName: techName,
+      assignedTechnicianId: techId
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 // ⚡ High-Speed Aggregated Dashboard Summary (< 20ms) - Filtered per Technician
 router.get('/dashboard-summary', async (req: Request, res: Response) => {

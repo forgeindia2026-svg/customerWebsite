@@ -38,7 +38,7 @@ router.get('/today', async (req: Request, res: Response) => {
 // POST Check-In (Punch In)
 router.post('/check-in', async (req: Request, res: Response) => {
   try {
-    const { technicianId, technicianName, location, notes } = req.body;
+    const { technicianId, technicianName, location, latitude, longitude, notes } = req.body;
     if (!technicianId || !technicianName) {
       return res.status(400).json({ message: 'Technician information is required' });
     }
@@ -55,6 +55,9 @@ router.post('/check-in', async (req: Request, res: Response) => {
         record.checkInTime = checkInTimeStr;
         record.checkInTimestamp = now;
         record.status = 'PRESENT';
+        if (location) record.location = location;
+        if (latitude) record.latitude = latitude;
+        if (longitude) record.longitude = longitude;
         await record.save();
       }
       return res.json({ success: true, message: 'Already checked in today', attendance: record });
@@ -68,6 +71,8 @@ router.post('/check-in', async (req: Request, res: Response) => {
       checkInTimestamp: now,
       status: 'PRESENT',
       location: location || 'Field Operations',
+      latitude: latitude || null,
+      longitude: longitude || null,
       notes: notes || 'Full Day (1.0 Day)'
     });
 

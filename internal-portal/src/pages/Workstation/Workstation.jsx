@@ -124,13 +124,15 @@ export default function Workstation() {
     const lastAction = latestReport ? (latestReport.workDescription || 'Submitted Daily Work Report') : 'No Recent Action';
     const lastActionTimeStr = latestReport?.createdAt ? `${Math.max(1, Math.round((Date.now() - new Date(latestReport.createdAt).getTime()) / (1000 * 60)))} mins ago` : 'No Recent Activity';
 
-    // Active order info
-    const activeOrder = techOrders.find(o => 
-      ['IN_PROGRESS', 'PENDING', 'ACCEPTED', 'In Progress', 'Approved', 'Pending Approval'].includes(o.status)
-    );
-    const activeJobCode = activeOrder?.jobCode || activeOrder?.id || (latestReport?.jobCode && latestReport.jobCode !== 'GENERAL-TASK' ? latestReport.jobCode : 'NO-ACTIVE-JOB');
-    const customerName = activeOrder?.customerName || activeOrder?.customer || latestReport?.customerName || 'No Active Order';
-    const location = activeOrder?.location || activeOrder?.address || latestReport?.location || 'Location Not Specified';
+    // Active order info (any order assigned that is not yet completed/cancelled)
+    const activeOrder = techOrders.find(o => {
+      const s = (o?.status || o?.orderStatus || '').toLowerCase();
+      return !['completed', 'approved', 'delivered', 'verified', 'cancelled', 'rejected'].includes(s);
+    }) || (pendingCount > 0 ? techOrders[0] : null);
+
+    const activeJobCode = activeOrder?.jobCode || activeOrder?.id || activeOrder?.orderId || (latestReport?.jobCode && latestReport.jobCode !== 'GENERAL-TASK' ? latestReport.jobCode : (pendingCount > 0 ? 'ASSIGNED-JOB' : 'NO-ACTIVE-JOB'));
+    const customerName = activeOrder?.customerName || activeOrder?.customer || latestReport?.customerName || (pendingCount > 0 ? 'Active Customer Order' : 'No Active Order');
+    const location = activeOrder?.location || activeOrder?.address || latestReport?.location || 'Chennai Site';
 
     // Live status badge & Idle Detection
     let status = 'STANDBY';
@@ -145,15 +147,16 @@ export default function Workstation() {
     if (assignedCount > 0 && totalCompleted >= assignedCount) {
       status = 'COMPLETED_SHIFT';
       statusText = `🔥 ${totalCompleted}/${assignedCount} JOBS COMPLETED TODAY`;
-    } else if (activeOrder) {
+    } else if (activeOrder || pendingCount > 0) {
       status = 'ON_SITE';
-      statusText = `🟢 ON SITE - ${activeOrder.serviceType || activeOrder.title || 'CCTV INSTALLATION'}`;
+      const serviceName = activeOrder?.serviceType || activeOrder?.title || (activeOrder?.items?.[0]?.name) || 'CCTV INSTALLATION';
+      statusText = `🟢 ON SITE - ${serviceName}`;
       if (lastActionMinutes !== null && lastActionMinutes > 30) {
         isIdle = true;
       }
     } else if (latestReport && latestReport.checkInTime) {
       status = 'PUNCHED_IN';
-      statusText = `🟢 PUNCHED IN - ACTIVE SHIFT (${latestReport.checkInTime})`;
+      statusText = `🟢 PUNCHED IN - STANDBY (${latestReport.checkInTime})`;
       if (lastActionMinutes !== null && lastActionMinutes > 30) {
         isIdle = true;
       }

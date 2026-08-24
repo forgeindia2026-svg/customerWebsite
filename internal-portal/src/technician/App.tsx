@@ -21,6 +21,9 @@ import { SettingsModule } from './components/Settings/SettingsModule';
 import { WorkflowModal } from './components/Workflow/WorkflowModal';
 import { JobDetailDrawer } from './components/JobDetailDrawer';
 import { LoginScreen } from './components/Auth/LoginScreen';
+import { IncomingJobRadarModal, IncomingJobData } from './components/AssignedJobs/IncomingJobRadarModal';
+import { JobAssignmentResultModal } from './components/AssignedJobs/JobAssignmentResultModal';
+import { getApiUrl } from '../utils/config';
 
 import { JobsApiService } from './services/apiService';
 import type {
@@ -109,6 +112,64 @@ export function App() {
 
   // Notifications State
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+
+  // Rapido-style Radar Broadcast & Auto-Dispatch State
+  const [radarJob, setRadarJob] = useState<IncomingJobData | null>(null);
+  const [isRadarOpen, setIsRadarOpen] = useState<boolean>(false);
+  const [resultJob, setResultJob] = useState<IncomingJobData | null>(null);
+  const [resultAssignedTech, setResultAssignedTech] = useState<string>('');
+  const [isResultOpen, setIsResultOpen] = useState<boolean>(false);
+
+  // Poll for incoming new orders/jobs
+  useEffect(() => {
+    const checkIncomingBroadcast = async () => {
+      try {
+        const res = await fetch(`${getApiUrl()}/api/jobs/active-broadcast`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.activeBroadcast && data.job) {
+            const seenKey = `seen_radar_${data.job.jobCode}`;
+            if (!sessionStorage.getItem(seenKey)) {
+              sessionStorage.setItem(seenKey, 'true');
+              setRadarJob(data.job);
+              setIsRadarOpen(true);
+            }
+          }
+        }
+      } catch (err) {
+        // silent fallback
+      }
+    };
+
+    const interval = setInterval(checkIncomingBroadcast, 3000);
+    checkIncomingBroadcast();
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleCountdownComplete = async (job: IncomingJobData) => {
+    setIsRadarOpen(false);
+    try {
+      const res = await fetch(`${getApiUrl()}/api/jobs/auto-dispatch-complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobCode: job.jobCode })
+      });
+      const data = await res.json();
+      const assignedTech = data.assignedTechnicianName || 'Dinesh';
+
+      setResultJob(job);
+      setResultAssignedTech(assignedTech);
+      setIsResultOpen(true);
+
+      // Refresh technician jobs list
+      loadInitialData();
+    } catch (err) {
+      console.warn('Auto-dispatch complete fallback:', err);
+      setResultJob(job);
+      setResultAssignedTech('Dinesh');
+      setIsResultOpen(true);
+    }
+  };
 
   // Offline Field Sync State
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
@@ -652,6 +713,25 @@ export function App() {
         onAddDailyReport={handleAddDailyReport}
         onUploadPhoto={handleUploadPhoto}
         onCompleteJob={handleCompleteJob}
+      />
+
+      {/* Rapido-Style 20-Second Radar Broadcast Modal */}
+      <IncomingJobRadarModal
+        job={radarJob}
+        isOpen={isRadarOpen}
+        onCountdownComplete={handleCountdownComplete}
+      />
+
+      {/* 10-Second Smart Auto-Assignment Confirmation Result Modal */}
+      <JobAssignmentResultModal
+        job={resultJob}
+        assignedTechName={resultAssignedTech}
+        isOpen={isResultOpen}
+        onClose={() => setIsResultOpen(false)}
+        onViewJob={() => {
+          setIsResultOpen(false);
+          setActiveTab('jobs');
+        }}
       />
     </div>
   );

@@ -121,11 +121,11 @@ router.get('/', async (req: Request, res: Response) => {
         location: job.customer?.address || 'Chennai Area',
         submissionDate: job.scheduledDate || new Date(job.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
         status: (() => {
-          if (job.status === 'PENDING') return 'Pending';
+          if (job.status === 'PENDING') return (job.assignedTechnicians && job.assignedTechnicians.length > 0) ? 'In Progress' : 'Pending';
           if (job.status === 'ASSIGNED' || job.status === 'IN_PROGRESS') return 'In Progress';
           if (job.status === 'WAITING_ADMIN_APPROVAL') return 'Completed';
           if (job.status === 'COMPLETED') return 'Approved';
-          return 'Rework';
+          return 'Pending';
         })(),
         details: job.scopeOfWork?.join(', ') || job.title,
         devicesCount: job.equipmentList?.length || 0,
@@ -154,7 +154,6 @@ router.get('/', async (req: Request, res: Response) => {
       if (order.orderStatus === 'DELIVERED') {
         dashboardStatus = 'Completed';
       } else if (order.orderStatus === 'PROCESSING') {
-        // If there is no job created yet, it means the order is brand new and needs admin approval
         dashboardStatus = job ? 'In Progress' : 'Pending Approval';
       } else if (order.orderStatus === 'SHIPPED') {
         dashboardStatus = 'Completed';
@@ -163,14 +162,11 @@ router.get('/', async (req: Request, res: Response) => {
       }
       if (job) {
         if (job.status === 'COMPLETED') {
-          dashboardStatus = 'Completed';
-        } else if (job.status === 'IN_PROGRESS') {
-          dashboardStatus = 'In Progress';
-        } else if (job.status === 'ASSIGNED' || job.acceptanceStatus === 'ACCEPTED') {
           dashboardStatus = 'Approved';
+        } else if (job.status === 'IN_PROGRESS' || job.status === 'ASSIGNED') {
+          dashboardStatus = 'In Progress';
         } else if (job.status === 'PENDING') {
-          // If auto-assigned, it has technicians but is pending acceptance
-          dashboardStatus = (job.assignedTechnicians && job.assignedTechnicians.length > 0) ? 'Approved' : 'Pending Approval';
+          dashboardStatus = (job.assignedTechnicians && job.assignedTechnicians.length > 0) ? 'In Progress' : 'Pending Approval';
         }
       }
       return {
