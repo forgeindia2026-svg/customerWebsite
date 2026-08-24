@@ -440,6 +440,7 @@ export default function Reports() {
   };
 
   const getTechAvatar = (tech) => {
+    if (!tech) return 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=120&auto=format&fit=crop';
     if (tech.avatarUrl) return tech.avatarUrl;
     const initialAvatars = {
       'TECH-01': 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=120&auto=format&fit=crop',
@@ -447,7 +448,7 @@ export default function Reports() {
       'TECH-03': 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=120&auto=format&fit=crop',
       'TECH-04': 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=120&auto=format&fit=crop'
     };
-    return initialAvatars[tech.id] || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=120&auto=format&fit=crop';
+    return initialAvatars[tech?.id] || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=120&auto=format&fit=crop';
   };
 
   return (
@@ -527,7 +528,7 @@ export default function Reports() {
             <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xs flex items-center justify-between">
               <div>
                 <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider block">ACTIVE ROSTER</span>
-                <span className="text-xl sm:text-2xl font-black text-blue-600 block mt-0.5 font-mono">{activeTechs.length} Techs</span>
+                <span className="text-xl sm:text-2xl font-black text-blue-600 block mt-0.5 font-mono">{(technicians || []).length} Techs</span>
               </div>
               <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
                 <FiUsers size={18} />
