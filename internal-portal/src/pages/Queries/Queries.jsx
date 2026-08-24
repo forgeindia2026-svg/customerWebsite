@@ -9,13 +9,13 @@ import Modal from '../../components/Modal';
 
 export default function Queries() {
   const dispatch = useDispatch();
-  const queries = useSelector(state => state.dashboard.queries);
-  const customers = useSelector(state => state.dashboard.customers);
-  const technicians = useSelector(state => state.dashboard.technicians);
+  const queries = useSelector(state => state.dashboard?.queries) || [];
+  const customers = useSelector(state => state.dashboard?.customers) || [];
+  const technicians = useSelector(state => state.dashboard?.technicians) || [];
 
   const [activeTab, setActiveTab] = useState('All'); // 'All', 'Customer', 'Technician'
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedQueryId, setSelectedQueryId] = useState(queries[0]?.id || null);
+  const [selectedQueryId, setSelectedQueryId] = useState(queries?.[0]?.id || null);
   const [modalOpen, setModalOpen] = useState(false);
   const [replyText, setReplyText] = useState('');
 

@@ -6,7 +6,7 @@ import Modal from '../../components/Modal';
 
 export default function Banners() {
   const dispatch = useDispatch();
-  const banners = useSelector(state => state.dashboard.banners);
+  const banners = useSelector(state => state.dashboard?.banners) || [];
 
   const [searchTerm, setSearchTerm] = useState('');
   const [modalOpen, setModalOpen] = useState(false);

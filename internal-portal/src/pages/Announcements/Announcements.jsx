@@ -6,7 +6,7 @@ import Modal from '../../components/Modal';
 
 export default function Announcements() {
   const dispatch = useDispatch();
-  const announcements = useSelector(state => state.dashboard.announcements);
+  const announcements = useSelector(state => state.dashboard?.announcements) || [];
 
   const [searchTerm, setSearchTerm] = useState('');
   const [modalOpen, setModalOpen] = useState(false);

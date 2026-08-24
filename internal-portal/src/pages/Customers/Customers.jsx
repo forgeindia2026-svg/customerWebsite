@@ -21,7 +21,7 @@ function formatLocation(locationStr) {
 
 export default function Customers() {
   const dispatch = useDispatch();
-  const customers = useSelector(state => state.dashboard.customers);
+  const customers = useSelector(state => state.dashboard?.customers) || [];
 
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'

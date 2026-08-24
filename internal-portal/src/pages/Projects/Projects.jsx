@@ -6,7 +6,7 @@ import Modal from '../../components/Modal';
 
 export default function Projects() {
   const dispatch = useDispatch();
-  const projects = useSelector(state => state.dashboard.projects);
+  const projects = useSelector(state => state.dashboard?.projects) || [];
   
   const [statusFilter, setStatusFilter] = useState('All');
   const [techFilter, setTechFilter] = useState('All Technicians');

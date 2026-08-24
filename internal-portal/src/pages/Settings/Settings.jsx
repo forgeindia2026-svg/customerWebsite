@@ -5,9 +5,9 @@ import { FiSave, FiSettings, FiBriefcase, FiMail, FiMapPin, FiPercent } from 're
 
 export default function Settings() {
   const dispatch = useDispatch();
-  const settings = useSelector(state => state.dashboard.settings);
+  const settings = useSelector(state => state.dashboard?.settings) || {};
 
-  const [form, setForm] = useState({ ...settings });
+  const [form, setForm] = useState({ ...(settings || {}) });
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   const handleSubmit = (e) => {

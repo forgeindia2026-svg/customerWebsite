@@ -35,8 +35,8 @@ const BrandLogo = () => (
 );
 
 export default function Sidebar({ isOpen, toggleSidebar }) {
-  const notifications = useSelector(state => state.dashboard.notifications);
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const notifications = useSelector(state => state.dashboard?.notifications) || [];
+  const unreadCount = (notifications || []).filter(n => !n.read).length;
 
   const menuItems = [
     { name: 'Dashboard', path: '/admin', icon: FiGrid },

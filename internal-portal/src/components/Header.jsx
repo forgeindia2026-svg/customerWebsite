@@ -8,11 +8,11 @@ export default function Header({ toggleMobileSidebar }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
-  const darkMode = useSelector(state => state.dashboard.darkMode);
-  const notifications = useSelector(state => state.dashboard.notifications);
-  const settings = useSelector(state => state.dashboard.settings);
+  const darkMode = useSelector(state => state.dashboard?.darkMode);
+  const notifications = useSelector(state => state.dashboard?.notifications) || [];
+  const settings = useSelector(state => state.dashboard?.settings) || {};
 
-  const unreadNotifications = notifications.filter(n => !n.read);
+  const unreadNotifications = (notifications || []).filter(n => !n?.read);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const notifRef = useRef(null);

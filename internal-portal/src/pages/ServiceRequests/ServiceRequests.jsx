@@ -6,8 +6,8 @@ import Modal from '../../components/Modal';
 
 export default function ServiceRequests() {
   const dispatch = useDispatch();
-  const serviceRequests = useSelector(state => state.dashboard.serviceRequests);
-  const technicians = useSelector(state => state.dashboard.technicians);
+  const serviceRequests = useSelector(state => state.dashboard?.serviceRequests) || [];
+  const technicians = useSelector(state => state.dashboard?.technicians) || [];
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);

@@ -6,8 +6,8 @@ import Modal from '../../components/Modal';
 
 export default function Orders() {
   const dispatch = useDispatch();
-  const orders = useSelector(state => state.dashboard.orders);
-  const technicians = useSelector(state => state.dashboard.technicians);
+  const orders = useSelector(state => state.dashboard?.orders) || [];
+  const technicians = useSelector(state => state.dashboard?.technicians) || [];
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');

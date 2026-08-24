@@ -5,11 +5,11 @@ import { markNotificationAsRead } from '../redux/dashboardSlice';
 
 export default function ToastContainer() {
   const dispatch = useDispatch();
-  const notifications = useSelector(state => state.dashboard.notifications);
+  const notifications = useSelector(state => state.dashboard?.notifications) || [];
   const [activeToasts, setActiveToasts] = useState([]);
 
   useEffect(() => {
-    const unread = notifications.filter(n => !n.read);
+    const unread = (notifications || []).filter(n => !n?.read);
     if (unread.length > 0) {
       const latest = unread[0];
       

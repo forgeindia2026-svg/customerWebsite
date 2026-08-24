@@ -21,14 +21,14 @@ export default function Dashboard() {
   const dispatch = useDispatch();
 
   // Retrieve states from Redux store
-  const orders = useSelector(state => state.dashboard.orders);
-  const technicians = useSelector(state => state.dashboard.technicians);
-  const projects = useSelector(state => state.dashboard.projects);
-  const serviceRequests = useSelector(state => state.dashboard.serviceRequests);
-  const products = useSelector(state => state.dashboard.products);
-  const payments = useSelector(state => state.dashboard.payments);
-  const notifications = useSelector(state => state.dashboard.notifications);
-  const customers = useSelector(state => state.dashboard.customers);
+  const orders = useSelector(state => state.dashboard?.orders) || [];
+  const technicians = useSelector(state => state.dashboard?.technicians) || [];
+  const projects = useSelector(state => state.dashboard?.projects) || [];
+  const serviceRequests = useSelector(state => state.dashboard?.serviceRequests) || [];
+  const products = useSelector(state => state.dashboard?.products) || [];
+  const payments = useSelector(state => state.dashboard?.payments) || [];
+  const notifications = useSelector(state => state.dashboard?.notifications) || [];
+  const customers = useSelector(state => state.dashboard?.customers) || [];
 
   // Broadcast & Invoice state
   const [broadcastText, setBroadcastText] = useState('');

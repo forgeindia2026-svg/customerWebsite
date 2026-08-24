@@ -10,7 +10,7 @@ import Modal from '../../components/Modal';
 
 export default function Technicians() {
   const dispatch = useDispatch();
-  const technicians = useSelector(state => state.dashboard.technicians);
+  const technicians = useSelector(state => state.dashboard?.technicians) || [];
 
   useEffect(() => {
     dispatch(fetchDashboardData());

@@ -209,7 +209,7 @@ const emptyProductForm = {
 
 export default function Products() {
   const dispatch = useDispatch();
-  const products = useSelector(state => state.dashboard.products);
+  const products = useSelector(state => state.dashboard?.products) || [];
 
   const [prodTab, setProdTab] = useState('catalog'); // 'catalog', 'categories', 'brands', 'inventory'
 

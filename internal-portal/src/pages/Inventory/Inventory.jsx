@@ -31,7 +31,7 @@ const productMetadata = {
 };
 
 export default function Inventory() {
-  const inventory = useSelector(state => state.dashboard.inventory);
+  const inventory = useSelector(state => state.dashboard?.inventory) || [];
 
   // Filtering states
   const [searchTerm, setSearchTerm] = useState('');
