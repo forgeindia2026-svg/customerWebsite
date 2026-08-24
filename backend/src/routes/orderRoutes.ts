@@ -29,9 +29,30 @@ router.post('/', async (req: Request, res: Response) => {
     if (true) {
       newOrder.orderStatus = 'PROCESSING';
       
-      // 1. Fetch available technicians (isAvailable: true)
-      const availableTechs = await User.find({ role: 'TECHNICIAN', isAvailable: true, isActive: true });
-      let assignedTech = availableTechs.length > 0 ? availableTechs[0] : null;
+      // 1. Fetch all active technicians
+      const allTechs = await User.find({ role: 'TECHNICIAN', isActive: true });
+      
+      // 2. Find all currently active unfinished jobs to avoid double-booking
+      const activeJobs = await Job.find({
+        status: { $in: ['IN_PROGRESS', 'ASSIGNED', 'ACCEPTED', 'ASSIGNMENT_PENDING_ACCEPTANCE', 'WAITING_ADMIN_APPROVAL'] }
+      } as any);
+      
+      const busyTechIds = new Set<string>();
+      const busyTechNames = new Set<string>();
+      activeJobs.forEach((j: any) => {
+        (j.assignedTechnicians || []).forEach((t: any) => {
+          if (t.id) busyTechIds.add(t.id.toString());
+          if (t.name) busyTechNames.add(t.name.toLowerCase().trim());
+        });
+      });
+
+      // Truly available technicians with ZERO active jobs
+      const freeTechs = allTechs.filter((t: any) => 
+        !busyTechIds.has(t._id.toString()) && 
+        !busyTechNames.has(t.name.toLowerCase().trim())
+      );
+
+      let assignedTech = freeTechs.length > 0 ? freeTechs[0] : null;
 
       if (assignedTech) {
         // Mark tech as unavailable

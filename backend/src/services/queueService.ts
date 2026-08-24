@@ -5,8 +5,27 @@ import { emitToRole } from '../socket';
 
 export const processWaitingQueue = async () => {
   try {
-    // Find all available technicians
-    const availableTechs = await User.find({ role: 'TECHNICIAN', isAvailable: true, isActive: true });
+    // 1. Fetch all active technicians
+    const allTechs = await User.find({ role: 'TECHNICIAN', isActive: true });
+    
+    // 2. Find all currently active unfinished jobs
+    const activeJobs = await Job.find({
+      status: { $in: ['IN_PROGRESS', 'ASSIGNED', 'ACCEPTED', 'ASSIGNMENT_PENDING_ACCEPTANCE', 'WAITING_ADMIN_APPROVAL'] }
+    } as any);
+
+    const busyTechIds = new Set<string>();
+    const busyTechNames = new Set<string>();
+    activeJobs.forEach((j: any) => {
+      (j.assignedTechnicians || []).forEach((t: any) => {
+        if (t.id) busyTechIds.add(t.id.toString());
+        if (t.name) busyTechNames.add(t.name.toLowerCase().trim());
+      });
+    });
+
+    const availableTechs = allTechs.filter((t: any) => 
+      !busyTechIds.has(t._id.toString()) && 
+      !busyTechNames.has(t.name.toLowerCase().trim())
+    );
     
     if (availableTechs.length === 0) {
       return; // No one available

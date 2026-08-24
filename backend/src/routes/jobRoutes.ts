@@ -53,14 +53,43 @@ router.post('/auto-dispatch-complete', async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: 'Job not found' });
     }
 
-    // Find best available technician
-    let assignedTech = await User.findOne({ role: 'TECHNICIAN', isAvailable: true, isActive: true });
+    // Find best available technician who currently has ZERO active jobs
+    const allTechs = await User.find({ role: 'TECHNICIAN', isActive: true });
+    const activeJobs = await Job.find({
+      jobCode: { $ne: jobCode },
+      status: { $in: ['IN_PROGRESS', 'ASSIGNED', 'ACCEPTED', 'ASSIGNMENT_PENDING_ACCEPTANCE', 'WAITING_ADMIN_APPROVAL'] }
+    } as any);
+
+    const busyTechIds = new Set<string>();
+    const busyTechNames = new Set<string>();
+    activeJobs.forEach((j: any) => {
+      (j.assignedTechnicians || []).forEach((t: any) => {
+        if (t.id) busyTechIds.add(t.id.toString());
+        if (t.name) busyTechNames.add(t.name.toLowerCase().trim());
+      });
+    });
+
+    const freeTechs = allTechs.filter((t: any) => 
+      !busyTechIds.has(t._id.toString()) && 
+      !busyTechNames.has(t.name.toLowerCase().trim())
+    );
+
+    let assignedTech = freeTechs.length > 0 ? freeTechs[0] : null;
+
     if (!assignedTech) {
-      assignedTech = await User.findOne({ role: 'TECHNICIAN' });
+      // No one is free right now -> job waits in queue
+      job.status = 'WAITING_FOR_TECH';
+      await job.save();
+      return res.json({
+        success: true,
+        jobCode,
+        isQueued: true,
+        message: 'All technicians are currently busy on site. Job placed in queue.'
+      });
     }
 
-    const techName = assignedTech ? assignedTech.name : 'Dinesh';
-    const techId = assignedTech ? assignedTech._id.toString() : 'TECH-02';
+    const techName = assignedTech.name;
+    const techId = assignedTech._id.toString();
 
     // Assign to technician
     job.status = 'IN_PROGRESS';
