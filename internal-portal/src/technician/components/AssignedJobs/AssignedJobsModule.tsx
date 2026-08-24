@@ -65,7 +65,7 @@ export const AssignedJobsModule: React.FC<AssignedJobsModuleProps> = ({ jobs, su
         totalPages: 1,
         stats,
       });
-    } else if (filters.searchQuery || filters.status !== 'ALL' || filters.priority !== 'ALL') {
+    } else {
       fetchJobs();
     }
   }, [jobs, filters, fetchJobs]);
