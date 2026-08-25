@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import TechnicianReport from '../models/TechnicianReport';
+import Job from '../models/Job';
 
 const router = express.Router();
 
@@ -116,14 +117,35 @@ router.put('/:id/approve', async (req: Request, res: Response) => {
   }
 });
 
-// DELETE single report
+// DELETE single report by Mongo ID, jobId, or jobCode
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
-    const deleted = await TechnicianReport.findByIdAndDelete(req.params.id);
-    if (!deleted) return res.status(404).json({ message: 'Report not found' });
+    const rawId = String(req.params.id || '').trim();
+    const isMongoId = /^[0-9a-fA-F]{24}$/.test(rawId);
+    const cleanCode = rawId.replace(/^#/, '');
+
+    const deleted = await TechnicianReport.findOneAndDelete({
+      $or: [
+        ...(isMongoId ? [{ _id: rawId }] : []),
+        { jobId: rawId },
+        { jobCode: rawId },
+        { jobCode: `#${cleanCode}` },
+        { jobCode: cleanCode }
+      ]
+    });
+
+    // Also clear report attachments from any matching Job in MongoDB
+    try {
+      await Job.updateMany(
+        { $or: [{ id: rawId }, { jobCode: rawId }, { jobCode: `#${cleanCode}` }, { jobCode: cleanCode }] },
+        { $set: { beforePhotos: [], afterPhotos: [], fieldNotes: '', voiceNoteUrl: '', hasVoiceNote: false, dailyReports: [] } }
+      );
+    } catch (_) {}
+
     res.json({ success: true, message: 'Report deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+  } catch (error: any) {
+    console.error('Error deleting report:', error);
+    res.status(500).json({ message: 'Server error deleting report' });
   }
 });
 

@@ -162,9 +162,47 @@ export default function Reports() {
     }
   };
 
+  const handleDeleteReport = async (report) => {
+    if (!report) return;
+    const cleanCode = (report.jobCode || '').replace(/^#/, '');
+    const confirmDelete = window.confirm(`Are you sure you want to permanently delete the field report for #${cleanCode}?`);
+    if (!confirmDelete) return;
+
+    try {
+      const baseUrl = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
+      const deleteId = report.id || report.jobCode;
+      
+      await fetch(`${baseUrl}/api/reports/${encodeURIComponent(deleteId)}`, {
+        method: 'DELETE'
+      });
+
+      // Track in localStorage so any synthesized order entry is also suppressed
+      localStorage.setItem(`report_deleted_${cleanCode}`, 'true');
+      localStorage.setItem(`report_deleted_#${cleanCode}`, 'true');
+
+      // Remove from local state
+      setGeneralReports((prev) => prev.filter((r) => {
+        const rCode = (r.jobCode || r._id || '').replace(/^#/, '');
+        return r._id !== report.id && rCode !== cleanCode;
+      }));
+
+      if (adminFullReportModal?.jobCode === report.jobCode) setAdminFullReportModal(null);
+      if (adminQuickDetailReport?.jobCode === report.jobCode) setAdminQuickDetailReport(null);
+      if (selectedPhotoModal?.jobCode === report.jobCode) setSelectedPhotoModal(null);
+
+      alert(`✓ Report for #${cleanCode} deleted successfully.`);
+    } catch (err) {
+      console.error('Delete report error:', err);
+      alert('Failed to delete report from server.');
+    }
+  };
+
   // Extract ONLY actual technician reports submitted on orders (ignore unassigned shopping orders with no reports)
   const orderReportsList = (orders || [])
     .filter((order) => {
+      const cleanCode = (order.jobCode || order.id || '').replace(/^#/, '');
+      if (localStorage.getItem(`report_deleted_${cleanCode}`) === 'true') return false;
+
       // Must have actual technician work notes, photos, or submitted dailyReports
       const hasDailyReports = order.dailyReports && order.dailyReports.length > 0;
       const hasFieldNotes = Boolean(order.fieldNotes && order.fieldNotes.trim().length > 0);
@@ -206,6 +244,9 @@ export default function Reports() {
 
   const generalReportsFormatted = (generalReports || [])
     .filter((gr) => {
+      const cleanCode = (gr.jobCode || gr._id || '').replace(/^#/, '');
+      if (localStorage.getItem(`report_deleted_${cleanCode}`) === 'true') return false;
+
       // Filter out pure Check-In/Attendance logs so only actual work reports are displayed here
       if (gr.activityType === 'Check-In' || (gr.workDescription && gr.workDescription.includes('Punched in'))) return false;
       return true;
@@ -1236,6 +1277,14 @@ export default function Reports() {
                               >
                                 PDF
                               </button>
+
+                              <button
+                                onClick={() => handleDeleteReport(report)}
+                                title="Delete Report"
+                                className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-600 rounded-xl text-xs font-semibold transition-colors cursor-pointer border border-rose-200 dark:border-rose-900"
+                              >
+                                🗑️
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -1887,8 +1936,8 @@ export default function Reports() {
               </div>
             </div>
 
-            {/* Bottom Action Buttons (Screenshot 4: Red Approve Report Button!) */}
-            <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 grid grid-cols-2 gap-3 shrink-0">
+            {/* Bottom Action Buttons (Approve, WhatsApp, Delete) */}
+            <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 grid grid-cols-3 gap-2.5 shrink-0">
               {localStorage.getItem(`report_approved_${adminFullReportModal.jobCode}`) === 'true' || adminFullReportModal.status === 'Approved' ? (
                 <div className="py-3 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 font-bold text-xs rounded-xl border border-emerald-200 text-center flex items-center justify-center gap-1">
                   <FiCheckCircle size={14} />
@@ -1905,7 +1954,7 @@ export default function Reports() {
                   className="py-3 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer text-center flex items-center justify-center gap-1"
                 >
                   <FiCheckCircle size={14} />
-                  <span>Approve Report</span>
+                  <span>Approve</span>
                 </button>
               )}
 
@@ -1915,11 +1964,20 @@ export default function Reports() {
                 )}`}
                 target="_blank"
                 rel="noreferrer"
-                className="py-3 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-red-600 border border-red-600 font-bold text-xs rounded-xl transition-colors cursor-pointer text-center flex items-center justify-center gap-1"
+                className="py-3 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 font-bold text-xs rounded-xl transition-colors cursor-pointer text-center flex items-center justify-center gap-1"
               >
                 <span>🟢</span>
-                <span>Add Note</span>
+                <span>Share</span>
               </a>
+
+              <button
+                type="button"
+                onClick={() => handleDeleteReport(adminFullReportModal)}
+                className="py-3 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400 border border-rose-200 dark:border-rose-900 font-bold text-xs rounded-xl transition-colors cursor-pointer text-center flex items-center justify-center gap-1"
+              >
+                <span>🗑️</span>
+                <span>Delete</span>
+              </button>
             </div>
 
           </div>
