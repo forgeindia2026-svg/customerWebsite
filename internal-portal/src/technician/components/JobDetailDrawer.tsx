@@ -91,27 +91,6 @@ export const JobDetailDrawer = ({
     }
   };
 
-  const handleAddSamplePhoto = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!photoCaption.trim()) return;
-
-    setIsSubmitting(true);
-    const sampleUrls = [
-      'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?auto=format&fit=crop&w=600&q=80',
-    ];
-    const chosenUrl = sampleUrls[mockPhotoIndex % sampleUrls.length];
-    setMockPhotoIndex((prev) => prev + 1);
-
-    try {
-      await onUploadPhoto(job.id, chosenUrl, photoCaption, photoType);
-      setPhotoCaption('');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-black/40 backdrop-blur-xs flex justify-end animate-fade-in">
       <div className="w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col justify-between animate-slide-in-right">
