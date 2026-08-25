@@ -1273,7 +1273,15 @@ export default function Reports() {
                   <div className="grid grid-cols-2 gap-3">
                     {selectedPhotoModal.beforePhotos.map((p, idx) => (
                       <div key={idx} className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
-                        <img src={p.url || p} alt="Before installation" className="w-full h-40 object-cover" />
+                        <img 
+                          src={p.url || p} 
+                          alt="Before installation" 
+                          className="w-full h-40 object-cover" 
+                          onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=400&q=80';
+                          }}
+                        />
                         <p className="p-2 text-[11px] text-slate-600 font-medium">{p.caption || 'Initial site setup condition'}</p>
                       </div>
                     ))}
@@ -1287,7 +1295,15 @@ export default function Reports() {
                   <div className="grid grid-cols-2 gap-3">
                     {selectedPhotoModal.afterPhotos.map((p, idx) => (
                       <div key={idx} className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
-                        <img src={p.url || p} alt="After installation" className="w-full h-40 object-cover" />
+                        <img 
+                          src={p.url || p} 
+                          alt="After installation" 
+                          className="w-full h-40 object-cover" 
+                          onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = 'https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?auto=format&fit=crop&w=400&q=80';
+                          }}
+                        />
                         <p className="p-2 text-[11px] text-slate-600 font-medium">{p.caption || 'Completed equipment setup'}</p>
                       </div>
                     ))}
@@ -1784,7 +1800,16 @@ export default function Reports() {
                   <span className="font-bold text-slate-900 dark:text-white block text-xs">Before Work Photos ({adminFullReportModal.beforePhotos.length})</span>
                   <div className="flex items-center space-x-3 overflow-x-auto">
                     {adminFullReportModal.beforePhotos.map((p, i) => (
-                      <img key={i} src={typeof p === 'string' ? p : p.url} alt="Before" className="w-32 h-28 object-cover rounded-xl border border-slate-200" />
+                      <img 
+                        key={i} 
+                        src={typeof p === 'string' ? p : p.url} 
+                        alt="Before" 
+                        className="w-32 h-28 object-cover rounded-xl border border-slate-200" 
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=400&q=80';
+                        }}
+                      />
                     ))}
                   </div>
                 </div>
@@ -1804,7 +1829,16 @@ export default function Reports() {
                   <span className="font-bold text-slate-900 dark:text-white block text-xs">After Work Photos ({adminFullReportModal.afterPhotos.length})</span>
                   <div className="flex items-center space-x-3 overflow-x-auto">
                     {adminFullReportModal.afterPhotos.map((p, i) => (
-                      <img key={i} src={typeof p === 'string' ? p : p.url} alt="After" className="w-32 h-28 object-cover rounded-xl border border-slate-200" />
+                      <img 
+                        key={i} 
+                        src={typeof p === 'string' ? p : p.url} 
+                        alt="After" 
+                        className="w-32 h-28 object-cover rounded-xl border border-slate-200" 
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = 'https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?auto=format&fit=crop&w=400&q=80';
+                        }}
+                      />
                     ))}
                   </div>
                 </div>

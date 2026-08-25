@@ -530,5 +530,41 @@ export const JobsApiService = {
 
   async autoAssignNextJob(technicianId: string): Promise<{ success: boolean; assignedJob?: Job; message: string }> {
     return { success: false, message: 'Auto-assignment is disabled. Jobs must be assigned by Admin.' };
+  },
+
+  async uploadImageToS3(file: File): Promise<string> {
+    try {
+      const baseUrl = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
+      const formData = new FormData();
+      formData.append('image', file);
+      
+      const res = await fetch(`${baseUrl}/api/upload`, {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.imageUrl && (data.imageUrl.startsWith('http') || data.imageUrl.startsWith('https'))) {
+          return data.imageUrl;
+        }
+      }
+    } catch (e) {
+      console.warn('API upload fallback to base64:', e);
+    }
+
+    // Convert to persistent base64 Data URI so the image never breaks across browsers
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
+        } else {
+          reject(new Error('Failed to convert image to base64'));
+        }
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   }
 };

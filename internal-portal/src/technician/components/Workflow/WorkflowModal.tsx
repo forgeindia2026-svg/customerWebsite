@@ -188,13 +188,11 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
     setIsUploadingBefore(true);
     for (const file of Array.from(files)) {
       try {
-        const s3Url = await JobsApiService.uploadImageToS3(file);
-        setBeforePhotos((prev) => [...prev, s3Url]);
-        await onUploadPhoto(job.id, s3Url, 'Before Work Site Condition', 'BEFORE').catch(() => {});
+        const imgUrl = await JobsApiService.uploadImageToS3(file);
+        setBeforePhotos((prev) => [...prev, imgUrl]);
+        await onUploadPhoto(job.id, imgUrl, 'Before Work Site Condition', 'BEFORE').catch(() => {});
       } catch (err) {
-        console.warn('Before photo fallback:', err);
-        const tempUrl = URL.createObjectURL(file);
-        setBeforePhotos((prev) => [...prev, tempUrl]);
+        console.warn('Before photo upload error:', err);
       }
     }
     setIsUploadingBefore(false);
@@ -209,13 +207,11 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
     setIsUploadingAfter(true);
     for (const file of Array.from(files)) {
       try {
-        const s3Url = await JobsApiService.uploadImageToS3(file);
-        setAfterPhotos((prev) => [...prev, s3Url]);
-        await onUploadPhoto(job.id, s3Url, 'Completed Work Evidence', 'AFTER').catch(() => {});
+        const imgUrl = await JobsApiService.uploadImageToS3(file);
+        setAfterPhotos((prev) => [...prev, imgUrl]);
+        await onUploadPhoto(job.id, imgUrl, 'Completed Work Evidence', 'AFTER').catch(() => {});
       } catch (err) {
-        console.warn('After photo fallback:', err);
-        const tempUrl = URL.createObjectURL(file);
-        setAfterPhotos((prev) => [...prev, tempUrl]);
+        console.warn('After photo upload error:', err);
       }
     }
     setIsUploadingAfter(false);
