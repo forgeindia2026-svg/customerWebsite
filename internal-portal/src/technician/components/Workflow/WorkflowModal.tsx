@@ -290,12 +290,13 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 uppercase">
                 JOB ID: {job.jobCode}
               </span>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded border flex items-center ${
                 job.status === 'COMPLETED' || job.status === 'VERIFIED'
                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                   : 'bg-sky-50 text-sky-700 border-sky-200'
               }`}>
-                {job.status === 'COMPLETED' || job.status === 'VERIFIED' ? '✓ Completed' : '⏳ In Progress'}
+                <span className="font-normal opacity-75 mr-1">Current Status:</span>
+                <span>{job.status === 'COMPLETED' || job.status === 'VERIFIED' ? '✓ Completed' : '⏳ In Progress'}</span>
               </span>
             </div>
             <h2 className="text-sm font-bold text-zinc-900 mt-1">{job.title}</h2>

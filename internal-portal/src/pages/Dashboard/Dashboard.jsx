@@ -505,7 +505,7 @@ export default function Dashboard() {
                   </div>
                   <div className="text-right flex flex-col items-end gap-1">
                     <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">{order.date}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusBadgeClass(order.status)}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${getStatusBadgeClass(order.status)}`}>
                       {order.status}
                     </span>
                   </div>
