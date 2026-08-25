@@ -62,6 +62,9 @@ export const JobsApiService = {
         if (j.assignedTechnician && typeof j.assignedTechnician === 'string' && j.assignedTechnician !== 'Unassigned') {
           return j.assignedTechnician;
         }
+        if (j.assignedTechnician && typeof j.assignedTechnician === 'object' && j.assignedTechnician.name) {
+          return j.assignedTechnician.name;
+        }
         return null;
       };
 
@@ -72,14 +75,15 @@ export const JobsApiService = {
           return true;
         }
         return techList.some((t: any) => 
-          (techId && t.id === techId) || 
+          (techId && (t.id === techId || t._id === techId)) || 
           (lowerTechName && t.name && t.name.toLowerCase().trim() === lowerTechName)
         );
       };
 
       // Map backend Mongoose jobs schema to what the Technician frontend expects
       const mappedJobs = rawJobs.map((j: any) => {
-        const assignedTechName = getAssignedTechName(j) || 'kathir';
+        const assignedTechName = getAssignedTechName(j);
+        const assignedTechId = j.assignedTechnicians?.[0]?.id || (typeof j.assignedTechnician === 'object' ? j.assignedTechnician?.id : '');
         const rawStatus = (j.status || 'PENDING').toString().toUpperCase();
         
         let normStatus: JobStatus = 'PENDING';
@@ -97,7 +101,8 @@ export const JobsApiService = {
           normStatus = 'PENDING';
         }
 
-        const unassigned = !j.assignedTechnician && (!j.assignedTechnicians || j.assignedTechnicians.length === 0);
+        const unassigned = !assignedTechName && (!j.assignedTechnicians || j.assignedTechnicians.length === 0);
+        const assignedToMe = isJobAssignedToMe(j);
 
         return {
           id: j._id || j.id || `job-${Math.random()}`,
@@ -106,16 +111,16 @@ export const JobsApiService = {
           category: j.category || 'CCTV Installation',
           status: normStatus,
           priority: (j.priority || 'MEDIUM').toString().toUpperCase(),
-          isAssignedToMe: true,
+          isAssignedToMe: assignedToMe,
           isAvailableToAccept: unassigned,
-          assignedTechnicianName: assignedTechName,
-          scheduledDate: j.scheduledDate || new Date().toISOString().split('T')[0],
-          startDate: j.startDate || new Date().toISOString().split('T')[0],
+          assignedTechnicianName: assignedTechName || 'Unassigned',
+          scheduledDate: j.scheduledDate || (j.createdAt ? j.createdAt.split('T')[0] : new Date().toISOString().split('T')[0]),
+          startDate: j.startDate || (j.createdAt ? j.createdAt.split('T')[0] : new Date().toISOString().split('T')[0]),
           targetCompletionDate: j.targetCompletionDate,
           estimatedDays: j.estimatedDays || 1,
           scheduledTimeSlot: j.scheduledTimeSlot || '09:00 AM - 12:00 PM',
           estimatedDuration: j.estimatedDuration || '3 hrs',
-          assignedTechnician: { name: assignedTechName, id: techId || 'tech-kathir' },
+          assignedTechnician: assignedTechName ? { name: assignedTechName, id: assignedTechId } : undefined,
           customer: j.customer && j.customer.name ? j.customer : {
             name: 'Customer Client',
             phone: '+91 98765 43210',
@@ -153,12 +158,12 @@ export const JobsApiService = {
       const myJobs = mappedJobs.filter((j: any) => j.isAssignedToMe);
 
       const stats = {
-        totalAssigned: mappedJobs.length,
+        totalAssigned: myJobs.length,
         totalAvailable: mappedJobs.filter((j: any) => j.isAvailableToAccept).length,
-        pendingCount: mappedJobs.filter((j: any) => j.status === 'PENDING').length,
-        inProgressCount: mappedJobs.filter((j: any) => j.status === 'IN_PROGRESS' || j.status === 'ACCEPTED').length,
-        completedCount: mappedJobs.filter((j: any) => j.status === 'COMPLETED').length,
-        onHoldCount: mappedJobs.filter((j: any) => j.status === 'ON_HOLD').length,
+        pendingCount: myJobs.filter((j: any) => j.status === 'PENDING').length,
+        inProgressCount: myJobs.filter((j: any) => j.status === 'IN_PROGRESS' || j.status === 'ACCEPTED').length,
+        completedCount: myJobs.filter((j: any) => j.status === 'COMPLETED').length,
+        onHoldCount: myJobs.filter((j: any) => j.status === 'ON_HOLD').length,
       };
 
       const startIndex = (options.page - 1) * options.limit;

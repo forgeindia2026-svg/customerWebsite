@@ -865,69 +865,10 @@ export default function Dashboard() {
 
       </div>
 
-      {/* 💳 WIDGET 4 & ⭐ WIDGET 5 ROW */}
+      {/* ⭐ TOP TECHNICIANS */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* 💳 WIDGET 4: Payment Methods Breakdown & One-Click PDF Invoice Generator */}
-        <div className="lg:col-span-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-md p-6 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center font-bold">
-                  <FiCreditCard size={16} />
-                </div>
-                <h3 className="font-bold text-slate-900 dark:text-white text-sm tracking-tight">Payment Revenue & PDF Invoice Generator</h3>
-              </div>
-              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full uppercase">
-                100% Cleared
-              </span>
-            </div>
-
-            {/* Payment Method Progress Bars */}
-            <div className="space-y-3 mb-5 text-xs">
-              <div>
-                <div className="flex justify-between font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  <span>💳 Razorpay / Online UPI ({upiPercent}%)</span>
-                  <span className="font-mono text-emerald-600">₹{upiTotal.toLocaleString('en-IN')}</span>
-                </div>
-                <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: `${upiPercent}%` }}></div>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  <span>💵 Cash on Delivery ({codPercent}%)</span>
-                  <span className="font-mono text-blue-600">₹{codTotal.toLocaleString('en-IN')}</span>
-                </div>
-                <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div className="h-full bg-blue-500 rounded-full transition-all duration-500" style={{ width: `${codPercent}%` }}></div>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  <span>🏦 Bank Transfer / NEFT ({bankPercent}%)</span>
-                  <span className="font-mono text-amber-600">₹{bankTotal.toLocaleString('en-IN')}</span>
-                </div>
-                <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div className="h-full bg-amber-500 rounded-full transition-all duration-500" style={{ width: `${bankPercent}%` }}></div>
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={() => generateInvoicePDF(orders[0])}
-              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center justify-center space-x-2 shadow-xs cursor-pointer transition-colors"
-            >
-              <FiFileText size={14} />
-              <span>📄 Download Sample PDF Tax Invoice (SK-ORD-42431)</span>
-            </button>
-          </div>
-        </div>
-
         {/* ⭐ WIDGET 5: Top Technician Leaderboard & Customer Rating Scoreboard */}
-        <div className="lg:col-span-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-md p-6 flex flex-col justify-between">
+        <div className="lg:col-span-12 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-md p-6 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-2">

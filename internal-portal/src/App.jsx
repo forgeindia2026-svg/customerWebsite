@@ -75,7 +75,7 @@ export default function App() {
             <Route index element={<Dashboard />} />
             <Route path="orders" element={<Orders />} />
             <Route path="technicians" element={<Technicians />} />
-            <Route path="projects" element={<Projects />} />
+            <Route path="projects" element={<Navigate to="/admin/workstation" replace />} />
             <Route path="service-requests" element={<ServiceRequests />} />
             <Route path="products" element={<Products />} />
             <Route path="banners" element={<Banners />} />

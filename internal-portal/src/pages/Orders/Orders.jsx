@@ -418,15 +418,15 @@ export default function Orders() {
                 <p className="text-xs">No orders match your search parameters.</p>
               </div>
             ) : (
-              <table className="w-full text-left border-collapse min-w-[850px]">
+              <table className="w-full text-left border-collapse table-auto">
                 <thead>
                   <tr className="bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-200/80 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider text-[11px]">
-                    <th className="py-3.5 px-4 whitespace-nowrap w-28">Order ID</th>
-                    <th className="py-3.5 px-4 min-w-[220px]">Customer Details</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap w-44">Order Type</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap w-40">Assigned Staff</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap w-32">Amount</th>
-                    <th className="py-3.5 px-4 text-right whitespace-nowrap w-48">Status & Actions</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap w-32">Order ID</th>
+                    <th className="py-3.5 px-4 min-w-[180px] max-w-[220px]">Customer Details</th>
+                    <th className="py-3.5 px-4 min-w-[220px]">Order Type</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap w-36">Assigned Staff</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap w-28">Amount</th>
+                    <th className="py-3.5 px-4 text-right whitespace-nowrap w-40">Status & Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-800 dark:text-slate-200 text-xs">
@@ -439,12 +439,24 @@ export default function Orders() {
                         className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors cursor-pointer group"
                       >
                         <td className="py-4 px-4 align-middle font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">{ord.id}</td>
-                        <td className="py-4 px-4 align-middle">
-                          <div className="font-bold text-slate-900 dark:text-slate-100 text-xs group-hover:text-primary transition-colors">{ord.customer}</div>
-                          <div className="text-[11px] text-slate-400 font-medium mt-0.5 font-sans whitespace-nowrap">{ord.phone} | {ord.email}</div>
+                        <td className="py-4 px-4 align-middle max-w-[220px]">
+                          <div className="font-bold text-slate-900 dark:text-slate-100 text-xs group-hover:text-primary transition-colors truncate" title={ord.customer}>{ord.customer}</div>
+                          <div className="text-[11px] text-slate-400 font-medium mt-0.5 font-sans truncate" title={`${ord.phone || ''} | ${ord.email || ''}`}>{ord.phone} | {ord.email}</div>
                         </td>
-                        <td className="py-4 px-4 align-middle font-semibold text-slate-700 dark:text-slate-200 whitespace-nowrap">{ord.type}</td>
-                        <td className="py-4 px-4 align-middle font-semibold whitespace-nowrap">{ord.assignedTechnician}</td>
+                        <td className="py-4 px-4 align-middle max-w-[300px]">
+                          <div className="font-semibold text-slate-700 dark:text-slate-200 line-clamp-1 group-hover:text-slate-900 dark:group-hover:text-white transition-colors" title={ord.type}>
+                            {ord.type}
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 align-middle font-semibold whitespace-nowrap">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs ${
+                            ord.assignedTechnician && ord.assignedTechnician !== 'Unassigned'
+                              ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300 font-bold'
+                              : 'text-slate-500 dark:text-slate-400 font-normal'
+                          }`}>
+                            {ord.assignedTechnician || 'Unassigned'}
+                          </span>
+                        </td>
                         <td className="py-4 px-4 align-middle font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">₹{(ord.amount || 0).toLocaleString('en-IN')}</td>
                         <td className="py-4 px-4 align-middle text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                           <div className="relative inline-block text-right">

@@ -1,5 +1,8 @@
 import express, { Request, Response } from 'express';
 import TechnicianAttendance from '../models/TechnicianAttendance';
+import User from '../models/User';
+import { processWaitingQueue } from '../services/queueService';
+import { broadcastEvent, emitToRole } from '../socket';
 
 const router = express.Router();
 
@@ -23,10 +26,14 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
+const getTodayIST = () => {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+};
+
 // GET today's attendance roster for all technicians (Live Dashboard Radar)
 router.get('/today', async (req: Request, res: Response) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayIST();
     const records = await TechnicianAttendance.find({ date: today }).sort({ checkInTimestamp: -1 });
     res.json(records);
   } catch (error) {
@@ -44,7 +51,7 @@ router.post('/check-in', async (req: Request, res: Response) => {
     }
 
     const now = new Date();
-    const today = now.toISOString().split('T')[0];
+    const today = getTodayIST();
     const checkInTimeStr = now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true });
 
     // Check if already punched in today
@@ -60,24 +67,42 @@ router.post('/check-in', async (req: Request, res: Response) => {
         if (longitude) record.longitude = longitude;
         await record.save();
       }
-      return res.json({ success: true, message: 'Already checked in today', attendance: record });
+    } else {
+      record = new TechnicianAttendance({
+        technicianId,
+        technicianName,
+        date: today,
+        checkInTime: checkInTimeStr,
+        checkInTimestamp: now,
+        status: 'PRESENT',
+        location: location || 'Field Operations',
+        latitude: latitude || null,
+        longitude: longitude || null,
+        notes: notes || 'Full Day (1.0 Day)'
+      });
+      await record.save();
     }
 
-    record = new TechnicianAttendance({
+    // 🟢 Mark Technician as Online & Available
+    const isMongoId = /^[0-9a-fA-F]{24}$/.test(technicianId);
+    await User.updateMany(
+      { $or: [...(isMongoId ? [{ _id: technicianId }] : []), { name: technicianName }] },
+      { $set: { isAvailable: true } }
+    );
+
+    // ⚡ Trigger Auto-Queue processor to assign any waiting jobs!
+    processWaitingQueue().catch(err => console.error('Queue processing error:', err));
+
+    // Broadcast live socket update
+    broadcastEvent('technician:status_updated', {
       technicianId,
       technicianName,
-      date: today,
-      checkInTime: checkInTimeStr,
-      checkInTimestamp: now,
-      status: 'PRESENT',
-      location: location || 'Field Operations',
-      latitude: latitude || null,
-      longitude: longitude || null,
-      notes: notes || 'Full Day (1.0 Day)'
+      status: 'ONLINE',
+      isAvailable: true,
+      checkInTime: checkInTimeStr
     });
 
-    await record.save();
-    res.status(201).json({ success: true, message: 'Check-In Successful', attendance: record });
+    res.status(201).json({ success: true, message: 'Check-In Successful. You are now ONLINE.', attendance: record });
   } catch (error) {
     console.error('Check-in error:', error);
     res.status(500).json({ message: 'Server error during check-in' });
@@ -93,7 +118,7 @@ router.post('/check-out', async (req: Request, res: Response) => {
     }
 
     const now = new Date();
-    const today = now.toISOString().split('T')[0];
+    const today = getTodayIST();
     const checkOutTimeStr = now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true });
 
     let record = await TechnicianAttendance.findOne({ technicianId, date: today });
@@ -114,7 +139,24 @@ router.post('/check-out', async (req: Request, res: Response) => {
     }
 
     await record.save();
-    res.json({ success: true, message: 'Check-Out Successful', attendance: record });
+
+    // 🔴 Mark Technician as Offline
+    const isMongoId = /^[0-9a-fA-F]{24}$/.test(technicianId);
+    await User.updateMany(
+      { $or: [...(isMongoId ? [{ _id: technicianId }] : []), { name: record.technicianName }] },
+      { $set: { isAvailable: false } }
+    );
+
+    // Broadcast live socket update
+    broadcastEvent('technician:status_updated', {
+      technicianId,
+      technicianName: record.technicianName,
+      status: 'OFFLINE',
+      isAvailable: false,
+      checkOutTime: checkOutTimeStr
+    });
+
+    res.json({ success: true, message: 'Check-Out Successful. You are now OFFLINE.', attendance: record });
   } catch (error) {
     console.error('Check-out error:', error);
     res.status(500).json({ message: 'Server error during check-out' });

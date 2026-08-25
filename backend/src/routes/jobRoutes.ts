@@ -4,6 +4,7 @@ import Order from '../models/Order';
 import User from '../models/User';
 import Dashboard from '../models/Dashboard';
 import TechnicianReport from '../models/TechnicianReport';
+import TechnicianAttendance from '../models/TechnicianAttendance';
 import { emitToUser, emitToRole, emitToJob, broadcastEvent } from '../socket';
 
 const router = Router();
@@ -53,7 +54,22 @@ router.post('/auto-dispatch-complete', async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: 'Job not found' });
     }
 
-    // Find best available technician who currently has ZERO active jobs
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+
+    // 1. Fetch technicians who have PUNCHED IN today and are ONLINE (not OFF_DUTY)
+    const todayAttendance = await TechnicianAttendance.find({
+      date: today,
+      status: { $in: ['PRESENT', 'HALF_DAY', 'OVERTIME'] }
+    });
+
+    const onlineTechIds = new Set<string>();
+    const onlineTechNames = new Set<string>();
+    todayAttendance.forEach(att => {
+      if (att.technicianId) onlineTechIds.add(att.technicianId.toString());
+      if (att.technicianName) onlineTechNames.add(att.technicianName.toLowerCase().trim());
+    });
+
+    // 2. Find best available technician who is Punched In & currently has ZERO active jobs
     const allTechs = await User.find({ role: 'TECHNICIAN', isActive: true });
     const activeJobs = await Job.find({
       jobCode: { $ne: jobCode },
@@ -69,22 +85,23 @@ router.post('/auto-dispatch-complete', async (req: Request, res: Response) => {
       });
     });
 
-    const freeTechs = allTechs.filter((t: any) => 
-      !busyTechIds.has(t._id.toString()) && 
-      !busyTechNames.has(t.name.toLowerCase().trim())
-    );
+    const availableOnlineTechs = allTechs.filter((t: any) => {
+      const isOnline = onlineTechIds.has(t._id.toString()) || onlineTechNames.has(t.name.toLowerCase().trim());
+      const isBusy = busyTechIds.has(t._id.toString()) || busyTechNames.has(t.name.toLowerCase().trim());
+      return isOnline && !isBusy;
+    });
 
-    let assignedTech = freeTechs.length > 0 ? freeTechs[0] : null;
+    let assignedTech = availableOnlineTechs.length > 0 ? availableOnlineTechs[0] : null;
 
     if (!assignedTech) {
-      // No one is free right now -> job waits in queue
+      // No technician is online / free right now -> job waits in queue
       job.status = 'WAITING_FOR_TECH';
       await job.save();
       return res.json({
         success: true,
         jobCode,
         isQueued: true,
-        message: 'All technicians are currently busy on site. Job placed in queue.'
+        message: 'No online/available technicians on duty. Job placed in waiting queue.'
       });
     }
 
@@ -516,7 +533,14 @@ router.post('/:id/reject', async (req: Request, res: Response) => {
 
     // 4. Free the technician who rejected
     const User = require('../models/User').default;
-    const rejectingTech = await User.findById(technicianId);
+    const isTechMongoId = /^[0-9a-fA-F]{24}$/.test(technicianId || '');
+    const rejectingTech = await User.findOne({
+      $or: [
+        ...(isTechMongoId ? [{ _id: technicianId }] : []),
+        { name: technicianName || technicianId },
+        { email: technicianId }
+      ]
+    });
     if (rejectingTech) {
       rejectingTech.isAvailable = true;
       rejectingTech.currentJobId = null;
@@ -723,7 +747,13 @@ router.post('/:id/admin-approve', async (req: Request, res: Response) => {
     // Free the assigned technicians
     const User = require('../models/User').default;
     for (const tech of (job.assignedTechnicians || [])) {
-      const technician = await User.findById(tech.id);
+      const isMongoId = /^[0-9a-fA-F]{24}$/.test(tech.id || '');
+      const technician = await User.findOne({
+        $or: [
+          ...(isMongoId ? [{ _id: tech.id }] : []),
+          { name: tech.name || tech.id }
+        ]
+      });
       if (technician) {
         technician.isAvailable = true;
         technician.currentJobId = null;

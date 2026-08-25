@@ -60,28 +60,45 @@ export default function Technicians() {
     dispatch(updateTechnicianStatus({ id: techId, status: newStatus }));
   };
 
+  const [isSubmittingTech, setIsSubmittingTech] = useState(false);
+
   const handleAddTech = async (e) => {
-    e.preventDefault();
-    if (!techForm.phone || techForm.phone.length !== 10 || !/^[6-9]\d{9}$/.test(techForm.phone)) {
-      alert('Please enter a valid 10-digit Indian mobile number.');
+    if (e) e.preventDefault();
+    if (!techForm.name || !techForm.name.trim()) {
+      alert('Please enter the technician full name.');
       return;
     }
+    const cleanPhone = (techForm.phone || '').replace(/\D/g, '').trim();
+    if (!cleanPhone || cleanPhone.length !== 10 || !/^[6-9]\d{9}$/.test(cleanPhone)) {
+      alert('Please enter a valid 10-digit Indian mobile number (e.g. 9876543210).');
+      return;
+    }
+    if (!techForm.email || !techForm.email.includes('@')) {
+      alert('Please enter a valid email address.');
+      return;
+    }
+    if (!techForm.password || techForm.password.length < 6) {
+      alert('Password must be at least 6 characters long.');
+      return;
+    }
+
+    setIsSubmittingTech(true);
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: techForm.name,
-          email: techForm.email,
-          phone: techForm.phone,
-          password: techForm.password || 'password123', // fallback password
+          name: techForm.name.trim(),
+          email: techForm.email.trim().toLowerCase(),
+          phone: cleanPhone,
+          password: techForm.password,
           role: 'TECHNICIAN',
-          specialties: [techForm.specialization]
+          specialties: [techForm.specialization || 'IP Cameras & Networking']
         })
       });
       const data = await response.json();
       if (data.success) {
-        // Now fetch dashboard data to get the newly added technician from DB
+        // Fetch dashboard data to get the newly added technician from DB
         const { fetchDashboardData } = await import('../../redux/dashboardSlice');
         dispatch(fetchDashboardData());
         
@@ -94,12 +111,15 @@ export default function Technicians() {
           avatarUrl: ''
         });
         setModalOpen(false);
+        alert(`✅ Technician ${techForm.name} onboarded successfully!`);
       } else {
-        alert('Error adding technician: ' + data.message);
+        alert('Error adding technician: ' + (data.message || 'Registration failed'));
       }
     } catch (error) {
       console.error('Failed to add technician:', error);
-      alert('Error connecting to server');
+      alert('Error connecting to server. Please try again.');
+    } finally {
+      setIsSubmittingTech(false);
     }
   };
 
@@ -628,9 +648,17 @@ export default function Technicians() {
             </button>
             <button 
               type="submit" 
-              className="px-4 py-2 bg-primary hover:bg-primary-dark text-white text-xs font-semibold rounded-xl transition-colors"
+              disabled={isSubmittingTech}
+              className="px-4 py-2 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer flex items-center gap-1.5"
             >
-              Onboard Technician
+              {isSubmittingTech ? (
+                <>
+                  <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  <span>Onboarding...</span>
+                </>
+              ) : (
+                <span>Onboard Technician</span>
+              )}
             </button>
           </div>
         </form>

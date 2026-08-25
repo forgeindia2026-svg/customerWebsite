@@ -41,7 +41,6 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
   const menuItems = [
     { name: 'Dashboard', path: '/admin', icon: FiGrid },
     { name: 'Live Workstation', path: '/admin/workstation', icon: FiActivity },
-    { name: 'Projects', path: '/admin/projects', icon: FiBriefcase },
     { name: 'Reports', path: '/admin/reports', icon: FiBarChart2 },
     { name: 'Announcements', path: '/admin/announcements', icon: FiVolume2 },
     { name: 'Service Requests', path: '/admin/service-requests', icon: FiTool },

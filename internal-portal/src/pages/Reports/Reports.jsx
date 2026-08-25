@@ -159,10 +159,19 @@ export default function Reports() {
     return true;
   });
 
-  // Pure Daily Attendance List (1 Row per Technician per Day for Salary & Payroll)
-  const todayStr = new Date().toISOString().split('T')[0];
+  // Current date in Indian Standard Time (YYYY-MM-DD)
+  const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
 
   const dailyAttendanceList = (attendanceRecords || []).map(rec => {
+    let recDate = rec.date;
+    if (!recDate && rec.checkInTimestamp) {
+      recDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(rec.checkInTimestamp));
+    }
+    if (!recDate && rec.createdAt) {
+      recDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(rec.createdAt));
+    }
+    recDate = (recDate || todayStr).split('T')[0];
+
     // Format checkInTime properly in Indian Standard Time (IST)
     let formattedCheckIn = rec.checkInTime || '--:--';
     if (rec.checkInTimestamp) {
@@ -191,13 +200,13 @@ export default function Reports() {
     else if (rec.status === 'OFF_DUTY') salaryNote = 'Full Day (1.0 Day)';
 
     return {
-      id: rec._id || `${rec.technicianId}-${rec.date}`,
-      date: rec.date || todayStr,
+      id: rec._id || `${rec.technicianId}-${recDate}`,
+      date: recDate,
       technicianId: rec.technicianId,
       technician: rec.technicianName || 'Field Technician',
       checkInTime: formattedCheckIn,
       checkOutTime: formattedCheckOut,
-      totalHours: rec.totalHours || 0,
+      totalHours: Number(rec.totalHours) || 0,
       status: rec.status || 'PRESENT',
       location: rec.location || 'Field Location',
       latitude: rec.latitude,
@@ -205,6 +214,9 @@ export default function Reports() {
       notes: salaryNote
     };
   });
+
+  // Filter ONLY TODAY'S attendance for Today's KPI metrics
+  const todayAttendanceList = dailyAttendanceList.filter(r => r.date === todayStr);
 
   // Calculations
   const totalCollected = (payments || []).filter(p => p && p.status === 'Paid').reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
@@ -546,7 +558,7 @@ export default function Reports() {
         {/* Tab Switcher */}
         <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-200/50 dark:border-slate-700/50 self-start md:self-auto overflow-x-auto max-w-full gap-1">
           {[
-            { id: 'Attendance', label: '🕒 Attendance & Timesheet (1-31 Days)' },
+            { id: 'Attendance', label: '🕒 Attendance & Timesheet' },
             { id: 'Field Reports', label: '📸 Technician Field Reports' },
             { id: 'Technicians', label: '⭐ Technician Performance' },
             { id: 'Overview', label: '📊 Executive Overview' }
@@ -575,7 +587,7 @@ export default function Reports() {
               <div>
                 <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider block">PRESENT TODAY</span>
                 <span className="text-xl sm:text-2xl font-black text-emerald-600 block mt-0.5 font-mono">
-                  {dailyAttendanceList.filter(r => r.status === 'PRESENT' || r.status === 'OVERTIME').length} Techs
+                  {todayAttendanceList.filter(r => r.status === 'PRESENT' || r.status === 'OVERTIME').length} Techs
                 </span>
               </div>
               <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
@@ -587,7 +599,7 @@ export default function Reports() {
               <div>
                 <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider block">HALF DAY / ON LEAVE</span>
                 <span className="text-xl sm:text-2xl font-black text-amber-600 block mt-0.5 font-mono">
-                  {dailyAttendanceList.filter(r => r.status === 'HALF_DAY' || r.status === 'OFF_DUTY').length} Techs
+                  {todayAttendanceList.filter(r => r.status === 'HALF_DAY').length} Techs
                 </span>
               </div>
               <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
@@ -599,7 +611,7 @@ export default function Reports() {
               <div>
                 <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider block">TOTAL HOURS LOGGED</span>
                 <span className="text-xl sm:text-2xl font-black text-purple-600 block mt-0.5 font-mono">
-                  {dailyAttendanceList.reduce((sum, r) => sum + (Number(r.totalHours) || 8), 0)} Hours
+                  {todayAttendanceList.reduce((sum, r) => sum + (Number(r.totalHours) || 0), 0).toFixed(1)} Hours
                 </span>
               </div>
               <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
@@ -622,28 +634,27 @@ export default function Reports() {
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm p-6 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
               <div>
-                <h3 className="font-black text-slate-900 dark:text-white text-lg tracking-tight flex items-center gap-2">
-                  <span>📅 Technician Monthly Attendance Timesheet</span>
-                  <span className="text-xs font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded-lg">Day 1 to 31 Log</span>
+                <h3 className="font-bold text-slate-900 dark:text-white text-base tracking-tight flex items-center gap-2">
+                  <span>Attendance Logs</span>
                 </h3>
-                <p className="text-xs text-slate-500 mt-1">Daily morning check-in / evening check-out logs and working hours for salary calculation</p>
+                <p className="text-xs text-slate-500 mt-0.5">Daily check-in, check-out, and hours logged for salary calculation</p>
               </div>
 
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
                 <button
                   onClick={handleExportMonthlyExcel}
-                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl flex items-center gap-2 transition-all shadow-md cursor-pointer active:scale-95"
+                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-95"
                 >
-                  <FiDownload size={15} />
-                  <span>Export Monthly Attendance (Excel / CSV)</span>
+                  <FiDownload size={14} />
+                  <span>Export Excel</span>
                 </button>
 
                 <button
                   onClick={handleExportAttendancePDF}
-                  className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl flex items-center gap-2 transition-all shadow-md cursor-pointer active:scale-95"
+                  className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-95"
                 >
-                  <FiDownload size={15} />
-                  <span>Export Timesheet (PDF)</span>
+                  <FiDownload size={14} />
+                  <span>Export PDF</span>
                 </button>
               </div>
             </div>
@@ -655,12 +666,12 @@ export default function Reports() {
                   <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-bold uppercase tracking-wider text-[11px]">
                     <th className="py-3 px-3">Date</th>
                     <th className="py-3 px-3">Technician</th>
-                    <th className="py-3 px-3 text-center">Morning Check-In</th>
-                    <th className="py-3 px-3 text-center">Evening Check-Out</th>
-                    <th className="py-3 px-3 text-center">Working Hours</th>
+                    <th className="py-3 px-3 text-center">Check-In</th>
+                    <th className="py-3 px-3 text-center">Check-Out</th>
+                    <th className="py-3 px-3 text-center">Hours</th>
                     <th className="py-3 px-3 text-center">Status</th>
                     <th className="py-3 px-3">Location</th>
-                    <th className="py-3 px-3">Salary & Payroll Note</th>
+                    <th className="py-3 px-3">Salary Note</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">

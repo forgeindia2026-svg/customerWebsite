@@ -1,14 +1,34 @@
 import Job from '../models/Job';
 import User from '../models/User';
 import Dashboard from '../models/Dashboard';
-import { emitToRole } from '../socket';
+import TechnicianAttendance from '../models/TechnicianAttendance';
+import { emitToRole, broadcastEvent } from '../socket';
 
 export const processWaitingQueue = async () => {
   try {
-    // 1. Fetch all active technicians
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+
+    // 1. Fetch technicians who have PUNCHED IN today and are NOT OFF_DUTY (Online & On-Duty)
+    const todayAttendance = await TechnicianAttendance.find({
+      date: today,
+      status: { $in: ['PRESENT', 'HALF_DAY', 'OVERTIME'] }
+    });
+
+    const onlineTechIds = new Set<string>();
+    const onlineTechNames = new Set<string>();
+    todayAttendance.forEach(att => {
+      if (att.technicianId) onlineTechIds.add(att.technicianId.toString());
+      if (att.technicianName) onlineTechNames.add(att.technicianName.toLowerCase().trim());
+    });
+
+    if (onlineTechIds.size === 0 && onlineTechNames.size === 0) {
+      return; // No technicians online today
+    }
+
+    // 2. Fetch all active registered technicians
     const allTechs = await User.find({ role: 'TECHNICIAN', isActive: true });
     
-    // 2. Find all currently active unfinished jobs
+    // 3. Find all currently active unfinished jobs
     const activeJobs = await Job.find({
       status: { $in: ['IN_PROGRESS', 'ASSIGNED', 'ACCEPTED', 'ASSIGNMENT_PENDING_ACCEPTANCE', 'WAITING_ADMIN_APPROVAL'] }
     } as any);
@@ -22,13 +42,15 @@ export const processWaitingQueue = async () => {
       });
     });
 
-    const availableTechs = allTechs.filter((t: any) => 
-      !busyTechIds.has(t._id.toString()) && 
-      !busyTechNames.has(t.name.toLowerCase().trim())
-    );
+    // Online (Punched In Today) AND Not Busy with an active job
+    const availableTechs = allTechs.filter((t: any) => {
+      const isOnline = onlineTechIds.has(t._id.toString()) || onlineTechNames.has(t.name.toLowerCase().trim());
+      const isBusy = busyTechIds.has(t._id.toString()) || busyTechNames.has(t.name.toLowerCase().trim());
+      return isOnline && !isBusy;
+    });
     
     if (availableTechs.length === 0) {
-      return; // No one available
+      return; // No online technician available
     }
 
     for (const tech of availableTechs) {
