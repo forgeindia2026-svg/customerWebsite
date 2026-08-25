@@ -87,6 +87,7 @@ export const clearDashboardCache = () => {
 // GET entire dashboard state dynamically built from live database collections
 router.get('/', async (req: Request, res: Response) => {
   try {
+    console.log('Start GET /dashboard');
     const now = Date.now();
     const forceRefresh = req.query.refresh === 'true';
 
@@ -94,6 +95,7 @@ router.get('/', async (req: Request, res: Response) => {
       return res.json({ success: true, data: cachedDashboardState, cached: true });
     }
 
+    console.log('Starting DB queries...');
     // ⚡ Ultra-Fast Parallel MongoDB Query Execution
     let [dashboardDoc, liveOrders, liveProducts, liveTechnicians, liveCustomers, liveJobs, liveQueries] = await Promise.all([
       Dashboard.findOne().lean().catch(() => null),
@@ -101,9 +103,11 @@ router.get('/', async (req: Request, res: Response) => {
       Product.find().lean().catch(() => []),
       User.find({ role: 'TECHNICIAN' }).lean().catch(() => []),
       User.find({ role: 'CUSTOMER' }).lean().catch(() => []),
-      Job.find().sort({ createdAt: -1 }).lean().catch(() => []),
+      // Optimize Job query by excluding large Base64 image fields to prevent 504 Gateway Timeouts
+      Job.find().select('-proofImages -beforePhotos -afterPhotos').sort({ createdAt: -1 }).lean().catch(() => []),
       Query.find().sort({ updatedAt: -1, createdAt: -1 }).lean().catch(() => [])
     ]);
+    console.log('Queries finished');
 
     let dashboardData: any = dashboardDoc;
 
@@ -127,6 +131,8 @@ router.get('/', async (req: Request, res: Response) => {
       };
     }
 
+    console.log('Pre-indexing collections...');
+
     // Pre-index collections for ultra-fast O(1) lookups
     const jobByCode = new Map((liveJobs || []).map((j: any) => [j.jobCode, j]));
     const ordersByEmail = new Map<string, any[]>();
@@ -148,6 +154,8 @@ router.get('/', async (req: Request, res: Response) => {
         });
       }
     });
+
+    console.log('Mapping live Jobs/Projects...');
 
     // Map live Jobs/Projects (Combine Jobs & Orders so all 27 projects are returned)
     const jobCodesSet = new Set((liveJobs || []).map((j: any) => j.jobCode));
@@ -186,6 +194,7 @@ router.get('/', async (req: Request, res: Response) => {
         }))
     ];
 
+    console.log('Mapping live Orders...');
     // Map live Orders
     const mappedOrders = (liveOrders || []).map((order: any) => {
       const job = jobByCode.get(order.orderNumber);
@@ -323,6 +332,7 @@ router.get('/', async (req: Request, res: Response) => {
       messages: q.messages || []
     }));
 
+    console.log('Mapping completed, preparing response...');
     // Merge baseline and dynamic live collections
     const mergedData = {
       ...dashboardData,
@@ -338,6 +348,7 @@ router.get('/', async (req: Request, res: Response) => {
     cachedDashboardState = mergedData;
     lastCacheTime = Date.now();
 
+    console.log('Sending response');
     res.json({ success: true, data: mergedData });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
