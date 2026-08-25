@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { addQuery, updateQueryStatus, addQueryResponse } from '../../redux/dashboardSlice';
 import { 
@@ -6,6 +6,7 @@ import {
   FiAlertCircle, FiSend, FiUser, FiInfo, FiLayers 
 } from 'react-icons/fi';
 import Modal from '../../components/Modal';
+import { getApiUrl } from '../../utils/config';
 
 export default function Queries() {
   const dispatch = useDispatch();
@@ -15,9 +16,16 @@ export default function Queries() {
 
   const [activeTab, setActiveTab] = useState('All'); // 'All', 'Customer', 'Technician'
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedQueryId, setSelectedQueryId] = useState(queries?.[0]?.id || null);
+  const [selectedQueryId, setSelectedQueryId] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [replyText, setReplyText] = useState('');
+
+  // Auto select first query
+  useEffect(() => {
+    if (queries.length > 0 && !selectedQueryId) {
+      setSelectedQueryId(queries[0].id);
+    }
+  }, [queries, selectedQueryId]);
 
   // Raise Query Form State
   const [queryForm, setQueryForm] = useState({
@@ -28,7 +36,17 @@ export default function Queries() {
     description: ''
   });
 
-  const selectedQuery = queries.find(q => q.id === selectedQueryId);
+  // Filter queries
+  const filteredQueries = queries.filter(q => {
+    const matchesTab = activeTab === 'All' || q.type === activeTab;
+    const matchesSearch = 
+      (q.id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (q.raisedBy || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (q.subject || '').toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesTab && matchesSearch;
+  });
+
+  const selectedQuery = queries.find(q => q.id === selectedQueryId) || filteredQueries[0];
 
   // Form helper: get available names depending on selected type
   const getRaisedByOptions = () => {
@@ -39,38 +57,56 @@ export default function Queries() {
     }
   };
 
-  // Filter queries
-  const filteredQueries = queries.filter(q => {
-    const matchesTab = activeTab === 'All' || q.type === activeTab;
-    const matchesSearch = 
-      q.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      q.raisedBy.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      q.subject.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesTab && matchesSearch;
-  });
-
-  const handleStatusChange = (id, newStatus) => {
+  const handleStatusChange = async (id, newStatus) => {
     dispatch(updateQueryStatus({ id, status: newStatus }));
+    try {
+      await fetch(`${getApiUrl()}/api/queries/${id}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+    } catch (err) {
+      console.error('Failed to sync query status:', err);
+    }
   };
 
-  const handleSendReply = (e) => {
-    e.preventDefault();
-    if (!replyText.trim()) return;
-    dispatch(addQueryResponse({
-      id: selectedQueryId,
-      sender: 'Admin',
-      text: replyText
-    }));
+  const handleSendReply = async (e) => {
+    if (e) e.preventDefault();
+    if (!replyText.trim() || !selectedQuery) return;
+    const currentId = selectedQuery.id;
+    const textToSend = replyText.trim();
     setReplyText('');
+
+    dispatch(addQueryResponse({
+      id: currentId,
+      sender: 'Admin',
+      text: textToSend
+    }));
+
+    try {
+      await fetch(`${getApiUrl()}/api/queries/${currentId}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sender: 'Admin',
+          role: 'ADMIN',
+          text: textToSend
+        })
+      });
+    } catch (err) {
+      console.error('Failed to post reply to server:', err);
+    }
   };
 
-  const handleRaiseQuerySubmit = (e) => {
-    e.preventDefault();
+  const handleRaiseQuerySubmit = async (e) => {
+    if (e) e.preventDefault();
     const raisedBy = queryForm.raisedBy || getRaisedByOptions()[0] || 'Unknown';
-    dispatch(addQuery({
+    const payload = {
       ...queryForm,
       raisedBy
-    }));
+    };
+
+    dispatch(addQuery(payload));
     setQueryForm({
       type: 'Customer',
       raisedBy: '',
@@ -79,6 +115,20 @@ export default function Queries() {
       description: ''
     });
     setModalOpen(false);
+
+    try {
+      const res = await fetch(`${getApiUrl()}/api/queries`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        setSelectedQueryId(data.data.id);
+      }
+    } catch (err) {
+      console.error('Failed to create query on server:', err);
+    }
   };
 
   const getPriorityClass = (priority) => {
@@ -114,17 +164,32 @@ export default function Queries() {
         
         {/* Left Side: Type Tabs */}
         <div className="flex bg-slate-50 dark:bg-slate-800 p-1 rounded-xl border border-slate-200/50 dark:border-slate-700/50 w-full lg:w-auto overflow-x-auto no-scrollbar">
-          {['All', 'Customer', 'Technician'].map(tab => (
+          {[
+            { id: 'All', label: 'All Queries', count: queries.length },
+            { id: 'Customer', label: 'Customer Queries', count: queries.filter(q => q.type === 'Customer').length },
+            { id: 'Technician', label: 'Technician Queries', count: queries.filter(q => q.type === 'Technician').length }
+          ].map(tab => (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`text-xs font-semibold px-4 py-2 rounded-lg transition-all whitespace-nowrap ${
-                activeTab === tab 
+              key={tab.id}
+              onClick={() => {
+                setActiveTab(tab.id);
+                const matching = queries.filter(q => tab.id === 'All' || q.type === tab.id);
+                if (matching.length > 0) setSelectedQueryId(matching[0].id);
+              }}
+              className={`text-xs font-semibold px-4 py-2 rounded-lg transition-all whitespace-nowrap flex items-center gap-2 ${
+                activeTab === tab.id 
                   ? 'bg-white dark:bg-slate-700 text-slate-850 dark:text-white shadow-xs' 
                   : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
-              {tab === 'All' ? 'All Queries' : `${tab} Queries`}
+              <span>{tab.label}</span>
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                activeTab === tab.id
+                  ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-light'
+                  : 'bg-slate-200/70 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
+              }`}>
+                {tab.count}
+              </span>
             </button>
           ))}
         </div>

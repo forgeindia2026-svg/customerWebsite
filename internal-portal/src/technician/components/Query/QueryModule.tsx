@@ -1,18 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   HelpCircle, 
   Send, 
   Plus
 } from 'lucide-react';
-
+import { getApiUrl } from '../../../utils/config';
 import { formatDate } from '../../services/dateUtils';
 
 interface QueryItem {
   id: string;
   ticketId: string;
   subject: string;
-  category: 'PARTS_REQUEST' | 'TECHNICAL_HELP' | 'SCHEDULE_CHANGE' | 'SAFETY_ISSUE';
-  status: 'OPEN' | 'IN_REVIEW' | 'RESOLVED';
+  category: 'PARTS_REQUEST' | 'TECHNICAL_HELP' | 'SCHEDULE_CHANGE' | 'SAFETY_ISSUE' | string;
+  status: 'OPEN' | 'IN_REVIEW' | 'RESOLVED' | 'In Progress' | 'Open' | 'Resolved';
   createdDate: string;
   lastReply: string;
   lastActivityTimestamp: number;
@@ -22,23 +22,48 @@ interface QueryItem {
 export const QueryModule: React.FC = () => {
   const techName = localStorage.getItem('user_name') || 'Technician';
 
-  const [queries, setQueries] = useState<QueryItem[]>(() => {
-    const saved = localStorage.getItem('tech_queries');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [selectedQuery, setSelectedQuery] = useState<QueryItem | null>(queries[0] || null);
+  const [queries, setQueries] = useState<QueryItem[]>([]);
+  const [selectedQuery, setSelectedQuery] = useState<QueryItem | null>(null);
   const [newQuerySubject, setNewQuerySubject] = useState('');
-  const [newQueryCategory, setNewQueryCategory] = useState<'PARTS_REQUEST' | 'TECHNICAL_HELP' | 'SCHEDULE_CHANGE' | 'SAFETY_ISSUE'>('TECHNICAL_HELP');
+  const [newQueryCategory, setNewQueryCategory] = useState<string>('TECHNICAL_HELP');
   const [newQueryMessage, setNewQueryMessage] = useState('');
   const [replyText, setReplyText] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
-  React.useEffect(() => {
-    localStorage.setItem('tech_queries', JSON.stringify(queries));
-  }, [queries]);
+  // Fetch technician queries from backend API
+  const fetchQueries = async () => {
+    try {
+      const res = await fetch(`${getApiUrl()}/api/queries?type=Technician`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        const mapped: QueryItem[] = data.map((q: any) => ({
+          id: q.ticketId || q.id,
+          ticketId: q.ticketId || q.id,
+          subject: q.subject,
+          category: q.category || 'TECHNICAL_HELP',
+          status: q.status || 'OPEN',
+          createdDate: q.date || new Date().toLocaleDateString(),
+          lastReply: q.messages?.[q.messages.length - 1]?.text ? `${q.messages[q.messages.length - 1].sender}: ${q.messages[q.messages.length - 1].text}` : 'Open Ticket Registered',
+          lastActivityTimestamp: Date.now(),
+          messages: q.messages || []
+        }));
+        setQueries(mapped);
+        if (mapped.length > 0 && !selectedQuery) {
+          setSelectedQuery(mapped[0]);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load technician queries:', err);
+    }
+  };
 
-  React.useEffect(() => {
+  useEffect(() => {
+    fetchQueries();
+    const interval = setInterval(fetchQueries, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
     if (queries.length > 0 && (!selectedQuery || !queries.find(q => q.id === selectedQuery.id))) {
       setSelectedQuery(queries[0]);
     } else if (queries.length === 0) {
@@ -57,45 +82,86 @@ export const QueryModule: React.FC = () => {
     return `${diffDays}d ago`;
   };
 
-  const handleSendReply = () => {
+  const handleSendReply = async () => {
     if (!replyText.trim() || !selectedQuery) return;
     const now = Date.now();
+    const textToSend = replyText.trim();
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const currentId = selectedQuery.ticketId || selectedQuery.id;
+
     const updated: QueryItem = {
       ...selectedQuery,
-      lastReply: `${techName} (You): ${replyText}`,
+      lastReply: `${techName} (You): ${textToSend}`,
       lastActivityTimestamp: now,
       messages: [
         ...selectedQuery.messages,
-        { sender: `${techName} (You)`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), text: replyText }
+        { sender: `${techName} (You)`, time: timeStr, text: textToSend }
       ]
     };
     setSelectedQuery(updated);
     setQueries(queries.map(q => q.id === updated.id ? updated : q));
     setReplyText('');
+
+    try {
+      await fetch(`${getApiUrl()}/api/queries/${currentId}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sender: `${techName} (Technician)`,
+          role: 'TECHNICIAN',
+          text: textToSend
+        })
+      });
+    } catch (err) {
+      console.error('Failed to post reply to server:', err);
+    }
   };
 
-  const handleCreateQuery = (e: React.FormEvent) => {
+  const handleCreateQuery = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newQuerySubject.trim() || !newQueryMessage.trim()) return;
 
     const now = Date.now();
-    const newTicket: QueryItem = {
-      id: `q-${now}`,
-      ticketId: `TKT-${Math.floor(1000 + Math.random() * 9000)}`,
-      subject: newQuerySubject,
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    
+    const payload = {
+      type: 'Technician',
+      raisedBy: techName,
+      subject: newQuerySubject.trim(),
       category: newQueryCategory,
-      status: 'OPEN',
-      createdDate: new Date().toLocaleString(),
-      lastReply: 'Support Desk: Open Ticket Registered',
-      lastActivityTimestamp: now,
-      messages: [
-        { sender: `${techName} (You)`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), text: newQueryMessage }
-      ]
+      priority: 'Medium',
+      description: newQueryMessage.trim()
     };
 
-    const updatedList = [newTicket, ...queries];
-    setQueries(updatedList);
-    setSelectedQuery(newTicket);
+    try {
+      const res = await fetch(`${getApiUrl()}/api/queries`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        const newTicket: QueryItem = {
+          id: data.data.ticketId || data.data.id,
+          ticketId: data.data.ticketId || data.data.id,
+          subject: data.data.subject,
+          category: data.data.category,
+          status: 'OPEN',
+          createdDate: new Date().toLocaleString(),
+          lastReply: `${techName}: ${newQueryMessage}`,
+          lastActivityTimestamp: now,
+          messages: [
+            { sender: `${techName} (You)`, time: timeStr, text: newQueryMessage }
+          ]
+        };
+        const updatedList = [newTicket, ...queries];
+        setQueries(updatedList);
+        setSelectedQuery(newTicket);
+      }
+    } catch (err) {
+      console.error('Failed to create ticket on server:', err);
+    }
+
     setNewQuerySubject('');
     setNewQueryMessage('');
     setIsCreating(false);

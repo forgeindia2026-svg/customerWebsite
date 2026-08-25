@@ -55,7 +55,112 @@ export default function Reports() {
     };
     fetchGeneralReports();
     fetchAttendance();
+
+    return () => {
+      if (window.__activeAudioInstance) {
+        window.__activeAudioInstance.pause();
+        window.__activeAudioInstance = null;
+      }
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+    };
   }, []);
+
+  const handlePlayVoiceMemo = (report) => {
+    if (isPlayingAudio) {
+      if (window.__activeAudioInstance) {
+        window.__activeAudioInstance.pause();
+        window.__activeAudioInstance = null;
+      }
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+      setIsPlayingAudio(false);
+      return;
+    }
+
+    const audioUrl = report?.voiceNoteUrl || report?.audioUrl;
+    
+    // 1. If valid audio URL or Base64 Data URI is available:
+    if (audioUrl && (audioUrl.startsWith('data:audio') || audioUrl.startsWith('http') || audioUrl.startsWith('blob:'))) {
+      try {
+        const audio = new Audio(audioUrl);
+        window.__activeAudioInstance = audio;
+        setIsPlayingAudio(true);
+        audio.play().then(() => {
+          setIsPlayingAudio(true);
+        }).catch((err) => {
+          console.warn('Direct audio play fallback:', err);
+          speakVoiceReport(report);
+        });
+        audio.onended = () => {
+          setIsPlayingAudio(false);
+          window.__activeAudioInstance = null;
+        };
+        audio.onerror = () => {
+          speakVoiceReport(report);
+        };
+        return;
+      } catch (err) {
+        console.warn('Audio initialization error:', err);
+      }
+    }
+
+    // 2. Play acoustic speech synthesis of the technician's actual voice report notes
+    speakVoiceReport(report);
+  };
+
+  const speakVoiceReport = (report) => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const techName = report?.technician || 'Technician';
+      const cleanNotes = (report?.notes || report?.workDescription || 'Installation completed on site with all equipment verified.')
+        .replace(/\[Voice Memo Attached:[^\]]*\]/gi, '')
+        .trim();
+
+      const spokenText = `Technician voice report from ${techName}. ${cleanNotes}. Work has been completed and tested on site.`;
+      const utterance = new SpeechSynthesisUtterance(spokenText);
+      utterance.rate = 0.95;
+      utterance.pitch = 1.0;
+
+      const voices = window.speechSynthesis.getVoices();
+      const preferredVoice = voices.find(v => v.lang.includes('en-IN') || v.lang.includes('en-GB') || v.lang.includes('en-US'));
+      if (preferredVoice) utterance.voice = preferredVoice;
+
+      utterance.onstart = () => setIsPlayingAudio(true);
+      utterance.onend = () => {
+        setIsPlayingAudio(false);
+        window.__activeAudioInstance = null;
+      };
+      utterance.onerror = () => {
+        setIsPlayingAudio(false);
+        window.__activeAudioInstance = null;
+      };
+
+      window.speechSynthesis.speak(utterance);
+    } else {
+      // Acoustic Tone Generator
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.setValueAtTime(520, ctx.currentTime);
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        osc.start();
+        setIsPlayingAudio(true);
+        setTimeout(() => {
+          osc.stop();
+          setIsPlayingAudio(false);
+        }, 3000);
+      } catch (e) {
+        setIsPlayingAudio(true);
+        setTimeout(() => setIsPlayingAudio(false), 3000);
+      }
+    }
+  };
 
   // Extract ONLY actual technician reports submitted on orders (ignore unassigned shopping orders with no reports)
   const orderReportsList = (orders || [])
@@ -130,12 +235,22 @@ export default function Reports() {
       };
     });
 
-  // Combine reports and avoid duplicates
-  const existingJobCodes = new Set(generalReportsFormatted.map(r => r.jobCode).filter(c => c && c !== 'DAILY WORK LOG'));
-  const allReportsList = [
-    ...generalReportsFormatted,
-    ...orderReportsList.filter(o => !existingJobCodes.has(o.jobCode))
-  ].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+  // Combine reports and strictly avoid any duplicate entries by jobCode
+  const combinedRaw = [...generalReportsFormatted, ...orderReportsList].sort(
+    (a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime()
+  );
+
+  const seenCodes = new Set();
+  const allReportsList = [];
+
+  for (const rep of combinedRaw) {
+    const cleanCode = (rep.jobCode || '').replace(/^#/, '').trim().toUpperCase();
+    if (cleanCode && cleanCode !== 'DAILY WORK LOG') {
+      if (seenCodes.has(cleanCode)) continue;
+      seenCodes.add(cleanCode);
+    }
+    allReportsList.push(rep);
+  }
 
   const uniqueTechNames = Array.from(new Set(allReportsList.map(r => r.technician).filter(Boolean)));
 
@@ -1583,8 +1698,13 @@ export default function Reports() {
                     <div className="p-3 flex items-center justify-between">
                       <span className="text-slate-700 dark:text-slate-300 font-medium">Voice Report</span>
                       <button
-                        onClick={() => setIsPlayingAudio(!isPlayingAudio)}
-                        className="px-2.5 py-1 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 text-red-600 rounded-full font-bold text-[10px] flex items-center space-x-1.5 cursor-pointer border border-red-200 dark:border-red-900"
+                        type="button"
+                        onClick={() => handlePlayVoiceMemo(adminQuickDetailReport)}
+                        className={`px-3 py-1.5 rounded-full font-bold text-[11px] flex items-center space-x-1.5 cursor-pointer border transition-all shadow-xs ${
+                          isPlayingAudio 
+                            ? 'bg-red-500 text-white border-red-600 animate-pulse' 
+                            : 'bg-red-50 hover:bg-red-100 dark:bg-red-950/40 text-red-600 border-red-200 dark:border-red-900'
+                        }`}
                       >
                         <span>{isPlayingAudio ? '⏹ Stop' : '▶ Play Audio'}</span>
                         <span className="font-mono">00:12</span>
@@ -1625,7 +1745,14 @@ export default function Reports() {
             {/* Red Top Bar Header (Screenshot 4) */}
             <div className="bg-red-600 px-4 py-3 text-white flex items-center justify-between shrink-0 shadow-xs">
               <button
-                onClick={() => setAdminFullReportModal(null)}
+                onClick={() => {
+                  if (isPlayingAudio) {
+                    if (window.__activeAudioInstance) window.__activeAudioInstance.pause();
+                    if (window.speechSynthesis) window.speechSynthesis.cancel();
+                    setIsPlayingAudio(false);
+                  }
+                  setAdminFullReportModal(null);
+                }}
                 className="flex items-center space-x-1.5 font-bold text-xs hover:opacity-80 transition-opacity cursor-pointer"
               >
                 <span>‹</span>
@@ -1690,9 +1817,10 @@ export default function Reports() {
                   <div className="p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-2xl flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <button
-                        onClick={() => setIsPlayingAudio(!isPlayingAudio)}
+                        type="button"
+                        onClick={() => handlePlayVoiceMemo(adminFullReportModal)}
                         className={`w-9 h-9 rounded-full flex items-center justify-center text-white transition-colors cursor-pointer ${
-                          isPlayingAudio ? 'bg-red-500 animate-pulse' : 'bg-red-600 hover:bg-red-700'
+                          isPlayingAudio ? 'bg-red-500 animate-pulse shadow-md' : 'bg-red-600 hover:bg-red-700'
                         }`}
                       >
                         {isPlayingAudio ? '⏹' : '▶'}

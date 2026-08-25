@@ -4,6 +4,7 @@ import Order from '../models/Order';
 import Product from '../models/Product';
 import User from '../models/User';
 import Job from '../models/Job';
+import Query from '../models/Query';
 
 const router = Router();
 
@@ -94,13 +95,14 @@ router.get('/', async (req: Request, res: Response) => {
     }
 
     // ⚡ Ultra-Fast Parallel MongoDB Query Execution
-    let [dashboardDoc, liveOrders, liveProducts, liveTechnicians, liveCustomers, liveJobs] = await Promise.all([
+    let [dashboardDoc, liveOrders, liveProducts, liveTechnicians, liveCustomers, liveJobs, liveQueries] = await Promise.all([
       Dashboard.findOne().lean().catch(() => null),
       Order.find().sort({ createdAt: -1 }).lean().catch(() => []),
       Product.find().lean().catch(() => []),
       User.find({ role: 'TECHNICIAN' }).lean().catch(() => []),
       User.find({ role: 'CUSTOMER' }).lean().catch(() => []),
-      Job.find().sort({ createdAt: -1 }).lean().catch(() => [])
+      Job.find().sort({ createdAt: -1 }).lean().catch(() => []),
+      Query.find().sort({ updatedAt: -1, createdAt: -1 }).lean().catch(() => [])
     ]);
 
     let dashboardData: any = dashboardDoc;
@@ -301,6 +303,26 @@ router.get('/', async (req: Request, res: Response) => {
       date: new Date(o.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     }));
 
+    // Map live Support Queries (Customer & Technician)
+    const mappedQueries = (liveQueries || []).map((q: any) => ({
+      id: q.ticketId || `TKT-${q._id}`,
+      _id: q._id?.toString(),
+      ticketId: q.ticketId || `TKT-${q._id}`,
+      type: q.type || 'Customer',
+      raisedBy: q.raisedBy || 'Customer',
+      raisedById: q.raisedById,
+      phone: q.phone || '',
+      email: q.email || '',
+      subject: q.subject || 'Support Ticket',
+      category: q.category || 'General Support',
+      priority: q.priority || 'Medium',
+      status: q.status || 'Open',
+      description: q.description || '',
+      date: q.createdAt ? new Date(q.createdAt).toISOString().split('T')[0] : '2026-08-25',
+      time: q.createdAt ? new Date(q.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '10:00 AM',
+      messages: q.messages || []
+    }));
+
     // Merge baseline and dynamic live collections
     const mergedData = {
       ...dashboardData,
@@ -309,7 +331,8 @@ router.get('/', async (req: Request, res: Response) => {
       technicians: mappedTechnicians,
       customers: mappedCustomers,
       projects: mappedProjects,
-      payments: mappedPayments
+      payments: mappedPayments,
+      queries: mappedQueries
     };
 
     cachedDashboardState = mergedData;

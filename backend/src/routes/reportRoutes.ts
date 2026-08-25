@@ -16,7 +16,20 @@ router.get('/', async (req: Request, res: Response) => {
     }
 
     const reports = await TechnicianReport.find(query).sort({ createdAt: -1 });
-    res.json(reports);
+
+    // Deduplicate by jobCode (keep newest / most complete report)
+    const seenJobCodes = new Set<string>();
+    const uniqueReports = [];
+    for (const r of reports) {
+      const cleanCode = (r.jobCode || '').replace(/^#/, '').trim().toUpperCase();
+      if (cleanCode && cleanCode !== 'DAILY WORK LOG') {
+        if (seenJobCodes.has(cleanCode)) continue;
+        seenJobCodes.add(cleanCode);
+      }
+      uniqueReports.push(r);
+    }
+
+    res.json(uniqueReports);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
@@ -35,6 +48,27 @@ router.post('/', async (req: Request, res: Response) => {
     
     const finalTechId = technicianId || 'TECH-01';
     const finalTechName = technicianName || 'Field Technician';
+    const cleanJobCode = (jobCode || '').trim();
+
+    // ⚡ If a report for this jobCode already exists, UPDATE it instead of creating a duplicate!
+    if (cleanJobCode && cleanJobCode !== 'DAILY WORK LOG') {
+      const existing = await TechnicianReport.findOne({ 
+        jobCode: { $regex: new RegExp(`^#?${cleanJobCode.replace(/^#/, '')}$`, 'i') } 
+      });
+
+      if (existing) {
+        existing.technicianId = finalTechId;
+        existing.technicianName = finalTechName;
+        existing.workDescription = workDescription || existing.workDescription;
+        existing.activityType = activityType || existing.activityType;
+        if (beforePhotos && beforePhotos.length > 0) existing.beforePhotos = beforePhotos;
+        if (afterPhotos && afterPhotos.length > 0) existing.afterPhotos = afterPhotos;
+        if (voiceNoteUrl) existing.voiceNoteUrl = voiceNoteUrl;
+        existing.hasVoiceNote = Boolean(hasVoiceNote || (voiceNoteUrl && voiceNoteUrl.length > 0) || existing.hasVoiceNote);
+        const saved = await existing.save();
+        return res.status(200).json({ success: true, data: saved, message: 'Report updated successfully' });
+      }
+    }
 
     const report = new TechnicianReport({
       technicianId: finalTechId,
@@ -47,7 +81,7 @@ router.post('/', async (req: Request, res: Response) => {
       checkOutTime: checkOutTime || '',
       status: status || 'PRESENT',
       jobId: jobId || '',
-      jobCode: jobCode || '',
+      jobCode: cleanJobCode || '',
       customerName: customerName || '',
       location: location || '',
       isMultiDay: Boolean(isMultiDay),

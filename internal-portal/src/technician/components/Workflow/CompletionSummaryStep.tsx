@@ -63,10 +63,14 @@ export const CompletionSummaryStep: React.FC<CompletionSummaryStepProps> = ({
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
-        const url = URL.createObjectURL(audioBlob);
-        setAudioUrl(url);
-        setVoiceNoteRecorded(true);
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64Url = reader.result as string;
+          setAudioUrl(base64Url);
+          setVoiceNoteRecorded(true);
+        };
+        reader.readAsDataURL(audioBlob);
         
         // Stop all tracks in stream
         stream.getTracks().forEach(track => track.stop());
