@@ -742,6 +742,16 @@ export default function Orders() {
               </select>
             </div>
           </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Items / Package Description (Optional)</label>
+            <textarea 
+              rows="2"
+              placeholder="e.g. 4 Hikvision IP Cameras, 1 NVR, 1 TB HDD..." 
+              value={orderForm.items || ''}
+              onChange={(e) => setOrderForm({ ...orderForm, items: e.target.value })}
+              className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100 resize-none"
+            ></textarea>
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1.5">Order Amount (₹)</label>
