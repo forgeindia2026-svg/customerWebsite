@@ -166,10 +166,11 @@ export default function StaffLogin() {
                 <label className="block text-xs font-semibold text-zinc-700 mb-1.5">Email Address / Staff ID</label>
                 <div className="relative">
                   <input
-                    type="email"
+                    type="text"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Email or Phone Number"
                     className="w-full pl-9 pr-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-medium text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-800 focus:border-zinc-800 transition-all"
                   />
                   <User className="w-4 h-4 text-zinc-400 absolute left-3 top-3" />

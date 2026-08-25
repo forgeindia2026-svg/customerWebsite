@@ -25,14 +25,19 @@ router.post('/login', async (req: Request, res: Response) => {
     }
 
     // Sanitize input
-    const cleanEmail = email.toLowerCase().trim().replace(/[${\}]/g, '');
+    const cleanEmailOrPhone = email.toLowerCase().trim().replace(/[${\}]/g, '');
     const cleanPassword = password.replace(/[${\}]/g, '');
 
-    // Check DB User first
-    let user = await User.findOne({ email: cleanEmail });
+    // Check DB User by Email or Phone
+    let user = await User.findOne({
+      $or: [
+        { email: cleanEmailOrPhone },
+        { phone: cleanEmailOrPhone }
+      ]
+    });
 
     if (!user || user.passwordHash !== cleanPassword) {
-      return res.status(400).json({ success: false, message: 'Invalid email or password' });
+      return res.status(400).json({ success: false, message: 'Invalid credentials (email/phone or password)' });
     }
 
 

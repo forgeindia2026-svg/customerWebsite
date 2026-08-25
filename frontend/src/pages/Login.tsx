@@ -201,10 +201,10 @@ export default function Login() {
                 <div className="relative">
                   <Mail className="absolute left-3.5 top-3.5 h-5 w-5 text-slate-400" />
                   <Input
-                    type="email"
+                    type="text"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Email Address"
+                    placeholder="Email or Phone Number"
                     className="pl-11 h-12 bg-white border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus-visible:ring-red-500 focus-visible:border-red-500 text-sm font-medium"
                     required
                   />
