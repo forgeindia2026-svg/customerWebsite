@@ -414,7 +414,6 @@ export default function Workstation() {
                       <tr key={att._id || att.technicianId} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
                         <td className="py-3 px-3 font-bold text-slate-900 dark:text-white">
                           {att.technicianName}
-                          <span className="block text-[10px] text-slate-400 font-mono font-normal">{att.technicianId}</span>
                         </td>
                         <td className="py-3 px-3 font-mono text-slate-600 dark:text-slate-300">{att.date}</td>
                         <td className="py-3 px-3 font-bold text-emerald-600 dark:text-emerald-400 font-mono">
