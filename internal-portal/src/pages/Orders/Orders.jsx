@@ -35,6 +35,7 @@ export default function Orders() {
     phone: '', 
     type: 'Cameras Installation', 
     assignedTechnician: 'Unassigned', 
+    subTechnician: 'None',
     amount: '',
     location: 'Chennai Area'
   });
@@ -80,6 +81,7 @@ export default function Orders() {
       phone: orderForm.phone,
       type: orderForm.type,
       assignedTechnician: orderForm.assignedTechnician,
+      subTechnician: orderForm.subTechnician,
       amount: parseFloat(orderForm.amount) || 0,
       location: orderForm.location
     }));
@@ -89,6 +91,7 @@ export default function Orders() {
       phone: '', 
       type: 'Cameras Installation', 
       assignedTechnician: 'Unassigned', 
+      subTechnician: 'None',
       amount: '',
       location: 'Chennai Area'
     });
@@ -728,8 +731,10 @@ export default function Orders() {
                 <option>System Audit</option>
               </select>
             </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Assigned Technician</label>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Main Technician</label>
               <select 
                 value={orderForm.assignedTechnician}
                 onChange={(e) => setOrderForm({ ...orderForm, assignedTechnician: e.target.value })}
@@ -738,6 +743,19 @@ export default function Orders() {
                 <option value="Unassigned">Unassigned</option>
                 {technicians.map(t => (
                   <option key={t.id} value={t.name}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Sub Technician (Optional)</label>
+              <select 
+                value={orderForm.subTechnician}
+                onChange={(e) => setOrderForm({ ...orderForm, subTechnician: e.target.value })}
+                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+              >
+                <option value="None">None</option>
+                {technicians.map(t => (
+                  <option key={`sub-${t.id}`} value={t.name}>{t.name}</option>
                 ))}
               </select>
             </div>
