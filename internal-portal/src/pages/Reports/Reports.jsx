@@ -827,7 +827,6 @@ export default function Reports() {
                     <th className="py-3 px-3 text-center">Hours</th>
                     <th className="py-3 px-3 text-center">Status</th>
                     <th className="py-3 px-3">Location</th>
-                    <th className="py-3 px-3">Salary Note</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
@@ -892,11 +891,6 @@ export default function Reports() {
                                 </a>
                               )}
                             </div>
-                          </td>
-                          <td className="py-3.5 px-3 align-middle">
-                            <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">
-                              {att.notes || (isHalfDay ? '0.5 Day Pay' : '1.0 Day Full Pay')}
-                            </span>
                           </td>
                         </tr>
                       );
