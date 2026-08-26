@@ -14,10 +14,12 @@ L.Icon.Default.mergeOptions({
 });
 
 import { 
-  FiActivity, FiCheckCircle, FiClock, FiUsers, FiPhoneCall, 
-  FiMapPin, FiSend, FiZap, FiPlusCircle, FiTrendingUp, FiFilter,
-  FiAlertCircle, FiSearch, FiRefreshCw, FiExternalLink, FiShoppingCart, FiTool
+  FiMapPin, FiClock, FiActivity, FiTool, FiCheckCircle, 
+  FiAlertCircle, FiCamera, FiPhone, FiVideo, FiX, FiRefreshCcw, 
+  FiMap, FiShield, FiBattery, FiCrosshair, FiMaximize2, FiMinimize2, FiPlusCircle, FiSend, FiSearch, FiWifi, FiWifiOff, FiNavigation2,
+  FiShoppingCart, FiTrendingUp, FiZap
 } from 'react-icons/fi';
+import { toast } from 'react-hot-toast';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, 
   ResponsiveContainer 
@@ -255,7 +257,7 @@ export default function Workstation() {
   });
 
   const handleSendPing = (techName) => {
-    alert(`🔔 Work Activity Nudge sent to ${techName}! Notification dispatched to Technician App asking: "Please update your current work step & site photos."`);
+    toast.success(`Work Activity Nudge sent to ${techName}!`);
   };
 
   const handleOpenAssignModal = (tech) => {
@@ -266,10 +268,10 @@ export default function Workstation() {
   const handleConfirmAssignment = (e) => {
     e.preventDefault();
     if (!assignedJobCode) {
-      alert('Please enter a Job Code or Select an Order.');
+      toast.error('Please enter a Job Code or Select an Order.');
       return;
     }
-    alert(`✓ Emergency Order ${assignedJobCode} successfully dispatched to ${selectedTechForAssign?.name}! Notification sent via WhatsApp & App.`);
+    toast.success(`Emergency Order ${assignedJobCode} successfully dispatched to ${selectedTechForAssign?.name}!`);
     setAssignModalOpen(false);
     setAssignedJobCode('');
   };

@@ -23,6 +23,7 @@ import Brands from './pages/Brands/Brands';
 import Categories from './pages/Categories/Categories';
 import Workstation from './pages/Workstation/Workstation';
 import ToastContainer from './components/Toast';
+import { Toaster } from 'react-hot-toast';
 
 // Route guard for Admin role
 function AdminRoute() {
@@ -66,6 +67,8 @@ function RootRoute() {
 export default function App() {
   return (
     <BrowserRouter>
+      <Toaster position="top-center" />
+      <ToastContainer />
       <Routes>
         <Route path="/login" element={<StaffLogin />} />
         
