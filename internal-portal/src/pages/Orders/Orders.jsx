@@ -404,7 +404,7 @@ export default function Orders() {
 
                       <div className="flex items-center justify-between pt-1 text-[11px]">
                         <span className="text-slate-600 dark:text-slate-300 font-semibold">{ord.type}</span>
-                        <span className="text-slate-400 font-medium">Staff: <strong className="text-slate-700 dark:text-slate-200">{ord.assignedTechnician}</strong></span>
+                        <span className="text-slate-400 font-medium">Staff: <strong className="text-slate-700 dark:text-slate-200">{ord.assignedTechnician}</strong>{ord.subTechnicians?.length > 0 && <span className="text-blue-500 font-bold"> +{ord.subTechnicians.length}</span>}</span>
                       </div>
                     </div>
                   </div>
@@ -452,13 +452,18 @@ export default function Orders() {
                           </div>
                         </td>
                         <td className="py-4 px-4 align-middle font-semibold whitespace-nowrap">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs ${
-                            ord.assignedTechnician && ord.assignedTechnician !== 'Unassigned'
-                              ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300 font-bold'
-                              : 'text-slate-500 dark:text-slate-400 font-normal'
-                          }`}>
-                            {ord.assignedTechnician || 'Unassigned'}
-                          </span>
+                          <div className="flex flex-col gap-1">
+                            <span className={`inline-flex w-fit items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs ${
+                              ord.assignedTechnician && ord.assignedTechnician !== 'Unassigned'
+                                ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300 font-bold'
+                                : 'text-slate-500 dark:text-slate-400 font-normal'
+                            }`}>
+                              {ord.assignedTechnician || 'Unassigned'}
+                            </span>
+                            {ord.subTechnicians?.length > 0 && (
+                              <span className="text-[9px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 w-fit px-1.5 py-0.5 rounded-md">+{ord.subTechnicians.length} Sub-Tech</span>
+                            )}
+                          </div>
                         </td>
                         <td className="py-4 px-4 align-middle font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">₹{(ord.amount || 0).toLocaleString('en-IN')}</td>
                         <td className="py-4 px-4 align-middle text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
@@ -875,6 +880,15 @@ export default function Orders() {
               <div>
                 <span className="block text-slate-400 font-semibold mb-0.5">Assigned Technician</span>
                 <span className="font-semibold text-slate-850 dark:text-slate-205">{selectedOrder.assignedTechnician}</span>
+                {selectedOrder.subTechnicians && selectedOrder.subTechnicians.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {selectedOrder.subTechnicians.map((sub, i) => (
+                      <span key={i} className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                        {sub}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
