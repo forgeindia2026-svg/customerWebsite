@@ -11,7 +11,9 @@ export default function ServiceRequests() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [viewModalOpen, setViewModalOpen] = useState(false);
   const [editingReq, setEditingReq] = useState(null);
+  const [viewingReq, setViewingReq] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('All Priorities');
   const [statusFilter, setStatusFilter] = useState('All Status');
@@ -287,7 +289,13 @@ export default function ServiceRequests() {
 
                 {/* Right actions block */}
                 <div className="flex items-center gap-2.5 min-w-[190px] justify-end w-full lg:w-auto font-medium">
-                  <button className="flex items-center gap-1 py-2 px-3 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-xl border border-slate-100 dark:border-slate-855 transition-colors">
+                  <button 
+                    onClick={() => {
+                      setViewingReq(req);
+                      setViewModalOpen(true);
+                    }}
+                    className="flex items-center gap-1 py-2 px-3 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-xl border border-slate-100 dark:border-slate-855 transition-colors"
+                  >
                     <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -533,6 +541,56 @@ export default function ServiceRequests() {
               </button>
             </div>
           </form>
+        )}
+      </Modal>
+
+      {/* View Service Request Modal */}
+      <Modal isOpen={viewModalOpen} onClose={() => setViewModalOpen(false)} title="Service Request Details">
+        {viewingReq && (
+          <div className="space-y-4 text-left">
+            <div>
+              <span className="block text-xs font-semibold text-slate-500 mb-1">Customer Name</span>
+              <span className="font-medium text-slate-800 dark:text-slate-100">{viewingReq.customer || viewingReq.clientName}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <span className="block text-xs font-semibold text-slate-500 mb-1">Contact Phone</span>
+                <span className="font-medium text-slate-800 dark:text-slate-100">{viewingReq.contact}</span>
+              </div>
+              <div>
+                <span className="block text-xs font-semibold text-slate-500 mb-1">Priority</span>
+                <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${getPriorityTheme(viewingReq.priority).badge}`}>{viewingReq.priority}</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <span className="block text-xs font-semibold text-slate-500 mb-1">Service Type</span>
+                <span className="font-medium text-slate-800 dark:text-slate-100">{viewingReq.type}</span>
+              </div>
+              <div>
+                <span className="block text-xs font-semibold text-slate-500 mb-1">Assigned Technician</span>
+                <span className="font-medium text-slate-800 dark:text-slate-100">{viewingReq.assignedTech || viewingReq.technician || 'Unassigned'}</span>
+              </div>
+            </div>
+            <div>
+              <span className="block text-xs font-semibold text-slate-500 mb-1">Description</span>
+              <span className="text-sm text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl block border border-slate-100 dark:border-slate-700/50">
+                {viewingReq.description || `Service request filed for troubleshoot. Contact client at ${viewingReq.contact}.`}
+              </span>
+            </div>
+            <div>
+               <span className="block text-xs font-semibold text-slate-500 mb-1">Status</span>
+               <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${getStatusBadge(viewingReq.status)}`}>{viewingReq.status}</span>
+            </div>
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+              <button 
+                onClick={() => setViewModalOpen(false)}
+                className="py-2 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-xl transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
         )}
       </Modal>
 
