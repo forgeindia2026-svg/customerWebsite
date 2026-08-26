@@ -203,7 +203,16 @@ export const AssignedJobsTable: React.FC<AssignedJobsTableProps> = ({
 
             {/* Footer Action Bar */}
             <div className="flex items-center justify-between pt-1" onClick={(e) => e.stopPropagation()}>
-              <StatusBadge status={job.status} size="sm" />
+              <div 
+                className={job.isAssignedToMe && job.status !== 'COMPLETED' ? "cursor-pointer active:scale-95 transition-transform" : ""} 
+                onClick={() => {
+                  if (job.isAssignedToMe && job.status !== 'COMPLETED' && onOpenWorkflow) {
+                    onOpenWorkflow(job);
+                  }
+                }}
+              >
+                <StatusBadge status={job.status} size="sm" />
+              </div>
 
               {job.status === 'COMPLETED' ? (
                 <span className="px-3 py-1.5 bg-emerald-50 text-emerald-700 font-bold text-[11px] rounded-xl border border-emerald-200 flex items-center gap-1.5">
@@ -352,8 +361,17 @@ export const AssignedJobsTable: React.FC<AssignedJobsTableProps> = ({
                   </td>
 
                   {/* Status */}
-                  <td className="py-4 px-4 align-middle text-center">
-                    <StatusBadge status={job.status} size="sm" />
+                  <td className="py-4 px-4 align-middle text-center" onClick={(e) => e.stopPropagation()}>
+                    <div 
+                      className={job.isAssignedToMe && job.status !== 'COMPLETED' ? "cursor-pointer active:scale-95 transition-transform inline-block" : "inline-block"} 
+                      onClick={() => {
+                        if (job.isAssignedToMe && job.status !== 'COMPLETED' && onOpenWorkflow) {
+                          onOpenWorkflow(job);
+                        }
+                      }}
+                    >
+                      <StatusBadge status={job.status} size="sm" />
+                    </div>
                   </td>
 
                   {/* Guided Workflow Buttons */}
