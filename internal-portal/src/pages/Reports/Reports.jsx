@@ -1146,7 +1146,11 @@ export default function Reports() {
                           <h4 className="text-xs font-bold text-slate-900 dark:text-white">Task ID: #{report.jobCode}</h4>
                           <p className="text-xs text-slate-600 dark:text-slate-300">Customer: <strong className="text-slate-900 dark:text-white">{report.customer}</strong></p>
                           <p className="text-xs text-slate-500 truncate max-w-[200px]">Location: {report.address || 'Chennai, Tamil Nadu'}</p>
-                          <span className="text-[10px] text-slate-400 font-mono block pt-1">{report.updatedAt?.split('T')[0] || '2026-08-06'} 03:45 PM</span>
+                          <span className="text-[10px] text-slate-400 font-mono block pt-1">
+                            {report.updatedAt 
+                              ? new Date(report.updatedAt).toLocaleString('en-IN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true }) 
+                              : 'Pending'}
+                          </span>
                         </div>
 
                         <div className="flex items-center space-x-2 shrink-0">
@@ -1957,7 +1961,11 @@ export default function Reports() {
 
                 <div className="flex items-center justify-between">
                   <span className="text-slate-500 font-medium">Submitted On</span>
-                  <span className="font-mono font-bold text-slate-900 dark:text-white">{adminFullReportModal.updatedAt?.split('T')[0] || '2026-08-06'} 03:45 PM</span>
+                  <span className="font-mono font-bold text-slate-900 dark:text-white">
+                    {adminFullReportModal.updatedAt 
+                      ? new Date(adminFullReportModal.updatedAt).toLocaleString('en-IN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true }) 
+                      : 'Pending'}
+                  </span>
                 </div>
               </div>
             </div>
