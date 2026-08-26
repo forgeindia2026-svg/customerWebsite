@@ -21,6 +21,10 @@ export default function Payments() {
   const [showInvoiceSelect, setShowInvoiceSelect] = useState(false);
   const [selectedUnpaidInvoice, setSelectedUnpaidInvoice] = useState('');
 
+  const [isEditingPaymentInfo, setIsEditingPaymentInfo] = useState(false);
+  const [customReceiptNo, setCustomReceiptNo] = useState('');
+  const [customPaymentDate, setCustomPaymentDate] = useState('');
+
   const currentInvoiceTotal = selectedItems.reduce((sum, item) => sum + ((Number(item.price) || 0) * item.quantity), 0);
 
   const toggleItemSelection = (item) => {
@@ -162,10 +166,13 @@ export default function Payments() {
                   }}
                   className="flex items-center gap-1.5 text-indigo-500 font-bold text-sm hover:text-indigo-700 transition-colors"
                 >
-                  <FaRupeeSign className="rotate-180" size={14} /> Record Manually
+                  <FaRupeeSign size={14} /> Record Manually
                 </button>
                 <button 
-                  onClick={() => window.open(`https://wa.me/?text=Here%20is%20the%20link%20for%20Invoice%20${pay.id}`, '_blank')}
+                  onClick={() => {
+                    const message = `Hello ${pay.customer || 'Customer'},\n\nThank you for choosing *SK Technology*!\n\nHere are the details for your recent invoice:\n*Invoice No:* ${pay.id}\n*Amount Due:* ₹${pay.amount}\n\nYou can view and pay your invoice securely using the link below:\nhttps://sktechnology.in/pay/${pay.id}\n\nIf you have any questions, feel free to reply to this message.\n\nBest Regards,\n*SK Technology Team*`;
+                    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+                  }}
                   className="flex items-center gap-1.5 text-emerald-600 font-bold text-sm hover:text-emerald-700 transition-colors"
                 >
                   <FaWhatsapp size={16} /> Share Payment Link
@@ -232,15 +239,41 @@ export default function Payments() {
               {/* Info Block */}
               <div className="bg-white p-4 mb-2">
                 <div className="flex justify-between items-start">
-                  <div>
-                    <div className="text-indigo-600 text-sm font-semibold mb-1">
-                      Received Payment #{selectedPayment?.id || 'NEW-PAYMENT'}
-                    </div>
-                    <div className="text-slate-600 text-sm">{selectedPayment?.date || new Date().toLocaleDateString('en-GB')}</div>
+                  <div className="flex-1 mr-4">
+                    {isEditingPaymentInfo ? (
+                      <div className="space-y-2">
+                        <input 
+                          type="text" 
+                          placeholder="Receipt No (e.g. #NEW-PAYMENT)"
+                          value={customReceiptNo}
+                          onChange={(e) => setCustomReceiptNo(e.target.value)}
+                          className="w-full px-3 py-1.5 border border-indigo-200 rounded text-sm text-indigo-600 font-semibold outline-none focus:border-indigo-500" 
+                        />
+                        <input 
+                          type="date"
+                          value={customPaymentDate}
+                          onChange={(e) => setCustomPaymentDate(e.target.value)}
+                          className="w-full px-3 py-1.5 border border-slate-200 rounded text-sm text-slate-600 outline-none focus:border-indigo-500"
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        <div className="text-indigo-600 text-sm font-semibold mb-1">
+                          Received Payment {customReceiptNo || `#${selectedPayment?.id || 'NEW-PAYMENT'}`}
+                        </div>
+                        <div className="text-slate-600 text-sm">{customPaymentDate ? new Date(customPaymentDate).toLocaleDateString('en-GB') : (selectedPayment?.date || new Date().toLocaleDateString('en-GB'))}</div>
+                      </>
+                    )}
                   </div>
-                  <button className="border border-slate-300 text-indigo-600 font-semibold px-4 py-1 rounded-full text-xs hover:bg-slate-50">
-                    EDIT
-                  </button>
+                  {isEditingPaymentInfo ? (
+                    <button onClick={() => setIsEditingPaymentInfo(false)} className="bg-indigo-600 text-white font-semibold px-4 py-1.5 rounded-full text-xs shadow hover:bg-indigo-700 transition-colors">
+                      SAVE
+                    </button>
+                  ) : (
+                    <button onClick={() => setIsEditingPaymentInfo(true)} className="border border-slate-300 text-indigo-600 font-semibold px-4 py-1 rounded-full text-xs hover:bg-slate-50 transition-colors">
+                      EDIT
+                    </button>
+                  )}
                 </div>
               </div>
 
