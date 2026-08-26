@@ -31,11 +31,14 @@ const calculateLiveHours = (checkInStr, dateStr) => {
     }
 
     const diffMs = now - checkInDate;
-    if (diffMs < 0) return 0; 
+    if (diffMs < 0) return '0h 0m'; 
     
-    return (diffMs / (1000 * 60 * 60)).toFixed(2);
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const h = Math.floor(diffMins / 60);
+    const m = diffMins % 60;
+    return `${h}h ${m}m`;
   } catch(e) {
-    return 0;
+    return '0h 0m';
   }
 };
 
@@ -886,7 +889,7 @@ export default function Reports() {
                           </td>
                           <td className="py-3.5 px-3 align-middle text-center font-mono font-black text-slate-900 dark:text-white">
                             {(!att.checkOutTime || att.checkOutTime === '--:--') && att.checkInTime !== '--:--' && att.status === 'PRESENT'
-                              ? <span className="text-blue-500 animate-pulse">{calculateLiveHours(att.checkInTime, att.date)} hrs</span>
+                              ? <span className="text-blue-500 animate-pulse">{calculateLiveHours(att.checkInTime, att.date)}</span>
                               : <span>{att.totalHours} hrs</span>
                             }
                           </td>
