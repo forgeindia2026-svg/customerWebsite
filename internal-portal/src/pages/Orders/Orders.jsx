@@ -35,7 +35,7 @@ export default function Orders() {
     phone: '', 
     type: 'Cameras Installation', 
     assignedTechnician: 'Unassigned', 
-    subTechnician: 'None',
+    subTechnicians: [],
     amount: '',
     location: 'Chennai Area'
   });
@@ -81,7 +81,7 @@ export default function Orders() {
       phone: orderForm.phone,
       type: orderForm.type,
       assignedTechnician: orderForm.assignedTechnician,
-      subTechnician: orderForm.subTechnician,
+      subTechnicians: orderForm.subTechnicians,
       amount: parseFloat(orderForm.amount) || 0,
       location: orderForm.location
     }));
@@ -91,7 +91,7 @@ export default function Orders() {
       phone: '', 
       type: 'Cameras Installation', 
       assignedTechnician: 'Unassigned', 
-      subTechnician: 'None',
+      subTechnicians: [],
       amount: '',
       location: 'Chennai Area'
     });
@@ -749,15 +749,36 @@ export default function Orders() {
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1.5">Sub Technician (Optional)</label>
               <select 
-                value={orderForm.subTechnician}
-                onChange={(e) => setOrderForm({ ...orderForm, subTechnician: e.target.value })}
+                value="None"
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val !== 'None' && (!orderForm.subTechnicians || !orderForm.subTechnicians.includes(val))) {
+                    setOrderForm({ ...orderForm, subTechnicians: [...(orderForm.subTechnicians || []), val] });
+                  }
+                }}
                 className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
               >
-                <option value="None">None</option>
+                <option value="None">-- Select to Add --</option>
                 {technicians.map(t => (
                   <option key={`sub-${t.id}`} value={t.name}>{t.name}</option>
                 ))}
               </select>
+              {orderForm.subTechnicians && orderForm.subTechnicians.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {orderForm.subTechnicians.map((sub, idx) => (
+                    <span key={idx} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-[10px] font-bold border border-blue-200 dark:border-blue-800/50">
+                      {sub}
+                      <button 
+                        type="button" 
+                        onClick={() => setOrderForm({ ...orderForm, subTechnicians: orderForm.subTechnicians.filter(s => s !== sub) })}
+                        className="text-red-500 hover:text-red-700 font-black text-xs leading-none"
+                      >
+                        &times;
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           <div>
