@@ -389,6 +389,17 @@ export default function Payments() {
                 <input type="text" placeholder="Select or type party name" className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-colors" />
               </div>
               
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">Customer Phone No</label>
+                  <input type="text" placeholder="+91" className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-colors" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">Billed By</label>
+                  <input type="text" placeholder="Admin/Staff Name" className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-colors" />
+                </div>
+              </div>
+              
               <div>
                 <label className="block text-xs font-semibold text-slate-500 mb-1.5">Added Items</label>
                 {selectedItems.length > 0 && (
