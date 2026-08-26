@@ -848,9 +848,6 @@ export default function Reports() {
                           </td>
                           <td className="py-3.5 px-3 align-middle font-bold text-slate-900 dark:text-white">
                             <div>{att.technician}</div>
-                            {att.technicianId && (
-                              <div className="text-[10px] text-slate-400 font-mono font-normal">{att.technicianId}</div>
-                            )}
                           </td>
                           <td className="py-3.5 px-3 align-middle text-center font-mono text-emerald-600 font-bold bg-emerald-50/30 dark:bg-emerald-950/20 rounded-lg">
                             {att.checkInTime || '09:00 AM'}
