@@ -136,7 +136,7 @@ export const JobDetailDrawer = ({
           {activeTab === 'OVERVIEW' && (
             <div className="space-y-6">
               {/* Quick Action Bar */}
-              <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200 flex items-center justify-between">
+              <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <p className="text-xs text-zinc-500 font-medium">Job Status & Allocation</p>
                   <p className="text-sm font-semibold text-zinc-900 mt-1">Status: {String(job.status || 'IN_PROGRESS')}</p>
@@ -148,7 +148,7 @@ export const JobDetailDrawer = ({
                     }
                   </p>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {(job.isAvailableToAccept || !job.isAssignedToMe || job.status === 'PENDING') && job.status !== 'COMPLETED' && (
                     <>
                       <button
