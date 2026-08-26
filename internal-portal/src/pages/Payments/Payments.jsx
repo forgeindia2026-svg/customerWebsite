@@ -21,6 +21,8 @@ export default function Payments() {
   
   const [showInvoiceSelect, setShowInvoiceSelect] = useState(false);
   const [selectedUnpaidInvoice, setSelectedUnpaidInvoice] = useState('');
+  
+  const [showQuickAddMenu, setShowQuickAddMenu] = useState(false);
 
   const [isEditingPaymentInfo, setIsEditingPaymentInfo] = useState(false);
   const [customReceiptNo, setCustomReceiptNo] = useState('');
@@ -204,12 +206,43 @@ export default function Payments() {
             Received Payment
           </button>
           
-          <button 
-            onClick={() => toast.success("Quick Add menu coming soon!")}
-            className="h-14 w-14 flex-shrink-0 bg-emerald-400 hover:bg-emerald-500 text-white rounded-full flex items-center justify-center transition-colors shadow-lg shadow-emerald-200"
-          >
-            <FiPlus size={28} />
-          </button>
+          <div className="relative">
+            {showQuickAddMenu && (
+              <div className="absolute bottom-20 left-1/2 -translate-x-1/2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-50 py-2">
+                <button 
+                  onClick={() => { setShowQuickAddMenu(false); setSelectedPayment(null); setIsPaymentModalOpen(true); }}
+                  className="w-full text-left px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                >
+                  <FaRupeeSign className="text-emerald-500" /> Record Payment
+                </button>
+                <button 
+                  onClick={() => { setShowQuickAddMenu(false); setIsInvoiceModalOpen(true); }}
+                  className="w-full text-left px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                >
+                  <FiPlus className="text-indigo-500" /> Create Invoice
+                </button>
+                <button 
+                  onClick={() => { setShowQuickAddMenu(false); toast.success("Create Quotation coming soon!"); }}
+                  className="w-full text-left px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                >
+                  <FiCheckCircle className="text-amber-500" /> Quotation / Estimate
+                </button>
+                <button 
+                  onClick={() => { setShowQuickAddMenu(false); toast.success("Add Party coming soon!"); }}
+                  className="w-full text-left px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                >
+                  <FiUser className="text-blue-500" /> Add New Party
+                </button>
+              </div>
+            )}
+            
+            <button 
+              onClick={() => setShowQuickAddMenu(!showQuickAddMenu)}
+              className="h-14 w-14 flex-shrink-0 bg-emerald-400 hover:bg-emerald-500 text-white rounded-full flex items-center justify-center transition-colors shadow-lg shadow-emerald-200"
+            >
+              <FiPlus size={28} className={`transition-transform ${showQuickAddMenu ? 'rotate-45' : ''}`} />
+            </button>
+          </div>
           
           <button 
             onClick={() => setIsInvoiceModalOpen(true)}
