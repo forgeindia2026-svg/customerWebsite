@@ -10,6 +10,35 @@ import {
   ResponsiveContainer, Legend, PieChart, Pie, Cell 
 } from 'recharts';
 
+const calculateLiveHours = (checkInStr, dateStr) => {
+  if (!checkInStr || checkInStr === '--:--') return 0;
+  try {
+    const timeMatch = checkInStr.match(/(\d+):(\d+)\s*(am|pm)/i);
+    if (!timeMatch) return 0;
+    let hours = parseInt(timeMatch[1], 10);
+    const minutes = parseInt(timeMatch[2], 10);
+    const modifier = timeMatch[3].toLowerCase();
+
+    if (hours === 12) hours = 0;
+    if (modifier === 'pm') hours += 12;
+
+    const checkInDate = new Date(dateStr);
+    checkInDate.setHours(hours, minutes, 0, 0);
+    
+    const now = new Date();
+    if (now.toDateString() !== checkInDate.toDateString()) {
+       return 0;
+    }
+
+    const diffMs = now - checkInDate;
+    if (diffMs < 0) return 0; 
+    
+    return (diffMs / (1000 * 60 * 60)).toFixed(2);
+  } catch(e) {
+    return 0;
+  }
+};
+
 export default function Reports() {
   const orders = useSelector(state => state.dashboard?.orders) || [];
   const payments = useSelector(state => state.dashboard?.payments) || [];
@@ -856,7 +885,10 @@ export default function Reports() {
                             {att.checkOutTime || '06:00 PM'}
                           </td>
                           <td className="py-3.5 px-3 align-middle text-center font-mono font-black text-slate-900 dark:text-white">
-                            {att.totalHours} hrs
+                            {(!att.checkOutTime || att.checkOutTime === '--:--') && att.checkInTime !== '--:--' && att.status === 'PRESENT'
+                              ? <span className="text-blue-500 animate-pulse">{calculateLiveHours(att.checkInTime, att.date)} hrs</span>
+                              : <span>{att.totalHours} hrs</span>
+                            }
                           </td>
                           <td className="py-3.5 px-3 align-middle text-center">
                             <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-full uppercase tracking-wider border ${
