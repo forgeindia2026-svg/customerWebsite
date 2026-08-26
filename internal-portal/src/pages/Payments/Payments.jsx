@@ -170,7 +170,7 @@ export default function Payments() {
                 </button>
                 <button 
                   onClick={() => {
-                    const message = `Hello ${pay.customer || 'Customer'},\n\nThank you for choosing *SK Technology*!\n\nHere are the details for your recent invoice:\n*Invoice No:* ${pay.id}\n*Amount Due:* ₹${pay.amount}\n\nYou can view and pay your invoice securely using the link below:\nhttps://sktechnology.in/pay/${pay.id}\n\nIf you have any questions, feel free to reply to this message.\n\nBest Regards,\n*SK Technology Team*`;
+                    const message = `Hello ${pay.customer || 'Customer'},\n\nThank you for choosing *SK Technology*!\n\nHere are the details for your recent invoice:\n*Invoice No:* ${pay.id}\n*Amount Due:* ₹${pay.amount}\n\nPlease make the payment via GPay / PhonePe to our official number: *[Enter Your Number Here]*.\n\nOnce paid, please share a screenshot of the transaction here.\n\nBest Regards,\n*SK Technology Team*`;
                     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
                   }}
                   className="flex items-center gap-1.5 text-emerald-600 font-bold text-sm hover:text-emerald-700 transition-colors"
