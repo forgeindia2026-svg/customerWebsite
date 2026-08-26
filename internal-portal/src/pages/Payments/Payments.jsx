@@ -15,6 +15,12 @@ export default function Payments() {
   const [selectedItems, setSelectedItems] = useState([]);
   const [selectedPayment, setSelectedPayment] = useState(null);
 
+  const [showDiscountInput, setShowDiscountInput] = useState(false);
+  const [discountAmount, setDiscountAmount] = useState('');
+  
+  const [showInvoiceSelect, setShowInvoiceSelect] = useState(false);
+  const [selectedUnpaidInvoice, setSelectedUnpaidInvoice] = useState('');
+
   const currentInvoiceTotal = selectedItems.reduce((sum, item) => sum + ((Number(item.price) || 0) * item.quantity), 0);
 
   const toggleItemSelection = (item) => {
@@ -280,9 +286,25 @@ export default function Payments() {
                   />
                 </div>
                 <div className="flex justify-center">
-                  <button onClick={() => alert('Payment Discount feature will be available soon!')} className="text-indigo-600 font-semibold text-sm flex items-center gap-1">
-                    <FiPlus /> Add Payment In Discount
-                  </button>
+                  {showDiscountInput ? (
+                    <div className="w-full flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"><FaRupeeSign size={12}/></div>
+                        <input 
+                          type="number" 
+                          placeholder="Discount Amount" 
+                          value={discountAmount}
+                          onChange={(e) => setDiscountAmount(e.target.value)}
+                          className="w-full pl-8 pr-3 py-2 border border-indigo-200 rounded-lg text-sm outline-none focus:border-indigo-500 bg-indigo-50/30" 
+                        />
+                      </div>
+                      <button onClick={() => { setShowDiscountInput(false); setDiscountAmount(''); }} className="p-2 text-slate-400 hover:text-rose-500 bg-slate-100 rounded-lg"><FiX /></button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setShowDiscountInput(true)} className="text-indigo-600 font-semibold text-sm flex items-center gap-1">
+                      <FiPlus /> Add Payment In Discount
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -290,13 +312,32 @@ export default function Payments() {
               <div className="bg-white p-4 mb-2">
                 <div className="flex justify-between items-center mb-4">
                   <h4 className="font-bold text-slate-700 text-sm">Sales Invoice</h4>
-                  <button onClick={() => alert('Adding unpaid sales invoices will be available soon!')} className="text-indigo-600 font-semibold text-sm flex items-center gap-1">
-                    <FiPlus /> Add Unpaid Sales Invoice
-                  </button>
+                  {showInvoiceSelect ? (
+                    <button onClick={() => { setShowInvoiceSelect(false); setSelectedUnpaidInvoice(''); }} className="text-rose-500 font-semibold text-sm flex items-center gap-1">
+                      <FiX /> Cancel
+                    </button>
+                  ) : (
+                    <button onClick={() => setShowInvoiceSelect(true)} className="text-indigo-600 font-semibold text-sm flex items-center gap-1">
+                      <FiPlus /> Add Unpaid Sales Invoice
+                    </button>
+                  )}
                 </div>
                 
+                {showInvoiceSelect && (
+                   <select 
+                     value={selectedUnpaidInvoice}
+                     onChange={(e) => setSelectedUnpaidInvoice(e.target.value)}
+                     className="w-full px-3 py-2.5 border border-indigo-200 rounded-lg text-sm mb-4 outline-none focus:border-indigo-500 bg-indigo-50/30 font-semibold text-indigo-900"
+                   >
+                     <option value="" disabled>Select Unpaid Invoice</option>
+                     <option value="INV-ORD-6935">#INV-ORD-6935 (₹ 500)</option>
+                     <option value="INV-ORD-7021">#INV-ORD-7021 (₹ 1,200)</option>
+                     <option value="INV-ORD-8822">#INV-ORD-8822 (₹ 3,400)</option>
+                   </select>
+                )}
+
                 {/* Invoice Card */}
-                {selectedPayment && (
+                {selectedPayment && !showInvoiceSelect && (
                   <div className="bg-white border-b border-slate-100 pb-4 mb-4">
                     <div className="flex justify-between items-start">
                       <div>
