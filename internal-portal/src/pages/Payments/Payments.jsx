@@ -3,6 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { updatePaymentStatus } from '../../redux/dashboardSlice';
 import { FiChevronRight, FiCalendar, FiArrowDown, FiArrowUp, FiPlus, FiX, FiCheckCircle, FiArrowLeft, FiUser } from 'react-icons/fi';
 import { FaWhatsapp, FaRupeeSign } from 'react-icons/fa';
+import { toast } from 'react-hot-toast';
 
 export default function Payments() {
   const payments = useSelector(state => state.dashboard.payments) || [];
@@ -204,7 +205,7 @@ export default function Payments() {
           </button>
           
           <button 
-            onClick={() => alert("Opening quick add menu...")}
+            onClick={() => toast.success("Quick Add menu coming soon!")}
             className="h-14 w-14 flex-shrink-0 bg-emerald-400 hover:bg-emerald-500 text-white rounded-full flex items-center justify-center transition-colors shadow-lg shadow-emerald-200"
           >
             <FiPlus size={28} />
