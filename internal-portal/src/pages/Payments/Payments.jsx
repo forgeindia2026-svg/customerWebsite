@@ -280,7 +280,7 @@ export default function Payments() {
                   />
                 </div>
                 <div className="flex justify-center">
-                  <button className="text-indigo-600 font-semibold text-sm flex items-center gap-1">
+                  <button onClick={() => alert('Payment Discount feature will be available soon!')} className="text-indigo-600 font-semibold text-sm flex items-center gap-1">
                     <FiPlus /> Add Payment In Discount
                   </button>
                 </div>
@@ -290,7 +290,7 @@ export default function Payments() {
               <div className="bg-white p-4 mb-2">
                 <div className="flex justify-between items-center mb-4">
                   <h4 className="font-bold text-slate-700 text-sm">Sales Invoice</h4>
-                  <button className="text-indigo-600 font-semibold text-sm flex items-center gap-1">
+                  <button onClick={() => alert('Adding unpaid sales invoices will be available soon!')} className="text-indigo-600 font-semibold text-sm flex items-center gap-1">
                     <FiPlus /> Add Unpaid Sales Invoice
                   </button>
                 </div>
