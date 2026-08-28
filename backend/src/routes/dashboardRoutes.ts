@@ -417,7 +417,29 @@ router.put('/', async (req: Request, res: Response) => {
             } else if (o.status === 'Pending Approval' || o.status === 'Pending') {
               associatedJob.status = 'PENDING';
             }
+
+            // Sync assigned technician
+            const isAssigned = o.assignedTechnician && o.assignedTechnician !== 'Unassigned';
+            associatedJob.assignedTechnicians = isAssigned ? [{ name: o.assignedTechnician }] : [];
+
+            // Sync customer details
+            if (associatedJob.customer) {
+              associatedJob.customer.name = o.customer || associatedJob.customer.name;
+              associatedJob.customer.email = emailQuery || associatedJob.customer.email;
+              associatedJob.customer.phone = o.phone || associatedJob.customer.phone;
+              associatedJob.customer.address = o.location || associatedJob.customer.address;
+            }
+
             await associatedJob.save();
+
+            // Also update the Order in MongoDB if it exists
+            await Order.updateOne({ orderNumber: o.id }, {
+              customerName: o.customer,
+              customerEmail: emailQuery,
+              customerPhone: o.phone,
+              shippingAddress: o.location,
+              totalAmount: o.amount
+            });
           } else {
             // Create a job if the order has been approved or is pending approval and is NOT Delivery Only
             if ((o.status === 'Approved' || o.status === 'Pending Approval' || o.status === 'Pending') && o.orderCategory !== 'Delivery Only') {
