@@ -65,8 +65,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
     if (isOpen) {
       setTaskDescription('');
       setInspectionComments('');
-      setBeforePhotos([]);
-      setAfterPhotos([]);
+      setBeforePhotos(job?.beforePhotos || []);
+      setAfterPhotos(job?.afterPhotos || []);
       setHasVoiceNote(false);
       setIsRecordingVoice(false);
       setRecordingSeconds(0);
@@ -239,6 +239,14 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
       const finalVoiceUrl = hasVoiceNote ? (audioUrl || 'recorded-audio-memo') : '';
       const finalHasVoice = Boolean(hasVoiceNote);
+
+      if (completionStatus === 'In Progress') {
+        // Just save progress (photos are already saved instantly via onUploadPhoto)
+        // We can just close the modal
+        setIsSubmitting(false);
+        onClose();
+        return;
+      }
 
       // 1. Post report directly to /api/reports MongoDB collection
       const reportPromise = fetch(`${baseUrl}/api/reports`, {
@@ -533,10 +541,20 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
             type="button"
             onClick={handleSubmitReport}
             disabled={isSubmitting || isUploadingBefore || isUploadingAfter}
-            className={`w-full py-3.5 ${isSubmitting || isUploadingBefore || isUploadingAfter ? 'bg-red-400' : 'bg-red-600 hover:bg-red-700'} text-white font-bold text-xs rounded-xl flex items-center justify-center space-x-2 shadow-md transition-all cursor-pointer`}
+            className={`w-full py-3.5 rounded-xl text-sm font-bold text-white shadow-lg flex items-center justify-center space-x-2 transition-all ${
+              isSubmitting ? 'bg-zinc-400' : 
+              (completionStatus === 'In Progress' || afterPhotos.length === 0) ? 'bg-sky-600 hover:bg-sky-700 shadow-sky-600/20' :
+              'bg-red-600 hover:bg-red-700 shadow-red-600/20'
+            }`}
           >
-            <Send className="w-4 h-4" />
-            <span>{isSubmitting ? 'Submitting Report...' : (isUploadingBefore || isUploadingAfter) ? 'Uploading Photos...' : 'SUBMIT WORK REPORT'}</span>
+            {isSubmitting ? (
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <>
+                {(completionStatus === 'In Progress' || afterPhotos.length === 0) ? <CheckCircle2 className="w-5 h-5" /> : <Send className="w-5 h-5" />}
+                <span>{(completionStatus === 'In Progress' || afterPhotos.length === 0) ? 'SAVE PROGRESS & CLOSE' : 'SUBMIT WORK REPORT'}</span>
+              </>
+            )}
           </button>
         </div>
 
