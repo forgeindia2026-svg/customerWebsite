@@ -1169,14 +1169,14 @@ export default function Reports() {
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-bold uppercase tracking-wider text-[11px]">
-                    <th className="py-3 px-3">Date & Time</th>
-                    <th className="py-3 px-3">Job Code / Order</th>
-                    <th className="py-3 px-3">Technician</th>
-                    <th className="py-3 px-3">Customer & Location</th>
-                    <th className="py-3 px-3 text-center">Status</th>
-                    <th className="py-3 px-3 text-center">Evidence & Media</th>
-                    <th className="py-3 px-3">Technician Narrative / Notes</th>
-                    <th className="py-3 px-3 text-right">Actions</th>
+                    <th className="py-3 px-3 whitespace-nowrap">Date & Time</th>
+                    <th className="py-3 px-3 whitespace-nowrap">Job Code / Order</th>
+                    <th className="py-3 px-3 whitespace-nowrap">Technician</th>
+                    <th className="py-3 px-3 whitespace-nowrap">Customer & Location</th>
+                    <th className="py-3 px-3 text-center whitespace-nowrap">Status</th>
+                    <th className="py-3 px-3 text-center whitespace-nowrap">Evidence & Media</th>
+                    <th className="py-3 px-3 whitespace-nowrap">Technician Narrative / Notes</th>
+                    <th className="py-3 px-3 text-right whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
@@ -1207,7 +1207,7 @@ export default function Reports() {
                           <td className="py-4 px-3 align-middle">
                             {report.jobCode === 'DAILY WORK LOG' ? (
                               <div>
-                                <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded text-[10px] font-bold uppercase tracking-wider">
+                                <span className="inline-block px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">
                                   DAILY LOG
                                 </span>
                                 <div className="text-xs font-bold text-slate-850 dark:text-slate-200 mt-1">{report.title}</div>
@@ -1230,7 +1230,7 @@ export default function Reports() {
                           </td>
 
                           <td className="py-4 px-3 align-middle text-center">
-                            <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-full uppercase tracking-wider ${
+                            <span className={`inline-block px-2.5 py-1 text-[10px] font-extrabold rounded-full uppercase tracking-wider whitespace-nowrap ${
                               report.status === 'Verified'
                                 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                                 : report.status === 'Rejected'

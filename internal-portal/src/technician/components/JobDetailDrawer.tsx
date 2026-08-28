@@ -148,77 +148,79 @@ export const JobDetailDrawer = ({
                     }
                   </p>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  {(job.isAvailableToAccept || !job.isAssignedToMe || job.status === 'PENDING') && job.status !== 'COMPLETED' && (
-                    <>
+                {(job.isAssignedToMe || job.isAvailableToAccept) && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {(job.isAvailableToAccept || (job.isAssignedToMe && job.status === 'PENDING')) && job.status !== 'COMPLETED' && (
+                      <>
+                        <button
+                          disabled={isSubmitting}
+                          onClick={() => onUpdateStatus(job.id, 'ACCEPTED')}
+                          className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg flex items-center space-x-2 transition-colors shadow-sm cursor-pointer"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Accept Job</span>
+                        </button>
+                        <button
+                          disabled={isSubmitting}
+                          onClick={() => onUpdateStatus(job.id, 'ON_HOLD')}
+                          className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg flex items-center space-x-2 transition-colors shadow-sm cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                          <span>Decline Job</span>
+                        </button>
+                      </>
+                    )}
+                    {job.isAssignedToMe && job.status === 'ACCEPTED' && (
                       <button
                         disabled={isSubmitting}
-                        onClick={() => onUpdateStatus(job.id, 'ACCEPTED')}
-                        className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg flex items-center space-x-2 transition-colors shadow-sm cursor-pointer"
+                        onClick={() => handleStatusChange('IN_PROGRESS')}
+                        className="px-3.5 py-2 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold rounded-lg flex items-center space-x-2 transition-colors shadow-xs"
                       >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Accept Job</span>
+                        <Play className="w-3.5 h-3.5 fill-current" />
+                        <span>Start Job</span>
                       </button>
+                    )}
+                    {job.isAssignedToMe && job.status === 'IN_PROGRESS' && (
+                      <>
+                        <button
+                          onClick={toggleLiveTracking}
+                          className={`px-3 py-2 text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition-all ${
+                            liveTracking
+                              ? 'bg-rose-500 hover:bg-rose-600 text-white animate-pulse'
+                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
+                          }`}
+                        >
+                          <MapPin className="w-3.5 h-3.5" />
+                          <span>{liveTracking ? 'Sharing Location Live...' : 'Start GPS Tracking'}</span>
+                        </button>
+                        <button
+                          disabled={isSubmitting || !job.beforePhotos?.length || !job.afterPhotos?.length}
+                          onClick={() => {
+                            if (!job.beforePhotos?.length || !job.afterPhotos?.length) {
+                              alert('You must upload at least one Before photo and one After photo to complete this job.');
+                              return;
+                            }
+                            handleStatusChange('COMPLETED');
+                          }}
+                          title={(!job.beforePhotos?.length || !job.afterPhotos?.length) ? "Requires Before & After photos" : ""}
+                          className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-lg flex items-center space-x-2 transition-colors shadow-xs"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Complete Job</span>
+                        </button>
+                      </>
+                    )}
+                    {job.isAssignedToMe && job.status !== 'ON_HOLD' && job.status !== 'COMPLETED' && (
                       <button
                         disabled={isSubmitting}
-                        onClick={() => onUpdateStatus(job.id, 'ON_HOLD')}
-                        className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg flex items-center space-x-2 transition-colors shadow-sm cursor-pointer"
+                        onClick={() => handleStatusChange('ON_HOLD')}
+                        className="px-3.5 py-2 bg-zinc-200 hover:bg-zinc-300 text-zinc-800 text-xs font-medium rounded-lg transition-colors"
                       >
-                        <X className="w-3.5 h-3.5" />
-                        <span>Decline Job</span>
+                        Put On Hold
                       </button>
-                    </>
-                  )}
-                  {job.isAssignedToMe && job.status === 'ACCEPTED' && (
-                    <button
-                      disabled={isSubmitting}
-                      onClick={() => handleStatusChange('IN_PROGRESS')}
-                      className="px-3.5 py-2 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold rounded-lg flex items-center space-x-2 transition-colors shadow-xs"
-                    >
-                      <Play className="w-3.5 h-3.5 fill-current" />
-                      <span>Start Job</span>
-                    </button>
-                  )}
-                  {job.status === 'IN_PROGRESS' && (
-                    <>
-                      <button
-                        onClick={toggleLiveTracking}
-                        className={`px-3 py-2 text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition-all ${
-                          liveTracking
-                            ? 'bg-rose-500 hover:bg-rose-600 text-white animate-pulse'
-                            : 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
-                        }`}
-                      >
-                        <MapPin className="w-3.5 h-3.5" />
-                        <span>{liveTracking ? 'Sharing Location Live...' : 'Start GPS Tracking'}</span>
-                      </button>
-                      <button
-                        disabled={isSubmitting || !job.beforePhotos?.length || !job.afterPhotos?.length}
-                        onClick={() => {
-                          if (!job.beforePhotos?.length || !job.afterPhotos?.length) {
-                            alert('You must upload at least one Before photo and one After photo to complete this job.');
-                            return;
-                          }
-                          handleStatusChange('COMPLETED');
-                        }}
-                        title={(!job.beforePhotos?.length || !job.afterPhotos?.length) ? "Requires Before & After photos" : ""}
-                        className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-lg flex items-center space-x-2 transition-colors shadow-xs"
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Complete Job</span>
-                      </button>
-                    </>
-                  )}
-                  {job.status !== 'ON_HOLD' && job.status !== 'COMPLETED' && (
-                    <button
-                      disabled={isSubmitting}
-                      onClick={() => handleStatusChange('ON_HOLD')}
-                      className="px-3.5 py-2 bg-zinc-200 hover:bg-zinc-300 text-zinc-800 text-xs font-medium rounded-lg transition-colors"
-                    >
-                      Put On Hold
-                    </button>
-                  )}
-                </div>
+                    )}
+                  </div>
+                )}
               </div>
 
 

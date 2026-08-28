@@ -18,6 +18,7 @@ import { PerformanceAnalyticsModule } from './components/Analytics/PerformanceAn
 import { NotificationsModule } from './components/Notifications/NotificationsModule';
 import { ProfileModule } from './components/Profile/ProfileModule';
 import { SettingsModule } from './components/Settings/SettingsModule';
+import { ScannerModule } from './components/Scanner/ScannerModule';
 import { WorkflowModal } from './components/Workflow/WorkflowModal';
 import { JobDetailDrawer } from './components/JobDetailDrawer';
 import { LoginScreen } from './components/Auth/LoginScreen';
@@ -529,6 +530,7 @@ export function App() {
                 {activeTab === 'history' && 'Job History'}
                 {activeTab === 'query' && 'Helpdesk & Support'}
                 {activeTab === 'analytics' && 'Performance Analytics'}
+                {activeTab === 'scanner' && 'QR Scanner'}
                 {activeTab === 'notifications' && 'Notifications'}
                 {activeTab === 'profile' && 'Profile'}
                 {activeTab === 'settings' && 'Settings'}
@@ -591,6 +593,10 @@ export function App() {
 
           {activeTab === 'query' && (
             <QueryModule />
+          )}
+
+          {activeTab === 'scanner' && (
+            <ScannerModule />
           )}
 
           {activeTab === 'analytics' && (

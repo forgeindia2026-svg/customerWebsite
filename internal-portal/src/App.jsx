@@ -22,6 +22,8 @@ import Banners from './pages/Banners/Banners';
 import Brands from './pages/Brands/Brands';
 import Categories from './pages/Categories/Categories';
 import Workstation from './pages/Workstation/Workstation';
+import Customers from './pages/Customers/Customers';
+import Scanner from './pages/Scanner/Scanner';
 import ToastContainer from './components/Toast';
 import { Toaster } from 'react-hot-toast';
 
@@ -87,6 +89,8 @@ export default function App() {
             <Route path="inventory" element={<Inventory />} />
             <Route path="payments" element={<Payments />} />
             <Route path="reports" element={<Reports />} />
+            <Route path="customers" element={<Customers />} />
+            <Route path="scanner" element={<Scanner />} />
             <Route path="workstation" element={<Workstation />} />
             <Route path="notifications" element={<Notifications />} />
             <Route path="settings" element={<Settings />} />

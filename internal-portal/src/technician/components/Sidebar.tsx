@@ -12,7 +12,8 @@ import {
   Settings,
   LogOut,
   ShieldCheck,
-  X
+  X,
+  QrCode
 } from 'lucide-react';
 import type { TechnicianProfile } from '../types/job';
 import { SKLogoIcon } from './SKLogoIcon';
@@ -45,6 +46,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'reports', label: 'Daily Reports', icon: FileText },
     { id: 'history', label: 'Job History', icon: History },
     { id: 'query', label: 'Helpdesk & Queries', icon: HelpCircle },
+    { id: 'scanner', label: 'QR Scanner', icon: QrCode },
     { id: 'analytics', label: 'Performance Analytics', icon: BarChart3 },
     { id: 'notifications', label: 'Notifications', icon: Bell, badge: notificationsCount > 0 ? String(notificationsCount) : undefined },
   ];

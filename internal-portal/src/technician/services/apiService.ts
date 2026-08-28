@@ -371,17 +371,8 @@ export const JobsApiService = {
       }
       throw new Error(resData.message || 'Server image upload failed');
     } catch (err) {
-      console.warn('Image upload fallback to DataURL for offline/direct resilience:', err);
-      // Seamless Fallback: convert file to base64 Data URL so photo upload NEVER fails
-      return new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => {
-          // Fallback to object URL
-          resolve(URL.createObjectURL(file));
-        };
-        reader.readAsDataURL(file);
-      });
+      console.error('Image upload failed:', err);
+      throw new Error('Failed to upload image to server. Please check your internet connection and try again.');
     }
   },
 

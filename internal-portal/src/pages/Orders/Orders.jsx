@@ -8,6 +8,7 @@ export default function Orders() {
   const dispatch = useDispatch();
   const orders = useSelector(state => state.dashboard?.orders) || [];
   const technicians = useSelector(state => state.dashboard?.technicians) || [];
+  const customers = useSelector(state => state.dashboard?.customers) || [];
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -38,6 +39,16 @@ export default function Orders() {
     subTechnicians: [],
     amount: '',
     location: 'Chennai Area'
+  });
+  
+  const [addTaskModalOpen, setAddTaskModalOpen] = useState(false);
+  const [taskForm, setTaskForm] = useState({ 
+    taskName: '', 
+    description: '', 
+    assignedTechnician: 'Unassigned', 
+    subTechnicians: [],
+    dueDate: new Date().toISOString().split('T')[0],
+    dueTime: '10:00'
   });
 
   // Filter logic
@@ -96,6 +107,30 @@ export default function Orders() {
       location: 'Chennai Area'
     });
     setAddModalOpen(false);
+  };
+
+  const handleCreateTask = (e) => {
+    e.preventDefault();
+    dispatch(addOrder({
+      customer: taskForm.taskName,
+      email: 'internal@cctv.com',
+      phone: '-',
+      type: 'Internal Task',
+      assignedTechnician: taskForm.assignedTechnician,
+      subTechnicians: taskForm.subTechnicians,
+      amount: 0,
+      location: 'Internal',
+      date: `${taskForm.dueDate} ${taskForm.dueTime}`
+    }));
+    setTaskForm({ 
+      taskName: '', 
+      description: '', 
+      assignedTechnician: 'Unassigned', 
+      subTechnicians: [],
+      dueDate: new Date().toISOString().split('T')[0],
+      dueTime: '10:00'
+    });
+    setAddTaskModalOpen(false);
   };
 
   const handleScopeOrder = (e) => {
@@ -282,8 +317,14 @@ export default function Orders() {
             </div>
 
             <button 
+              onClick={() => setAddTaskModalOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors cursor-pointer"
+            >
+              <FiPlus /> Add Task
+            </button>
+            <button 
               onClick={() => setAddModalOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-primary hover:bg-primary-dark text-white rounded-xl text-xs font-semibold shadow-sm transition-colors"
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-primary hover:bg-primary-dark text-white rounded-xl text-xs font-semibold shadow-sm transition-colors cursor-pointer"
             >
               <FiPlus /> Add Order
             </button>
@@ -661,6 +702,117 @@ export default function Orders() {
         </div>
       )}
 
+      {/* Add New Task Modal */}
+      <Modal isOpen={addTaskModalOpen} onClose={() => setAddTaskModalOpen(false)} title="Assign New Task">
+        <form onSubmit={handleCreateTask} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Task Name</label>
+            <input 
+              required
+              type="text" 
+              placeholder="e.g. Audit Inventory" 
+              value={taskForm.taskName}
+              onChange={(e) => setTaskForm({ ...taskForm, taskName: e.target.value })}
+              className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Description (Optional)</label>
+            <textarea 
+              rows="2"
+              placeholder="Task details..." 
+              value={taskForm.description}
+              onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })}
+              className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100 resize-none"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Main Technician</label>
+              <select 
+                value={taskForm.assignedTechnician}
+                onChange={(e) => setTaskForm({ ...taskForm, assignedTechnician: e.target.value })}
+                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+              >
+                <option value="Unassigned">Unassigned</option>
+                {technicians.map(t => (
+                  <option key={t.id} value={t.name}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Sub Technician (Optional)</label>
+              <select 
+                value="None"
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val !== 'None' && (!taskForm.subTechnicians || !taskForm.subTechnicians.includes(val))) {
+                    setTaskForm({ ...taskForm, subTechnicians: [...(taskForm.subTechnicians || []), val] });
+                  }
+                }}
+                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+              >
+                <option value="None">-- Select to Add --</option>
+                {technicians.map(t => (
+                  <option key={`sub-task-${t.id}`} value={t.name}>{t.name}</option>
+                ))}
+              </select>
+              {taskForm.subTechnicians && taskForm.subTechnicians.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {taskForm.subTechnicians.map((sub, idx) => (
+                    <span key={idx} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-[10px] font-bold border border-blue-200 dark:border-blue-800/50">
+                      {sub}
+                      <button 
+                        type="button" 
+                        onClick={() => setTaskForm({ ...taskForm, subTechnicians: taskForm.subTechnicians.filter(s => s !== sub) })}
+                        className="text-red-500 hover:text-red-700 font-black text-xs leading-none"
+                      >
+                        &times;
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Due Date</label>
+              <input 
+                type="date" 
+                value={taskForm.dueDate}
+                onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })}
+                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Due Time</label>
+              <input 
+                type="time" 
+                value={taskForm.dueTime}
+                onChange={(e) => setTaskForm({ ...taskForm, dueTime: e.target.value })}
+                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+              />
+            </div>
+          </div>
+          <div className="pt-2 flex justify-end gap-3">
+            <button 
+              type="button" 
+              onClick={() => setAddTaskModalOpen(false)}
+              className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit"
+              className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-all"
+            >
+              Create Task
+            </button>
+          </div>
+        </form>
+      </Modal>
+
       {/* Register New Order Modal */}
       <Modal isOpen={addModalOpen} onClose={() => setAddModalOpen(false)} title="Register New Order">
         <form onSubmit={handleCreateOrder} className="space-y-4">
@@ -671,9 +823,26 @@ export default function Orders() {
               type="text" 
               placeholder="e.g. Ramesh Kumar" 
               value={orderForm.customer}
-              onChange={(e) => setOrderForm({ ...orderForm, customer: e.target.value })}
+              onChange={(e) => {
+                const val = e.target.value;
+                const match = customers.find(c => c.name.toLowerCase() === val.toLowerCase());
+                if (match) {
+                  setOrderForm({
+                    ...orderForm,
+                    customer: val,
+                    phone: match.phone ? match.phone.replace(/\D/g, '').slice(-10) : '',
+                    location: match.location || 'Chennai Area'
+                  });
+                } else {
+                  setOrderForm({ ...orderForm, customer: val });
+                }
+              }}
+              list="customers-list"
               className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
             />
+            <datalist id="customers-list">
+              {customers.map(c => <option key={c.id} value={c.name} />)}
+            </datalist>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -705,19 +874,6 @@ export default function Orders() {
                 </p>
               )}
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Email Address</label>
-              <input 
-                required
-                type="email" 
-                placeholder="customer@domain.com" 
-                value={orderForm.email}
-                onChange={(e) => setOrderForm({ ...orderForm, email: e.target.value })}
-                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1.5">Order Type</label>
               <select 
@@ -798,9 +954,8 @@ export default function Orders() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Order Amount (₹)</label>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Order Amount (₹) (Optional)</label>
               <input 
-                required
                 type="number" 
                 placeholder="Amount in Rupees" 
                 value={orderForm.amount}

@@ -163,6 +163,7 @@ const initialState = {
   chartData: [],
   queries: [],
   announcements: [],
+  qrCodes: [],
   banners: [],
   brands: [],
   darkMode: false,
@@ -740,6 +741,28 @@ const dashboardSlice = createSlice({
           }
         } catch (e) {}
       }
+    },
+    addQRCode: (state, action) => {
+      if (!state.qrCodes) state.qrCodes = [];
+      state.qrCodes.unshift(action.payload);
+      try {
+        const cached = JSON.parse(localStorage.getItem('sk_admin_dashboard_cache') || '{}');
+        if (cached) {
+          cached.qrCodes = state.qrCodes;
+          localStorage.setItem('sk_admin_dashboard_cache', JSON.stringify(cached));
+        }
+      } catch(e) {}
+    },
+    removeQRCode: (state, action) => {
+      if (!state.qrCodes) state.qrCodes = [];
+      state.qrCodes = state.qrCodes.filter(qr => qr.id !== action.payload);
+      try {
+        const cached = JSON.parse(localStorage.getItem('sk_admin_dashboard_cache') || '{}');
+        if (cached) {
+          cached.qrCodes = state.qrCodes;
+          localStorage.setItem('sk_admin_dashboard_cache', JSON.stringify(cached));
+        }
+      } catch(e) {}
     }
   },
 });
@@ -784,7 +807,9 @@ export const {
   editBrand,
   deleteTechnician,
   toggleTechnicianActivation,
-  updatePaymentStatus
+  updatePaymentStatus,
+  addQRCode,
+  removeQRCode
 } = dashboardSlice.actions;
 
 export default dashboardSlice.reducer;
