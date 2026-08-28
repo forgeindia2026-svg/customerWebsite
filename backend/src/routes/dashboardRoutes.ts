@@ -420,7 +420,7 @@ router.put('/', async (req: Request, res: Response) => {
 
             // Sync assigned technician
             const isAssigned = o.assignedTechnician && o.assignedTechnician !== 'Unassigned';
-            associatedJob.assignedTechnicians = isAssigned ? [{ name: o.assignedTechnician }] : [];
+            associatedJob.assignedTechnicians = isAssigned ? [{ id: 'temp-id', name: o.assignedTechnician }] : [];
 
             // Sync customer details
             if (associatedJob.customer) {
