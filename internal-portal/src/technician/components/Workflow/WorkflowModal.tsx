@@ -35,7 +35,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   onCompleteJob,
 }) => {
   const [taskDescription, setTaskDescription] = useState('');
-  const [completionStatus, setCompletionStatus] = useState<'Completed' | 'In Progress'>('Completed');
+  const [completionStatus, setCompletionStatus] = useState<'Completed' | 'In Progress'>('In Progress');
   const [inspectionComments, setInspectionComments] = useState('');
   
   // Before & After Photos Arrays
@@ -72,7 +72,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
       setRecordingSeconds(0);
       setIsPlayingAudio(false);
       setAudioUrl(null);
-      setCompletionStatus('Completed');
+      setCompletionStatus('In Progress');
     }
   }, [isOpen]);
 
@@ -240,7 +240,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
       const finalVoiceUrl = hasVoiceNote ? (audioUrl || 'recorded-audio-memo') : '';
       const finalHasVoice = Boolean(hasVoiceNote);
 
-      if (completionStatus === 'In Progress') {
+      if (completionStatus === 'In Progress' || afterPhotos.length === 0) {
         // Just save progress (photos are already saved instantly via onUploadPhoto)
         // We can just close the modal
         setIsSubmitting(false);
