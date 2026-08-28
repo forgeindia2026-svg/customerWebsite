@@ -24,24 +24,53 @@ export default function Scanner() {
     }
   };
 
-  const handleUpload = (e) => {
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleUpload = async (e) => {
     e.preventDefault();
-    if (!title || !imagePreview) {
+    if (!title || !imageFile) {
       toast.error('Please provide a title and select an image');
       return;
     }
     
-    dispatch(addQRCode({
-      id: `QR-${Date.now()}`,
-      title,
-      image: imagePreview,
-      date: new Date().toISOString()
-    }));
+    setIsUploading(true);
+    const toastId = toast.loading('Uploading QR Code to S3...');
     
-    toast.success('QR Code uploaded successfully');
-    setTitle('');
-    setImageFile(null);
-    setImagePreview('');
+    try {
+      const formData = new FormData();
+      formData.append('image', imageFile);
+      formData.append('folder', 'qrcodes');
+
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
+      const res = await fetch(`${apiUrl}/api/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to upload image');
+      }
+
+      const imageUrl = data.imageUrl;
+      
+      dispatch(addQRCode({
+        id: `QR-${Date.now()}`,
+        title,
+        image: imageUrl,
+        date: new Date().toISOString()
+      }));
+      
+      toast.success('QR Code uploaded and saved to S3 successfully!', { id: toastId });
+      setTitle('');
+      setImageFile(null);
+      setImagePreview('');
+    } catch (error) {
+      console.error('QR Upload error:', error);
+      toast.error(error.message || 'Error uploading image to S3', { id: toastId });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -94,9 +123,10 @@ export default function Scanner() {
 
             <button
               type="submit"
-              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-sm transition-colors"
+              disabled={isUploading}
+              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 disabled:cursor-not-allowed text-white font-semibold rounded-xl text-sm transition-colors"
             >
-              Save QR Code
+              {isUploading ? 'Uploading to S3...' : 'Save QR Code'}
             </button>
           </form>
         </div>
