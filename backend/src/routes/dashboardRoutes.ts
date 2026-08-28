@@ -430,9 +430,11 @@ router.put('/', async (req: Request, res: Response) => {
               associatedJob.customer.address = o.location || associatedJob.customer.address;
             }
 
+            console.log(`Updating associatedJob for ${o.id}:`, associatedJob.assignedTechnicians);
             await associatedJob.save();
 
             // Also update the Order in MongoDB if it exists
+            console.log(`Updating Order for ${o.id}`);
             await Order.updateOne({ orderNumber: o.id }, {
               customerName: o.customer,
               customerEmail: emailQuery,
@@ -480,7 +482,7 @@ router.put('/', async (req: Request, res: Response) => {
                 estimatedDays: o.estimatedDays || 1,
                 requiredTechniciansCount: o.requiredTechniciansCount || 1,
                 orderCategory: o.orderCategory || 'Delivery & Installation',
-                assignedTechnicians: isAssigned ? [{ name: o.assignedTechnician }] : []
+                assignedTechnicians: isAssigned ? [{ id: 'temp-id', name: o.assignedTechnician }] : []
               });
             }
           }

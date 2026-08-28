@@ -643,6 +643,15 @@ const dashboardSlice = createSlice({
         order.amount = amount;
         order.status = status;
       }
+      
+      const project = state.projects?.find(p => p.id === id);
+      if (project) {
+        project.customer = customer;
+        if (type) project.name = type;
+        if (assignedTechnician !== undefined) {
+          project.technician = assignedTechnician;
+        }
+      }
     },
     editCustomer: (state, action) => {
       const { id, name, email, phone, location } = action.payload;
