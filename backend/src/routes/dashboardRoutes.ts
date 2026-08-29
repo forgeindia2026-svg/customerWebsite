@@ -263,6 +263,26 @@ router.get('/', async (req: Request, res: Response) => {
       };
     });
 
+    // Also extract customers from Orders who don't have a User account yet
+    const existingEmails = new Set(mappedCustomers.map(c => c.email?.toLowerCase()));
+    (liveOrders || []).forEach((o: any) => {
+      const email = o.customerEmail?.toLowerCase();
+      if (email && !existingEmails.has(email)) {
+        existingEmails.add(email);
+        const custOrders = liveOrders.filter((co: any) => co.customerEmail?.toLowerCase() === email);
+        const totalSpent = custOrders.reduce((sum: number, co: any) => sum + (co.totalAmount || 0), 0);
+        mappedCustomers.push({
+          id: `CUST-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
+          name: o.customerName || 'Unknown Customer',
+          email: o.customerEmail,
+          phone: o.customerPhone || '',
+          location: o.shippingAddress || 'Chennai Area',
+          totalSpent,
+          installationsCount: custOrders.length
+        });
+      }
+    });
+
     // Map live Products
     const mappedProducts = liveProducts.map((prod: any) => {
       let effectiveOfferPrice = prod.offerPrice || '';
