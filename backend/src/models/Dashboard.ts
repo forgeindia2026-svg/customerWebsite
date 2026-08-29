@@ -16,6 +16,7 @@ export interface IDashboard extends Document {
   announcements: any[];
   banners: any[];
   brands: any[];
+  qrCodes: any[];
 }
 
 const DashboardSchema = new Schema(
@@ -34,7 +35,8 @@ const DashboardSchema = new Schema(
     queries: { type: Array, default: [] },
     announcements: { type: Array, default: [] },
     banners: { type: Array, default: [] },
-    brands: { type: Array, default: [] }
+    brands: { type: Array, default: [] },
+    qrCodes: { type: Array, default: [] }
   },
   { timestamps: true }
 );
