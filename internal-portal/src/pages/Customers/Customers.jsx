@@ -24,7 +24,7 @@ export default function Customers() {
   const customers = useSelector(state => state.dashboard?.customers) || [];
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
+  const [viewMode, setViewMode] = useState('list'); // 'grid' or 'list'
   const [modalOpen, setModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
@@ -176,13 +176,9 @@ export default function Customers() {
                     </div>
 
                     <div className="mt-3 space-y-1 border-t border-b border-slate-100 dark:border-slate-800/80 py-2 text-left">
-                      <p className="text-xs text-slate-600 dark:text-slate-300 flex items-center gap-2 truncate">
-                        <FiMail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span className="truncate">{cust.email}</span>
-                      </p>
-                      <p className="text-xs text-slate-600 dark:text-slate-300 flex items-center gap-2">
+                      <p className="text-xs text-slate-600 dark:text-slate-300 flex items-center gap-2 font-semibold">
                         <FiPhone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span>{cust.phone}</span>
+                        <span>{cust.phone || 'N/A'}</span>
                       </p>
                     </div>
                   </div>
@@ -265,7 +261,7 @@ export default function Customers() {
                     </div>
 
                     <div className="text-[11px] text-slate-600 dark:text-slate-300 space-y-0.5 pt-1 border-t border-slate-200/60 dark:border-slate-700/60">
-                      <p className="truncate">📞 {cust.phone} • ✉️ {cust.email}</p>
+                      <p className="truncate font-semibold">📞 {cust.phone || 'N/A'}</p>
                       <div className="flex items-center justify-between font-mono font-bold pt-1">
                         <span className="text-slate-500">{cust.installationsCount || 0} Orders</span>
                         <span className="text-emerald-600">₹{(cust.totalSpent || 0).toLocaleString('en-IN')}</span>
@@ -324,10 +320,7 @@ export default function Customers() {
                         </td>
                         <td className="py-4 px-4 align-middle w-[240px]">
                           <div className="flex flex-col min-w-0 max-w-[220px]">
-                            <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 truncate" title={cust.email}>
-                              {cust.email || 'N/A'}
-                            </span>
-                            <span className="text-[11px] text-slate-400 font-medium font-sans mt-0.5 tracking-tight truncate" title={cust.phone}>
+                            <span className="text-[13px] font-bold text-slate-700 dark:text-slate-300 truncate tracking-tight" title={cust.phone}>
                               {cust.phone || 'N/A'}
                             </span>
                           </div>

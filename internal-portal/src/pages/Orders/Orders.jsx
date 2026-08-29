@@ -38,7 +38,7 @@ export default function Orders() {
     assignedTechnician: 'Unassigned', 
     subTechnicians: [],
     amount: '',
-    location: 'Chennai Area'
+    location: ''
   });
   
   const [addTaskModalOpen, setAddTaskModalOpen] = useState(false);
@@ -104,7 +104,7 @@ export default function Orders() {
       assignedTechnician: 'Unassigned', 
       subTechnicians: [],
       amount: '',
-      location: 'Chennai Area'
+      location: ''
     });
     setAddModalOpen(false);
   };

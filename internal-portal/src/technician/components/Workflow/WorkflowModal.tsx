@@ -65,8 +65,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
     if (isOpen) {
       setTaskDescription('');
       setInspectionComments('');
-      setBeforePhotos(job?.beforePhotos || []);
-      setAfterPhotos(job?.afterPhotos || []);
+      setBeforePhotos(job?.beforePhotos ? job.beforePhotos.map((p: any) => typeof p === 'string' ? p : (p.url || p)) : []);
+      setAfterPhotos(job?.afterPhotos ? job.afterPhotos.map((p: any) => typeof p === 'string' ? p : (p.url || p)) : []);
       setHasVoiceNote(false);
       setIsRecordingVoice(false);
       setRecordingSeconds(0);

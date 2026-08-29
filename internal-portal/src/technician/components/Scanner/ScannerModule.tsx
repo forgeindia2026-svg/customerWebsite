@@ -5,23 +5,20 @@ export const ScannerModule = () => {
   const [qrCodes, setQrCodes] = useState<any[]>([]);
 
   useEffect(() => {
-    const loadQRCodes = () => {
+    const fetchQRs = async () => {
       try {
-        const cached = localStorage.getItem('sk_admin_dashboard_cache');
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (parsed.qrCodes && Array.isArray(parsed.qrCodes)) {
-            setQrCodes(parsed.qrCodes);
-          }
+        const apiUrl = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
+        const res = await fetch(`${apiUrl}/api/dashboard`);
+        const json = await res.json();
+        if (json.success && json.data && json.data.qrCodes) {
+          setQrCodes(json.data.qrCodes);
         }
       } catch (e) {
-        console.error('Failed to load QR codes from cache', e);
+        console.error("Failed to fetch qrCodes", e);
       }
     };
-    
-    loadQRCodes();
-    // Poll to keep it updated in case Admin uploads while Technician is on this page
-    const interval = setInterval(loadQRCodes, 3000);
+    fetchQRs();
+    const interval = setInterval(fetchQRs, 10000);
     return () => clearInterval(interval);
   }, []);
 
