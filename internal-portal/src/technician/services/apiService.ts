@@ -87,7 +87,7 @@ export const JobsApiService = {
         const rawStatus = (j.status || 'PENDING').toString().toUpperCase();
         
         let normStatus: JobStatus = 'PENDING';
-        if (rawStatus === 'COMPLETED' || rawStatus === 'DELIVERED' || rawStatus === 'APPROVED') {
+        if (rawStatus === 'COMPLETED' || rawStatus === 'DELIVERED' || rawStatus === 'APPROVED' || rawStatus === 'WAITING_ADMIN_APPROVAL') {
           normStatus = 'COMPLETED';
         } else if (rawStatus === 'PENDING' || rawStatus === 'PENDING APPROVAL' || rawStatus === 'ASSIGNED' || rawStatus === 'WAITING_FOR_TECH' || rawStatus === 'ASSIGNMENT_PENDING_ACCEPTANCE') {
           normStatus = 'PENDING';
@@ -150,12 +150,13 @@ export const JobsApiService = {
       });
 
       // Filter priority manually if needed
-      let filtered = mappedJobs;
+      let filtered = mappedJobs.filter((j: any) => j.isAssignedToMe);
+      
       if (options.priority && options.priority !== 'ALL') {
         filtered = filtered.filter((j: any) => j.priority === options.priority);
       }
 
-      const myJobs = mappedJobs.filter((j: any) => j.isAssignedToMe);
+      const myJobs = filtered;
 
       const stats = {
         totalAssigned: myJobs.length,
