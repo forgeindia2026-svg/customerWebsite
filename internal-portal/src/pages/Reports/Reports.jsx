@@ -906,21 +906,45 @@ export default function Reports() {
                               {att.status.replace('_', ' ')}
                             </span>
                           </td>
-                          <td className="py-3.5 px-3 align-middle">
-                            <div className="flex items-center space-x-1.5 max-w-[200px]">
-                              <span className="text-xs text-slate-700 dark:text-slate-200 font-medium truncate" title={att.location}>
-                                📍 {att.location || 'Field Location'}
-                              </span>
-                              {att.latitude && att.longitude && (
-                                <a 
-                                  href={`https://www.google.com/maps?q=${att.latitude},${att.longitude}`} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="text-[10px] text-blue-600 hover:text-blue-700 font-bold shrink-0 underline"
-                                  title="View exact live GPS location on Google Maps"
-                                >
-                                  (Map)
-                                </a>
+                          <td className="py-2.5 px-3 align-middle">
+                            <div className="flex flex-col gap-1.5 max-w-[200px]">
+                              {/* Check-In Location */}
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">IN</span>
+                                <span className="text-xs text-slate-700 dark:text-slate-200 font-medium truncate" title={att.location}>
+                                  {att.location || 'Field Location'}
+                                </span>
+                                {att.latitude && att.longitude && (
+                                  <a 
+                                    href={`https://www.google.com/maps?q=${att.latitude},${att.longitude}`} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-[10px] text-blue-600 hover:text-blue-700 font-bold shrink-0 underline"
+                                    title="View check-in GPS location on Google Maps"
+                                  >
+                                    (Map)
+                                  </a>
+                                )}
+                              </div>
+                              {/* Check-Out Location */}
+                              {att.checkOutTime && att.checkOutTime !== '--:--' && (
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[10px] font-bold text-rose-600 bg-rose-50 dark:bg-rose-950/30 px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">OUT</span>
+                                  <span className="text-xs text-slate-700 dark:text-slate-200 font-medium truncate" title={att.checkOutLocation}>
+                                    {att.checkOutLocation || 'Field Location'}
+                                  </span>
+                                  {att.checkOutLatitude && att.checkOutLongitude && (
+                                    <a 
+                                      href={`https://www.google.com/maps?q=${att.checkOutLatitude},${att.checkOutLongitude}`} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="text-[10px] text-blue-600 hover:text-blue-700 font-bold shrink-0 underline"
+                                      title="View check-out GPS location on Google Maps"
+                                    >
+                                      (Map)
+                                    </a>
+                                  )}
+                                </div>
                               )}
                             </div>
                           </td>

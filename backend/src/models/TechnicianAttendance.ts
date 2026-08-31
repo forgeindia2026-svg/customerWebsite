@@ -10,9 +10,12 @@ export interface ITechnicianAttendance extends Document {
   checkOutTimestamp?: Date;
   totalHours: number; // Decimal hours e.g. 8.5
   status: 'PRESENT' | 'HALF_DAY' | 'OVERTIME' | 'OFF_DUTY';
-  location?: string;
+  location?: string; // Check-in location
   latitude?: number;
   longitude?: number;
+  checkOutLocation?: string;
+  checkOutLatitude?: number;
+  checkOutLongitude?: number;
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -36,6 +39,9 @@ const TechnicianAttendanceSchema: Schema = new Schema(
     location: { type: String, default: '' },
     latitude: { type: Number },
     longitude: { type: Number },
+    checkOutLocation: { type: String, default: '' },
+    checkOutLatitude: { type: Number },
+    checkOutLongitude: { type: Number },
     notes: { type: String, default: '' }
   },
   { timestamps: true }

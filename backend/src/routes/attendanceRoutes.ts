@@ -112,7 +112,7 @@ router.post('/check-in', async (req: Request, res: Response) => {
 // POST Check-Out (Punch Out)
 router.post('/check-out', async (req: Request, res: Response) => {
   try {
-    const { technicianId, notes } = req.body;
+    const { technicianId, location, latitude, longitude, notes } = req.body;
     if (!technicianId) {
       return res.status(400).json({ message: 'Technician ID is required' });
     }
@@ -129,6 +129,9 @@ router.post('/check-out', async (req: Request, res: Response) => {
     record.checkOutTime = checkOutTimeStr;
     record.checkOutTimestamp = now;
     record.status = 'OFF_DUTY';
+    if (location) record.checkOutLocation = location;
+    if (latitude) record.checkOutLatitude = latitude;
+    if (longitude) record.checkOutLongitude = longitude;
     if (notes) record.notes = notes;
 
     // Calculate total hours worked

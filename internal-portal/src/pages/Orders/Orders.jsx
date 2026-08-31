@@ -371,27 +371,7 @@ export default function Orders() {
 
                         {isOpenDropdown && (
                           <div className="absolute right-0 mt-1 w-44 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl z-30 py-1 text-left">
-                            {(ord.status === 'Pending' || ord.status === 'Pending Approval') && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setOrderToScope(ord);
-                                  setScopeForm({
-                                    orderCategory: 'Delivery & Installation',
-                                    requiredTechniciansCount: 1,
-                                    estimatedDays: 1,
-                                    startDate: new Date().toISOString().split('T')[0],
-                                    targetCompletionDate: ''
-                                  });
-                                  setScopeModalOpen(true);
-                                  setActiveStatusDropdown(null);
-                                }}
-                                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
-                              >
-                                <FiCheck size={14} />
-                                <span>Approve Order</span>
-                              </button>
-                            )}
+
                             {ord.status === 'WAITING_ADMIN_APPROVAL' && (
                               <button
                                 type="button"
@@ -529,27 +509,7 @@ export default function Orders() {
                                 <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
                                   Order Actions
                                 </div>
-                                {(ord.status === 'Pending' || ord.status === 'Pending Approval') && (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setOrderToScope(ord);
-                                      setScopeForm({
-                                        orderCategory: 'Delivery & Installation',
-                                        requiredTechniciansCount: 1,
-                                        estimatedDays: 1,
-                                        startDate: new Date().toISOString().split('T')[0],
-                                        targetCompletionDate: ''
-                                      });
-                                      setScopeModalOpen(true);
-                                      setActiveStatusDropdown(null);
-                                    }}
-                                    className="w-full flex items-center gap-2 px-3 py-2 text-left text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 font-bold transition-colors cursor-pointer"
-                                  >
-                                    <FiCheck className="w-3.5 h-3.5" />
-                                    <span>Approve Order</span>
-                                  </button>
-                                )}
+
                                 {ord.status === 'WAITING_ADMIN_APPROVAL' && (
                                   <button
                                     type="button"
@@ -677,24 +637,7 @@ export default function Orders() {
                   >
                     Edit
                   </button>
-                  {ord.status === 'Pending' && (
-                    <button 
-                      onClick={() => {
-                        setOrderToScope(ord);
-                        setScopeForm({
-                          orderCategory: 'Delivery & Installation',
-                          requiredTechniciansCount: 1,
-                          estimatedDays: 1,
-                          startDate: new Date().toISOString().split('T')[0],
-                          targetCompletionDate: ''
-                        });
-                        setScopeModalOpen(true);
-                      }}
-                      className="flex-1 flex items-center justify-center gap-1 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-300 text-[11px] font-semibold rounded-xl transition-colors border border-emerald-100 dark:border-emerald-900/30"
-                    >
-                      Approve
-                    </button>
-                  )}
+
                 </div>
               </div>
             ))
