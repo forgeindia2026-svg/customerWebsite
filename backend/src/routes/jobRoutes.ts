@@ -134,7 +134,7 @@ router.post('/auto-dispatch-complete', async (req: Request, res: Response) => {
     dashboardData.notifications.push({
       id: `notif-${Date.now()}`,
       title: 'Smart Job Auto-Dispatch Confirmed',
-      message: `Order ${jobCode} has been auto-dispatched to ${techName}.`,
+      message: `Order for ${job.customer?.name || 'Customer'} has been auto-dispatched to ${techName}.`,
       timestamp: new Date().toISOString(),
       read: false,
       type: 'ASSIGNMENT',
