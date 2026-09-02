@@ -161,14 +161,43 @@ router.post('/', async (req: Request, res: Response) => {
 // PUT approve report
 router.put('/:id/approve', async (req: Request, res: Response) => {
   try {
-    const report = await TechnicianReport.findByIdAndUpdate(
-      req.params.id,
+    const rawId = String(req.params.id || '').trim();
+    const isMongoId = /^[0-9a-fA-F]{24}$/.test(rawId);
+
+    // Find report by Mongo ID or jobCode
+    const report = await TechnicianReport.findOneAndUpdate(
+      {
+        $or: [
+          ...(isMongoId ? [{ _id: rawId }] : []),
+          { jobId: rawId },
+          { jobCode: rawId },
+        ]
+      },
       { approvedByAdmin: true },
       { new: true }
     );
+
     if (!report) return res.status(404).json({ message: 'Report not found' });
+
+    // Also update the linked Job/Order status to COMPLETED
+    if (report.jobId || report.jobCode) {
+      const cleanCode = String(report.jobCode || '').replace(/^#/, '');
+      await Job.findOneAndUpdate(
+        {
+          $or: [
+            ...(report.jobId ? [{ id: report.jobId }, { _id: report.jobId.length === 24 ? report.jobId : undefined }] : []),
+            { jobCode: report.jobCode },
+            { jobCode: `#${cleanCode}` },
+            { jobCode: cleanCode },
+          ].filter(Boolean)
+        },
+        { $set: { status: 'COMPLETED', completedAt: new Date() } }
+      );
+    }
+
     res.json(report);
   } catch (error) {
+    console.error('Approve error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
