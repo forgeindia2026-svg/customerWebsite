@@ -20,14 +20,70 @@ router.get('/', async (req: Request, res: Response) => {
 
     // Deduplicate by jobCode (keep newest / most complete report)
     const seenJobCodes = new Set<string>();
-    const uniqueReports = [];
+    const uniqueReports: any[] = [];
     for (const r of reports) {
       const cleanCode = (r.jobCode || '').replace(/^#/, '').trim().toUpperCase();
       if (cleanCode && cleanCode !== 'DAILY WORK LOG') {
         if (seenJobCodes.has(cleanCode)) continue;
         seenJobCodes.add(cleanCode);
       }
-      uniqueReports.push(r);
+      uniqueReports.push(r.toObject());
+    }
+
+    // Resolve any MongoDB ObjectID photo references to actual URLs
+    // The mobile app sometimes stores the photo's ObjectID instead of the URL
+    const isMongoId = (v: string) => /^[0-9a-fA-F]{24}$/.test(v);
+
+    // Collect all IDs that need resolving
+    const allPhotoIds: Set<string> = new Set();
+    for (const rep of uniqueReports) {
+      for (const p of [...(rep.beforePhotos || []), ...(rep.afterPhotos || [])]) {
+        if (typeof p === 'string' && isMongoId(p)) allPhotoIds.add(p);
+      }
+    }
+
+    // Build a map: photoId -> url by scanning all Jobs
+    const photoIdToUrl: Record<string, string> = {};
+    if (allPhotoIds.size > 0) {
+      const jobs = await Job.find({
+        $or: [
+          { 'beforePhotos.id': { $in: Array.from(allPhotoIds) } },
+          { 'afterPhotos.id': { $in: Array.from(allPhotoIds) } },
+          { 'proofImages.id': { $in: Array.from(allPhotoIds) } },
+        ]
+      }).select('beforePhotos afterPhotos proofImages').lean();
+
+      for (const job of jobs) {
+        const allJobPhotos = [
+          ...(job.beforePhotos || []),
+          ...(job.afterPhotos || []),
+          ...(job.proofImages || []),
+        ];
+        for (const photo of allJobPhotos as any[]) {
+          if (photo?.id && photo?.url) {
+            photoIdToUrl[photo.id] = photo.url;
+          }
+          if (photo?._id && photo?.url) {
+            photoIdToUrl[String(photo._id)] = photo.url;
+          }
+        }
+      }
+    }
+
+    // Replace any ObjectID strings with the real URL (skip if URL not found)
+    const resolvePhotos = (photos: string[]) =>
+      (photos || [])
+        .map((p: string) => {
+          if (typeof p === 'string' && isMongoId(p)) {
+            return photoIdToUrl[p] || null; // null means not resolvable, will be filtered
+          }
+          return p;
+        })
+        .filter(Boolean);
+
+    for (const rep of uniqueReports) {
+      rep.beforePhotos = resolvePhotos(rep.beforePhotos || []);
+      rep.afterPhotos = resolvePhotos(rep.afterPhotos || []);
     }
 
     res.json(uniqueReports);
