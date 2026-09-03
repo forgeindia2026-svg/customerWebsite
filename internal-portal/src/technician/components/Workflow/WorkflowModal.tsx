@@ -65,8 +65,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
     if (isOpen) {
       setTaskDescription('');
       setInspectionComments('');
-      setBeforePhotos(job?.beforePhotos ? job.beforePhotos.map((p: any) => typeof p === 'string' ? p : (p.url || p)) : []);
-      setAfterPhotos(job?.afterPhotos ? job.afterPhotos.map((p: any) => typeof p === 'string' ? p : (p.url || p)) : []);
+      setBeforePhotos(job?.beforePhotos ? job.beforePhotos.map((p: any) => typeof p === 'string' ? p : (p.url || p)).filter((url: any) => typeof url === 'string' && url.trim().length > 0) : []);
+      setAfterPhotos(job?.afterPhotos ? job.afterPhotos.map((p: any) => typeof p === 'string' ? p : (p.url || p)).filter((url: any) => typeof url === 'string' && url.trim().length > 0) : []);
       setHasVoiceNote(false);
       setIsRecordingVoice(false);
       setRecordingSeconds(0);
@@ -386,20 +386,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
             </div>
           </div>
 
-          {/* 3. Task Completion Status Dropdown */}
-          <div className="space-y-1.5">
-            <label className="font-semibold text-zinc-700 block">Task Completion Status</label>
-            <select
-              value={completionStatus}
-              onChange={(e) => setCompletionStatus(e.target.value as any)}
-              className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-bold text-zinc-900 focus:outline-none focus:border-red-500 focus:bg-white transition-all cursor-pointer"
-            >
-              <option value="Completed">Completed</option>
-              <option value="In Progress">In Progress</option>
-            </select>
-          </div>
 
-          {/* 4. Inspection Comments / Work Done Notes */}
+          {/* 3. Inspection Comments / Work Done Notes */}
           <div className="space-y-1.5">
             <label className="font-semibold text-zinc-700 block">
               Inspection Comments <span className="text-zinc-400 font-normal italic">- Optional</span>
@@ -413,7 +401,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
             />
           </div>
 
-          {/* 5. Photos After Completion */}
+          {/* 4. Photos After Completion */}
           <div className="space-y-2">
             <label className="font-semibold text-zinc-700 block">
               Photos After Completion <span className="text-zinc-400 font-normal italic">- Optional</span>
@@ -445,6 +433,21 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               ))}
             </div>
           </div>
+
+          {/* 5. Task Completion Status Dropdown (Only shows if After Photos exist) */}
+          {afterPhotos.length > 0 && (
+            <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-300">
+              <label className="font-semibold text-zinc-700 block">Task Completion Status</label>
+              <select
+                value={completionStatus}
+                onChange={(e) => setCompletionStatus(e.target.value as any)}
+                className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-bold text-zinc-900 focus:outline-none focus:border-red-500 focus:bg-white transition-all cursor-pointer"
+              >
+                <option value="Completed">Completed</option>
+                <option value="In Progress">In Progress</option>
+              </select>
+            </div>
+          )}
 
           {/* 6. Voice Message / Audio Note */}
           <div className="space-y-2 p-3.5 bg-zinc-50 border border-zinc-200/80 rounded-xl">

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { addPayment } from '../../redux/dashboardSlice';
 import jsPDF from 'jspdf';
 import { 
   FiDownload, FiBarChart2, FiTrendingUp, FiCheckCircle, 
-  FiUsers, FiStar, FiClock, FiSettings, FiGrid, FiActivity 
+  FiUsers, FiStar, FiClock, FiSettings, FiGrid, FiActivity,
+  FiEye, FiTrash2, FiFileText, FiMoreVertical, FiShield, FiShieldOff
 } from 'react-icons/fi';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -42,13 +44,123 @@ const calculateLiveHours = (checkInStr, dateStr) => {
   }
 };
 
+// ─── Report Action Dropdown Menu ────────────────────────────────────────────
+function ReportActionMenu({ report, onView, onPhotos, onPDF, onVerify, onDelete }) {
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef(null);
+  const isVerified = report.status === 'Verified';
+  const hasPhotos = (report.beforePhotos?.length || 0) + (report.afterPhotos?.length || 0) > 0;
+
+  React.useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const menuItems = [
+    {
+      label: 'View Report',
+      icon: <FiEye size={13} />,
+      color: 'text-blue-600',
+      bg: 'hover:bg-blue-50',
+      action: () => { onView(); setOpen(false); }
+    },
+    ...(hasPhotos ? [{
+      label: 'View Photos',
+      icon: <span className="text-[13px]">📸</span>,
+      color: 'text-violet-600',
+      bg: 'hover:bg-violet-50',
+      action: () => { onPhotos(); setOpen(false); }
+    }] : []),
+    {
+      label: 'Download PDF',
+      icon: <FiFileText size={13} />,
+      color: 'text-slate-600',
+      bg: 'hover:bg-slate-50',
+      action: () => { onPDF(); setOpen(false); }
+    },
+    ...(!isVerified ? [{
+      label: 'Verify & Approve',
+      icon: <FiShield size={13} />,
+      color: 'text-emerald-600',
+      bg: 'hover:bg-emerald-50',
+      action: () => { onVerify(); setOpen(false); }
+    }] : [{
+      label: 'Verified ✓',
+      icon: <FiCheckCircle size={13} />,
+      color: 'text-emerald-500',
+      bg: '',
+      action: null,
+      disabled: true
+    }]),
+    { divider: true },
+    {
+      label: 'Delete Report',
+      icon: <FiTrash2 size={13} />,
+      color: 'text-rose-600',
+      bg: 'hover:bg-rose-50',
+      action: () => { onDelete(); setOpen(false); }
+    },
+  ];
+
+  return (
+    <div ref={ref} className="relative flex justify-end">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-800 dark:text-slate-300 transition-all cursor-pointer"
+        title="Actions"
+      >
+        <FiMoreVertical size={16} />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-9 z-50 w-44 bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 py-1.5 overflow-hidden animate-[fadeIn_0.12s_ease]">
+          {menuItems.map((item, i) =>
+            item.divider ? (
+              <div key={i} className="my-1 border-t border-slate-100 dark:border-slate-800" />
+            ) : (
+              <button
+                key={i}
+                disabled={item.disabled}
+                onClick={item.action}
+                className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-[12px] font-medium ${item.color} ${item.bg} transition-colors text-left cursor-pointer disabled:opacity-50 disabled:cursor-default`}
+              >
+                {item.icon}
+                {item.label}
+              </button>
+            )
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 export default function Reports() {
   const orders = useSelector(state => state.dashboard?.orders) || [];
   const payments = useSelector(state => state.dashboard?.payments) || [];
   const technicians = useSelector(state => state.dashboard?.technicians) || [];
   const projects = useSelector(state => state.dashboard?.projects) || [];
+  const settings = useSelector(state => state.dashboard?.settings) || {};
+  const dispatch = useDispatch();
 
   const [activeTab, setActiveTab] = useState('Attendance'); // 'Attendance', 'Field Reports', 'Overview', 'Technicians'
+  const [showAddTransaction, setShowAddTransaction] = useState(false);
+  const [transactionForm, setTransactionForm] = useState({ date: new Date().toISOString().split('T')[0], customerName: '', type: 'Sales Invoices', invoiceNo: '', amount: '', moneyIn: '', moneyOut: '', balanceAmount: '', createdBy: '' });
+  const handleAddTransaction = (e) => {
+    e.preventDefault();
+    dispatch(addPayment({
+      ...transactionForm,
+      amount: Number(transactionForm.amount),
+      status: transactionForm.type.includes('Sales') ? 'Pending' : 'Paid',
+      createdBy: transactionForm.createdBy || settings.contactPerson || 'Admin',
+      createdAt: new Date().toISOString()
+    }));
+    setShowAddTransaction(false);
+    setTransactionForm({ date: new Date().toISOString().split('T')[0], customerName: '', type: 'Sales Invoices', invoiceNo: '', amount: '', moneyIn: '', moneyOut: '', balanceAmount: '', createdBy: '' });
+    showToast('Transaction added successfully!');
+  };
   const [selectedPhotoModal, setSelectedPhotoModal] = useState(null);
   const [adminQuickDetailReport, setAdminQuickDetailReport] = useState(null);
   const [adminFullReportModal, setAdminFullReportModal] = useState(null);
@@ -59,6 +171,33 @@ export default function Reports() {
   const [filterTech, setFilterTech] = useState('ALL');
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [toast, setToast] = useState(null); // { message, type: 'success'|'error' }
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
+  };
+
+  const handleVerifyReport = (report) => {
+    const jobCode = report.jobCode;
+    localStorage.setItem(`report_approved_${jobCode}`, 'true');
+
+    // Update local generalReports state immediately — no page reload needed
+    setGeneralReports(prev =>
+      prev.map(r =>
+        (r.jobCode === jobCode || r._id === report.id)
+          ? { ...r, approvedByAdmin: true }
+          : r
+      )
+    );
+
+    // Also try to persist to backend
+    const baseUrl = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
+    fetch(`${baseUrl}/api/reports/${encodeURIComponent(report.id || jobCode)}/approve`, { method: 'PUT' })
+      .catch(err => console.warn('Backend approve failed (local state updated):', err));
+
+    showToast(`Report ${jobCode} verified & approved successfully!`);
+  };
 
   useEffect(() => {
     const fetchGeneralReports = async () => {
@@ -399,6 +538,9 @@ export default function Reports() {
       location: rec.location || 'Field Location',
       latitude: rec.latitude,
       longitude: rec.longitude,
+      checkOutLocation: rec.checkOutLocation,
+      checkOutLatitude: rec.checkOutLatitude,
+      checkOutLongitude: rec.checkOutLongitude,
       notes: salaryNote
     };
   });
@@ -533,7 +675,7 @@ export default function Reports() {
     }
   };
 
-  const handleDownloadReportPDF = (report) => {
+  const handleDownloadReportPDF = async (report) => {
     try {
       const doc = new jsPDF();
       const isApproved = localStorage.getItem(`report_approved_${report?.jobCode}`) === 'true' || report?.status === 'Approved' || report?.status === 'COMPLETED';
@@ -649,6 +791,84 @@ export default function Reports() {
       doc.setTextColor(148, 163, 184);
       doc.text(`Generated electronically by SK Technology Portal on ${new Date().toLocaleString('en-IN')}`, 14, 285);
 
+      // Site Evidence Photos Section
+      const beforePhotos = report?.beforePhotos || [];
+      const afterPhotos = report?.afterPhotos || [];
+
+      if (beforePhotos.length > 0 || afterPhotos.length > 0) {
+        doc.addPage();
+        
+        doc.setFillColor(15, 23, 42); 
+        doc.rect(0, 0, 210, 25, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.text('SITE EVIDENCE PHOTOS', 14, 16);
+        
+        doc.setTextColor(30, 41, 59);
+        let photoYPos = 35;
+        
+        const processPhotos = async (photos, title) => {
+           if (!photos || photos.length === 0) return;
+           doc.setFontSize(11);
+           doc.setFont('helvetica', 'bold');
+           doc.text(title, 14, photoYPos);
+           photoYPos += 10;
+           
+           let xPos = 14;
+           
+           for (let i = 0; i < photos.length; i++) {
+              let p = photos[i];
+              let imgSrc = typeof p === 'string' ? p : (p.url || p);
+              if (imgSrc && typeof imgSrc === 'string' && !imgSrc.startsWith('http') && !imgSrc.startsWith('data:') && !imgSrc.startsWith('blob:')) {
+                const baseUrl = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
+                imgSrc = `${baseUrl}${imgSrc.startsWith('/') ? '' : '/'}${imgSrc}`;
+              }
+              
+              if (imgSrc) {
+                 try {
+                    let imgData;
+                    if (imgSrc.startsWith('data:')) {
+                        imgData = imgSrc;
+                    } else {
+                        const res = await fetch(imgSrc + (imgSrc.includes('?') ? '&' : '?') + 'cb=' + new Date().getTime());
+                        const blob = await res.blob();
+                        imgData = await new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => resolve(reader.result);
+                            reader.onerror = reject;
+                            reader.readAsDataURL(blob);
+                        });
+                    }
+                    
+                    if (photoYPos + 60 > 280) {
+                        doc.addPage();
+                        photoYPos = 20;
+                        xPos = 14;
+                    }
+                    
+                    // The base64 data will include the data:image/xxx;base64 prefix which jsPDF can handle
+                    doc.addImage(imgData, 'JPEG', xPos, photoYPos, 80, 60);
+                    xPos += 90;
+                    if (xPos > 150) {
+                        xPos = 14;
+                        photoYPos += 70;
+                    }
+                 } catch (e) {
+                    console.error("Failed to load image for PDF", e);
+                 }
+              }
+           }
+           if (xPos !== 14) {
+               photoYPos += 70;
+           }
+        };
+
+        await processPhotos(beforePhotos, 'BEFORE INSTALLATION');
+        photoYPos += 10;
+        await processPhotos(afterPhotos, 'AFTER INSTALLATION');
+      }
+
       // Trigger automatic PDF file download!
       doc.save(`Report_${report?.jobCode || 'SK-ORD-42431'}.pdf`);
     } catch (err) {
@@ -735,34 +955,328 @@ export default function Reports() {
 
   return (
     <div className="space-y-6">
-      
+
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`fixed top-5 right-5 z-[9999] flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl border text-sm font-semibold transition-all animate-[slideInRight_0.3s_ease] ${
+          toast.type === 'success'
+            ? 'bg-emerald-600 text-white border-emerald-700'
+            : 'bg-rose-600 text-white border-rose-700'
+        }`}>
+          <span className="text-lg">{toast.type === 'success' ? '✅' : '❌'}</span>
+          <span>{toast.message}</span>
+          <button onClick={() => setToast(null)} className="ml-2 opacity-70 hover:opacity-100 text-white font-bold cursor-pointer">✕</button>
+        </div>
+      )}
+
+      {/* Admin Full Report Verification Modal */}
+      {adminFullReportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setAdminFullReportModal(null)} />
+          <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col border border-slate-100 dark:border-slate-800 animate-[fadeInUp_0.3s_ease]">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="font-bold text-slate-800 dark:text-slate-100 text-lg flex items-center gap-2">
+                  <FiFileText className="text-blue-500" />
+                  Service Report Verification
+                </h3>
+                <p className="text-sm text-slate-500 mt-1">Review field report submitted by {adminFullReportModal.technician}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => handleDownloadReportPDF(adminFullReportModal)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg transition-colors cursor-pointer"
+                >
+                  <FiDownload size={14} /> PDF
+                </button>
+                <button onClick={() => setAdminFullReportModal(null)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 transition-colors cursor-pointer">
+                  ✕
+                </button>
+              </div>
+            </div>
+            
+            {/* Body */}
+            <div className="p-6 overflow-y-auto custom-scrollbar">
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div className="space-y-4">
+                  <div>
+                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Customer Details</span>
+                    <p className="font-medium text-slate-800 dark:text-slate-200">{adminFullReportModal.customer}</p>
+                    <p className="text-sm text-slate-500">{adminFullReportModal.location}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Job Details</span>
+                    <p className="font-medium text-slate-800 dark:text-slate-200">{adminFullReportModal.jobId} - {adminFullReportModal.jobType}</p>
+                    <p className="text-sm text-slate-500">Scheduled: {adminFullReportModal.date} at {adminFullReportModal.time}</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-4">
+                  <div>
+                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Status</span>
+                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border
+                      ${adminFullReportModal.status === 'Completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                        adminFullReportModal.status === 'Needs Rework' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                        'bg-blue-50 text-blue-700 border-blue-200'}
+                    `}>
+                      {adminFullReportModal.status}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Technician</span>
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center overflow-hidden">
+                        {adminFullReportModal.technicianAvatar ? (
+                          <img src={adminFullReportModal.technicianAvatar} alt={adminFullReportModal.technician} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-xs font-bold text-slate-500">{adminFullReportModal.technician.charAt(0)}</span>
+                        )}
+                      </div>
+                      <span className="font-medium text-slate-700 dark:text-slate-300 text-sm">{adminFullReportModal.technician}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Time Tracking */}
+              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-100 dark:border-slate-700 mb-6">
+                <h4 className="font-medium text-slate-800 dark:text-slate-200 text-sm mb-3">Time Log</h4>
+                <div className="flex flex-wrap items-center gap-6">
+                  <div>
+                    <span className="text-xs text-slate-500 block">Check In</span>
+                    <span className="font-medium text-slate-700 dark:text-slate-300">{adminFullReportModal.checkIn || '--:--'}</span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-500 block">Check Out</span>
+                    <span className="font-medium text-slate-700 dark:text-slate-300">{adminFullReportModal.checkOut || '--:--'}</span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-500 block">Duration</span>
+                    <span className="font-medium text-slate-700 dark:text-slate-300">
+                      {adminFullReportModal.checkIn && adminFullReportModal.checkOut ? 
+                        calculateLiveHours(adminFullReportModal.checkOut, adminFullReportModal.date) - calculateLiveHours(adminFullReportModal.checkIn, adminFullReportModal.date) > 0 ? 
+                        (calculateLiveHours(adminFullReportModal.checkOut, adminFullReportModal.date) - calculateLiveHours(adminFullReportModal.checkIn, adminFullReportModal.date)).toFixed(1) + ' hrs' 
+                        : 'Invalid' 
+                      : '--'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Service Details */}
+              <div className="mb-6">
+                <h4 className="font-medium text-slate-800 dark:text-slate-200 text-sm mb-2">Technician Notes</h4>
+                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-100 dark:border-slate-700 text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+                  {adminFullReportModal.report || 'No detailed notes provided.'}
+                </div>
+              </div>
+
+              {/* Voice Memo */}
+              {adminFullReportModal.voiceMemo && (
+                <div className="mb-6">
+                   <h4 className="font-medium text-slate-800 dark:text-slate-200 text-sm mb-2">Voice Memo</h4>
+                   <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl p-3 flex items-center justify-between">
+                     <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-800 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                          <FiFileText size={18} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Audio Update.mp3</p>
+                          <p className="text-xs text-slate-500">1:24 mins • Recorded on site</p>
+                        </div>
+                     </div>
+                     <button 
+                        onClick={() => handlePlayVoiceMemo(adminFullReportModal)}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors cursor-pointer"
+                     >
+                       {isPlayingAudio ? 'Playing...' : 'Play Audio'}
+                     </button>
+                   </div>
+                </div>
+              )}
+
+              {/* Photos */}
+              {adminFullReportModal.photos && adminFullReportModal.photos.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="font-medium text-slate-800 dark:text-slate-200 text-sm mb-3">Site Photos ({adminFullReportModal.photos.length})</h4>
+                  <div className="flex overflow-x-auto gap-3 pb-2 custom-scrollbar">
+                    {adminFullReportModal.photos.map((photo, idx) => (
+                      <div key={idx} className="flex-none w-40 h-28 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm group relative cursor-pointer"
+                           onClick={() => setSelectedPhotoModal(adminFullReportModal)}>
+                        <img src={photo} alt={`Site ${idx}`} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                          <FiEye className="text-white opacity-0 group-hover:opacity-100 transition-opacity" size={20} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Materials Used */}
+              {adminFullReportModal.materials && (
+                 <div className="mb-6">
+                  <h4 className="font-medium text-slate-800 dark:text-slate-200 text-sm mb-3">Materials Used</h4>
+                  <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                        <tr>
+                          <th className="px-4 py-2 text-slate-500 font-medium">Item Name</th>
+                          <th className="px-4 py-2 text-slate-500 font-medium text-right w-24">Qty</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {adminFullReportModal.materials.map((m, i) => (
+                          <tr key={i}>
+                            <td className="px-4 py-2.5 font-medium text-slate-700 dark:text-slate-300">{m.name}</td>
+                            <td className="px-4 py-2.5 text-slate-600 dark:text-slate-400 text-right">{m.qty}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                 </div>
+              )}
+              
+            </div>
+            
+            {/* Footer Actions */}
+            <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex justify-between items-center rounded-b-2xl">
+              <button 
+                onClick={() => handleDeleteReport(adminFullReportModal)}
+                className="text-rose-600 hover:text-rose-700 text-sm font-medium flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
+              >
+                <FiTrash2 size={14} /> Delete
+              </button>
+              
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setAdminFullReportModal(null)}
+                  className="px-4 py-2 text-slate-600 hover:text-slate-900 font-medium text-sm transition-colors cursor-pointer"
+                >
+                  Close
+                </button>
+                {adminFullReportModal.status !== 'Completed' && adminFullReportModal.status !== 'Needs Rework' && (
+                  <>
+                    <button 
+                      onClick={() => handleUpdateReportStatus(adminFullReportModal.id, 'Needs Rework')}
+                      className="px-4 py-2 border border-rose-200 text-rose-600 hover:bg-rose-50 font-medium text-sm rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
+                    >
+                      <FiShieldOff size={14} /> Request Rework
+                    </button>
+                    <button 
+                      onClick={() => handleUpdateReportStatus(adminFullReportModal.id, 'Completed')}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm rounded-lg shadow-sm transition-colors cursor-pointer flex items-center gap-1.5"
+                    >
+                      <FiShield size={14} /> Verify & Approve
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Transaction Modal */}
+      {showAddTransaction && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowAddTransaction(false)} />
+          <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col border border-slate-100 dark:border-slate-800 animate-[fadeInUp_0.2s_ease]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="font-bold text-slate-800 dark:text-slate-100 text-lg">Add Daybook Entry</h3>
+              <button onClick={() => setShowAddTransaction(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 transition-colors cursor-pointer">✕</button>
+            </div>
+            <form onSubmit={handleAddTransaction} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Date</label>
+                <input required type="date" value={transactionForm.date} onChange={e => setTransactionForm({...transactionForm, date: e.target.value})} className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Party Name / Customer</label>
+                <input required type="text" placeholder="e.g. Mr. Murugesan" value={transactionForm.customerName} onChange={e => setTransactionForm({...transactionForm, customerName: e.target.value})} className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Transaction Type</label>
+                  <select value={transactionForm.type} onChange={e => setTransactionForm({...transactionForm, type: e.target.value})} className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    <option value="Sales Invoices">Sales Invoices</option>
+                    <option value="Purchases">Purchases</option>
+                    <option value="Receipts">Receipts</option>
+                    <option value="Payments">Payments</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Transaction No</label>
+                  <input required type="text" placeholder="e.g. INV-100" value={transactionForm.invoiceNo} onChange={e => setTransactionForm({...transactionForm, invoiceNo: e.target.value})} className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Total Amount (₹)</label>
+                  <input required type="number" min="0" placeholder="0" value={transactionForm.amount} onChange={e => setTransactionForm({...transactionForm, amount: e.target.value})} className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Balance Amount (₹)</label>
+                  <input type="number" placeholder="0" value={transactionForm.balanceAmount} onChange={e => setTransactionForm({...transactionForm, balanceAmount: e.target.value})} className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Money In (₹)</label>
+                  <input type="number" placeholder="0" value={transactionForm.moneyIn} onChange={e => setTransactionForm({...transactionForm, moneyIn: e.target.value})} className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Money Out (₹)</label>
+                  <input type="number" placeholder="0" value={transactionForm.moneyOut} onChange={e => setTransactionForm({...transactionForm, moneyOut: e.target.value})} className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Created By</label>
+                <input required type="text" placeholder="e.g. Admin Name" value={transactionForm.createdBy} onChange={e => setTransactionForm({...transactionForm, createdBy: e.target.value})} className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+              </div>
+              <div className="pt-4 flex gap-3">
+                <button type="button" onClick={() => setShowAddTransaction(false)} className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-medium rounded-lg transition-colors cursor-pointer">Cancel</button>
+                <button type="submit" className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors cursor-pointer">Save Entry</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Overview Block */}
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors">
-        <div className="text-left">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm transition-colors overflow-hidden">
+        {/* Header */}
+        <div className="px-6 pt-5 pb-4 border-b border-slate-100 dark:border-slate-800">
           <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Management Reports & Performance Analytics</h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Review live financial metrics, installation efficiency logs, and technician performance tracking.</p>
         </div>
 
-        {/* Tab Switcher */}
-        <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-200/50 dark:border-slate-700/50 self-start md:self-auto overflow-x-auto max-w-full gap-1">
-          {[
-            { id: 'Attendance', label: '🕒 Attendance & Timesheet' },
-            { id: 'Field Reports', label: '📸 Technician Field Reports' },
-            { id: 'Technicians', label: '⭐ Technician Performance' },
-            { id: 'Overview', label: '📊 Executive Overview' }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`text-xs font-bold px-4 py-2.5 rounded-xl transition-all shrink-0 cursor-pointer ${
-                activeTab === tab.id 
-                  ? 'bg-slate-900 text-white shadow-md' 
-                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+        {/* iOS-style Segmented Tab Bar */}
+        <div className="px-4 py-3">
+          <div className="relative flex bg-slate-100 dark:bg-slate-800 rounded-2xl p-1 gap-1">
+            {[
+              { id: 'Attendance', icon: '🕒', label: 'Attendance' },
+              { id: 'Field Reports', icon: '📸', label: 'Field Reports' },
+              { id: 'Daybook', icon: '📓', label: 'Daybook' },
+              { id: 'Technicians', icon: '⭐', label: 'Performance' },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer min-w-0 ${
+                  activeTab === tab.id
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-md scale-[1.02]'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                }`}
+              >
+                <span className="text-sm shrink-0">{tab.icon}</span>
+                <span className="truncate hidden sm:inline">{tab.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -1299,47 +1813,14 @@ export default function Reports() {
                           </td>
 
                           <td className="py-4 px-3 align-middle text-right">
-                            <div className="flex items-center justify-end space-x-2">
-                              <button
-                                onClick={() => setAdminFullReportModal(report)}
-                                className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
-                              >
-                                View
-                              </button>
-                              {report.status === 'Verified' ? (
-                                <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 font-bold text-[10px] rounded-lg border border-emerald-200 flex items-center gap-1 font-mono">
-                                  <FiCheckCircle size={12} />
-                                  <span>Verified</span>
-                                </span>
-                              ) : (
-                                <button
-                                  onClick={() => {
-                                    localStorage.setItem(`report_approved_${report.jobCode}`, 'true');
-                                    alert(`✓ Report ${report.jobCode} has been Verified & Approved by Admin!`);
-                                    window.location.reload();
-                                  }}
-                                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1"
-                                >
-                                  <FiCheckCircle size={12} />
-                                  <span>Verify</span>
-                                </button>
-                              )}
-
-                              <button
-                                onClick={() => handleDownloadReportPDF(report)}
-                                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer"
-                              >
-                                PDF
-                              </button>
-
-                              <button
-                                onClick={() => handleDeleteReport(report)}
-                                title="Delete Report"
-                                className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-600 rounded-xl text-xs font-semibold transition-colors cursor-pointer border border-rose-200 dark:border-rose-900"
-                              >
-                                🗑️
-                              </button>
-                            </div>
+                            <ReportActionMenu
+                              report={report}
+                              onView={() => setAdminFullReportModal(report)}
+                              onPhotos={() => setSelectedPhotoModal(report)}
+                              onPDF={() => handleDownloadReportPDF(report)}
+                              onVerify={() => handleVerifyReport(report)}
+                              onDelete={() => handleDeleteReport(report)}
+                            />
                           </td>
                         </tr>
                       );
@@ -1418,105 +1899,128 @@ export default function Reports() {
         </div>
       )}
 
-      {/* Tab Contents: Overview */}
-      {activeTab === 'Overview' && (
+
+
+      {/* Tab Contents: Daybook */}
+      {activeTab === 'Daybook' && (
         <div className="space-y-6">
-          
-          {/* Key Stat Cards Grid (2x2 Grid on Mobile) */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
-            <div className="bg-white dark:bg-slate-900 p-3 sm:p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xs flex items-center justify-between transition-colors">
-              <div className="text-left">
-                <span className="text-slate-400 text-[9px] sm:text-xs font-semibold uppercase tracking-wider block truncate">Total Collections</span>
-                <span className="text-base sm:text-xl font-bold text-slate-800 dark:text-white block mt-0.5">₹{totalCollected.toLocaleString('en-IN')}</span>
-              </div>
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-blue-50 dark:bg-blue-900/35 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-                <FiTrendingUp size={16} />
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-900 p-3 sm:p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xs flex items-center justify-between transition-colors">
-              <div className="text-left">
-                <span className="text-slate-400 text-[9px] sm:text-xs font-semibold uppercase tracking-wider block truncate">Pending Receipts</span>
-                <span className="text-base sm:text-xl font-bold text-slate-850 dark:text-white block mt-0.5">₹{pendingCollection.toLocaleString('en-IN')}</span>
-              </div>
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-amber-50 dark:bg-amber-900/35 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                <FiClock size={16} />
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-900 p-3 sm:p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xs flex items-center justify-between transition-colors">
-              <div className="text-left">
-                <span className="text-slate-400 text-[9px] sm:text-xs font-semibold uppercase tracking-wider block truncate">Service Audits</span>
-                <span className="text-base sm:text-xl font-bold text-slate-800 dark:text-white block mt-0.5">{orders.length} Installations</span>
-              </div>
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/35 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                <FiCheckCircle size={16} />
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-900 p-3 sm:p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xs flex items-center justify-between transition-colors">
-              <div className="text-left">
-                <span className="text-slate-400 text-[9px] sm:text-xs font-semibold uppercase tracking-wider block truncate">Active Engineers</span>
-                <span className="text-base sm:text-xl font-bold text-slate-850 dark:text-white block mt-0.5">{technicians.length} Members</span>
-              </div>
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-purple-50 dark:bg-purple-900/35 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
-                <FiUsers size={16} />
-              </div>
-            </div>
-          </div>
-
-          {/* Sub-report Cards */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm p-6 overflow-hidden transition-colors">
             
-            {/* Sales ledger overview */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm p-6 flex flex-col justify-between transition-colors">
-              <div className="text-left">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-primary/10 text-primary rounded-xl">
-                    <FiBarChart2 size={20} />
-                  </div>
-                  <h4 className="font-semibold text-slate-850 dark:text-slate-100 text-sm">Monthly Collections Ledger</h4>
+            {/* Header & Controls */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <h3 className="font-bold text-slate-800 dark:text-slate-100 text-lg flex items-center gap-2">
+                  <span className="cursor-pointer hover:bg-slate-100 p-1 rounded-md">←</span> Daybook
+                </h3>
+                <button className="flex items-center gap-1 text-slate-500 hover:text-yellow-500 text-sm font-medium transition-colors border border-slate-200 px-2 py-1 rounded-md">
+                  <FiStar size={14} /> Favourite
+                </button>
+              </div>
+
+              <div className="flex flex-col xl:flex-row flex-wrap items-start sm:items-center justify-end gap-3 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <select className="border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    <option>All Staff</option>
+                    {uniqueTechNames.map(name => <option key={name}>{name}</option>)}
+                  </select>
+                  <select className="border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    <option>Previous Month</option>
+                    <option>This Month</option>
+                    <option>Today</option>
+                  </select>
+                  <select className="border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    <option>Sales</option>
+                    <option>Purchases</option>
+                    <option>All Transactions</option>
+                  </select>
                 </div>
-                <p className="text-xs text-slate-600 dark:text-slate-400 mt-4 leading-normal font-medium">
-                  Summarizes invoice payments, sales volume, outstanding collections, and total cash flow registers.
-                </p>
-                <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl flex items-center justify-between text-xs">
-                  <span className="text-slate-500 font-medium">Total Collected Value:</span>
-                  <strong className="text-slate-850 dark:text-white font-semibold">₹{totalCollected.toLocaleString('en-IN')}</strong>
+                
+                <div className="flex flex-wrap items-center gap-2 xl:ml-2">
+                   <button onClick={() => setShowAddTransaction(true)} className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer shadow-sm">
+                     + Add Entry
+                   </button>
+                   <button className="flex items-center gap-1.5 text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer">
+                     <FiFileText size={14} /> Email Excel
+                   </button>
+                   <button className="flex items-center gap-1.5 text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer">
+                     <FiDownload size={14} /> Download Excel
+                   </button>
+                   <button className="flex items-center gap-1.5 text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer">
+                     <FiFileText size={14} /> Print PDF
+                   </button>
                 </div>
               </div>
-              <button 
-                onClick={() => handleDownload('Collections Ledger')}
-                className="w-full mt-6 flex items-center justify-center gap-1.5 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-xl text-xs font-semibold shadow-sm transition-colors"
-              >
-                <FiDownload /> Export Excel (XLSX)
-              </button>
             </div>
 
-            {/* Installation efficiency log */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm p-6 flex flex-col justify-between transition-colors">
-              <div className="text-left">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-primary/10 text-primary rounded-xl">
-                    <FiTrendingUp size={20} />
-                  </div>
-                  <h4 className="font-semibold text-slate-850 dark:text-slate-100 text-sm">Technician Installation Logs</h4>
-                </div>
-                <p className="text-xs text-slate-600 dark:text-slate-400 mt-4 leading-normal font-medium">
-                  Reports individual technician task performance, completed projects, feedback ratings, and active AMC schedules.
-                </p>
-                <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl flex items-center justify-between text-xs">
-                  <span className="text-slate-500 font-medium">Total Logged Audits:</span>
-                  <strong className="text-slate-850 dark:text-white font-semibold">{orders.length} Installations</strong>
-                </div>
-              </div>
-              <button 
-                onClick={() => handleDownload('Technician Logs')}
-                className="w-full mt-6 flex items-center justify-center gap-1.5 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-xl text-xs font-semibold shadow-sm transition-colors"
-              >
-                <FiDownload /> Export PDF Document
-              </button>
+            {/* Summary */}
+            <div className="mb-6 px-2">
+              <h4 className="text-slate-600 dark:text-slate-400 font-semibold text-sm">
+                Net Amount: <span className="text-slate-900 dark:text-white text-lg ml-1">₹ {totalCollected.toLocaleString('en-IN')}</span>
+              </h4>
             </div>
+
+            {/* Table */}
+            <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
+              <table className="w-full text-left text-sm whitespace-nowrap">
+                <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold border-b border-slate-200 dark:border-slate-700">
+                  <tr>
+                    <th className="px-4 py-3">DATE</th>
+                    <th className="px-4 py-3">PARTY NAME</th>
+                    <th className="px-4 py-3">TRANSACTION TYPE</th>
+                    <th className="px-4 py-3">TRANSACTION NO.</th>
+                    <th className="px-4 py-3 text-right">TOTAL AMOUNT</th>
+                    <th className="px-4 py-3 text-right">MONEY IN</th>
+                    <th className="px-4 py-3 text-right">MONEY OUT</th>
+                    <th className="px-4 py-3 text-right">BALANCE AMOUNT</th>
+                    <th className="px-4 py-3">CREATED BY</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-700 text-slate-700 dark:text-slate-300">
+                  {(!payments || payments.length === 0) ? (
+                    <tr>
+                      <td colSpan="9" className="px-4 py-8 text-center text-slate-500">
+                        No transactions found
+                      </td>
+                    </tr>
+                  ) : payments.map((p, i) => {
+                    const isPaid = p.status === 'Paid';
+                    const rowData = {
+                      id: p.id || p._id || i,
+                      date: new Date(p.createdAt || p.date || new Date()).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-'),
+                      customer: p.customerName || p.customer?.name || p.customer || '-',
+                      type: p.type || p.transactionType || '-',
+                      no: p.invoiceNo || p.transactionNo || p.id || '-',
+                      amount: p.amount || 0,
+                      moneyIn: isPaid ? p.amount : null,
+                      balance: !isPaid ? p.amount : null,
+                      createdBy: p.createdBy || p.creator || '-'
+                    };
+                    return (
+                      <tr key={rowData.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                        <td className="px-4 py-3">{rowData.date}</td>
+                        <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">{rowData.customer}</td>
+                        <td className="px-4 py-3 text-slate-500">{rowData.type}</td>
+                        <td className="px-4 py-3 text-blue-600 hover:underline cursor-pointer">{rowData.no}</td>
+                        <td className="px-4 py-3 text-right">
+                          {rowData.amount ? `₹ ${Number(rowData.amount).toLocaleString('en-IN')}` : '-'}
+                        </td>
+                        <td className="px-4 py-3 text-right text-emerald-600">
+                          {rowData.moneyIn ? `₹ ${Number(rowData.moneyIn).toLocaleString('en-IN')}` : '-'}
+                        </td>
+                        <td className="px-4 py-3 text-right text-rose-600">
+                          -
+                        </td>
+                        <td className="px-4 py-3 text-right font-medium">
+                          {rowData.balance ? `₹ ${Number(rowData.balance).toLocaleString('en-IN')}` : '-'}
+                        </td>
+                        <td className="px-4 py-3 text-slate-500">{rowData.createdBy}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
           </div>
         </div>
       )}
@@ -1887,8 +2391,30 @@ export default function Reports() {
               </button>
             </div>
 
-            {/* Full Report Details Body (Screenshot 4) */}
+            {/* Full Report Details Body */}
             <div className="p-4 flex-1 overflow-y-auto space-y-4 text-xs">
+
+              {/* Customer & Order Info Card */}
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-2xl p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-blue-500 text-sm">👤</span>
+                    <div>
+                      <span className="text-[10px] text-blue-400 font-semibold uppercase tracking-wider block">Customer Name</span>
+                      <span className="font-extrabold text-slate-900 dark:text-white text-sm">{adminFullReportModal.customer || 'Customer Site'}</span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] text-blue-400 font-semibold uppercase tracking-wider block">Order / Job</span>
+                    <span className="font-bold text-slate-700 dark:text-slate-200 text-xs font-mono">{adminFullReportModal.jobCode}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 pt-1 border-t border-blue-100 dark:border-blue-800">
+                  <span className="text-blue-400 text-xs">📍</span>
+                  <span className="text-slate-600 dark:text-slate-300 font-medium text-[11px]">{adminFullReportModal.address || 'Site Location'}</span>
+                </div>
+              </div>
+
               {/* Task Description */}
               <div className="space-y-1 pb-3 border-b border-slate-100 dark:border-slate-800">
                 <span className="font-bold text-slate-900 dark:text-white block text-xs">Task Description</span>
@@ -1975,7 +2501,15 @@ export default function Reports() {
               <div className="space-y-2 text-xs pt-1">
                 <div className="flex items-center justify-between">
                   <span className="text-slate-500 font-medium">Completion Status</span>
-                  <span className="font-bold text-emerald-600">Completed</span>
+                  {(() => {
+                    const hasAfter = (adminFullReportModal.afterPhotos?.length || 0) > 0;
+                    const hasBefore = (adminFullReportModal.beforePhotos?.length || 0) > 0;
+                    const isApproved = adminFullReportModal.status === 'Verified' || localStorage.getItem(`report_approved_${adminFullReportModal.jobCode}`) === 'true';
+                    if (isApproved) return <span className="font-bold text-emerald-600 flex items-center gap-1"><FiCheckCircle size={12} /> Approved</span>;
+                    if (hasAfter) return <span className="font-bold text-emerald-500">✅ Completed</span>;
+                    if (hasBefore) return <span className="font-bold text-amber-500">🔄 In Progress</span>;
+                    return <span className="font-bold text-slate-400">📋 Submitted</span>;
+                  })()} 
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -2004,10 +2538,8 @@ export default function Reports() {
               ) : (
                 <button
                   onClick={() => {
-                    localStorage.setItem(`report_approved_${adminFullReportModal.jobCode}`, 'true');
-                    alert(`✓ Report #${adminFullReportModal.jobCode} Approved by Admin!`);
+                    handleVerifyReport(adminFullReportModal);
                     setAdminFullReportModal(null);
-                    window.location.reload();
                   }}
                   className="py-3 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer text-center flex items-center justify-center gap-1"
                 >

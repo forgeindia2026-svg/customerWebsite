@@ -26,6 +26,7 @@ export default function Technicians() {
     phone: '', 
     email: '', 
     password: '',
+    role: 'Technician',
     specialization: 'Technician',
     avatarUrl: ''
   });
@@ -92,7 +93,7 @@ export default function Technicians() {
           email: techForm.email.trim().toLowerCase(),
           phone: cleanPhone,
           password: techForm.password,
-          role: 'TECHNICIAN',
+          role: techForm.role ? techForm.role.toUpperCase() : 'TECHNICIAN',
           specialties: [techForm.specialization || 'IP Cameras & Networking']
         })
       });
@@ -107,6 +108,7 @@ export default function Technicians() {
           phone: '', 
           email: '', 
           password: '',
+          role: 'Technician',
           specialization: 'Technician',
           avatarUrl: ''
         });
@@ -130,6 +132,7 @@ export default function Technicians() {
       phone: tech.phone,
       email: tech.email,
       password: tech.password || '',
+      role: tech.role || 'Technician',
       specialization: tech.specialization,
       avatarUrl: tech.avatarUrl || ''
     });
@@ -609,12 +612,14 @@ export default function Technicians() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1.5">Role</label>
-              <input 
-                type="text"
-                value="Technician"
-                disabled
-                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 rounded-xl focus:outline-none text-slate-500 cursor-not-allowed"
-              />
+              <select
+                value={techForm.role || 'Technician'}
+                onChange={(e) => setTechForm({ ...techForm, role: e.target.value })}
+                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+              >
+                <option value="Technician">Technician</option>
+                <option value="HR">HR</option>
+              </select>
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1.5">Login Password</label>
@@ -722,12 +727,14 @@ export default function Technicians() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-500 mb-1.5">Role</label>
-                <input 
-                  type="text"
-                  value="Technician"
-                  disabled
-                  className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 rounded-xl focus:outline-none text-slate-500 cursor-not-allowed"
-                />
+                <select
+                  value={editingTech.role || 'Technician'}
+                  onChange={(e) => setEditingTech({ ...editingTech, role: e.target.value })}
+                  className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+                >
+                  <option value="Technician">Technician</option>
+                  <option value="HR">HR</option>
+                </select>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-500 mb-1.5">Login Password</label>

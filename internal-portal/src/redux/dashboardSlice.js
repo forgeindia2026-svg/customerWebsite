@@ -2,6 +2,45 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import initialDb from '../mock-data/db.json';
 import { getApiUrl } from '../utils/config';
 
+// --- NEW ASYNC THUNKS FOR INDIVIDUAL APIs ---
+export const createOrderAPI = createAsyncThunk('dashboard/createOrder', async (orderData, { dispatch }) => {
+  const res = await fetch(`${getApiUrl()}/api/orders`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(orderData) });
+  dispatch(fetchDashboardData());
+  return res.json();
+});
+export const updateOrderAPI = createAsyncThunk('dashboard/updateOrder', async ({ id, ...data }, { dispatch }) => {
+  const res = await fetch(`${getApiUrl()}/api/orders/${id}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+  dispatch(fetchDashboardData());
+  return res.json();
+});
+export const deleteOrderAPI = createAsyncThunk('dashboard/deleteOrder', async (id, { dispatch }) => {
+  const res = await fetch(`${getApiUrl()}/api/orders/${id}`, { method: 'DELETE' });
+  dispatch(fetchDashboardData());
+  return res.json();
+});
+
+export const createTechnicianAPI = createAsyncThunk('dashboard/createTechnician', async (techData, { dispatch }) => {
+  const res = await fetch(`${getApiUrl()}/api/technicians`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(techData) });
+  dispatch(fetchDashboardData());
+  return res.json();
+});
+export const updateTechnicianAPI = createAsyncThunk('dashboard/updateTechnician', async ({ id, ...data }, { dispatch }) => {
+  const res = await fetch(`${getApiUrl()}/api/technicians/${id}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+  dispatch(fetchDashboardData());
+  return res.json();
+});
+export const deleteTechnicianAPI = createAsyncThunk('dashboard/deleteTechnician', async (id, { dispatch }) => {
+  const res = await fetch(`${getApiUrl()}/api/technicians/${id}`, { method: 'DELETE' });
+  dispatch(fetchDashboardData());
+  return res.json();
+});
+
+export const createPaymentAPI = createAsyncThunk('dashboard/createPayment', async (paymentData, { dispatch }) => {
+  const res = await fetch(`${getApiUrl()}/api/payments`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(paymentData) });
+  dispatch(fetchDashboardData());
+  return res.json();
+});
+// ---------------------------------------------
 export const fetchDashboardData = createAsyncThunk(
   'dashboard/fetchDashboardData',
   async (_, { dispatch }) => {
@@ -190,6 +229,7 @@ const dashboardSlice = createSlice({
         ...state,
         ...payload,
         orders: normalizedOrders,
+        payments: Array.isArray(payload.payments) ? payload.payments : (state.payments || []),
         customers: Array.isArray(payload.customers) ? payload.customers : (state.customers || []),
         technicians: Array.isArray(payload.technicians) ? payload.technicians : (state.technicians || []),
         products: Array.isArray(payload.products) ? payload.products : (state.products || []),
@@ -737,6 +777,14 @@ const dashboardSlice = createSlice({
         banner.imageUrl = imageUrl;
       }
     },
+    addPayment: (state, action) => {
+      const newPayment = {
+        id: `PAY-ORD-${Math.floor(1000 + Math.random() * 9000)}`,
+        ...action.payload,
+      };
+      if (!state.payments) state.payments = [];
+      state.payments.unshift(newPayment);
+    },
     updatePaymentStatus: (state, action) => {
       const { id, status } = action.payload;
       const payment = state.payments.find(p => p.id === id);
@@ -816,6 +864,7 @@ export const {
   editBrand,
   deleteTechnician,
   toggleTechnicianActivation,
+  addPayment,
   updatePaymentStatus,
   addQRCode,
   removeQRCode

@@ -51,6 +51,16 @@ export default function Orders() {
     dueTime: '10:00'
   });
 
+  const getDisplayStatus = (ord) => {
+    if (['Completed', 'Approved', 'COMPLETED', 'WAITING_ADMIN_APPROVAL', 'Pending Approval', 'PENDING_APPROVAL'].includes(ord.status)) {
+      return 'Completed';
+    }
+    if (!ord.assignedTechnician || ord.assignedTechnician === 'Unassigned') {
+      return 'Pending';
+    }
+    return 'In Progress';
+  };
+
   // Filter logic
   const filteredOrders = orders.filter(order => {
     const matchesSearch = 
@@ -58,7 +68,8 @@ export default function Orders() {
       order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.type.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesStatus = statusFilter === 'All' || order.status === statusFilter;
+    const displayStatus = getDisplayStatus(order);
+    const matchesStatus = statusFilter === 'All' || displayStatus === statusFilter;
 
     return matchesSearch && matchesStatus;
   });
@@ -151,9 +162,9 @@ export default function Orders() {
 
   // KPI Metrics Calculations
   const totalOrdersCount = orders.length;
-  const pendingOrdersCount = orders.filter(o => o.status === 'Pending' || o.status === 'Pending Approval').length;
-  const inProgressOrdersCount = orders.filter(o => o.status === 'In Progress' || o.status === 'Assigned').length;
-  const completedOrdersCount = orders.filter(o => o.status === 'Completed' || o.status === 'Approved').length;
+  const pendingOrdersCount = orders.filter(o => getDisplayStatus(o) === 'Pending').length;
+  const inProgressOrdersCount = orders.filter(o => getDisplayStatus(o) === 'In Progress').length;
+  const completedOrdersCount = orders.filter(o => getDisplayStatus(o) === 'Completed').length;
   const totalRevenue = orders.reduce((sum, o) => sum + (Number(o.amount) || 0), 0);
 
   return (
@@ -282,7 +293,7 @@ export default function Orders() {
             <span className="text-xs text-slate-400 font-semibold flex items-center gap-1 flex-shrink-0">
               Status:
             </span>
-            {['All', 'Pending', 'Pending Approval', 'In Progress', 'Approved', 'Completed'].map(status => (
+            {['All', 'Pending', 'In Progress', 'Approved', 'Completed'].map(status => (
               <button
                 key={status}
                 onClick={() => setStatusFilter(status)}
@@ -495,9 +506,9 @@ export default function Orders() {
                                 e.stopPropagation();
                                 setActiveStatusDropdown(isOpenDropdown ? null : ord.id);
                               }}
-                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap transition-all shadow-xs cursor-pointer ${getStatusBadge(ord.status)} hover:opacity-90`}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap transition-all shadow-xs cursor-pointer ${getStatusBadge(getDisplayStatus(ord))} hover:opacity-90`}
                             >
-                              <span>{ord.status}</span>
+                              <span>{getDisplayStatus(ord)}</span>
                               <FiChevronDown className="w-3.5 h-3.5 text-current opacity-70" />
                             </button>
 
@@ -581,8 +592,8 @@ export default function Orders() {
                 <div>
                   <div className="flex items-center justify-between">
                     <span className="px-2 py-0.5 rounded-lg text-xs font-semibold bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-300">{ord.id}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusBadge(ord.status)}`}>
-                      {ord.status}
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusBadge(getDisplayStatus(ord))}`}>
+                      {getDisplayStatus(ord)}
                     </span>
                   </div>
 

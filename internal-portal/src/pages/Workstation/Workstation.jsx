@@ -310,59 +310,29 @@ export default function Workstation() {
     <div className="space-y-6">
 
       {/* 🎛️ Unified Primary Workstation Sub-Tabs Switcher */}
-      <div className="flex bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs justify-between items-center overflow-x-auto gap-2">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setMainTab('command-center')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer ${
-              mainTab === 'command-center'
-                ? 'bg-slate-900 text-white dark:bg-blue-600 shadow-md'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-            }`}
-          >
-            <FiActivity size={16} className={mainTab === 'command-center' ? 'text-emerald-400 animate-pulse' : ''} />
-            <span>📡 Live Workstation Radar</span>
-          </button>
-
-          <button
-            onClick={() => setMainTab('orders')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer ${
-              mainTab === 'orders'
-                ? 'bg-slate-900 text-white dark:bg-blue-600 shadow-md'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-            }`}
-          >
-            <FiShoppingCart size={16} />
-            <span>📦 Orders Management ({totalDbOrdersCount})</span>
-          </button>
-
-          <button
-            onClick={() => setMainTab('technicians')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer ${
-              mainTab === 'technicians'
-                ? 'bg-slate-900 text-white dark:bg-blue-600 shadow-md'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-            }`}
-          >
-            <FiTool size={16} />
-            <span>🛠️ Technicians Roster ({(allTechnicians || []).length})</span>
-          </button>
-
-          <button
-            onClick={() => setMainTab('attendance')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer ${
-              mainTab === 'attendance'
-                ? 'bg-slate-900 text-white dark:bg-blue-600 shadow-md'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-            }`}
-          >
-            <FiClock size={16} />
-            <span>⏰ Daily Attendance ({liveAttendance.length})</span>
-          </button>
-        </div>
-
-        <div className="text-[11px] font-mono text-slate-400 font-bold hidden md:block px-3">
-          ● Live Operations Hub
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div className="px-4 py-3">
+          <div className="relative flex bg-slate-100 dark:bg-slate-800 rounded-2xl p-1 gap-1">
+            {[
+              { id: 'command-center', icon: '📡', label: 'Workstation' },
+              { id: 'orders',         icon: '📦', label: `Orders (${totalDbOrdersCount})` },
+              { id: 'technicians',    icon: '🛠️', label: `Roster (${(allTechnicians || []).length})` },
+              { id: 'attendance',     icon: '⏰', label: `Attendance (${liveAttendance.length})` },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setMainTab(tab.id)}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer min-w-0 ${
+                  mainTab === tab.id
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-md scale-[1.02]'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                }`}
+              >
+                <span className="text-sm shrink-0">{tab.icon}</span>
+                <span className="truncate hidden sm:inline">{tab.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
