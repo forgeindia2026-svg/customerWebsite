@@ -1,35 +1,29 @@
 import express, { Request, Response } from 'express';
 import multer from 'multer';
-import multerS3 from 'multer-s3';
-import { S3Client } from '@aws-sdk/client-s3';
+import path from 'path';
+import fs from 'fs';
 import dotenv from 'dotenv';
 dotenv.config();
 
 const router = express.Router();
 
-const s3 = new S3Client({
-  region: process.env.AWS_REGION || 'ap-south-1',
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID as string,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY as string,
+// Ensure the uploads directory exists
+const uploadDir = path.join(__dirname, '../../uploads/reports');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, uploadDir);
   },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + '-' + file.originalname.replace(/\s+/g, '-'));
+  }
 });
 
-const upload = multer({
-  storage: multerS3({
-    s3: s3,
-    bucket: process.env.AWS_BUCKET_NAME as string,
-    contentType: multerS3.AUTO_CONTENT_TYPE,
-    metadata: function (req: any, file: any, cb: any) {
-      cb(null, { fieldName: file.fieldname });
-    },
-    key: function (req: any, file: any, cb: any) {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-      const folder = req.body.folder || 'reports';
-      cb(null, folder + '/' + uniqueSuffix + '-' + file.originalname.replace(/\s+/g, '-'));
-    },
-  }),
-});
+const upload = multer({ storage: storage });
 
 router.post('/', upload.single('image'), (req: Request, res: Response): any => {
   const reqAny = req as any;
@@ -37,7 +31,12 @@ router.post('/', upload.single('image'), (req: Request, res: Response): any => {
     return res.status(400).json({ success: false, message: 'No file uploaded' });
   }
   const file: any = reqAny.file;
-  res.json({ success: true, imageUrl: file.location });
+  
+  // Construct a full URL so the frontend accepts it as a valid image URL
+  const host = process.env.API_URL || req.protocol + '://' + req.get('host');
+  const imageUrl = `${host}/uploads/reports/${file.filename}`;
+  
+  res.json({ success: true, imageUrl: imageUrl });
 });
 
 export default router;
