@@ -63,8 +63,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   // Reset all form inputs to 100% empty every time modal opens for a new report
   React.useEffect(() => {
     if (isOpen) {
-      setTaskDescription('');
-      setInspectionComments('');
+      setTaskDescription(job?.fieldNotes || '');
+      setInspectionComments(job?.fieldNotes || '');
       setBeforePhotos(job?.beforePhotos ? job.beforePhotos.map((p: any) => typeof p === 'string' ? p : (p.url || p)).filter((url: any) => typeof url === 'string' && url.trim().length > 0) : []);
       setAfterPhotos(job?.afterPhotos ? job.afterPhotos.map((p: any) => typeof p === 'string' ? p : (p.url || p)).filter((url: any) => typeof url === 'string' && url.trim().length > 0) : []);
       setHasVoiceNote(false);
@@ -241,8 +241,17 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
       const finalHasVoice = Boolean(hasVoiceNote);
 
       if (completionStatus === 'In Progress' || afterPhotos.length === 0) {
-        // Just save progress (photos are already saved instantly via onUploadPhoto)
-        // We can just close the modal
+        // Save progress for text fields and voice notes
+        await fetch(`${baseUrl}/api/jobs/${job.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fieldNotes: summaryText,
+            voiceNoteUrl: finalVoiceUrl,
+            hasVoiceNote: finalHasVoice
+          })
+        }).catch(err => console.warn('PUT /api/jobs error:', err));
+
         setIsSubmitting(false);
         onClose();
         return;

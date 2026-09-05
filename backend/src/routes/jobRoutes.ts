@@ -272,7 +272,6 @@ router.get('/', async (req: Request, res: Response) => {
     }
 
     const jobs = await Job.find(filter)
-      .select('-beforePhotos.url -afterPhotos.url -proofImages.url')
       .sort({ createdAt: -1 })
       .lean();
 
