@@ -84,6 +84,25 @@ router.get('/', async (req: Request, res: Response) => {
     for (const rep of uniqueReports) {
       rep.beforePhotos = resolvePhotos(rep.beforePhotos || []);
       rep.afterPhotos = resolvePhotos(rep.afterPhotos || []);
+
+      // If the report photos are empty or corrupted (e.g. "[object Object]"), fallback to pulling them directly from the Job
+      const isCorrupted = (photos: any[]) => photos.length === 0 || photos.some(p => p === '[object Object]' || (typeof p === 'string' && p.includes('[object Object]')));
+      
+      if (rep.jobCode && (isCorrupted(rep.beforePhotos) || isCorrupted(rep.afterPhotos))) {
+        const cleanCode = rep.jobCode.replace(/^#/, '');
+        const matchingJob = await Job.findOne({ 
+          $or: [{ jobCode: rep.jobCode }, { jobCode: cleanCode }, { jobCode: `#${cleanCode}` }]
+        }).lean();
+        
+        if (matchingJob) {
+          if (isCorrupted(rep.beforePhotos) && matchingJob.beforePhotos && matchingJob.beforePhotos.length > 0) {
+            rep.beforePhotos = matchingJob.beforePhotos.map((p: any) => p.url || p);
+          }
+          if (isCorrupted(rep.afterPhotos) && matchingJob.afterPhotos && matchingJob.afterPhotos.length > 0) {
+            rep.afterPhotos = matchingJob.afterPhotos.map((p: any) => p.url || p);
+          }
+        }
+      }
     }
 
     res.json(uniqueReports);

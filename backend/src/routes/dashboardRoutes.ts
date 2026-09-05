@@ -104,7 +104,7 @@ router.get('/', async (req: Request, res: Response) => {
       User.find({ role: 'TECHNICIAN' }).lean().catch(() => []),
       User.find({ role: 'CUSTOMER' }).lean().catch(() => []),
       // Optimize Job query by excluding large Base64 image fields to prevent 504 Gateway Timeouts
-      Job.find().select('-proofImages -beforePhotos -afterPhotos').sort({ createdAt: -1 }).lean().catch(() => []),
+      Job.find().select('-proofImages').sort({ createdAt: -1 }).lean().catch(() => []),
       Query.find().sort({ updatedAt: -1, createdAt: -1 }).lean().catch(() => [])
     ]);
     console.log('Queries finished');
