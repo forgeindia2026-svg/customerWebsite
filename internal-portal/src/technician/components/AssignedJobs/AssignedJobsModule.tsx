@@ -160,87 +160,87 @@ export const AssignedJobsModule: React.FC<AssignedJobsModuleProps> = ({ jobs, su
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* 1. Total Assigned */}
-        <div className="bg-white border border-zinc-200/90 rounded-2xl p-4 sm:p-5 shadow-2xs hover:shadow-md transition-all relative overflow-hidden group">
+        <div className="bg-gradient-to-br from-violet-500 to-purple-600 sm:bg-none sm:bg-white border border-zinc-200/90 sm:border-zinc-200/90 rounded-2xl p-4 sm:p-5 shadow-2xs hover:shadow-md transition-all relative overflow-hidden group">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Total Assigned</span>
-            <div className="w-8 h-8 rounded-xl bg-zinc-100 text-zinc-600 flex items-center justify-center group-hover:bg-zinc-900 group-hover:text-white transition-colors">
+            <span className="text-[11px] font-bold text-white/90 sm:text-zinc-500 uppercase tracking-wider">Total Assigned</span>
+            <div className="w-8 h-8 rounded-xl bg-white/20 sm:bg-zinc-100 text-white sm:text-zinc-600 flex items-center justify-center group-hover:bg-zinc-900 group-hover:text-white transition-colors">
               <Briefcase className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline justify-between">
             {totalAssignedVal === null ? (
-              <div className="w-14 h-7 bg-zinc-200 animate-pulse rounded-lg" />
+              <div className="w-14 h-7 bg-white/20 sm:bg-zinc-200 animate-pulse rounded-lg" />
             ) : (
-              <span className="text-2xl sm:text-3xl font-extrabold text-zinc-900 tracking-tight font-mono">{totalAssignedVal}</span>
+              <span className="text-2xl sm:text-3xl font-extrabold text-white sm:text-zinc-900 tracking-tight font-mono">{totalAssignedVal}</span>
             )}
-            <span className="text-[10px] font-bold text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded-full">
+            <span className="text-[10px] font-bold text-white sm:text-zinc-600 bg-white/20 sm:bg-zinc-100 px-2 py-0.5 rounded-full">
               Orders
             </span>
           </div>
-          <p className="text-[11px] text-zinc-400 font-medium mt-1">Assigned work orders</p>
+          <p className="text-[11px] text-white/80 sm:text-zinc-400 font-medium mt-1">Assigned work orders</p>
         </div>
 
         {/* 2. In Progress */}
-        <div className="bg-white border border-zinc-200/90 rounded-2xl p-4 sm:p-5 shadow-2xs hover:shadow-md transition-all relative overflow-hidden group">
+        <div className="bg-gradient-to-br from-blue-500 to-cyan-500 sm:bg-none sm:bg-white border border-transparent sm:border-zinc-200/90 rounded-2xl p-4 sm:p-5 shadow-2xs hover:shadow-md transition-all relative overflow-hidden group">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-sky-700 uppercase tracking-wider">In Progress</span>
-            <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center group-hover:bg-sky-600 group-hover:text-white transition-colors">
+            <span className="text-[11px] font-bold text-white/90 sm:text-sky-700 uppercase tracking-wider">In Progress</span>
+            <div className="w-8 h-8 rounded-xl bg-white/20 sm:bg-sky-50 text-white sm:text-sky-600 flex items-center justify-center group-hover:bg-sky-600 group-hover:text-white transition-colors">
               <Play className="w-4 h-4 fill-current" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline justify-between">
             {inProgressCountVal === null ? (
-              <div className="w-14 h-7 bg-sky-100 animate-pulse rounded-lg" />
+              <div className="w-14 h-7 bg-white/20 sm:bg-sky-100 animate-pulse rounded-lg" />
             ) : (
-              <span className="text-2xl sm:text-3xl font-extrabold text-sky-700 tracking-tight font-mono">{inProgressCountVal}</span>
+              <span className="text-2xl sm:text-3xl font-extrabold text-white sm:text-sky-700 tracking-tight font-mono">{inProgressCountVal}</span>
             )}
-            <span className="text-[10px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full border border-sky-100">
+            <span className="text-[10px] font-bold text-white sm:text-sky-700 bg-white/20 sm:bg-sky-50 px-2 py-0.5 rounded-full sm:border sm:border-sky-100">
               Active
             </span>
           </div>
-          <p className="text-[11px] text-sky-600 font-medium mt-1">Work in progress on site</p>
+          <p className="text-[11px] text-white/80 sm:text-sky-600 font-medium mt-1">Work in progress on site</p>
         </div>
 
         {/* 3. Pending Start */}
-        <div className="bg-white border border-zinc-200/90 rounded-2xl p-4 sm:p-5 shadow-2xs hover:shadow-md transition-all relative overflow-hidden group">
+        <div className="bg-gradient-to-br from-orange-400 to-amber-500 sm:bg-none sm:bg-white border border-transparent sm:border-zinc-200/90 rounded-2xl p-4 sm:p-5 shadow-2xs hover:shadow-md transition-all relative overflow-hidden group">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider">Pending Start</span>
-            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center group-hover:bg-amber-600 group-hover:text-white transition-colors">
+            <span className="text-[11px] font-bold text-white/90 sm:text-amber-700 uppercase tracking-wider">Pending Start</span>
+            <div className="w-8 h-8 rounded-xl bg-white/20 sm:bg-amber-50 text-white sm:text-amber-600 flex items-center justify-center group-hover:bg-amber-600 group-hover:text-white transition-colors">
               <Clock className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline justify-between">
             {pendingCountVal === null ? (
-              <div className="w-14 h-7 bg-amber-100 animate-pulse rounded-lg" />
+              <div className="w-14 h-7 bg-white/20 sm:bg-amber-100 animate-pulse rounded-lg" />
             ) : (
-              <span className="text-2xl sm:text-3xl font-extrabold text-amber-700 tracking-tight font-mono">{pendingCountVal}</span>
+              <span className="text-2xl sm:text-3xl font-extrabold text-white sm:text-amber-700 tracking-tight font-mono">{pendingCountVal}</span>
             )}
-            <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
+            <span className="text-[10px] font-bold text-white sm:text-amber-700 bg-white/20 sm:bg-amber-50 px-2 py-0.5 rounded-full sm:border sm:border-amber-100">
               Scheduled
             </span>
           </div>
-          <p className="text-[11px] text-amber-600 font-medium mt-1">Scheduled & awaiting start</p>
+          <p className="text-[11px] text-white/80 sm:text-amber-600 font-medium mt-1">Scheduled & awaiting start</p>
         </div>
 
         {/* 4. Completed */}
-        <div className="bg-white border border-zinc-200/90 rounded-2xl p-4 sm:p-5 shadow-2xs hover:shadow-md transition-all relative overflow-hidden group">
+        <div className="bg-gradient-to-br from-emerald-400 to-teal-500 sm:bg-none sm:bg-white border border-transparent sm:border-zinc-200/90 rounded-2xl p-4 sm:p-5 shadow-2xs hover:shadow-md transition-all relative overflow-hidden group">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Completed</span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+            <span className="text-[11px] font-bold text-white/90 sm:text-emerald-700 uppercase tracking-wider">Completed</span>
+            <div className="w-8 h-8 rounded-xl bg-white/20 sm:bg-emerald-50 text-white sm:text-emerald-600 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-colors">
               <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline justify-between">
             {completedCountVal === null ? (
-              <div className="w-14 h-7 bg-emerald-100 animate-pulse rounded-lg" />
+              <div className="w-14 h-7 bg-white/20 sm:bg-emerald-100 animate-pulse rounded-lg" />
             ) : (
-              <span className="text-2xl sm:text-3xl font-extrabold text-emerald-700 tracking-tight font-mono">{completedCountVal}</span>
+              <span className="text-2xl sm:text-3xl font-extrabold text-white sm:text-emerald-700 tracking-tight font-mono">{completedCountVal}</span>
             )}
-            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+            <span className="text-[10px] font-bold text-white sm:text-emerald-700 bg-white/20 sm:bg-emerald-50 px-2 py-0.5 rounded-full sm:border sm:border-emerald-100">
               {(totalAssignedVal || 0) > 0 ? `${Math.round(((completedCountVal || 0) / (totalAssignedVal || 1)) * 100)}%` : '0%'}
             </span>
           </div>
-          <p className="text-[11px] text-emerald-600 font-medium mt-1">Finished & signed off</p>
+          <p className="text-[11px] text-white/80 sm:text-emerald-600 font-medium mt-1">Finished & signed off</p>
         </div>
       </div>
 

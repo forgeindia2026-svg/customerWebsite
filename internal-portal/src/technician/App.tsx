@@ -324,9 +324,18 @@ export function App() {
     setIsDetailDrawerOpen(true);
   };
 
-  const handleOpenWorkflow = (job: Job) => {
+  const handleOpenWorkflow = async (job: Job) => {
     setWorkflowJob(job);
     setIsWorkflowOpen(true);
+    try {
+      const freshJob = await JobsApiService.getJobById(job.id);
+      if (freshJob) {
+        setWorkflowJob(freshJob);
+        setJobs((prev) => prev.map((j) => (j.id === job.id ? freshJob : j)));
+      }
+    } catch (err) {
+      console.warn('Could not refresh job on open workflow:', err);
+    }
   };
 
   const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
@@ -517,10 +526,12 @@ export function App() {
 
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-10 pb-24 lg:pb-10 max-w-7xl w-full mx-auto space-y-6">
           {/* Daily Attendance Shift Check-In / Check-Out Tracker */}
-          <AttendanceCard />
+          <div className="hidden md:block">
+            <AttendanceCard />
+          </div>
 
           {/* Module Title Banner */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 pb-5">
+          <div className="hidden md:flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 pb-5">
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-zinc-900 capitalize">
                 {activeTab === 'dashboard' && 'Dashboard Overview'}
@@ -720,6 +731,10 @@ export function App() {
         onAddDailyReport={handleAddDailyReport}
         onUploadPhoto={handleUploadPhoto}
         onCompleteJob={handleCompleteJob}
+        onJobUpdated={(updated) => {
+          setJobs((prev) => prev.map((j) => (j.id === updated.id ? updated : j)));
+          setWorkflowJob(updated);
+        }}
       />
 
       {/* Rapido-Style 20-Second Radar Broadcast Modal */}

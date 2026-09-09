@@ -56,10 +56,9 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, priority, size
         statusConfig = { bg: 'bg-zinc-100 text-zinc-900 border-zinc-300', dot: 'bg-zinc-700', label: 'Accepted' };
         break;
       case 'IN_PROGRESS':
-        statusConfig = { bg: 'bg-zinc-900 text-white border-zinc-900', dot: 'bg-emerald-400', label: 'In Progress' };
-        break;
+      case 'WORKING':
       case 'BEFORE_PHOTOS_DONE':
-        statusConfig = { bg: 'bg-zinc-800 text-zinc-100 border-zinc-800', dot: 'bg-emerald-400', label: 'Before Photos Uploaded' };
+        statusConfig = { bg: 'bg-zinc-900 text-white border-zinc-900', dot: 'bg-emerald-400', label: 'In Progress' };
         break;
       case 'INSPECTED':
         statusConfig = { bg: 'bg-emerald-50 text-emerald-900 border-emerald-200', dot: 'bg-emerald-600', label: 'Inspected' };

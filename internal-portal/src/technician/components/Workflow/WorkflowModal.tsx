@@ -25,18 +25,24 @@ interface WorkflowModalProps {
   onAddDailyReport: (jobId: string, report: Omit<DailyReport, 'id' | 'createdAt'>) => Promise<void>;
   onUploadPhoto: (jobId: string, photoUrl: string, caption: string, type: 'BEFORE' | 'AFTER') => Promise<void>;
   onCompleteJob: (jobId: string, notes: string, signature?: string) => Promise<void>;
+  onJobUpdated?: (updated: Job) => void;
 }
 
 export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   job,
   isOpen,
   onClose,
+  onUpdateStatus,
   onUploadPhoto,
   onCompleteJob,
+  onJobUpdated,
 }) => {
+  const [currentStep, setCurrentStep] = useState<1 | 2>(1);
   const [taskDescription, setTaskDescription] = useState('');
   const [completionStatus, setCompletionStatus] = useState<'Completed' | 'In Progress'>('In Progress');
   const [inspectionComments, setInspectionComments] = useState('');
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
   
   // Before & After Photos Arrays
   const [beforePhotos, setBeforePhotos] = useState<string[]>([]);
@@ -60,21 +66,70 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   const audioChunksRef = React.useRef<Blob[]>([]);
   const audioElementRef = React.useRef<HTMLAudioElement | null>(null);
 
-  // Reset all form inputs to 100% empty every time modal opens for a new report
+  // Initialize or update form inputs when modal opens or when job ID changes
   React.useEffect(() => {
-    if (isOpen) {
-      setTaskDescription(job?.fieldNotes || '');
-      setInspectionComments(job?.fieldNotes || '');
-      setBeforePhotos(job?.beforePhotos ? job.beforePhotos.map((p: any) => typeof p === 'string' ? p : (p.url || p)).filter((url: any) => typeof url === 'string' && url.trim().length > 0) : []);
-      setAfterPhotos(job?.afterPhotos ? job.afterPhotos.map((p: any) => typeof p === 'string' ? p : (p.url || p)).filter((url: any) => typeof url === 'string' && url.trim().length > 0) : []);
-      setHasVoiceNote(false);
-      setIsRecordingVoice(false);
-      setRecordingSeconds(0);
-      setIsPlayingAudio(false);
-      setAudioUrl(null);
-      setCompletionStatus('In Progress');
+    if (isOpen && job) {
+      setTaskDescription(job.workProgress?.taskDescription || job.taskDescription || job.fieldNotes || '');
+      setInspectionComments(job.workProgress?.inspectionComments || job.inspectionComments || job.inspection?.notes || '');
+      
+      const rawBefore = (job.workProgress?.beforeWorkPhotos && job.workProgress.beforeWorkPhotos.length > 0)
+        ? job.workProgress.beforeWorkPhotos
+        : (job.beforePhotos || []);
+      const bUrls = rawBefore
+        .map((p: any) => (typeof p === 'string' ? p : (p?.url || p?.imageUrl || '')))
+        .filter((u: string) => typeof u === 'string' && u.trim().length > 0);
+      const uniqueBefore = Array.from(new Set(bUrls));
+      setBeforePhotos(uniqueBefore);
+
+      const aUrls = (job.afterPhotos || [])
+        .map((p: any) => (typeof p === 'string' ? p : (p?.url || p?.imageUrl || '')))
+        .filter((u: string) => typeof u === 'string' && u.trim().length > 0);
+      const uniqueAfter = Array.from(new Set(aUrls));
+      setAfterPhotos(uniqueAfter);
+
+      // If Before Photos are already saved in DB, start directly on Step 2 (After Photos)
+      if (uniqueBefore.length > 0) {
+        setCurrentStep(2);
+      } else {
+        setCurrentStep(1);
+        // Fallback: Check if report has already saved Before Photos for this jobCode
+        const baseUrl = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
+        fetch(`${baseUrl}/api/reports?t=${Date.now()}`)
+          .then(r => r.json())
+          .then(reports => {
+            if (!Array.isArray(reports)) return;
+            const cleanCode = (job.jobCode || '').replace(/^#/, '').trim().toUpperCase();
+            const rep = reports.find((r: any) => {
+              const rCode = (r.jobCode || '').replace(/^#/, '').trim().toUpperCase();
+              return (cleanCode && rCode === cleanCode) || (r.jobId && (r.jobId === job.id || r.jobId === (job as any)._id));
+            });
+            if (rep && Array.isArray(rep.beforePhotos) && rep.beforePhotos.length > 0) {
+              const repBeforeUrls = rep.beforePhotos.filter((u: any) => typeof u === 'string' && u.startsWith('http'));
+              if (repBeforeUrls.length > 0) {
+                setBeforePhotos(Array.from(new Set(repBeforeUrls)));
+                setCurrentStep(2);
+              }
+            }
+            if (rep && Array.isArray(rep.afterPhotos) && rep.afterPhotos.length > 0 && uniqueAfter.length === 0) {
+              const repAfterUrls = rep.afterPhotos.filter((u: any) => typeof u === 'string' && u.startsWith('http'));
+              if (repAfterUrls.length > 0) {
+                setAfterPhotos(Array.from(new Set(repAfterUrls)));
+              }
+            }
+            if (rep && rep.workDescription && !taskDescription) {
+              setTaskDescription(rep.workDescription);
+            }
+          })
+          .catch(() => {});
+      }
+
+      setHasVoiceNote(Boolean(job.hasVoiceNote || job.voiceNoteUrl));
+      setAudioUrl(job.voiceNoteUrl || null);
+      setCompletionStatus(job.status === 'COMPLETED' ? 'Completed' : 'In Progress');
+      setUploadError(null);
+      setSaveSuccessMsg(null);
     }
-  }, [isOpen]);
+  }, [isOpen, job?.id]);
 
   // Voice Note Live Recording Timer
   React.useEffect(() => {
@@ -186,15 +241,24 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
     if (!files || files.length === 0) return;
 
     setIsUploadingBefore(true);
+    setUploadError(null);
+    setSaveSuccessMsg(null);
+    const newlyAdded: string[] = [];
+
     for (const file of Array.from(files)) {
       try {
         const imgUrl = await JobsApiService.uploadImageToS3(file);
-        setBeforePhotos((prev) => [...prev, imgUrl]);
-        await onUploadPhoto(job.id, imgUrl, 'Before Work Site Condition', 'BEFORE').catch(() => {});
-      } catch (err) {
-        console.warn('Before photo upload error:', err);
+        if (!imgUrl || typeof imgUrl !== 'string' || !imgUrl.startsWith('http')) {
+          throw new Error(`Upload returned invalid URL for ${file.name}`);
+        }
+        newlyAdded.push(imgUrl);
+        setBeforePhotos((prev) => Array.from(new Set([...prev, imgUrl])));
+      } catch (err: any) {
+        console.error('Before photo upload error:', err);
+        setUploadError(`Failed to upload photo "${file.name}". Please check your internet connection and try again.`);
       }
     }
+
     setIsUploadingBefore(false);
     e.target.value = '';
   };
@@ -205,13 +269,17 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
     if (!files || files.length === 0) return;
 
     setIsUploadingAfter(true);
+    setUploadError(null);
     for (const file of Array.from(files)) {
       try {
         const imgUrl = await JobsApiService.uploadImageToS3(file);
-        setAfterPhotos((prev) => [...prev, imgUrl]);
-        await onUploadPhoto(job.id, imgUrl, 'Completed Work Evidence', 'AFTER').catch(() => {});
-      } catch (err) {
-        console.warn('After photo upload error:', err);
+        if (!imgUrl || typeof imgUrl !== 'string' || !imgUrl.startsWith('http')) {
+          throw new Error(`Upload returned invalid URL for ${file.name}`);
+        }
+        setAfterPhotos((prev) => Array.from(new Set([...prev, imgUrl])));
+      } catch (err: any) {
+        console.error('After photo upload error:', err);
+        setUploadError(`Failed to upload photo "${file.name}". Please try again.`);
       }
     }
     setIsUploadingAfter(false);
@@ -226,38 +294,152 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
     setAfterPhotos(afterPhotos.filter((_, i) => i !== index));
   };
 
-  const handleSubmitReport = async () => {
+  const handleSaveStep1 = async (advanceToStep2: boolean) => {
+    if (isSubmitting || isUploadingBefore) return;
     setIsSubmitting(true);
+    setUploadError(null);
+    setSaveSuccessMsg(null);
+
     try {
-      const summaryText = inspectionComments?.trim() || taskDescription?.trim() || 'Work completed and verified on site.';
-      
       const authUser = JSON.parse(localStorage.getItem('tech_user') || '{}');
       const techName = authUser.name || localStorage.getItem('user_name') || 'Field Technician';
       const techId = authUser.id || authUser._id || localStorage.getItem('user_id') || 'TECH-01';
+      const baseUrl = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
 
+      const formattedBefore = beforePhotos.map((url, i) => ({
+        id: `PHO-BEFORE-${i}-${Date.now()}`,
+        url: url,
+        caption: 'Before Work Site Condition',
+        uploadedAt: new Date().toLocaleTimeString()
+      }));
+
+      // 1. Save progress in backend Job
+      const updatedJob = await JobsApiService.saveJobProgress(job.id, {
+        taskDescription: taskDescription.trim(),
+        inspectionComments: inspectionComments.trim(),
+        beforePhotos: formattedBefore,
+        technicianId: techId,
+        technicianName: techName,
+        voiceNoteUrl: hasVoiceNote ? (audioUrl || '') : '',
+        hasVoiceNote: Boolean(hasVoiceNote)
+      });
+
+      // 2. Sync to /api/reports so Admin Reports immediately shows Before Photos
+      await fetch(`${baseUrl}/api/reports`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          technicianId: techId,
+          technicianName: techName,
+          date: new Date().toISOString().split('T')[0],
+          activityType: job.title || 'Customer Job',
+          workDescription: taskDescription.trim() || 'Work started on site. Before photos uploaded.',
+          hoursWorked: 8,
+          status: 'PRESENT',
+          jobId: job.id,
+          jobCode: job.jobCode,
+          customerName: job.customer?.name || '',
+          location: job.customer?.city || job.customer?.address || '',
+          beforePhotos: beforePhotos,
+          afterPhotos: afterPhotos,
+        })
+      }).catch(err => console.warn('POST /api/reports error:', err));
+
+      if (onJobUpdated) onJobUpdated(updatedJob);
+      if (onUpdateStatus) onUpdateStatus(job.id, 'IN_PROGRESS');
+      window.dispatchEvent(new Event('report_submitted'));
+
+      if (advanceToStep2) {
+        setSaveSuccessMsg('✓ Before photos saved! Proceeding to Step 2...');
+        setTimeout(() => {
+          setIsSubmitting(false);
+          setSaveSuccessMsg(null);
+          setCurrentStep(2);
+        }, 600);
+      } else {
+        setSaveSuccessMsg('✓ Progress saved successfully!');
+        setTimeout(() => {
+          setIsSubmitting(false);
+          onClose();
+        }, 700);
+      }
+    } catch (err: any) {
+      console.error('Save Step 1 error:', err);
+      setUploadError(err.message || 'Unable to save before photos. Please try again.');
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSubmitFinalReport = async (saveOnly = false) => {
+    if (isSubmitting || isUploadingAfter) return;
+    setIsSubmitting(true);
+    setUploadError(null);
+    setSaveSuccessMsg(null);
+
+    try {
+      const authUser = JSON.parse(localStorage.getItem('tech_user') || '{}');
+      const techName = authUser.name || localStorage.getItem('user_name') || 'Field Technician';
+      const techId = authUser.id || authUser._id || localStorage.getItem('user_id') || 'TECH-01';
       const baseUrl = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
 
       const finalVoiceUrl = hasVoiceNote ? (audioUrl || 'recorded-audio-memo') : '';
       const finalHasVoice = Boolean(hasVoiceNote);
 
-      if (completionStatus === 'In Progress' || afterPhotos.length === 0) {
-        // Save progress for text fields and voice notes
-        await fetch(`${baseUrl}/api/jobs/${job.id}`, {
-          method: 'PUT',
+      if (saveOnly || completionStatus === 'In Progress') {
+        const formattedBefore = beforePhotos.map((url, i) => ({
+          id: `PHO-BEFORE-${i}-${Date.now()}`,
+          url: url,
+          caption: 'Before Work Site Condition',
+          uploadedAt: new Date().toLocaleTimeString()
+        }));
+
+        const updatedJob = await JobsApiService.saveJobProgress(job.id, {
+          taskDescription: taskDescription.trim(),
+          inspectionComments: inspectionComments.trim(),
+          beforePhotos: formattedBefore,
+          technicianId: techId,
+          technicianName: techName,
+          voiceNoteUrl: finalVoiceUrl,
+          hasVoiceNote: finalHasVoice
+        });
+
+        await fetch(`${baseUrl}/api/reports`, {
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            fieldNotes: summaryText,
+            technicianId: techId,
+            technicianName: techName,
+            date: new Date().toISOString().split('T')[0],
+            activityType: job.title || 'Customer Job',
+            workDescription: inspectionComments.trim() || taskDescription.trim() || 'Work in progress.',
+            hoursWorked: 8,
+            status: 'PRESENT',
+            jobId: job.id,
+            jobCode: job.jobCode,
+            customerName: job.customer?.name || '',
+            location: job.customer?.city || job.customer?.address || '',
+            beforePhotos: beforePhotos,
+            afterPhotos: afterPhotos,
             voiceNoteUrl: finalVoiceUrl,
             hasVoiceNote: finalHasVoice
           })
-        }).catch(err => console.warn('PUT /api/jobs error:', err));
+        }).catch(err => console.warn('POST /api/reports error:', err));
 
-        setIsSubmitting(false);
-        onClose();
+        if (onJobUpdated) onJobUpdated(updatedJob);
+        if (onUpdateStatus) onUpdateStatus(job.id, 'IN_PROGRESS');
+
+        window.dispatchEvent(new Event('report_submitted'));
+        setSaveSuccessMsg('Progress saved successfully');
+        setTimeout(() => {
+          setIsSubmitting(false);
+          onClose();
+        }, 700);
         return;
       }
 
-      // 1. Post report directly to /api/reports MongoDB collection
+      // Complete work report submission flow
+      const summaryText = inspectionComments?.trim() || taskDescription?.trim() || 'Work completed and verified on site.';
+
       const reportPromise = fetch(`${baseUrl}/api/reports`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -280,19 +462,19 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
         })
       }).catch(err => console.warn('POST /api/reports error:', err));
 
-      // 2. Complete job status
       const jobPromise = onCompleteJob(job.id, summaryText, undefined, finalVoiceUrl).catch(() => {});
-
-      // Parallel execution - instant response
       await Promise.all([reportPromise, jobPromise]);
       
       window.dispatchEvent(new Event('report_submitted'));
-      setIsSubmitting(false);
-      onClose();
-    } catch (err) {
+      setSaveSuccessMsg('Work report submitted successfully');
+      setTimeout(() => {
+        setIsSubmitting(false);
+        onClose();
+      }, 700);
+    } catch (err: any) {
       console.error('Submit report error:', err);
+      setUploadError(err.message || 'Unable to submit report. Please try again.');
       setIsSubmitting(false);
-      onClose();
     }
   };
 
@@ -301,7 +483,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
       <div className="bg-white w-full max-w-lg h-full sm:h-auto sm:max-h-[92vh] rounded-none sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col font-sans">
         
         {/* Modal Header */}
-        <div className="px-4 py-3.5 border-b border-zinc-200 bg-white flex items-center justify-between shrink-0">
+        <div className="px-4 py-3 border-b border-zinc-200 bg-white flex items-center justify-between shrink-0">
           <div>
             <div className="flex items-center space-x-2">
               <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 uppercase">
@@ -312,7 +494,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                   : 'bg-sky-50 text-sky-700 border-sky-200'
               }`}>
-                <span className="font-normal opacity-75 mr-1">Current Status:</span>
+                <span className="font-normal opacity-75 mr-1">Status:</span>
                 <span>{job.status === 'COMPLETED' || job.status === 'VERIFIED' ? '✓ Completed' : '⏳ In Progress'}</span>
               </span>
             </div>
@@ -327,247 +509,430 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
           </button>
         </div>
 
-        {/* Form Body - Single Vertical Clean Scroll Form */}
-        <div className="p-4 flex-1 overflow-y-auto space-y-5 text-xs text-zinc-800">
+        {/* Step Indicator Bar */}
+        <div className="px-4 py-2 bg-zinc-50 border-b border-zinc-200 flex items-center justify-between gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setCurrentStep(1)}
+            className={`flex-1 flex items-center justify-center space-x-2 py-2 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              currentStep === 1
+                ? 'bg-white text-zinc-900 shadow-xs border border-zinc-200'
+                : 'text-zinc-500 hover:text-zinc-800'
+            }`}
+          >
+            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-mono font-bold ${
+              beforePhotos.length > 0
+                ? 'bg-emerald-600 text-white'
+                : currentStep === 1 ? 'bg-sky-600 text-white' : 'bg-zinc-200 text-zinc-600'
+            }`}>
+              {beforePhotos.length > 0 ? '✓' : '1'}
+            </span>
+            <span className="truncate">Step 1: Before Photos</span>
+          </button>
+
+          <div className="w-4 h-px bg-zinc-300 shrink-0" />
+
+          <button
+            type="button"
+            onClick={() => setCurrentStep(2)}
+            className={`flex-1 flex items-center justify-center space-x-2 py-2 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              currentStep === 2
+                ? 'bg-white text-zinc-900 shadow-xs border border-zinc-200'
+                : 'text-zinc-500 hover:text-zinc-800'
+            }`}
+          >
+            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-mono font-bold ${
+              afterPhotos.length > 0
+                ? 'bg-emerald-600 text-white'
+                : currentStep === 2 ? 'bg-red-600 text-white' : 'bg-zinc-200 text-zinc-600'
+            }`}>
+              {afterPhotos.length > 0 ? '✓' : '2'}
+            </span>
+            <span className="truncate">Step 2: After Photos</span>
+          </button>
+        </div>
+
+        {/* Hidden Device Photo Upload Inputs */}
+        <input
+          type="file"
+          ref={beforeFileInputRef}
+          onChange={handleBeforeFileSelect}
+          accept="image/*"
+          multiple
+          className="hidden"
+        />
+        <input
+          type="file"
+          ref={afterFileInputRef}
+          onChange={handleAfterFileSelect}
+          accept="image/*"
+          multiple
+          className="hidden"
+        />
+
+        {/* Form Body */}
+        <div className="p-4 flex-1 overflow-y-auto space-y-4 text-xs text-zinc-800">
           
-          {/* 1. Task Description */}
-          <div className="space-y-1.5">
-            <label className="font-semibold text-zinc-700 block">
-              Task Description <span className="text-zinc-400 font-normal italic">- Optional</span>
-            </label>
-            <input
-              type="text"
-              value={taskDescription}
-              onChange={(e) => setTaskDescription(e.target.value)}
-              placeholder="E.g. Remove old ones and install new CCTV cameras"
-              className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-xs text-zinc-900 focus:outline-none focus:border-red-500 focus:bg-white transition-all"
-            />
-          </div>
-
-          {/* Hidden Device Photo Upload Inputs */}
-          <input
-            type="file"
-            ref={beforeFileInputRef}
-            onChange={handleBeforeFileSelect}
-            accept="image/*"
-            multiple
-            className="hidden"
-          />
-          <input
-            type="file"
-            ref={afterFileInputRef}
-            onChange={handleAfterFileSelect}
-            accept="image/*"
-            multiple
-            className="hidden"
-          />
-
-          {/* 2. Before Work Photos */}
-          <div className="space-y-2">
-            <label className="font-semibold text-zinc-700 block">
-              Before Work Photos <span className="text-zinc-400 font-normal italic">- Optional</span>
-            </label>
-            
-            <div className="flex items-center space-x-2.5 overflow-x-auto pb-1">
-              {/* Add Photo Square Button (Triggers Device Camera / Photo Gallery) */}
-              <button
-                type="button"
-                onClick={() => beforeFileInputRef.current?.click()}
-                className="w-20 h-20 rounded-xl border-2 border-dashed border-red-300 bg-red-50/50 hover:bg-red-50 text-red-600 flex flex-col items-center justify-center space-y-1 shrink-0 transition-all cursor-pointer"
-              >
-                <Camera className="w-5 h-5" />
-                <span className="text-[10px] font-bold">Add Photo</span>
-              </button>
-
-              {/* Uploaded Before Photo Thumbnails */}
-              {beforePhotos.map((url, idx) => (
-                <div key={idx} className="relative w-20 h-20 rounded-xl border border-zinc-200 overflow-hidden shrink-0 group">
-                  <img src={url} alt="Before" className="w-full h-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveBeforePhoto(idx)}
-                    className="absolute top-1 right-1 w-5 h-5 bg-black/70 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              ))}
+          {/* Status / Error Alerts */}
+          {uploadError && (
+            <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center justify-between animate-fade-in">
+              <span className="font-semibold">⚠️ {uploadError}</span>
+              <button onClick={() => setUploadError(null)} className="text-red-500 hover:text-red-700 font-bold ml-2">✕</button>
             </div>
-          </div>
-
-
-          {/* 3. Inspection Comments / Work Done Notes */}
-          <div className="space-y-1.5">
-            <label className="font-semibold text-zinc-700 block">
-              Inspection Comments <span className="text-zinc-400 font-normal italic">- Optional</span>
-            </label>
-            <textarea
-              rows={3}
-              value={inspectionComments}
-              onChange={(e) => setInspectionComments(e.target.value)}
-              placeholder="Enter work details, e.g. New cameras fit perfectly and live feed checked."
-              className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-xs text-zinc-900 focus:outline-none focus:border-red-500 focus:bg-white transition-all leading-relaxed"
-            />
-          </div>
-
-          {/* 4. Photos After Completion */}
-          <div className="space-y-2">
-            <label className="font-semibold text-zinc-700 block">
-              Photos After Completion <span className="text-zinc-400 font-normal italic">- Optional</span>
-            </label>
-
-            <div className="flex items-center space-x-2.5 overflow-x-auto pb-1">
-              {/* Add Photo Square Button (Triggers Device Camera / Photo Gallery) */}
-              <button
-                type="button"
-                onClick={() => afterFileInputRef.current?.click()}
-                className="w-20 h-20 rounded-xl border-2 border-dashed border-red-300 bg-red-50/50 hover:bg-red-50 text-red-600 flex flex-col items-center justify-center space-y-1 shrink-0 transition-all cursor-pointer"
-              >
-                <Camera className="w-5 h-5" />
-                <span className="text-[10px] font-bold">Add Photo</span>
-              </button>
-
-              {/* Uploaded After Photo Thumbnails */}
-              {afterPhotos.map((url, idx) => (
-                <div key={idx} className="relative w-20 h-20 rounded-xl border border-zinc-200 overflow-hidden shrink-0 group">
-                  <img src={url} alt="After" className="w-full h-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveAfterPhoto(idx)}
-                    className="absolute top-1 right-1 w-5 h-5 bg-black/70 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* 5. Task Completion Status Dropdown (Only shows if After Photos exist) */}
-          {afterPhotos.length > 0 && (
-            <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-300">
-              <label className="font-semibold text-zinc-700 block">Task Completion Status</label>
-              <select
-                value={completionStatus}
-                onChange={(e) => setCompletionStatus(e.target.value as any)}
-                className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-bold text-zinc-900 focus:outline-none focus:border-red-500 focus:bg-white transition-all cursor-pointer"
-              >
-                <option value="Completed">Completed</option>
-                <option value="In Progress">In Progress</option>
-              </select>
+          )}
+          {saveSuccessMsg && (
+            <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs rounded-xl flex items-center gap-1.5 animate-fade-in">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span className="font-semibold">{saveSuccessMsg}</span>
             </div>
           )}
 
-          {/* 6. Voice Message / Audio Note */}
-          <div className="space-y-2 p-3.5 bg-zinc-50 border border-zinc-200/80 rounded-xl">
-            <div className="flex items-center justify-between">
-              <label className="font-semibold text-zinc-700 flex items-center space-x-1.5">
-                <Mic className="w-4 h-4 text-emerald-600" />
-                <span>Voice Note Summary</span>
-              </label>
-
-              {hasVoiceNote && (
-                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
-                  Attached
+          {/* ================= STEP 1: BEFORE WORK PHOTOS ================= */}
+          {currentStep === 1 && (
+            <div className="space-y-4 animate-in fade-in duration-200">
+              <div className="p-3 bg-sky-50/70 border border-sky-200 rounded-xl text-sky-900">
+                <span className="font-bold block text-xs">📸 Step 1: Initial Site Evidence</span>
+                <span className="text-[11px] text-sky-700 font-medium">
+                  Capture and upload photos of the site/cables before starting work.
                 </span>
-              )}
-            </div>
+              </div>
 
-            {/* State A: Not Attached & Not Recording */}
-            {!hasVoiceNote && !isRecordingVoice && (
-              <button
-                type="button"
-                onClick={startVoiceRecording}
-                className="w-full py-3 bg-white border border-dashed border-emerald-300 hover:bg-emerald-50 text-emerald-700 font-bold text-xs rounded-xl flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-2xs"
-              >
-                <Mic className="w-4 h-4 text-emerald-600" />
-                <span>🎙️ Record Voice Note (Optional)</span>
-              </button>
-            )}
+              {/* Task Description */}
+              <div className="space-y-1.5">
+                <label className="font-semibold text-zinc-700 block">
+                  Task Description <span className="text-zinc-400 font-normal italic">- Optional</span>
+                </label>
+                <input
+                  type="text"
+                  value={taskDescription}
+                  onChange={(e) => setTaskDescription(e.target.value)}
+                  placeholder="E.g. Remove old cameras and start wiring"
+                  className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-xs text-zinc-900 focus:outline-none focus:border-red-500 focus:bg-white transition-all"
+                />
+              </div>
 
-            {/* State B: Live Recording in Progress */}
-            {isRecordingVoice && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between animate-pulse">
-                <div className="flex items-center space-x-2">
-                  <span className="w-3 h-3 rounded-full bg-red-600 animate-ping" />
-                  <span className="font-bold text-xs text-red-700">
-                    Recording Audio... ({String(Math.floor(recordingSeconds / 60)).padStart(2, '0')}:{String(recordingSeconds % 60).padStart(2, '0')}s)
+              {/* Before Work Photos */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="font-semibold text-zinc-700 block">
+                    Before Work Photos <span className="text-red-500 font-bold">*</span>
+                  </label>
+                  <span className="text-[11px] font-mono text-zinc-500">
+                    {beforePhotos.length} photo{beforePhotos.length !== 1 ? 's' : ''} uploaded
                   </span>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={stopVoiceRecording}
-                  className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-lg shadow-2xs cursor-pointer transition-colors"
-                >
-                  ⏹️ Save & Attach
-                </button>
-              </div>
-            )}
-
-            {/* State C: Voice Note Recorded & Attached */}
-            {hasVoiceNote && (
-              <div className="p-2.5 bg-white border border-zinc-200 rounded-xl flex items-center justify-between">
-                <div className="flex items-center space-x-2.5">
+                
+                <div className="flex items-center space-x-2.5 overflow-x-auto pb-1">
+                  {/* Add Photo Button */}
                   <button
                     type="button"
-                    onClick={togglePlayAudio}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-white transition-colors cursor-pointer ${
-                      isPlayingAudio ? 'bg-red-500 animate-pulse' : 'bg-emerald-600 hover:bg-emerald-700'
-                    }`}
+                    onClick={() => beforeFileInputRef.current?.click()}
+                    disabled={isUploadingBefore}
+                    className="w-20 h-20 rounded-xl border-2 border-dashed border-sky-300 bg-sky-50/50 hover:bg-sky-50 text-sky-600 flex flex-col items-center justify-center space-y-1 shrink-0 transition-all cursor-pointer disabled:opacity-50"
                   >
-                    {isPlayingAudio ? <Square className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current ml-0.5" />}
+                    {isUploadingBefore ? (
+                      <div className="w-5 h-5 border-2 border-sky-600 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <Camera className="w-5 h-5" />
+                        <span className="text-[10px] font-bold">Add Photo</span>
+                      </>
+                    )}
                   </button>
+
+                  {/* Thumbnails */}
+                  {beforePhotos.map((url, idx) => (
+                    <div key={idx} className="relative w-20 h-20 rounded-xl border border-zinc-200 overflow-hidden shrink-0 group">
+                      <img src={url} alt="Before" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveBeforePhoto(idx)}
+                        className="absolute top-1 right-1 w-5 h-5 bg-black/70 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {beforePhotos.length === 0 && (
+                  <p className="text-[11px] text-zinc-400 italic">
+                    Tap "Add Photo" to select or capture camera photos before working.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ================= STEP 2: AFTER WORK & COMPLETION ================= */}
+          {currentStep === 2 && (
+            <div className="space-y-4 animate-in fade-in duration-200">
+              {/* Step 1 Completion Summary Card */}
+              <div className="p-3 bg-emerald-50/80 border border-emerald-200 rounded-xl flex items-center justify-between">
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                    ✓
+                  </div>
                   <div>
-                    <span className="font-bold text-xs text-zinc-900 block">Site Voice Summary</span>
-                    <span className="text-[10px] font-mono text-zinc-400">
-                      {recordingSeconds > 0 ? `${recordingSeconds} seconds recorded` : '8 seconds recording'}
+                    <span className="text-xs font-bold text-emerald-900 block">
+                      Step 1 Completed ({beforePhotos.length} Before Photo{beforePhotos.length !== 1 ? 's' : ''})
                     </span>
+                    <span className="text-[10px] text-emerald-700">Initial site condition recorded.</span>
                   </div>
                 </div>
 
                 <button
                   type="button"
-                  onClick={() => {
-                    setHasVoiceNote(false);
-                    setRecordingSeconds(0);
-                    setAudioUrl(null);
-                    if (audioElementRef.current) {
-                      audioElementRef.current.pause();
-                    }
-                    setIsPlayingAudio(false);
-                  }}
-                  className="text-zinc-400 hover:text-red-600 transition-colors p-1 cursor-pointer"
-                  title="Remove Voice Note"
+                  onClick={() => setCurrentStep(1)}
+                  className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 underline cursor-pointer shrink-0"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  View / Edit
                 </button>
               </div>
-            )}
-          </div>
+
+              {/* Photos After Completion */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="font-semibold text-zinc-700 block">
+                    Photos After Completion <span className="text-red-500 font-bold">*</span>
+                  </label>
+                  <span className="text-[11px] font-mono text-zinc-500">
+                    {afterPhotos.length} photo{afterPhotos.length !== 1 ? 's' : ''} uploaded
+                  </span>
+                </div>
+
+                <div className="flex items-center space-x-2.5 overflow-x-auto pb-1">
+                  {/* Add Photo Button */}
+                  <button
+                    type="button"
+                    onClick={() => afterFileInputRef.current?.click()}
+                    disabled={isUploadingAfter}
+                    className="w-20 h-20 rounded-xl border-2 border-dashed border-red-300 bg-red-50/50 hover:bg-red-50 text-red-600 flex flex-col items-center justify-center space-y-1 shrink-0 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {isUploadingAfter ? (
+                      <div className="w-5 h-5 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <Camera className="w-5 h-5" />
+                        <span className="text-[10px] font-bold">Add Photo</span>
+                      </>
+                    )}
+                  </button>
+
+                  {/* Thumbnails */}
+                  {afterPhotos.map((url, idx) => (
+                    <div key={idx} className="relative w-20 h-20 rounded-xl border border-zinc-200 overflow-hidden shrink-0 group">
+                      <img src={url} alt="After" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveAfterPhoto(idx)}
+                        className="absolute top-1 right-1 w-5 h-5 bg-black/70 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {afterPhotos.length === 0 && (
+                  <p className="text-[11px] text-zinc-400 italic">
+                    Tap "Add Photo" to upload finished installation and clean site evidence.
+                  </p>
+                )}
+              </div>
+
+              {/* Inspection Comments / Work Done Notes */}
+              <div className="space-y-1.5">
+                <label className="font-semibold text-zinc-700 block">
+                  Inspection Comments / Work Done <span className="text-zinc-400 font-normal italic">- Optional</span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={inspectionComments}
+                  onChange={(e) => setInspectionComments(e.target.value)}
+                  placeholder="E.g. Installed 4 cameras, testing live feed, all working perfectly."
+                  className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-xs text-zinc-900 focus:outline-none focus:border-red-500 focus:bg-white transition-all leading-relaxed"
+                />
+              </div>
+
+              {/* Task Completion Status Dropdown */}
+              <div className="space-y-1.5">
+                <label className="font-semibold text-zinc-700 block">Task Status</label>
+                <select
+                  value={completionStatus}
+                  onChange={(e) => setCompletionStatus(e.target.value as any)}
+                  className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-bold text-zinc-900 focus:outline-none focus:border-red-500 focus:bg-white transition-all cursor-pointer"
+                >
+                  <option value="Completed">✓ Completed (Ready for Admin Verification)</option>
+                  <option value="In Progress">⏳ In Progress (Work continuing)</option>
+                </select>
+              </div>
+
+              {/* Voice Note Summary */}
+              <div className="space-y-2 p-3 bg-zinc-50 border border-zinc-200/80 rounded-xl">
+                <div className="flex items-center justify-between">
+                  <label className="font-semibold text-zinc-700 flex items-center space-x-1.5">
+                    <Mic className="w-4 h-4 text-emerald-600" />
+                    <span>Voice Note Summary</span>
+                  </label>
+
+                  {hasVoiceNote && (
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                      Attached
+                    </span>
+                  )}
+                </div>
+
+                {!hasVoiceNote && !isRecordingVoice && (
+                  <button
+                    type="button"
+                    onClick={startVoiceRecording}
+                    className="w-full py-2.5 bg-white border border-dashed border-emerald-300 hover:bg-emerald-50 text-emerald-700 font-bold text-xs rounded-xl flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-2xs"
+                  >
+                    <Mic className="w-4 h-4 text-emerald-600" />
+                    <span>🎙️ Record Voice Note (Optional)</span>
+                  </button>
+                )}
+
+                {isRecordingVoice && (
+                  <div className="p-2.5 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between animate-pulse">
+                    <div className="flex items-center space-x-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-ping" />
+                      <span className="font-bold text-xs text-red-700">
+                        Recording... ({String(Math.floor(recordingSeconds / 60)).padStart(2, '0')}:{String(recordingSeconds % 60).padStart(2, '0')}s)
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={stopVoiceRecording}
+                      className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-lg cursor-pointer transition-colors"
+                    >
+                      ⏹️ Save
+                    </button>
+                  </div>
+                )}
+
+                {hasVoiceNote && (
+                  <div className="p-2 bg-white border border-zinc-200 rounded-xl flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <button
+                        type="button"
+                        onClick={togglePlayAudio}
+                        className={`w-7 h-7 rounded-full flex items-center justify-center text-white transition-colors cursor-pointer ${
+                          isPlayingAudio ? 'bg-red-500 animate-pulse' : 'bg-emerald-600 hover:bg-emerald-700'
+                        }`}
+                      >
+                        {isPlayingAudio ? <Square className="w-3 h-3 fill-current" /> : <Play className="w-3 h-3 fill-current ml-0.5" />}
+                      </button>
+                      <span className="font-bold text-xs text-zinc-900">Audio Note Attached</span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHasVoiceNote(false);
+                        setRecordingSeconds(0);
+                        setAudioUrl(null);
+                        if (audioElementRef.current) audioElementRef.current.pause();
+                        setIsPlayingAudio(false);
+                      }}
+                      className="text-zinc-400 hover:text-red-600 transition-colors p-1 cursor-pointer"
+                      title="Remove Voice Note"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
         </div>
 
-        {/* Modal Footer - Big Submit Report Button */}
-        <div className="p-4 border-t border-zinc-200 bg-white shrink-0">
-          <button 
-            type="button"
-            onClick={handleSubmitReport}
-            disabled={isSubmitting || isUploadingBefore || isUploadingAfter}
-            className={`w-full py-3.5 rounded-xl text-sm font-bold text-white shadow-lg flex items-center justify-center space-x-2 transition-all ${
-              isSubmitting ? 'bg-zinc-400' : 
-              (completionStatus === 'In Progress' || afterPhotos.length === 0) ? 'bg-sky-600 hover:bg-sky-700 shadow-sky-600/20' :
-              'bg-red-600 hover:bg-red-700 shadow-red-600/20'
-            }`}
-          >
-            {isSubmitting ? (
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : (
-              <>
-                {(completionStatus === 'In Progress' || afterPhotos.length === 0) ? <CheckCircle2 className="w-5 h-5" /> : <Send className="w-5 h-5" />}
-                <span>{(completionStatus === 'In Progress' || afterPhotos.length === 0) ? 'SAVE PROGRESS & CLOSE' : 'SUBMIT WORK REPORT'}</span>
-              </>
-            )}
-          </button>
+        {/* Modal Footer - Step Specific Actions */}
+        <div className="p-3.5 border-t border-zinc-200 bg-white shrink-0 space-y-2">
+          {currentStep === 1 ? (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleSaveStep1(false)}
+                disabled={isSubmitting || isUploadingBefore}
+                className="flex-1 py-3 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-bold text-xs rounded-xl transition-all cursor-pointer disabled:opacity-50 text-center"
+              >
+                Save & Close
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSaveStep1(true)}
+                disabled={isSubmitting || isUploadingBefore}
+                className="flex-[2] py-3 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-xl shadow-md shadow-sky-600/20 flex items-center justify-center space-x-1.5 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>SAVE & PROCEED TO AFTER PHOTOS</span>
+                    <span>➔</span>
+                  </>
+                )}
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => handleSubmitFinalReport(false)}
+                disabled={isSubmitting || isUploadingAfter}
+                className={`w-full py-3.5 rounded-xl text-xs sm:text-sm font-bold text-white shadow-lg flex items-center justify-center space-x-2 transition-all cursor-pointer ${
+                  isSubmitting ? 'bg-zinc-400' :
+                  completionStatus === 'Completed' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20' :
+                  'bg-red-600 hover:bg-red-700 shadow-red-600/20'
+                }`}
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Submitting...</span>
+                  </>
+                ) : completionStatus === 'Completed' ? (
+                  <>
+                    <CheckCircle2 className="w-5 h-5" />
+                    <span>✓ COMPLETE WORK & SUBMIT FINAL REPORT</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-5 h-5" />
+                    <span>SAVE PROGRESS & CLOSE</span>
+                  </>
+                )}
+              </button>
+
+              <div className="flex items-center justify-between px-1">
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(1)}
+                  className="text-xs text-zinc-500 hover:text-zinc-800 font-semibold cursor-pointer"
+                >
+                  ◂ Back to Step 1 (Before Photos)
+                </button>
+
+                {completionStatus === 'Completed' && (
+                  <button
+                    type="button"
+                    onClick={() => handleSubmitFinalReport(true)}
+                    className="text-xs text-zinc-500 hover:text-zinc-800 font-semibold cursor-pointer"
+                  >
+                    Save As Draft (In Progress)
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
       </div>

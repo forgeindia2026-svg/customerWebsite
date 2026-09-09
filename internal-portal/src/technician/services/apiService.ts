@@ -48,9 +48,18 @@ export const JobsApiService = {
       const searchVal = options.searchQuery || '';
       const statusVal = options.status && options.status !== 'ALL' ? options.status : '';
       const url = `${baseUrl}/api/jobs?technicianId=${techId}&technicianName=${encodeURIComponent(techName)}&includeAvailable=true&status=${statusVal}&search=${encodeURIComponent(searchVal)}`;
-      const res = await fetch(url);
+      const [res, repRes] = await Promise.all([
+        fetch(url),
+        fetch(`${baseUrl}/api/reports?t=${Date.now()}`).catch(() => null)
+      ]);
       const resData = await res.json();
       let rawJobs = resData.data || [];
+      let reportsList: any[] = [];
+      if (repRes && repRes.ok) {
+        try {
+          reportsList = await repRes.json();
+        } catch (e) {}
+      }
 
       const lowerTechName = techName?.toLowerCase().trim();
 
@@ -95,7 +104,7 @@ export const JobsApiService = {
           normStatus = 'ACCEPTED';
         } else if (rawStatus === 'ON_HOLD') {
           normStatus = 'ON_HOLD';
-        } else if (rawStatus === 'IN_PROGRESS') {
+        } else if (rawStatus === 'IN_PROGRESS' || rawStatus === 'BEFORE_PHOTOS_DONE' || rawStatus === 'AFTER_PHOTOS_DONE' || rawStatus === 'INSPECTED' || rawStatus === 'DAILY_REPORTED') {
           normStatus = 'IN_PROGRESS';
         } else {
           normStatus = 'PENDING';
@@ -103,6 +112,33 @@ export const JobsApiService = {
 
         const unassigned = !assignedTechName && (!j.assignedTechnicians || j.assignedTechnicians.length === 0);
         const assignedToMe = isJobAssignedToMe(j);
+
+        // Fallback to matching TechnicianReport if job.beforePhotos lacks full URLs
+        const matchingReport = reportsList.find((r: any) => {
+          const rJobCode = (r.jobCode || '').replace(/^#/, '').trim().toUpperCase();
+          const jJobCode = (j.jobCode || j.orderNumber || '').replace(/^#/, '').trim().toUpperCase();
+          return (rJobCode && jJobCode && rJobCode === jJobCode) || (r.jobId && (r.jobId === j._id || r.jobId === j.id));
+        });
+
+        let beforeList = Array.isArray(j.beforePhotos) ? j.beforePhotos : (j.workProgress?.beforeWorkPhotos || []);
+        const hasValidUrls = beforeList.some((p: any) => typeof p === 'string' ? p.startsWith('http') : (p?.url && typeof p.url === 'string' && p.url.startsWith('http')));
+        if (!hasValidUrls && matchingReport && Array.isArray(matchingReport.beforePhotos) && matchingReport.beforePhotos.length > 0) {
+          beforeList = matchingReport.beforePhotos.map((url: string, idx: number) => ({
+            id: `PHO-BEFORE-${idx}`,
+            url,
+            caption: 'Before Work Site Condition'
+          }));
+        }
+
+        let afterList = Array.isArray(j.afterPhotos) ? j.afterPhotos : [];
+        const hasValidAfterUrls = afterList.some((p: any) => typeof p === 'string' ? p.startsWith('http') : (p?.url && typeof p.url === 'string' && p.url.startsWith('http')));
+        if (!hasValidAfterUrls && matchingReport && Array.isArray(matchingReport.afterPhotos) && matchingReport.afterPhotos.length > 0) {
+          afterList = matchingReport.afterPhotos.map((url: string, idx: number) => ({
+            id: `PHO-AFTER-${idx}`,
+            url,
+            caption: 'Completed Work Evidence'
+          }));
+        }
 
         return {
           id: j._id || j.id || `job-${Math.random()}`,
@@ -140,8 +176,12 @@ export const JobsApiService = {
           equipmentList: Array.isArray(j.equipmentList) ? j.equipmentList : [],
           notes: Array.isArray(j.notes) ? j.notes : [],
           fieldNotes: j.fieldNotes || '',
-          beforePhotos: Array.isArray(j.beforePhotos) ? j.beforePhotos : [],
-          afterPhotos: Array.isArray(j.afterPhotos) ? j.afterPhotos : [],
+          workProgress: j.workProgress,
+          taskDescription: j.workProgress?.taskDescription || j.fieldNotes || matchingReport?.workDescription || '',
+          inspectionComments: j.workProgress?.inspectionComments || j.inspection?.notes || '',
+          inspection: j.inspection,
+          beforePhotos: beforeList,
+          afterPhotos: afterList,
           dailyReports: Array.isArray(j.dailyReports) ? j.dailyReports : [],
           activities: Array.isArray(j.activities) ? j.activities : [],
           createdAt: j.createdAt || new Date().toISOString(),
@@ -196,6 +236,63 @@ export const JobsApiService = {
           onHoldCount: 0,
         },
       };
+    }
+  },
+
+  async getJobById(jobId: string): Promise<Job | null> {
+    try {
+      const baseUrl = getApiUrl();
+      const [res, repRes] = await Promise.all([
+        fetch(`${baseUrl}/api/jobs/${jobId}`),
+        fetch(`${baseUrl}/api/reports?t=${Date.now()}`).catch(() => null)
+      ]);
+      const resData = await res.json();
+      if (resData.success && resData.data) {
+        const j = resData.data;
+        let reportsList: any[] = [];
+        if (repRes && repRes.ok) {
+          try {
+            reportsList = await repRes.json();
+          } catch (e) {}
+        }
+        const matchingReport = reportsList.find((r: any) => {
+          const rJobCode = (r.jobCode || '').replace(/^#/, '').trim().toUpperCase();
+          const jJobCode = (j.jobCode || j.orderNumber || '').replace(/^#/, '').trim().toUpperCase();
+          return (rJobCode && jJobCode && rJobCode === jJobCode) || (r.jobId && (r.jobId === j._id || r.jobId === j.id));
+        });
+
+        let beforePhotos = Array.isArray(j.beforePhotos) ? j.beforePhotos : (j.workProgress?.beforeWorkPhotos || []);
+        const hasValidBeforeUrls = beforePhotos.some((p: any) => typeof p === 'string' ? p.startsWith('http') : (p?.url && typeof p.url === 'string' && p.url.startsWith('http')));
+        if (!hasValidBeforeUrls && matchingReport && Array.isArray(matchingReport.beforePhotos) && matchingReport.beforePhotos.length > 0) {
+          beforePhotos = matchingReport.beforePhotos.map((url: string, idx: number) => ({
+            id: `PHO-BEFORE-${idx}`,
+            url,
+            caption: 'Before Work Site Condition'
+          }));
+        }
+
+        let afterPhotos = Array.isArray(j.afterPhotos) ? j.afterPhotos : [];
+        const hasValidAfterUrls = afterPhotos.some((p: any) => typeof p === 'string' ? p.startsWith('http') : (p?.url && typeof p.url === 'string' && p.url.startsWith('http')));
+        if (!hasValidAfterUrls && matchingReport && Array.isArray(matchingReport.afterPhotos) && matchingReport.afterPhotos.length > 0) {
+          afterPhotos = matchingReport.afterPhotos.map((url: string, idx: number) => ({
+            id: `PHO-AFTER-${idx}`,
+            url,
+            caption: 'Completed Work Evidence'
+          }));
+        }
+
+        return {
+          ...j,
+          id: j._id || j.id,
+          beforePhotos,
+          afterPhotos,
+          taskDescription: j.workProgress?.taskDescription || j.fieldNotes || matchingReport?.workDescription || ''
+        };
+      }
+      return null;
+    } catch (err) {
+      console.warn('Error fetching job by id:', err);
+      return null;
     }
   },
 
@@ -322,13 +419,56 @@ export const JobsApiService = {
       equipmentList: j.equipmentList || [],
       notes: j.notes || [],
       fieldNotes: j.fieldNotes || '',
-      beforePhotos: j.beforePhotos || [],
+      workProgress: j.workProgress,
+      taskDescription: j.workProgress?.taskDescription || j.fieldNotes || '',
+      inspectionComments: j.workProgress?.inspectionComments || j.inspection?.notes || '',
+      inspection: j.inspection,
+      beforePhotos: Array.isArray(j.beforePhotos) ? j.beforePhotos : (j.workProgress?.beforeWorkPhotos || []),
       afterPhotos: j.afterPhotos || [],
       dailyReports: j.dailyReports || [],
       activities: j.activities || [],
       createdAt: j.createdAt || new Date().toISOString(),
       updatedAt: j.updatedAt || new Date().toISOString()
     };
+  },
+
+  async saveJobProgress(jobId: string, progressData: {
+    taskDescription: string;
+    inspectionComments: string;
+    beforePhotos: any[];
+    technicianId: string;
+    technicianName: string;
+    voiceNoteUrl?: string;
+    hasVoiceNote?: boolean;
+  }): Promise<Job> {
+    const baseUrl = getApiUrl();
+    const res = await fetch(`${baseUrl}/api/jobs/${jobId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status: 'IN_PROGRESS',
+        taskDescription: progressData.taskDescription,
+        inspectionComments: progressData.inspectionComments,
+        beforePhotos: progressData.beforePhotos,
+        technicianId: progressData.technicianId,
+        technicianName: progressData.technicianName,
+        assignedTechnician: progressData.technicianName,
+        voiceNoteUrl: progressData.voiceNoteUrl || '',
+        hasVoiceNote: Boolean(progressData.hasVoiceNote),
+        workProgress: {
+          taskDescription: progressData.taskDescription,
+          inspectionComments: progressData.inspectionComments,
+          beforeWorkPhotos: progressData.beforePhotos,
+          updatedBy: progressData.technicianId,
+          updatedAt: new Date()
+        }
+      })
+    });
+    const resData = await res.json();
+    if (!res.ok || !resData.success || !resData.data) {
+      throw new Error(resData.message || 'Unable to save progress. Please try again.');
+    }
+    return this.mapJob(resData.data);
   },
 
   async updateJobStatus(jobId: string, status: JobStatus, note?: string): Promise<Job> {
@@ -379,11 +519,15 @@ export const JobsApiService = {
 
   async uploadJobPhoto(jobId: string, photoUrl: string, caption: string, type: 'BEFORE' | 'AFTER'): Promise<Job> {
     try {
+      const techName = localStorage.getItem('user_name') || 'Field Technician';
+      const techId = localStorage.getItem('user_id') || 'tech-01';
       const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/jobs/${jobId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          status: type === 'BEFORE' ? 'BEFORE_PHOTOS_DONE' : 'AFTER_PHOTOS_DONE',
+          status: 'IN_PROGRESS',
+          assignedTechnician: techName,
+          assignedTechnicians: [{ id: techId, name: techName }],
           photo: {
             url: photoUrl,
             caption: caption,
@@ -518,6 +662,16 @@ export const JobsApiService = {
       console.error('Error adding daily report:', err);
       throw err;
     }
+  },
+
+  async getJobById(jobId: string): Promise<Job> {
+    const baseUrl = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
+    const res = await fetch(`${baseUrl}/api/jobs/${jobId}`);
+    const resData = await res.json();
+    if (resData.success && resData.data) {
+      return this.mapJob(resData.data);
+    }
+    throw new Error(resData.message || 'Failed to fetch job');
   },
 
   async autoAssignNextJob(technicianId: string): Promise<{ success: boolean; assignedJob?: Job; message: string }> {

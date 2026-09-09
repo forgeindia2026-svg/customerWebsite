@@ -78,6 +78,20 @@ export interface IJob extends Document {
     safetyVerified: boolean;
     notes: string;
   };
+  workProgress?: {
+    taskDescription?: string;
+    beforeWorkPhotos?: Array<{
+      id?: string;
+      url: string;
+      key?: string;
+      caption?: string;
+      uploadedAt?: string;
+    }>;
+    inspectionComments?: string;
+    startedAt?: Date;
+    updatedAt?: Date;
+    updatedBy?: string;
+  };
   rejectedTechnicianIds?: string[];
   customerConfirmed?: boolean;
   createdAt: Date;
@@ -188,6 +202,22 @@ const JobSchema: Schema = new Schema(
       checklistPassed: { type: Boolean },
       safetyVerified: { type: Boolean },
       notes: { type: String }
+    },
+    workProgress: {
+      taskDescription: { type: String },
+      beforeWorkPhotos: [
+        {
+          id: { type: String },
+          url: { type: String },
+          key: { type: String },
+          caption: { type: String },
+          uploadedAt: { type: String },
+        }
+      ],
+      inspectionComments: { type: String },
+      startedAt: { type: Date },
+      updatedAt: { type: Date },
+      updatedBy: { type: String }
     }
   },
   { timestamps: true }

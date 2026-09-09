@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { FiSearch, FiSliders, FiCheckCircle, FiInfo, FiTrash2, FiPlusCircle, FiEye, FiGrid, FiList, FiPlus, FiUser, FiCalendar, FiDollarSign, FiChevronDown, FiCheck, FiEdit, FiShoppingBag, FiClock } from 'react-icons/fi';
-import { approveOrder, addOrder, assignTechnicianToOrder, editOrder, adminApproveJob } from '../../redux/dashboardSlice';
+import { approveOrder, addOrder, assignTechnicianToOrder, editOrder, adminApproveJob, fetchDashboardData } from '../../redux/dashboardSlice';
+import { socket } from '../../socket';
 import Modal from '../../components/Modal';
 
 export default function Orders() {
@@ -50,6 +51,36 @@ export default function Orders() {
     dueDate: new Date().toISOString().split('T')[0],
     dueTime: '10:00'
   });
+
+  // Real-time Socket.IO Sync with Backend for Technician Progress Updates
+  useEffect(() => {
+    socket.emit('join_role', 'admin');
+
+    const handleJobProgressUpdated = (data) => {
+      console.log('[ADMIN_JOB] Real-time job progress update received:', data);
+      dispatch(fetchDashboardData());
+    };
+
+    socket.on('job:progress_updated', handleJobProgressUpdated);
+    socket.on('job:status_updated', handleJobProgressUpdated);
+    socket.on('job:photo_uploaded', handleJobProgressUpdated);
+
+    return () => {
+      socket.off('job:progress_updated', handleJobProgressUpdated);
+      socket.off('job:status_updated', handleJobProgressUpdated);
+      socket.off('job:photo_uploaded', handleJobProgressUpdated);
+    };
+  }, [dispatch]);
+
+  // Keep open selectedOrder in sync when redux orders update
+  useEffect(() => {
+    if (selectedOrder) {
+      const fresh = orders.find(o => o.id === selectedOrder.id || (o.jobCode && o.jobCode === selectedOrder.id));
+      if (fresh) {
+        setSelectedOrder(fresh);
+      }
+    }
+  }, [orders]);
 
   const getDisplayStatus = (ord) => {
     if (['Completed', 'Approved', 'COMPLETED', 'WAITING_ADMIN_APPROVAL', 'Pending Approval', 'PENDING_APPROVAL'].includes(ord.status)) {
@@ -1013,6 +1044,48 @@ export default function Orders() {
               </div>
             </div>
 
+            {/* Started At & Last Updated Timestamps */}
+            {(selectedOrder.startedAt || selectedOrder.updatedAt) && (
+              <div className="grid grid-cols-2 gap-4 text-left">
+                <div>
+                  <span className="block text-slate-400 font-semibold mb-0.5">Started At</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200 text-xs">
+                    {selectedOrder.startedAt ? new Date(selectedOrder.startedAt).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Not started yet'}
+                  </span>
+                </div>
+                <div>
+                  <span className="block text-slate-400 font-semibold mb-0.5">Last Updated</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200 text-xs">
+                    {selectedOrder.updatedAt ? new Date(selectedOrder.updatedAt).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recently'}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Task Description */}
+            {(selectedOrder.taskDescription || selectedOrder.fieldNotes) && (
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700 text-left space-y-1">
+                <span className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                  📋 Task Description
+                </span>
+                <p className="text-xs text-slate-800 dark:text-slate-100 font-medium">
+                  {selectedOrder.taskDescription || selectedOrder.fieldNotes}
+                </p>
+              </div>
+            )}
+
+            {/* Inspection Comments */}
+            {selectedOrder.inspectionComments && (
+              <div className="p-3 bg-amber-50/50 dark:bg-amber-950/20 rounded-xl border border-amber-200/60 dark:border-amber-900/40 text-left space-y-1">
+                <span className="block text-[11px] font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider">
+                  🔍 Inspection Comments
+                </span>
+                <p className="text-xs text-slate-800 dark:text-slate-100 font-medium">
+                  {selectedOrder.inspectionComments}
+                </p>
+              </div>
+            )}
+
             {/* Live GPS Tracking & Map Navigation Section */}
             <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-xl flex items-center justify-between mt-3 text-left">
               <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300">
@@ -1091,15 +1164,25 @@ export default function Orders() {
                         Before Installation Evidence ({selectedOrder.beforePhotos.length})
                       </span>
                       <div className="grid grid-cols-2 gap-3">
-                        {selectedOrder.beforePhotos.map((p, i) => (
-                          <div key={p.id || i} className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-850">
-                            <img src={p.url} alt={p.caption} className="w-full h-32 object-cover" />
-                            <div className="p-2 text-[11px] space-y-0.5">
-                              <p className="font-semibold text-slate-800 dark:text-slate-200 truncate">{p.caption}</p>
-                              <p className="text-[10px] text-slate-400">{p.uploadedAt || 'Recently uploaded'}</p>
+                        {selectedOrder.beforePhotos.map((p, i) => {
+                          const photoUrl = typeof p === 'string' ? p : (p?.url || p?.imageUrl || '');
+                          const caption = typeof p === 'string' ? 'Before Work Site Condition' : (p?.caption || 'Before Work Site Condition');
+                          const uploadedAt = typeof p === 'string' ? '' : (p?.uploadedAt || '');
+                          return (
+                            <div key={p.id || i} className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-850">
+                              <img 
+                                src={photoUrl} 
+                                alt={caption} 
+                                className="w-full h-32 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                onClick={() => window.open(photoUrl, '_blank')}
+                              />
+                              <div className="p-2 text-[11px] space-y-0.5">
+                                <p className="font-semibold text-slate-800 dark:text-slate-200 truncate">{caption}</p>
+                                <p className="text-[10px] text-slate-400">{uploadedAt || 'Recently uploaded'}</p>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -1111,15 +1194,25 @@ export default function Orders() {
                         After Installation Completion Evidence ({selectedOrder.afterPhotos.length})
                       </span>
                       <div className="grid grid-cols-2 gap-3">
-                        {selectedOrder.afterPhotos.map((p, i) => (
-                          <div key={p.id || i} className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-850">
-                            <img src={p.url} alt={p.caption} className="w-full h-32 object-cover" />
-                            <div className="p-2 text-[11px] space-y-0.5">
-                              <p className="font-semibold text-slate-800 dark:text-slate-200 truncate">{p.caption}</p>
-                              <p className="text-[10px] text-slate-400">{p.uploadedAt || 'Recently uploaded'}</p>
+                        {selectedOrder.afterPhotos.map((p, i) => {
+                          const photoUrl = typeof p === 'string' ? p : (p?.url || p?.imageUrl || '');
+                          const caption = typeof p === 'string' ? 'Completed Work Evidence' : (p?.caption || 'Completed Work Evidence');
+                          const uploadedAt = typeof p === 'string' ? '' : (p?.uploadedAt || '');
+                          return (
+                            <div key={p.id || i} className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-850">
+                              <img 
+                                src={photoUrl} 
+                                alt={caption} 
+                                className="w-full h-32 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                onClick={() => window.open(photoUrl, '_blank')}
+                              />
+                              <div className="p-2 text-[11px] space-y-0.5">
+                                <p className="font-semibold text-slate-800 dark:text-slate-200 truncate">{caption}</p>
+                                <p className="text-[10px] text-slate-400">{uploadedAt || 'Recently uploaded'}</p>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}

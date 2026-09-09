@@ -16,7 +16,7 @@ router.get('/', async (req: Request, res: Response) => {
       query.date = { $regex: `^${month}` }; // Match YYYY-MM
     }
 
-    const reports = await TechnicianReport.find(query).sort({ createdAt: -1 });
+    const reports = await TechnicianReport.find(query).sort({ updatedAt: -1, createdAt: -1 });
 
     // Deduplicate by jobCode (keep newest / most complete report)
     const seenJobCodes = new Set<string>();
@@ -135,12 +135,16 @@ router.post('/', async (req: Request, res: Response) => {
       if (existing) {
         existing.technicianId = finalTechId;
         existing.technicianName = finalTechName;
+        existing.date = date || new Date().toISOString().split('T')[0];
         existing.workDescription = workDescription || existing.workDescription;
         existing.activityType = activityType || existing.activityType;
+        if (customerName) existing.customerName = customerName;
+        if (location) existing.location = location;
         if (beforePhotos && beforePhotos.length > 0) existing.beforePhotos = beforePhotos;
         if (afterPhotos && afterPhotos.length > 0) existing.afterPhotos = afterPhotos;
         if (voiceNoteUrl) existing.voiceNoteUrl = voiceNoteUrl;
         existing.hasVoiceNote = Boolean(hasVoiceNote || (voiceNoteUrl && voiceNoteUrl.length > 0) || existing.hasVoiceNote);
+        existing.updatedAt = new Date();
         const saved = await existing.save();
         return res.status(200).json({ success: true, data: saved, message: 'Report updated successfully' });
       }

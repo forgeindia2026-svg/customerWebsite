@@ -112,6 +112,16 @@ export interface Job {
   customer: CustomerInformation;
   installation: InstallationDetails;
   inspection?: InspectionSummary;
+  workProgress?: {
+    taskDescription?: string;
+    beforeWorkPhotos?: JobPhoto[];
+    inspectionComments?: string;
+    startedAt?: string;
+    updatedAt?: string;
+    updatedBy?: string;
+  };
+  taskDescription?: string;
+  inspectionComments?: string;
   dailyReports: DailyReport[];
   beforePhotos: JobPhoto[];
   afterPhotos: JobPhoto[];

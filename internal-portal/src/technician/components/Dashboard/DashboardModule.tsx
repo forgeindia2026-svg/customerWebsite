@@ -238,13 +238,6 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
               >
                 View Details
               </button>
-              <button
-                onClick={() => onOpenWorkflow(activeJob)}
-                className="px-5 py-3 bg-white text-slate-950 hover:bg-slate-100 text-xs font-bold rounded-xl flex items-center space-x-2 transition-all shadow-md cursor-pointer"
-              >
-                <Wrench className="w-4 h-4 text-slate-900" />
-                <span>Open Workflow Center</span>
-              </button>
             </div>
           </div>
         </div>

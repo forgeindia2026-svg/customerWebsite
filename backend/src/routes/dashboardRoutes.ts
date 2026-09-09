@@ -176,7 +176,12 @@ router.get('/', async (req: Request, res: Response) => {
         })(),
         details: job.scopeOfWork?.join(', ') || job.title,
         devicesCount: job.equipmentList?.length || 0,
-        dailyLogs: job.fieldNotes ? [{ date: new Date(job.updatedAt || Date.now()).toLocaleDateString('en-US'), status: job.status, report: job.fieldNotes, photos: [] }] : []
+        dailyLogs: (job.fieldNotes || (job.beforePhotos && job.beforePhotos.length > 0)) ? [{ 
+          date: new Date(job.updatedAt || Date.now()).toLocaleDateString('en-US'), 
+          status: job.status, 
+          report: job.workProgress?.taskDescription || job.fieldNotes || 'Field work in progress', 
+          photos: (job.beforePhotos || []).map((p: any) => (typeof p === 'string' ? p : (p.url || p))) 
+        }] : []
       })),
       ...(liveOrders || [])
         .filter((o: any) => !jobCodesSet.has(o.orderNumber))
@@ -217,6 +222,16 @@ router.get('/', async (req: Request, res: Response) => {
           dashboardStatus = (job.assignedTechnicians && job.assignedTechnicians.length > 0) ? 'In Progress' : 'Pending Approval';
         }
       }
+
+      const beforePhotosList = (job?.beforePhotos && job.beforePhotos.length > 0)
+        ? job.beforePhotos
+        : (job?.workProgress?.beforeWorkPhotos || []);
+      const afterPhotosList = job?.afterPhotos || [];
+      const taskDesc = job?.workProgress?.taskDescription || job?.fieldNotes || '';
+      const inspectionNotes = job?.workProgress?.inspectionComments || job?.inspection?.notes || '';
+      const startedAt = job?.workProgress?.startedAt || job?.startDate || '';
+      const updatedAt = job?.workProgress?.updatedAt || job?.updatedAt || order.updatedAt || '';
+
       return {
         id: order.orderNumber,
         customer: order.customerName,
@@ -228,7 +243,14 @@ router.get('/', async (req: Request, res: Response) => {
         status: dashboardStatus,
         date: order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Today',
         amount: order.totalAmount,
-        createdAt: order.createdAt
+        createdAt: order.createdAt,
+        beforePhotos: beforePhotosList,
+        afterPhotos: afterPhotosList,
+        taskDescription: taskDesc,
+        fieldNotes: taskDesc,
+        inspectionComments: inspectionNotes,
+        startedAt,
+        updatedAt
       };
     });
 

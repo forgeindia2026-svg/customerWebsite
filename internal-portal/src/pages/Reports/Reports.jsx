@@ -224,10 +224,19 @@ export default function Reports() {
         console.error('Failed to fetch attendance records', err);
       }
     };
+    
+    // Initial fetch
     fetchGeneralReports();
     fetchAttendance();
 
+    // Poll every 5 seconds to show new reports immediately
+    const interval = setInterval(() => {
+      fetchGeneralReports();
+      fetchAttendance();
+    }, 5000);
+
     return () => {
+      clearInterval(interval);
       if (window.__activeAudioInstance) {
         window.__activeAudioInstance.pause();
         window.__activeAudioInstance = null;
@@ -423,15 +432,15 @@ export default function Reports() {
       return true;
     })
     .map((gr) => {
-      const isCustomOrder = gr.jobCode && (gr.jobCode.startsWith('SK-ORD-') || gr.jobCode.startsWith('JOB-'));
-      const displayJobCode = isCustomOrder ? gr.jobCode : 'DAILY WORK LOG';
+      const isCustomOrder = gr.jobCode && (gr.jobCode.startsWith('SK-ORD-') || gr.jobCode.startsWith('JOB-') || gr.jobCode.startsWith('ORD-'));
+      const displayJobCode = isCustomOrder ? gr.jobCode : (gr.jobCode || 'DAILY WORK LOG');
       const displayTitle = gr.activityType || 'General Work Activity';
 
       return {
         id: gr._id,
         jobCode: displayJobCode,
         title: displayTitle,
-        customer: isCustomOrder ? (gr.customerName || 'Customer Site') : (gr.customerName || 'Office / Internal Activity'),
+        customer: gr.customerName || (isCustomOrder ? 'Customer Site' : 'Office / Internal Activity'),
         address: gr.location || 'Site Location',
         technician: gr.technicianName || gr.technician || 'Field Technician',
         status: gr.approvedByAdmin || localStorage.getItem(`report_approved_${gr.jobCode || gr._id}`) === 'true' ? 'Verified' : 'Under Review',
@@ -442,7 +451,8 @@ export default function Reports() {
         afterPhotos: gr.afterPhotos || [],
         voiceNoteUrl: gr.voiceNoteUrl || '',
         hasVoiceNote: Boolean(gr.hasVoiceNote || (gr.voiceNoteUrl && gr.voiceNoteUrl.length > 0)),
-        updatedAt: gr.createdAt || gr.date || new Date().toISOString(),
+        date: gr.date || (gr.updatedAt ? gr.updatedAt.split('T')[0] : new Date().toISOString().split('T')[0]),
+        updatedAt: gr.updatedAt || gr.createdAt || gr.date || new Date().toISOString(),
         hoursWorked: gr.hoursWorked !== undefined && gr.hoursWorked !== null ? Number(gr.hoursWorked) : 8
       };
     });

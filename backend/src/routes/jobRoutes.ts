@@ -6,6 +6,7 @@ import Dashboard from '../models/Dashboard';
 import TechnicianReport from '../models/TechnicianReport';
 import TechnicianAttendance from '../models/TechnicianAttendance';
 import { emitToUser, emitToRole, emitToJob, broadcastEvent } from '../socket';
+import { clearDashboardCache } from './dashboardRoutes';
 
 const router = Router();
 
@@ -343,6 +344,129 @@ router.put('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: `Job ${req.params.id} not found` });
     }
 
+    // 1. Authorization check
+    const { technicianId, technicianName } = req.body;
+    if (technicianId && job.assignedTechnicians && job.assignedTechnicians.length > 0) {
+      const isAssigned = job.assignedTechnicians.some(
+        (t: any) => t.id === technicianId || (technicianName && t.name?.toLowerCase() === technicianName?.toLowerCase())
+      );
+      const userRole = (req.headers['role'] as string) || '';
+      if (!isAssigned && userRole.toUpperCase() !== 'ADMIN') {
+        return res.status(403).json({ success: false, message: 'Unauthorized: You are not assigned to this job.' });
+      }
+    }
+
+    // 2. Structured workProgress handling
+    if (!job.workProgress) {
+      job.workProgress = {
+        taskDescription: job.fieldNotes || '',
+        inspectionComments: job.inspection?.notes || '',
+        beforeWorkPhotos: (job.beforePhotos || []).map((p: any) => ({
+          id: p.id,
+          url: p.url,
+          key: p.key,
+          caption: p.caption,
+          uploadedAt: p.uploadedAt
+        })),
+        startedAt: job.startDate ? new Date(job.startDate) : new Date(),
+        updatedAt: new Date(),
+        updatedBy: technicianId || ''
+      };
+    }
+
+    if (req.body.taskDescription !== undefined) {
+      job.workProgress.taskDescription = req.body.taskDescription;
+      job.fieldNotes = req.body.taskDescription;
+    }
+
+    if (req.body.inspectionComments !== undefined) {
+      job.workProgress.inspectionComments = req.body.inspectionComments;
+      if (!job.inspection) {
+        job.inspection = {
+          inspectedBy: technicianName || 'Technician',
+          inspectionDate: new Date().toISOString(),
+          checklistPassed: true,
+          safetyVerified: true,
+          notes: req.body.inspectionComments
+        };
+      } else {
+        job.inspection.notes = req.body.inspectionComments;
+      }
+    }
+
+    if (req.body.beforePhotos !== undefined && Array.isArray(req.body.beforePhotos)) {
+      const seenUrls = new Set<string>();
+      const dedupedBefore: any[] = [];
+
+      req.body.beforePhotos.forEach((p: any, i: number) => {
+        const url = typeof p === 'string' ? p : (p?.url || p?.imageUrl || '');
+        if (url && !seenUrls.has(url)) {
+          seenUrls.add(url);
+          dedupedBefore.push(
+            typeof p === 'string'
+              ? {
+                  id: `PHO-BEFORE-${i}-${Date.now()}`,
+                  url: p,
+                  caption: 'Before Work Site Condition',
+                  uploadedAt: new Date().toLocaleTimeString()
+                }
+              : {
+                  id: p.id || `PHO-BEFORE-${i}-${Date.now()}`,
+                  url: p.url || p.imageUrl || p,
+                  key: p.key,
+                  caption: p.caption || 'Before Work Site Condition',
+                  uploadedAt: p.uploadedAt || new Date().toLocaleTimeString()
+                }
+          );
+        }
+      });
+      job.beforePhotos = dedupedBefore;
+      if (job.workProgress) {
+        job.workProgress.beforeWorkPhotos = dedupedBefore;
+      }
+      (job as any).markModified('beforePhotos');
+      (job as any).markModified('workProgress');
+    }
+
+    if (req.body.workProgress) {
+      job.workProgress = {
+        ...job.workProgress,
+        ...req.body.workProgress,
+        updatedAt: new Date(),
+        updatedBy: technicianId || job.workProgress.updatedBy
+      };
+      if (req.body.workProgress.taskDescription) job.fieldNotes = req.body.workProgress.taskDescription;
+      if (req.body.workProgress.inspectionComments && job.inspection) job.inspection.notes = req.body.workProgress.inspectionComments;
+      if (req.body.workProgress.beforeWorkPhotos && Array.isArray(req.body.workProgress.beforeWorkPhotos)) {
+        const seenUrls = new Set<string>();
+        const deduped: any[] = [];
+        req.body.workProgress.beforeWorkPhotos.forEach((p: any) => {
+          const url = typeof p === 'string' ? p : (p?.url || p?.imageUrl || '');
+          if (url && !seenUrls.has(url)) {
+            seenUrls.add(url);
+            deduped.push(p);
+          }
+        });
+        job.beforePhotos = deduped;
+        if (job.workProgress) {
+          job.workProgress.beforeWorkPhotos = deduped;
+        }
+        (job as any).markModified('beforePhotos');
+      }
+      (job as any).markModified('workProgress');
+    }
+
+    if (job.workProgress) {
+      job.workProgress.updatedAt = new Date();
+      if (technicianId) job.workProgress.updatedBy = technicianId;
+    }
+
+    if (req.body.status === 'IN_PROGRESS' || (!job.status || (job.status as string) === 'PENDING' || (job.status as string) === 'ACCEPTED')) {
+      if (req.body.status) job.status = req.body.status;
+      if (!job.startDate) job.startDate = new Date().toISOString();
+      if (job.workProgress && !job.workProgress.startedAt) job.workProgress.startedAt = new Date();
+    }
+
     // Support pushing daily report
     if (req.body.dailyReport) {
       if (!job.dailyReports) job.dailyReports = [];
@@ -359,13 +483,28 @@ router.put('/:id', async (req: Request, res: Response) => {
         ...req.body.photo,
         id: `PHO-${Date.now()}`
       };
+      const photoUrl = req.body.photo.url || req.body.photo.imageUrl;
       if (req.body.photo.type === 'BEFORE') {
         if (!job.beforePhotos) job.beforePhotos = [];
-        job.beforePhotos.push(newPhoto);
+        const exists = job.beforePhotos.some((p: any) => (typeof p === 'string' ? p : (p?.url || p?.imageUrl)) === photoUrl);
+        if (!exists) {
+          job.beforePhotos.push(newPhoto);
+        }
+        if (job.workProgress) {
+          if (!job.workProgress.beforeWorkPhotos) job.workProgress.beforeWorkPhotos = [];
+          const progressExists = job.workProgress.beforeWorkPhotos.some((p: any) => (typeof p === 'string' ? p : (p?.url || p?.imageUrl)) === photoUrl);
+          if (!progressExists) {
+            job.workProgress.beforeWorkPhotos.push(newPhoto);
+          }
+        }
         (job as any).markModified('beforePhotos');
+        (job as any).markModified('workProgress');
       } else {
         if (!job.afterPhotos) job.afterPhotos = [];
-        job.afterPhotos.push(newPhoto);
+        const exists = job.afterPhotos.some((p: any) => (typeof p === 'string' ? p : (p?.url || p?.imageUrl)) === photoUrl);
+        if (!exists) {
+          job.afterPhotos.push(newPhoto);
+        }
         (job as any).markModified('afterPhotos');
       }
       delete req.body.photo;
@@ -384,8 +523,57 @@ router.put('/:id', async (req: Request, res: Response) => {
     }
 
     // Update other fields
+    delete req.body.technicianId;
+    delete req.body.technicianName;
+    delete req.body.taskDescription;
+    delete req.body.inspectionComments;
+    delete req.body.beforePhotos;
+    delete req.body.workProgress;
+
     Object.assign(job, req.body);
     const updatedJob = await job.save();
+
+    // Synchronize corresponding Order
+    try {
+      await Order.updateOne(
+        { orderNumber: job.jobCode },
+        {
+          $set: {
+            orderStatus: job.status === 'COMPLETED' ? 'DELIVERED' : 'PROCESSING',
+            assignedTechnicianName: job.assignedTechnicians?.[0]?.name || req.body.assignedTechnician,
+          }
+        }
+      );
+    } catch (orderSyncErr) {
+      console.warn('Order sync warning:', orderSyncErr);
+    }
+
+    // Clear dashboard cache so subsequent GET /api/dashboard is instantly fresh
+    clearDashboardCache();
+
+    // Broadcast live update events via Socket.IO
+    broadcastEvent('job:progress_updated', {
+      jobId: updatedJob._id,
+      jobCode: updatedJob.jobCode,
+      status: updatedJob.status,
+      workProgress: updatedJob.workProgress,
+      beforePhotos: updatedJob.beforePhotos,
+      assignedTechnician: updatedJob.assignedTechnicians?.[0]?.name
+    });
+    emitToRole('admin', 'job:progress_updated', {
+      jobId: updatedJob._id,
+      jobCode: updatedJob.jobCode,
+      status: updatedJob.status,
+      workProgress: updatedJob.workProgress,
+      beforePhotos: updatedJob.beforePhotos,
+      assignedTechnician: updatedJob.assignedTechnicians?.[0]?.name
+    });
+    emitToRole('admin', 'job:status_updated', {
+      jobId: updatedJob._id,
+      jobCode: updatedJob.jobCode,
+      status: updatedJob.status,
+      technician: updatedJob.assignedTechnicians?.[0]?.name,
+    });
 
     res.json({ success: true, data: updatedJob });
   } catch (error: any) {

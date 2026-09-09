@@ -37,7 +37,7 @@ router.post('/', upload.single('image'), (req: Request, res: Response): any => {
     return res.status(400).json({ success: false, message: 'No file uploaded' });
   }
   const file: any = reqAny.file;
-  res.json({ success: true, imageUrl: file.location });
+  res.json({ success: true, imageUrl: file.location, url: file.location, key: file.key });
 });
 
 export default router;
