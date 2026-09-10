@@ -15,6 +15,7 @@ import { DailyReportsModule } from './components/Reports/DailyReportsModule';
 import { JobHistoryModule } from './components/History/JobHistoryModule';
 import { QueryModule } from './components/Query/QueryModule';
 import { PerformanceAnalyticsModule } from './components/Analytics/PerformanceAnalyticsModule';
+import { LeaderboardModule } from './components/Leaderboard/LeaderboardModule';
 import { NotificationsModule } from './components/Notifications/NotificationsModule';
 import { ProfileModule } from './components/Profile/ProfileModule';
 import { SettingsModule } from './components/Settings/SettingsModule';
@@ -625,6 +626,15 @@ export function App() {
               jobs={jobs}
               profile={profile}
             />
+          )}
+
+          {activeTab === 'leaderboard' && (
+            <ModuleErrorBoundary moduleName="Leadership Board">
+              <LeaderboardModule
+                jobs={jobs}
+                currentTechProfile={profile}
+              />
+            </ModuleErrorBoundary>
           )}
 
           {activeTab === 'notifications' && (

@@ -13,7 +13,8 @@ import {
   LogOut,
   ShieldCheck,
   X,
-  QrCode
+  QrCode,
+  Trophy
 } from 'lucide-react';
 import type { TechnicianProfile } from '../types/job';
 import { SKLogoIcon } from './SKLogoIcon';
@@ -48,6 +49,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'query', label: 'Helpdesk & Queries', icon: HelpCircle, color: 'text-rose-600', iconBg: 'bg-rose-50 border-rose-200/70' },
     { id: 'scanner', label: 'QR Scanner', icon: QrCode, color: 'text-teal-600', iconBg: 'bg-teal-50 border-teal-200/70' },
     { id: 'analytics', label: 'Performance Analytics', icon: BarChart3, color: 'text-violet-600', iconBg: 'bg-violet-50 border-violet-200/70' },
+    { id: 'leaderboard', label: 'Leadership Board', icon: Trophy, color: 'text-amber-500', iconBg: 'bg-amber-50 border-amber-200/70', badge: 'TOP' },
     { id: 'notifications', label: 'Notifications', icon: Bell, badge: notificationsCount > 0 ? String(notificationsCount) : undefined, color: 'text-amber-500', iconBg: 'bg-amber-50 border-amber-200/70' },
   ];
 
