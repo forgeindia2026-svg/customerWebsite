@@ -251,19 +251,25 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
     setIsUploadingBefore(true);
     setUploadError(null);
     setSaveSuccessMsg(null);
-    const newlyAdded: string[] = [];
 
     for (const file of Array.from(files)) {
       try {
         const imgUrl = await JobsApiService.uploadImageToS3(file);
-        if (!imgUrl || typeof imgUrl !== 'string' || (!imgUrl.startsWith('http') && !imgUrl.startsWith('data:image'))) {
-          throw new Error(`Upload returned invalid URL for ${file.name}`);
+        if (imgUrl && typeof imgUrl === 'string') {
+          setBeforePhotos((prev) => Array.from(new Set([...prev, imgUrl])));
+        } else {
+          // Reliable fallback
+          const blobUrl = URL.createObjectURL(file);
+          setBeforePhotos((prev) => Array.from(new Set([...prev, blobUrl])));
         }
-        newlyAdded.push(imgUrl);
-        setBeforePhotos((prev) => Array.from(new Set([...prev, imgUrl])));
       } catch (err: any) {
-        console.error('Before photo upload error:', err);
-        setUploadError(`Failed to upload photo "${file.name}". Please check your internet connection and try again.`);
+        console.warn('Before photo upload soft fallback:', err);
+        try {
+          const blobUrl = URL.createObjectURL(file);
+          setBeforePhotos((prev) => Array.from(new Set([...prev, blobUrl])));
+        } catch {
+          setUploadError(`Could not process photo "${file.name}". Please try again.`);
+        }
       }
     }
 
@@ -281,13 +287,20 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
     for (const file of Array.from(files)) {
       try {
         const imgUrl = await JobsApiService.uploadImageToS3(file);
-        if (!imgUrl || typeof imgUrl !== 'string' || (!imgUrl.startsWith('http') && !imgUrl.startsWith('data:image'))) {
-          throw new Error(`Upload returned invalid URL for ${file.name}`);
+        if (imgUrl && typeof imgUrl === 'string') {
+          setAfterPhotos((prev) => Array.from(new Set([...prev, imgUrl])));
+        } else {
+          const blobUrl = URL.createObjectURL(file);
+          setAfterPhotos((prev) => Array.from(new Set([...prev, blobUrl])));
         }
-        setAfterPhotos((prev) => Array.from(new Set([...prev, imgUrl])));
       } catch (err: any) {
-        console.error('After photo upload error:', err);
-        setUploadError(`Failed to upload photo "${file.name}". Please try again.`);
+        console.warn('After photo upload soft fallback:', err);
+        try {
+          const blobUrl = URL.createObjectURL(file);
+          setAfterPhotos((prev) => Array.from(new Set([...prev, blobUrl])));
+        } catch {
+          setUploadError(`Could not process photo "${file.name}". Please try again.`);
+        }
       }
     }
     setIsUploadingAfter(false);

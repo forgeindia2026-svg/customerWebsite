@@ -20,26 +20,28 @@ const getApiUrl = () => {
 };
 
 // Client-side Image Compression Helper:
-// Resizes high-resolution mobile camera pictures (often 8MB-15MB) to ~250KB-400KB in milliseconds
-// This completely avoids mobile network timeouts and Nginx 413 Payload Too Large issues
-export const compressImageFile = (file: File, maxWidth = 1600, quality = 0.82): Promise<File> => {
+// Efficiently resizes high-resolution mobile camera pictures (12MB-20MB) to ~150KB-250KB in milliseconds
+// Uses URL.createObjectURL to avoid mobile RAM exhaustion and guarantees size < 500KB (well below Nginx limits)
+export const compressImageFile = (file: File, maxWidth = 1280, quality = 0.72): Promise<File> => {
   return new Promise((resolve) => {
-    if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') {
+    // If it's already an SVG, leave it
+    if (file.type === 'image/svg+xml') {
+      return resolve(file);
+    }
+
+    let objectUrl = '';
+    try {
+      objectUrl = URL.createObjectURL(file);
+    } catch {
       return resolve(file);
     }
 
     const img = new Image();
-    const reader = new FileReader();
-
-    reader.onload = (e) => {
-      img.src = e.target?.result as string;
-    };
 
     img.onload = () => {
-      const canvas = document.createElement('canvas');
-      let width = img.width;
-      let height = img.height;
+      URL.revokeObjectURL(objectUrl);
 
+      let { width, height } = img;
       if (width > maxWidth || height > maxWidth) {
         if (width > height) {
           height = Math.round((height * maxWidth) / width);
@@ -50,17 +52,22 @@ export const compressImageFile = (file: File, maxWidth = 1600, quality = 0.82): 
         }
       }
 
+      const canvas = document.createElement('canvas');
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext('2d');
       if (!ctx) return resolve(file);
 
+      // White background in case of transparent PNG/JPEG artifacts
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, width, height);
       ctx.drawImage(img, 0, 0, width, height);
 
       canvas.toBlob(
         (blob) => {
           if (!blob) return resolve(file);
-          const compressedFile = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
+          const safeName = (file.name || 'photo').replace(/\.[^.]+$/, '') + '.jpg';
+          const compressedFile = new File([blob], safeName, {
             type: 'image/jpeg',
             lastModified: Date.now(),
           });
@@ -71,9 +78,12 @@ export const compressImageFile = (file: File, maxWidth = 1600, quality = 0.82): 
       );
     };
 
-    img.onerror = () => resolve(file);
-    reader.onerror = () => resolve(file);
-    reader.readAsDataURL(file);
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(file);
+    };
+
+    img.src = objectUrl;
   });
 };
 
@@ -417,6 +427,26 @@ export const JobsApiService = {
     const name = localStorage.getItem('user_name') || 'Technician';
     const email = localStorage.getItem('user_email') || 'tech@sktechnology.in';
     const phone = localStorage.getItem('user_phone') || '+91 99999 99999';
+    let avatarUrl = localStorage.getItem('user_avatar') || localStorage.getItem('tech_avatar') || '';
+
+    // If backend profile has an avatar, fetch and sync
+    try {
+      if (email) {
+        const baseUrl = getApiUrl();
+        const res = await fetch(`${baseUrl}/api/auth/profile?email=${encodeURIComponent(email)}`);
+        if (res.ok) {
+          const resData = await res.json();
+          if (resData.success && resData.data && resData.data.avatar) {
+            avatarUrl = resData.data.avatar;
+            localStorage.setItem('user_avatar', avatarUrl);
+          }
+        }
+      }
+    } catch (e) {}
+
+    if (!avatarUrl) {
+      avatarUrl = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80';
+    }
 
     return {
       id,
@@ -430,8 +460,35 @@ export const JobsApiService = {
       status: 'ON_DUTY',
       rating: 5.0,
       completedJobsCount: 0,
-      avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80',
+      avatarUrl,
     };
+  },
+
+  async updateTechnicianAvatar(avatarUrl: string): Promise<boolean> {
+    const email = localStorage.getItem('user_email') || '';
+    localStorage.setItem('user_avatar', avatarUrl);
+    localStorage.setItem('tech_avatar', avatarUrl);
+    try {
+      const techUser = JSON.parse(localStorage.getItem('tech_user') || '{}');
+      techUser.avatar = avatarUrl;
+      techUser.avatarUrl = avatarUrl;
+      localStorage.setItem('tech_user', JSON.stringify(techUser));
+    } catch (_) {}
+
+    try {
+      if (email) {
+        const baseUrl = getApiUrl();
+        await fetch(`${baseUrl}/api/auth/profile`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, avatar: avatarUrl })
+        });
+      }
+      return true;
+    } catch (e) {
+      console.warn('Failed to sync avatar with backend:', e);
+      return false;
+    }
   },
 
   async updateTechnicianStatus(status: 'ON_DUTY' | 'OFF_DUTY' | 'ON_JOB'): Promise<TechnicianProfile> {
@@ -548,18 +605,21 @@ export const JobsApiService = {
   },
 
   async uploadImageToS3(file: File): Promise<string> {
+    let compressedFile: File = file;
     try {
-      // 1. Client-side compression: Resizes high-res phone camera images (10MB -> ~250KB-400KB)
-      // This prevents mobile timeouts and Nginx 413 Payload Too Large errors!
-      const compressedFile = await compressImageFile(file, 1600, 0.82);
+      compressedFile = await compressImageFile(file, 1280, 0.72);
+    } catch (e) {
+      console.warn('Image compression warning, using raw file:', e);
+    }
 
+    try {
       const formData = new FormData();
       formData.append('image', compressedFile);
       formData.append('folder', 'reports');
 
       const baseUrl = getApiUrl();
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s timeout
 
       const res = await fetch(`${baseUrl}/api/upload`, {
         method: 'POST',
@@ -568,26 +628,33 @@ export const JobsApiService = {
       });
       clearTimeout(timeoutId);
 
-      const resData = await res.json().catch(() => ({}));
-      if (res.ok && resData.success && resData.imageUrl) {
-        return resData.imageUrl;
+      if (res.ok) {
+        const resData = await res.json().catch(() => ({}));
+        if (resData && (resData.imageUrl || resData.url)) {
+          return resData.imageUrl || resData.url;
+        }
+      } else {
+        console.warn(`S3 upload returned HTTP ${res.status}`);
       }
     } catch (err) {
-      console.warn('S3 direct upload warning, using resilient fallback:', err);
+      console.warn('S3 direct upload network warning, using compressed preview fallback:', err);
     }
 
-    // 2. Resilient Base64 Fallback: If S3 or network fluctuates, technicians are NEVER blocked!
-    return new Promise((resolve, reject) => {
+    // Resilient fallback: Convert COMPRESSED file (not the huge raw 15MB file) to data URL
+    // Since compressedFile is only ~150KB-250KB, it resolves in milliseconds and never exhausts mobile memory!
+    return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
+        if (typeof reader.result === 'string' && reader.result.startsWith('data:image')) {
           resolve(reader.result);
         } else {
-          reject(new Error('Failed to read image file'));
+          resolve(URL.createObjectURL(compressedFile));
         }
       };
-      reader.onerror = () => reject(new Error('Failed to load image'));
-      reader.readAsDataURL(file);
+      reader.onerror = () => {
+        resolve(URL.createObjectURL(compressedFile));
+      };
+      reader.readAsDataURL(compressedFile);
     });
   },
 

@@ -152,16 +152,17 @@ router.get('/profile', async (req: Request, res: Response) => {
   }
 });
 
-// PUT Profile — update name/phone for a customer
+// PUT Profile — update name/phone/address/avatar
 router.put('/profile', async (req: Request, res: Response) => {
   try {
-    const { email, name, phone, address } = req.body;
+    const { email, name, phone, address, avatar } = req.body;
     if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
     const cleanEmail = (email as string).toLowerCase().trim();
     const updateFields: any = {};
     if (name && name.trim()) updateFields.name = name.trim();
     if (phone && phone.trim()) updateFields.phone = phone.trim();
     if (address !== undefined) updateFields.address = address.trim();
+    if (avatar !== undefined) updateFields.avatar = avatar.trim();
     const updated = await User.findOneAndUpdate(
       { email: cleanEmail },
       { $set: updateFields },

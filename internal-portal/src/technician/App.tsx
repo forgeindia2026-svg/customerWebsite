@@ -669,7 +669,9 @@ export function App() {
             <ModuleErrorBoundary moduleName="Profile">
               <ProfileModule
                 profile={profile}
-                onUpdateStatus={handleUpdateProfileStatus}
+                onUpdateAvatar={(newUrl) => {
+                  setProfile(prev => prev ? { ...prev, avatarUrl: newUrl } : prev);
+                }}
               />
             </ModuleErrorBoundary>
           )}

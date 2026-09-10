@@ -15,6 +15,7 @@ import {
   ChevronUp
 } from 'lucide-react';
 import { getApiUrl } from '../../../utils/config';
+import { JobsApiService } from '../../services/apiService';
 
 interface PunchSession {
   _id?: string;
@@ -183,27 +184,14 @@ export const AttendanceCard: React.FC = () => {
     }
   };
 
-  // Upload photo to backend or use base64 fallback
+  // Upload photo to backend or use compressed base64 fallback
   const uploadPhoto = async (file: File): Promise<string> => {
     try {
       setIsUploadingPhoto(true);
-      const formData = new FormData();
-      formData.append('image', file);
-      formData.append('folder', 'attendance');
-
-      const res = await fetch(`${getApiUrl()}/api/upload`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && (data.imageUrl || data.url)) {
-          return data.imageUrl || data.url;
-        }
-      }
+      const url = await JobsApiService.uploadImageToS3(file);
+      if (url) return url;
     } catch (err) {
-      console.warn('Image upload endpoint fallback, using encoded preview', err);
+      console.warn('Attendance photo upload error, using fallback:', err);
     } finally {
       setIsUploadingPhoto(false);
     }

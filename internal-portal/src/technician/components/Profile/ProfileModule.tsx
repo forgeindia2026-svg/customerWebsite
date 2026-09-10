@@ -1,32 +1,133 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import type { TechnicianProfile } from '../../types/job';
+import { JobsApiService } from '../../services/apiService';
 import { 
   Award, 
   Truck, 
   CheckCircle2, 
   Star,
-  LogOut 
+  LogOut,
+  Camera,
+  Upload,
+  X,
+  RefreshCw,
+  Image as ImageIcon
 } from 'lucide-react';
 
 interface ProfileModuleProps {
   profile: TechnicianProfile;
   onUpdateStatus?: (status: 'ON_DUTY' | 'OFF_DUTY' | 'ON_JOB') => Promise<void>;
+  onUpdateAvatar?: (newAvatarUrl: string) => void;
 }
 
 export const ProfileModule: React.FC<ProfileModuleProps> = ({
   profile,
+  onUpdateAvatar,
 }) => {
+  const [currentAvatar, setCurrentAvatar] = useState<string>(profile.avatarUrl);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState<boolean>(false);
+  const [photoModalOpen, setPhotoModalOpen] = useState<boolean>(false);
+  const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingPhoto(true);
+    setStatusMessage(null);
+    setPhotoModalOpen(false);
+
+    try {
+      // 1. Upload to S3 with automatic client-side compression (~300KB) and base64 fallback
+      const uploadedUrl = await JobsApiService.uploadImageToS3(file);
+      
+      // 2. Persist in backend and localStorage
+      await JobsApiService.updateTechnicianAvatar(uploadedUrl);
+
+      // 3. Update local state and parent state
+      setCurrentAvatar(uploadedUrl);
+      onUpdateAvatar?.(uploadedUrl);
+
+      setStatusMessage({ text: '✅ Profile photo updated successfully!', type: 'success' });
+      setTimeout(() => setStatusMessage(null), 4000);
+    } catch (err: any) {
+      console.error('Failed to update avatar:', err);
+      setStatusMessage({ text: '⚠️ Failed to update photo. Please try again.', type: 'error' });
+      setTimeout(() => setStatusMessage(null), 4000);
+    } finally {
+      setIsUploadingPhoto(false);
+      e.target.value = '';
+    }
+  };
 
   return (
     <div className="space-y-6 max-w-4xl">
+      {/* Hidden File Inputs for Direct Camera vs Gallery */}
+      <input
+        type="file"
+        ref={cameraInputRef}
+        onChange={handlePhotoSelect}
+        accept="image/*"
+        capture="user"
+        className="hidden"
+      />
+      <input
+        type="file"
+        ref={galleryInputRef}
+        onChange={handlePhotoSelect}
+        accept="image/*"
+        className="hidden"
+      />
+
+      {/* Status Alert Banner */}
+      {statusMessage && (
+        <div className={`p-3.5 rounded-xl text-xs font-semibold flex items-center justify-between animate-in fade-in duration-200 ${
+          statusMessage.type === 'success' 
+            ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
+            : 'bg-red-50 text-red-800 border border-red-200'
+        }`}>
+          <span>{statusMessage.text}</span>
+          <button onClick={() => setStatusMessage(null)} className="font-bold opacity-60 hover:opacity-100">✕</button>
+        </div>
+      )}
+
       {/* Profile Header Card */}
-      <div className="bg-white border border-zinc-200 rounded-xl p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="bg-white border border-zinc-200 rounded-2xl p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center space-x-4">
-          <img
-            src={profile.avatarUrl}
-            alt={profile.name}
-            className="w-16 h-16 rounded-full object-cover border-2 border-zinc-900"
-          />
+          
+          {/* Avatar with Camera Badge */}
+          <div className="relative group shrink-0">
+            <div className="w-18 h-18 rounded-full overflow-hidden border-2 border-zinc-900 bg-zinc-100 flex items-center justify-center relative">
+              <img
+                src={currentAvatar}
+                alt={profile.name}
+                className="w-full h-full object-cover"
+              />
+
+              {/* Uploading Overlay */}
+              {isUploadingPhoto && (
+                <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-white">
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mb-1" />
+                  <span className="text-[9px] font-bold">Uploading</span>
+                </div>
+              )}
+            </div>
+
+            {/* Camera Edit Badge Button */}
+            <button
+              type="button"
+              onClick={() => setPhotoModalOpen(true)}
+              disabled={isUploadingPhoto}
+              className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center shadow-md border-2 border-white cursor-pointer active:scale-90 transition-transform"
+              title="Change Profile Photo"
+            >
+              <Camera className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
           <div>
             <div className="flex items-center space-x-2">
               <h2 className="text-lg font-bold text-zinc-900">{profile.name}</h2>
@@ -43,6 +144,16 @@ export const ProfileModule: React.FC<ProfileModuleProps> = ({
               <span>•</span>
               <span>{profile.completedJobsCount} Work Orders Completed</span>
             </div>
+
+            {/* Quick Upload Link */}
+            <button
+              type="button"
+              onClick={() => setPhotoModalOpen(true)}
+              className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
+            >
+              <Camera className="w-3.5 h-3.5" />
+              <span>Change Profile Photo</span>
+            </button>
           </div>
         </div>
 
@@ -60,6 +171,74 @@ export const ProfileModule: React.FC<ProfileModuleProps> = ({
           <span>Log Out Account</span>
         </button>
       </div>
+
+      {/* Photo Selection Modal */}
+      {photoModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-zinc-200 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                  <Camera className="w-4 h-4" />
+                </div>
+                <h3 className="font-extrabold text-zinc-900 text-base">
+                  Update Profile Photo
+                </h3>
+              </div>
+              <button 
+                onClick={() => setPhotoModalOpen(false)}
+                className="p-1 text-zinc-400 hover:text-zinc-600 rounded-lg text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-zinc-500">
+              Select how you want to add your new technician profile photo:
+            </p>
+
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              {/* Option 1: Live Camera / Selfie */}
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                className="p-4 rounded-2xl border-2 border-dashed border-blue-400 bg-blue-50/60 hover:bg-blue-100 flex flex-col items-center justify-center space-y-2 transition-all cursor-pointer active:scale-95 text-center"
+              >
+                <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                  <Camera className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-blue-900 block">Take Selfie</span>
+                  <span className="text-[10px] text-blue-600">Open Camera</span>
+                </div>
+              </button>
+
+              {/* Option 2: Gallery / Choose from Device */}
+              <button
+                type="button"
+                onClick={() => galleryInputRef.current?.click()}
+                className="p-4 rounded-2xl border-2 border-dashed border-zinc-300 bg-zinc-50 hover:bg-zinc-100 flex flex-col items-center justify-center space-y-2 transition-all cursor-pointer active:scale-95 text-center"
+              >
+                <div className="w-10 h-10 rounded-full bg-zinc-200 text-zinc-700 flex items-center justify-center shadow-xs">
+                  <ImageIcon className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-zinc-800 block">From Gallery</span>
+                  <span className="text-[10px] text-zinc-500">Choose File</span>
+                </div>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setPhotoModalOpen(false)}
+              className="w-full py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-bold text-xs rounded-xl cursor-pointer transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );

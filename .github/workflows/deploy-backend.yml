@@ -28,3 +28,7 @@ jobs:
             npm install
             npm run build
             pm2 restart cctv-backend
+            # Ensure Nginx allows up to 50MB uploads
+            sudo sed -i '/client_max_body_size/d' /etc/nginx/nginx.conf
+            sudo sed -i '/http {/a \    client_max_body_size 50M;' /etc/nginx/nginx.conf
+            sudo nginx -t && sudo systemctl reload nginx || true
