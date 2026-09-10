@@ -56,6 +56,8 @@ export default function Orders() {
   const [taskForm, setTaskForm] = useState({ 
     taskName: '', 
     description: '', 
+    phone: '',
+    address: '',
     assignedTechnician: 'Unassigned', 
     subTechnicians: [],
     dueDate: new Date().toISOString().split('T')[0],
@@ -166,17 +168,19 @@ export default function Orders() {
     dispatch(addOrder({
       customer: taskForm.taskName,
       email: 'internal@cctv.com',
-      phone: '-',
-      type: 'Internal Task',
+      phone: taskForm.phone || '-',
+      type: taskForm.description ? `Internal Task: ${taskForm.description}` : 'Internal Task',
       assignedTechnician: taskForm.assignedTechnician,
       subTechnicians: taskForm.subTechnicians,
       amount: 0,
-      location: 'Internal',
+      location: taskForm.address || 'On-Site',
       date: `${taskForm.dueDate} ${taskForm.dueTime}`
     }));
     setTaskForm({ 
       taskName: '', 
       description: '', 
+      phone: '',
+      address: '',
       assignedTechnician: 'Unassigned', 
       subTechnicians: [],
       dueDate: new Date().toISOString().split('T')[0],
@@ -720,6 +724,28 @@ export default function Orders() {
               onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })}
               className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100 resize-none"
             />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Mobile Number</label>
+              <input 
+                type="tel" 
+                placeholder="e.g. +91 98765 43210" 
+                value={taskForm.phone}
+                onChange={(e) => setTaskForm({ ...taskForm, phone: e.target.value })}
+                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Address / Location</label>
+              <input 
+                type="text" 
+                placeholder="e.g. Rayakottai Road, Hosur" 
+                value={taskForm.address}
+                onChange={(e) => setTaskForm({ ...taskForm, address: e.target.value })}
+                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+              />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
