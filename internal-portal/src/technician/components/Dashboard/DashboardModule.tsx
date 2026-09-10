@@ -19,7 +19,8 @@ import {
   Play,
   Navigation,
   ArrowUpRight,
-  Zap
+  Zap,
+  CheckCheck
 } from 'lucide-react';
 
 import { formatDate } from '../../services/dateUtils';
@@ -32,6 +33,7 @@ interface DashboardModuleProps {
     inProgress: number;
     pending: number;
     completedToday: number;
+    totalCompleted?: number;
     hoursLogged: number;
     shiftTarget: number;
     firstTimeFix: number;
@@ -65,6 +67,9 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
   const totalAssignedVal = summaryStats ? summaryStats.totalAssigned : (jobs.length > 0 ? jobs.length : (isLoading ? null : 0));
   const inProgressVal = summaryStats ? summaryStats.inProgress : (inProgressJobs.length > 0 ? inProgressJobs.length : (isLoading ? null : 0));
   const completedVal = summaryStats ? summaryStats.completedToday : (completedJobs.length > 0 ? completedJobs.length : (isLoading ? null : 0));
+  const totalCompletedVal = summaryStats?.totalCompleted !== undefined
+    ? summaryStats.totalCompleted
+    : (completedJobs.length > 0 ? completedJobs.length : (isLoading ? null : 0));
   const hoursVal = summaryStats ? summaryStats.hoursLogged : totalHoursLogged;
   const fixRateVal = summaryStats ? summaryStats.firstTimeFix : (completedJobs.length > 0 ? 100.0 : (isLoading ? null : 0.0));
   const safetyVal = summaryStats ? summaryStats.safetyScore : (myAssignedJobs.length > 0 ? 100 : (isLoading ? null : 0));
@@ -187,17 +192,20 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
           </div>
         </div>
 
-        {/* 4. Hours Logged */}
+        {/* 4. Total Completed */}
         <div className="bg-gradient-to-br from-indigo-50/80 via-white to-indigo-50/20 dark:from-slate-900 dark:to-slate-800 border border-indigo-200/70 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex items-center justify-between min-w-0">
           <div className="min-w-0 pr-1">
-            <span className="text-[9px] sm:text-[10px] font-black text-indigo-800/70 dark:text-indigo-400 uppercase tracking-wider block mb-1 truncate">HOURS LOGGED</span>
+            <span className="text-[9px] sm:text-[10px] font-black text-indigo-800/70 dark:text-indigo-400 uppercase tracking-wider block mb-1 truncate">TOTAL COMPLETED</span>
             <p className="text-2xl sm:text-3xl font-black text-indigo-600 dark:text-indigo-400 leading-none">
-              {(hoursVal ?? 0).toFixed(1)} <span className="text-[10px] sm:text-xs font-bold text-indigo-400">hrs</span>
+              {totalCompletedVal ?? 0}
             </p>
-            <span className="text-[10px] sm:text-[11px] font-bold text-indigo-600/80 mt-1.5 block truncate">Target: 8.0h</span>
+            <span className="text-[10px] sm:text-[11px] font-bold text-indigo-600/80 mt-1.5 block truncate flex items-center gap-1">
+              <CheckCheck className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+              <span>All-Time Work Orders</span>
+            </span>
           </div>
           <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold shrink-0 shadow-md shadow-indigo-500/20">
-            <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
+            <Award className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
         </div>
       </div>

@@ -189,11 +189,15 @@ router.get('/dashboard-summary', async (req: Request, res: Response) => {
       reportQuery.technicianName = { $regex: `${technicianName}`, $options: 'i' };
     }
 
-    const [totalAssigned, inProgress, pending, completed, techReports] = await Promise.all([
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const [totalAssigned, inProgress, pending, totalCompleted, completedToday, techReports] = await Promise.all([
       Job.countDocuments(jobFilter),
       Job.countDocuments({ ...jobFilter, status: { $in: ['IN_PROGRESS', 'ACCEPTED', 'ASSIGNED'] } } as any),
       Job.countDocuments({ ...jobFilter, status: { $in: ['PENDING', 'PENDING APPROVAL'] } } as any),
       Job.countDocuments({ ...jobFilter, status: { $in: ['COMPLETED', 'DELIVERED', 'APPROVED'] } } as any),
+      Job.countDocuments({ ...jobFilter, status: { $in: ['COMPLETED', 'DELIVERED', 'APPROVED'] }, updatedAt: { $gte: todayStart } } as any),
       TechnicianReport.find(reportQuery)
     ]);
 
@@ -213,10 +217,11 @@ router.get('/dashboard-summary', async (req: Request, res: Response) => {
         availablePool: 0,
         inProgress,
         pending,
-        completedToday: completed,
+        completedToday,
+        totalCompleted,
         hoursLogged: parseFloat(hoursLogged.toFixed(1)),
         shiftTarget: 8,
-        firstTimeFix: completed > 0 ? 100.0 : 0.0,
+        firstTimeFix: totalCompleted > 0 ? 100.0 : 0.0,
         safetyScore: totalAssigned > 0 ? 100 : 0
       }
     });
