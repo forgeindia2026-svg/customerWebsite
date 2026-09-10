@@ -4,7 +4,8 @@ import {
   Briefcase, 
   FileText, 
   Bell, 
-  User 
+  User,
+  History
 } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -704,7 +705,7 @@ export function App() {
 
         <button
           onClick={() => setActiveTab('assigned_jobs')}
-          className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer relative ${
+          className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer relative ${
             activeTab === 'assigned_jobs' ? 'text-blue-600 font-bold scale-105' : 'text-slate-400 font-medium'
           }`}
         >
@@ -716,8 +717,18 @@ export function App() {
         </button>
 
         <button
+          onClick={() => setActiveTab('history')}
+          className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+            activeTab === 'history' ? 'text-blue-600 font-bold scale-105' : 'text-slate-400 font-medium'
+          }`}
+        >
+          <History className={`w-5 h-5 ${activeTab === 'history' ? 'text-blue-600' : 'text-slate-400'}`} />
+          <span className="text-[10px] mt-0.5">History</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('reports')}
-          className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer ${
+          className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
             activeTab === 'reports' ? 'text-blue-600 font-bold scale-105' : 'text-slate-400 font-medium'
           }`}
         >
