@@ -229,7 +229,7 @@ export const CompletionSummaryStep: React.FC<CompletionSummaryStepProps> = ({
               className={`p-3 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-xs ${
                 isRecording 
                   ? 'bg-red-500 text-white animate-pulse' 
-                  : 'bg-zinc-900 hover:bg-zinc-800 text-white'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm shadow-blue-500/25'
               }`}
             >
               {isRecording ? <Square className="w-4 h-4" /> : <Mic className="w-4 h-4" />}

@@ -134,7 +134,7 @@ export const AssignedJobsTable: React.FC<AssignedJobsTableProps> = ({
             {/* Top Header Row */}
             <div className="flex items-center justify-between gap-2 pt-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="bg-slate-900 text-white font-mono font-bold text-xs px-2 py-1 rounded-lg tracking-tight shadow-sm">
+                <span className="bg-blue-50 text-blue-800 border border-blue-200 font-mono font-black text-xs px-2.5 py-1 rounded-lg tracking-tight shadow-2xs">
                   {job.jobCode}
                 </span>
                 <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded-lg border border-blue-100 shrink-0">
@@ -222,7 +222,7 @@ export const AssignedJobsTable: React.FC<AssignedJobsTableProps> = ({
               ) : (job.isAssignedToMe || job.status === 'IN_PROGRESS' || (job.beforePhotos && job.beforePhotos.length > 0)) ? (
                 <button
                   onClick={() => onOpenWorkflow && onOpenWorkflow(job)}
-                  className="px-3.5 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs rounded-xl flex items-center space-x-1.5 transition-all shadow-xs cursor-pointer active:scale-95"
+                  className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs rounded-xl flex items-center space-x-1.5 transition-all shadow-sm shadow-blue-500/25 cursor-pointer active:scale-95"
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                   <span>Report</span>
@@ -383,7 +383,7 @@ export const AssignedJobsTable: React.FC<AssignedJobsTableProps> = ({
                       ) : (job.isAssignedToMe || job.status === 'IN_PROGRESS' || (job.beforePhotos && job.beforePhotos.length > 0)) ? (
                         <button
                           onClick={() => onOpenWorkflow && onOpenWorkflow(job)}
-                          className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs rounded-xl flex items-center space-x-1.5 transition-all shadow-xs cursor-pointer active:scale-95"
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs rounded-xl flex items-center space-x-1.5 transition-all shadow-sm shadow-blue-500/25 cursor-pointer active:scale-95"
                         >
                           <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
                           <span>Report</span>

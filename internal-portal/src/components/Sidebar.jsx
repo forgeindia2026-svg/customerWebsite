@@ -55,17 +55,17 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
 
   return (
     <aside 
-      className={`fixed inset-y-0 left-0 z-30 flex flex-col bg-black text-white border-r border-slate-900 transition-all duration-300 ${
+      className={`fixed inset-y-0 left-0 z-30 flex flex-col bg-white text-slate-800 border-r border-slate-200 transition-all duration-300 shadow-xs ${
         isOpen ? 'w-60' : 'w-16'
       }`}
     >
-      {/* Brand Header block matching OneUI style (Now solid black) */}
-      <div className="h-16 px-3 flex items-center gap-3 border-b border-slate-900">
+      {/* Brand Header block */}
+      <div className="h-16 px-3 flex items-center gap-3 border-b border-slate-100 bg-white">
         <BrandLogo />
         {isOpen && (
           <div className="transition-opacity duration-300 text-left flex-1 min-w-0">
-            <h1 className="font-semibold text-white text-sm leading-tight tracking-tight truncate">SK Technology</h1>
-            <p className="text-xs text-blue-400 font-medium tracking-wide truncate">CCTV Solutions</p>
+            <h1 className="font-bold text-slate-900 text-sm leading-tight tracking-tight truncate">SK Technology</h1>
+            <p className="text-[11px] text-blue-600 font-bold tracking-wide truncate">CCTV Solutions</p>
           </div>
         )}
       </div>
@@ -78,10 +78,10 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
             to={item.path}
             end={item.path === '/admin'}
             className={({ isActive }) => 
-              `flex items-center gap-3 px-2.5 py-2.5 rounded-xl font-sans font-medium text-xs transition-all duration-200 group ${
+              `flex items-center gap-3 px-2.5 py-2.5 rounded-xl font-sans text-xs transition-all duration-200 group ${
                 isActive 
-                  ? 'bg-white text-black shadow-sm' 
-                  : 'text-white hover:bg-slate-900/60'
+                  ? 'bg-blue-50 text-blue-700 font-bold shadow-2xs border border-blue-200/80' 
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
               }`
             }
           >
@@ -89,7 +89,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
               <>
                 <item.icon 
                   className={`flex-shrink-0 w-5 h-5 transition-transform duration-200 group-hover:scale-105 ${
-                    isActive ? 'text-black' : 'text-white'
+                    isActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'
                   }`}
                 />
                 {isOpen && (
@@ -99,7 +99,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
                 )}
                 {isOpen && item.badgeCount > 0 && (
                   <span className={`flex items-center justify-center w-5 h-5 text-[10px] font-bold rounded-full group-hover:scale-105 transition-transform ${
-                    isActive ? 'bg-black text-white' : 'bg-red-500 text-white'
+                    isActive ? 'bg-blue-600 text-white' : 'bg-red-500 text-white'
                   }`}>
                     {item.badgeCount}
                   </span>
@@ -113,24 +113,22 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
         ))}
       </nav>
  
-      {/* Bottom Profile Section matching OneUI sidebar style (Solid black background) */}
-      <div className="p-3 border-t border-slate-900 bg-black/40">
+      {/* Bottom Profile Section */}
+      <div className="p-3 border-t border-slate-100 bg-slate-50/60">
         <div className="flex items-center justify-between gap-2.5">
           <div className="flex items-center gap-2 overflow-hidden">
             {/* Avatar Circle */}
-            <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center flex-shrink-0 border border-slate-800">
-              <svg className="w-5 h-5 text-slate-350" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
+            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 border border-blue-200 text-blue-700 font-bold text-xs">
+              AD
             </div>
             {isOpen && (
               <div className="truncate text-left">
-                <h4 className="font-medium text-xs text-slate-200 leading-tight">Admin</h4>
-                <p className="text-xs text-slate-500 font-normal mt-0.5 truncate">Super Administrator</p>
+                <h4 className="font-bold text-xs text-slate-900 leading-tight">Admin</h4>
+                <p className="text-[11px] text-slate-500 font-normal mt-0.5 truncate">Super Administrator</p>
               </div>
             )}
           </div>
-          {isOpen && <FiChevronDown className="text-slate-500 w-4 h-4" />}
+          {isOpen && <FiChevronDown className="text-slate-400 w-4 h-4" />}
         </div>
       </div>
     </aside>

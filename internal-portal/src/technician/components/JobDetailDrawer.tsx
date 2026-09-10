@@ -174,7 +174,7 @@ export const JobDetailDrawer = ({
                       <button
                         disabled={isSubmitting}
                         onClick={() => handleStatusChange('IN_PROGRESS')}
-                        className="px-3.5 py-2 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold rounded-lg flex items-center space-x-2 transition-colors shadow-xs"
+                        className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold rounded-xl flex items-center space-x-2 transition-all shadow-sm shadow-blue-500/25 cursor-pointer"
                       >
                         <Play className="w-3.5 h-3.5 fill-current" />
                         <span>Start Job</span>

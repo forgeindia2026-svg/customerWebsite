@@ -39,8 +39,8 @@ export const NotificationsModule: React.FC<NotificationsModuleProps> = ({
         <div className="bg-white border border-zinc-200/90 rounded-2xl p-5 shadow-2xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group relative overflow-hidden">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">UNREAD ALERTS</span>
-            <div className="w-9 h-9 rounded-xl bg-zinc-100 group-hover:bg-zinc-900 group-hover:text-white transition-colors duration-200 flex items-center justify-center text-zinc-700">
-              <Bell className="w-4.5 h-4.5" />
+            <div className="w-9 h-9 rounded-xl bg-blue-50 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-200 flex items-center justify-center text-blue-700">
+              <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline justify-between">
@@ -53,7 +53,7 @@ export const NotificationsModule: React.FC<NotificationsModuleProps> = ({
           </div>
           <p className="text-[11px] font-semibold text-zinc-500 mt-1.5">Real-time Field Telemetry</p>
           <div className="w-full bg-zinc-100 h-1 rounded-full mt-3 overflow-hidden">
-            <div className="bg-zinc-900 h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(unreadCount * 25, 100)}%` }} />
+            <div className="bg-blue-600 h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(unreadCount * 25, 100)}%` }} />
           </div>
         </div>
 
@@ -104,13 +104,13 @@ export const NotificationsModule: React.FC<NotificationsModuleProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-100 pb-4">
           <div>
             <div className="flex items-center space-x-2">
-              <span className="px-2.5 py-0.5 rounded-full bg-zinc-900 text-white text-[10px] font-mono font-bold">
+              <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200 text-[10px] font-mono font-bold">
                 REAL-TIME BROADCAST STREAM
               </span>
               <span className="text-xs text-zinc-400 font-mono">Channel #SK-TECH-NOTIF</span>
             </div>
             <h2 className="text-xl font-extrabold text-zinc-900 tracking-tight mt-1 flex items-center space-x-2">
-              <Sparkles className="w-5 h-5 text-zinc-700" />
+              <Sparkles className="w-5 h-5 text-blue-600" />
               <span>System & Dispatch Control Feed</span>
             </h2>
           </div>
@@ -123,8 +123,8 @@ export const NotificationsModule: React.FC<NotificationsModuleProps> = ({
                 onClick={() => setFilter(t)}
                 className={`px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all cursor-pointer ${
                   filter === t
-                    ? 'bg-zinc-900 text-white shadow-2xs'
-                    : 'text-zinc-600 hover:text-zinc-900 hover:bg-white/60'
+                    ? 'bg-blue-600 text-white shadow-2xs'
+                    : 'text-zinc-600 hover:text-blue-600 hover:bg-white/60'
                 }`}
               >
                 {t}
@@ -151,7 +151,7 @@ export const NotificationsModule: React.FC<NotificationsModuleProps> = ({
                 className={`p-5 rounded-2xl border transition-all duration-200 cursor-pointer flex items-start justify-between gap-4 ${
                   item.read
                     ? 'border-zinc-200/80 bg-zinc-50/50 hover:bg-zinc-100/60 opacity-85'
-                    : 'border-zinc-900 bg-white shadow-xs hover:shadow-md hover:-translate-y-0.5 ring-1 ring-zinc-900/5'
+                    : 'border-blue-300 bg-blue-50/20 shadow-xs hover:shadow-md hover:-translate-y-0.5 ring-1 ring-blue-500/10'
                 }`}
               >
                 <div className="flex items-start space-x-4 flex-1">
@@ -159,7 +159,7 @@ export const NotificationsModule: React.FC<NotificationsModuleProps> = ({
                     item.type === 'URGENT'
                       ? 'bg-red-500 text-white'
                       : item.type === 'ASSIGNMENT'
-                      ? 'bg-zinc-900 text-white'
+                      ? 'bg-blue-600 text-white'
                       : 'bg-emerald-500 text-white'
                   }`}>
                     {item.type === 'URGENT' && <AlertTriangle className="w-5 h-5" />}
@@ -172,7 +172,7 @@ export const NotificationsModule: React.FC<NotificationsModuleProps> = ({
                       <h4 className="font-bold text-zinc-900 text-sm">{item.title}</h4>
                       <span className="text-xs text-zinc-400 font-mono">• {item.timestamp}</span>
                       {!item.read && (
-                        <span className="px-2 py-0.5 bg-zinc-900 text-white font-mono text-[9px] font-bold rounded-full">
+                        <span className="px-2 py-0.5 bg-blue-600 text-white font-mono text-[9px] font-bold rounded-full">
                           NEW UNREAD
                         </span>
                       )}

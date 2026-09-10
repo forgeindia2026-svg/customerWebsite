@@ -201,7 +201,7 @@ export default function StaffLogin() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-900 text-white font-bold text-xs rounded-xl flex items-center justify-center space-x-2 transition-all shadow-md cursor-pointer"
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs rounded-xl flex items-center justify-center space-x-2 transition-all shadow-md shadow-blue-500/25 cursor-pointer"
               >
                 <span>{isSubmitting ? 'Authenticating...' : 'Sign In'}</span>
                 <ArrowRight className="w-4 h-4" />

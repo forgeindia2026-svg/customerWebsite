@@ -417,50 +417,50 @@ export default function Workstation() {
       {mainTab === 'command-center' && (
         <>
       {/* 📈 Stock Market Style Running Live Ticker Header */}
-      <div className="bg-slate-900 text-white rounded-2xl p-4 shadow-xl border border-slate-800 overflow-hidden relative">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-3">
+      <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 text-white rounded-2xl p-4 shadow-xl border border-blue-600/50 overflow-hidden relative">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/15 pb-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-600/20 text-blue-400 border border-blue-500/30 flex items-center justify-center animate-pulse">
+            <div className="w-10 h-10 rounded-xl bg-white/15 text-white border border-white/20 flex items-center justify-center animate-pulse">
               <FiActivity size={20} />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-black tracking-tight text-white font-mono uppercase">TECHNICIAN LIVE WORKSTATION COMMAND CENTER</h2>
-                <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-mono font-extrabold rounded-full animate-pulse">
+                <span className="px-2 py-0.5 bg-emerald-400/20 text-emerald-300 border border-emerald-400/40 text-[10px] font-mono font-extrabold rounded-full animate-pulse">
                   ● REAL-TIME RADAR LIVE
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">Continuous live monitoring for {techNamesListStr || 'Active Fleet'}</p>
+              <p className="text-xs text-blue-100 mt-0.5">Continuous live monitoring for {techNamesListStr || 'Active Fleet'}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-6">
             <div className="text-right">
-              <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">FLEET EFFICIENCY INDEX</span>
-              <span className="text-xl font-black font-mono text-emerald-400 flex items-center gap-1 justify-end">
-                <FiTrendingUp size={16} /> {averageEfficiency}% <span className="text-[10px] text-emerald-500 font-medium">Live DB</span>
+              <span className="text-[10px] text-blue-200 uppercase font-bold tracking-wider block">FLEET EFFICIENCY INDEX</span>
+              <span className="text-xl font-black font-mono text-emerald-300 flex items-center gap-1 justify-end">
+                <FiTrendingUp size={16} /> {averageEfficiency}% <span className="text-[10px] text-emerald-300 font-medium">Live DB</span>
               </span>
             </div>
             <div className="text-right">
-              <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">TOTAL COMPLETED TODAY</span>
+              <span className="text-[10px] text-blue-200 uppercase font-bold tracking-wider block">TOTAL COMPLETED TODAY</span>
               <span className="text-xl font-black font-mono text-white">{totalCompletedJobs} / {totalAssignedJobs} Jobs</span>
             </div>
           </div>
         </div>
 
         {/* Live Stock Ticker Bar */}
-        <div className="mt-3 pt-2 overflow-hidden bg-slate-950/80 rounded-xl p-2.5 border border-slate-800/60 font-mono text-xs flex items-center gap-6">
-          <div className="flex items-center gap-2 text-emerald-400 font-extrabold shrink-0 border-r border-slate-800 pr-4">
+        <div className="mt-3 pt-2 overflow-hidden bg-black/20 rounded-xl p-2.5 border border-white/10 font-mono text-xs flex items-center gap-6">
+          <div className="flex items-center gap-2 text-emerald-300 font-extrabold shrink-0 border-r border-white/15 pr-4">
             <span>⚡ LIVE TICKER:</span>
           </div>
-          <div className="flex items-center gap-8 overflow-x-auto no-scrollbar whitespace-nowrap text-slate-300">
+          <div className="flex items-center gap-8 overflow-x-auto no-scrollbar whitespace-nowrap text-blue-100">
             {allTechnicians.map(t => (
-              <span key={`ticker-${t.id}`} className="flex items-center gap-2 bg-slate-900 px-3 py-1 rounded-lg border border-slate-800">
+              <span key={`ticker-${t.id}`} className="flex items-center gap-2 bg-white/10 px-3 py-1 rounded-lg border border-white/10">
                 <span className="font-bold text-white">{t.name}:</span>
-                <span className={t.status === 'ON_SITE' ? 'text-emerald-400 font-semibold' : t.status === 'IN_TRANSIT' ? 'text-blue-400 font-semibold' : 'text-amber-400 font-semibold'}>
+                <span className={t.status === 'ON_SITE' ? 'text-emerald-300 font-semibold' : t.status === 'IN_TRANSIT' ? 'text-blue-200 font-semibold' : 'text-amber-200 font-semibold'}>
                   {t.statusText}
                 </span>
-                <span className="text-[10px] text-slate-500">[{t.efficiencyScore}% Eff.]</span>
+                <span className="text-[10px] text-blue-200">[{t.efficiencyScore}% Eff.]</span>
               </span>
             ))}
           </div>
@@ -555,8 +555,8 @@ export default function Workstation() {
                 onClick={() => setFilterCategory(cat)}
                 className={`text-xs font-extrabold px-3.5 py-1.5 rounded-lg transition-all shrink-0 cursor-pointer ${
                   filterCategory === cat
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-blue-600 dark:text-slate-400 dark:hover:text-white'
                 }`}
               >
                 {label}
@@ -568,7 +568,7 @@ export default function Workstation() {
 
       {/* 📺 Stock Market Style Technician Workstation Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredTechs.map((tech) => (
+        {filteredTechnicians.map((tech) => (
           <div 
             key={tech.id}
             className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col justify-between group"
@@ -583,10 +583,10 @@ export default function Workstation() {
                         src={tech.avatar} 
                         alt={tech.name} 
                         onError={() => setImgError(prev => ({ ...prev, [tech.id]: true }))}
-                        className="w-12 h-12 rounded-xl object-cover ring-2 ring-slate-200 dark:ring-slate-700"
+                        className="w-12 h-12 rounded-xl object-cover ring-2 ring-blue-100 dark:ring-slate-700"
                       />
                     ) : (
-                      <div className="w-12 h-12 rounded-xl bg-slate-900 text-white font-black text-lg flex items-center justify-center ring-2 ring-slate-200 dark:ring-slate-700 font-mono">
+                      <div className="w-12 h-12 rounded-xl bg-blue-600 text-white font-black text-lg flex items-center justify-center ring-2 ring-blue-100 dark:ring-slate-700 font-mono">
                         {(tech.name || 'T').charAt(0).toUpperCase()}
                       </div>
                     )}
@@ -597,7 +597,7 @@ export default function Workstation() {
                   <div>
                     <h3 className="font-extrabold text-slate-900 dark:text-white text-base tracking-tight flex items-center gap-2">
                       <span>{tech.name}</span>
-                      <span className="text-[10px] font-mono font-bold bg-slate-900 text-white dark:bg-white dark:text-slate-900 px-2 py-0.5 rounded-md">
+                      <span className="text-[10px] font-mono font-bold bg-blue-50 text-blue-800 border border-blue-200 px-2 py-0.5 rounded-md">
                         {tech.badgeId}
                       </span>
                     </h3>
@@ -614,9 +614,9 @@ export default function Workstation() {
               </div>
 
               {/* Status Banner Badge */}
-              <div className="mt-3.5 px-3 py-1.5 bg-slate-900 dark:bg-slate-950 text-white rounded-xl text-xs font-mono font-extrabold flex items-center justify-between">
+              <div className="mt-3.5 px-3 py-1.5 bg-blue-50 border border-blue-100 dark:bg-slate-800 dark:border-slate-700 text-blue-900 dark:text-blue-100 rounded-xl text-xs font-mono font-extrabold flex items-center justify-between">
                 <span className="truncate">{tech.statusText}</span>
-                <span className="text-[10px] text-emerald-400 shrink-0 font-sans font-bold">ACTIVE</span>
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 shrink-0 font-sans font-bold">ACTIVE</span>
               </div>
             </div>
 

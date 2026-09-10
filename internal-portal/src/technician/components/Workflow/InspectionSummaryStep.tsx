@@ -99,7 +99,7 @@ export const InspectionSummaryStep: React.FC<InspectionSummaryStepProps> = ({
               onChange={(e) => setSafetyVerified(e.target.checked)}
               className="sr-only peer"
             />
-            <div className="w-9 h-5 bg-zinc-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-zinc-900"></div>
+            <div className="w-9 h-5 bg-zinc-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
           </label>
         </div>
 
@@ -111,7 +111,7 @@ export const InspectionSummaryStep: React.FC<InspectionSummaryStepProps> = ({
               type="text"
               value={voltageReading}
               onChange={(e) => setVoltageReading(e.target.value)}
-              className="w-full p-2.5 bg-white border border-zinc-300 rounded-lg text-xs font-mono text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900"
+              className="w-full p-2.5 bg-white border border-zinc-300 rounded-lg text-xs font-mono text-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
               placeholder="e.g. 480V 3-Phase"
             />
           </div>
@@ -121,7 +121,7 @@ export const InspectionSummaryStep: React.FC<InspectionSummaryStepProps> = ({
               type="text"
               value={groundingStatus}
               onChange={(e) => setGroundingStatus(e.target.value)}
-              className="w-full p-2.5 bg-white border border-zinc-300 rounded-lg text-xs font-mono text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900"
+              className="w-full p-2.5 bg-white border border-zinc-300 rounded-lg text-xs font-mono text-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
               placeholder="e.g. Passed (0.02 Ohms)"
             />
           </div>
@@ -159,7 +159,7 @@ export const InspectionSummaryStep: React.FC<InspectionSummaryStepProps> = ({
             rows={3}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="w-full p-2.5 bg-white border border-zinc-300 rounded-lg text-xs text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900"
+            className="w-full p-2.5 bg-white border border-zinc-300 rounded-lg text-xs text-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
             placeholder="Document any environmental or pre-installation observations..."
           />
         </div>
@@ -169,7 +169,7 @@ export const InspectionSummaryStep: React.FC<InspectionSummaryStepProps> = ({
         <button
           type="submit"
           disabled={isSubmitting}
-          className="px-5 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold rounded-lg flex items-center space-x-2 transition-colors shadow-xs"
+          className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold rounded-xl flex items-center space-x-2 transition-all shadow-sm shadow-blue-500/25 cursor-pointer"
         >
           <Save className="w-3.5 h-3.5" />
           <span>Save Inspection & Proceed</span>

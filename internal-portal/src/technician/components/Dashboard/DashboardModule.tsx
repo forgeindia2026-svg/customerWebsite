@@ -100,7 +100,7 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
   return (
     <div className="space-y-6 text-zinc-900 font-sans">
       {/* 🚀 Command Center Hero Header */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-zinc-900 text-white rounded-2xl p-6 lg:p-7 shadow-lg border border-slate-700/60 relative overflow-hidden">
+      <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 text-white rounded-2xl p-6 lg:p-7 shadow-xl shadow-blue-900/20 border border-blue-500/40 relative overflow-hidden">
         {/* Background Decorative Pattern */}
         <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-emerald-500/10 via-transparent to-transparent pointer-events-none" />
         <div className="absolute -right-12 -bottom-12 w-48 h-48 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
@@ -212,7 +212,7 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
 
       {/* Active Working Job Dark Navy Hero Banner */}
       {activeJob ? (
-        <div className="border border-zinc-950 bg-[#0F172A] text-white rounded-2xl p-6 shadow-xl space-y-4">
+        <div className="border border-blue-200/80 bg-gradient-to-br from-blue-900 via-indigo-900 to-slate-900 text-white rounded-2xl p-6 shadow-xl shadow-blue-900/15 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
             <div className="flex items-center space-x-3">
               <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />

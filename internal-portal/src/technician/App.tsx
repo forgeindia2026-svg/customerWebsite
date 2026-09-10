@@ -647,47 +647,47 @@ export function App() {
       </div>
 
       {/* 📱 Mobile Bottom Navigation Bar (Mobile View Only) */}
-      <div className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-zinc-200/90 px-2 py-1.5 flex items-center justify-around text-center lg:hidden shadow-lg">
+      <div className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 px-2 py-1.5 flex items-center justify-around text-center lg:hidden shadow-lg">
         <button
           onClick={() => setActiveTab('dashboard')}
           className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer ${
-            activeTab === 'dashboard' ? 'text-zinc-900 font-extrabold scale-105' : 'text-zinc-400 font-medium'
+            activeTab === 'dashboard' ? 'text-blue-600 font-bold scale-105' : 'text-slate-400 font-medium'
           }`}
         >
-          <LayoutDashboard className={`w-5 h-5 ${activeTab === 'dashboard' ? 'text-zinc-900' : 'text-zinc-400'}`} />
+          <LayoutDashboard className={`w-5 h-5 ${activeTab === 'dashboard' ? 'text-blue-600' : 'text-slate-400'}`} />
           <span className="text-[10px] mt-0.5">Overview</span>
         </button>
 
         <button
           onClick={() => setActiveTab('assigned_jobs')}
           className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer relative ${
-            activeTab === 'assigned_jobs' ? 'text-zinc-900 font-extrabold scale-105' : 'text-zinc-400 font-medium'
+            activeTab === 'assigned_jobs' ? 'text-blue-600 font-bold scale-105' : 'text-slate-400 font-medium'
           }`}
         >
-          <Briefcase className={`w-5 h-5 ${activeTab === 'assigned_jobs' ? 'text-zinc-900' : 'text-zinc-400'}`} />
+          <Briefcase className={`w-5 h-5 ${activeTab === 'assigned_jobs' ? 'text-blue-600' : 'text-slate-400'}`} />
           <span className="text-[10px] mt-0.5">Jobs</span>
           {jobs.length > 0 && (
-            <span className="absolute top-0.5 right-2 w-2 h-2 rounded-full bg-emerald-500" />
+            <span className="absolute top-0.5 right-2 w-2 h-2 rounded-full bg-blue-600" />
           )}
         </button>
 
         <button
           onClick={() => setActiveTab('reports')}
           className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer ${
-            activeTab === 'reports' ? 'text-zinc-900 font-extrabold scale-105' : 'text-zinc-400 font-medium'
+            activeTab === 'reports' ? 'text-blue-600 font-bold scale-105' : 'text-slate-400 font-medium'
           }`}
         >
-          <FileText className={`w-5 h-5 ${activeTab === 'reports' ? 'text-zinc-900' : 'text-zinc-400'}`} />
+          <FileText className={`w-5 h-5 ${activeTab === 'reports' ? 'text-blue-600' : 'text-slate-400'}`} />
           <span className="text-[10px] mt-0.5">Reports</span>
         </button>
 
         <button
           onClick={() => setActiveTab('notifications')}
           className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer relative ${
-            activeTab === 'notifications' ? 'text-zinc-900 font-extrabold scale-105' : 'text-zinc-400 font-medium'
+            activeTab === 'notifications' ? 'text-blue-600 font-bold scale-105' : 'text-slate-400 font-medium'
           }`}
         >
-          <Bell className={`w-5 h-5 ${activeTab === 'notifications' ? 'text-zinc-900' : 'text-zinc-400'}`} />
+          <Bell className={`w-5 h-5 ${activeTab === 'notifications' ? 'text-blue-600' : 'text-slate-400'}`} />
           <span className="text-[10px] mt-0.5">Alerts</span>
           {notifications.filter(n => !n.read).length > 0 && (
             <span className="absolute top-0.5 right-2.5 min-w-[14px] h-[14px] px-1 bg-red-500 text-white text-[9px] font-mono font-bold rounded-full flex items-center justify-center">
@@ -699,10 +699,10 @@ export function App() {
         <button
           onClick={() => setActiveTab('profile')}
           className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer ${
-            activeTab === 'profile' ? 'text-zinc-900 font-extrabold scale-105' : 'text-zinc-400 font-medium'
+            activeTab === 'profile' ? 'text-blue-600 font-bold scale-105' : 'text-slate-400 font-medium'
           }`}
         >
-          <User className={`w-5 h-5 ${activeTab === 'profile' ? 'text-zinc-900' : 'text-zinc-400'}`} />
+          <User className={`w-5 h-5 ${activeTab === 'profile' ? 'text-blue-600' : 'text-slate-400'}`} />
           <span className="text-[10px] mt-0.5">Profile</span>
         </button>
       </div>

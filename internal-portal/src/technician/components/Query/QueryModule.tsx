@@ -190,7 +190,7 @@ export const QueryModule: React.FC = () => {
 
           <button
             onClick={() => setIsCreating(true)}
-            className="px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-white font-extrabold text-xs rounded-xl flex items-center space-x-2 transition-all cursor-pointer shadow-xs self-start sm:self-auto"
+            className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold text-xs rounded-xl flex items-center space-x-2 transition-all cursor-pointer shadow-sm shadow-blue-500/25 self-start sm:self-auto"
           >
             <Plus className="w-4 h-4" />
             <span>SUBMIT NEW QUERY</span>
@@ -220,17 +220,17 @@ export const QueryModule: React.FC = () => {
                   onClick={() => setSelectedQuery(q)}
                   className={`p-4 rounded-xl border transition-all cursor-pointer space-y-2 ${
                     selectedQuery?.id === q.id 
-                      ? 'border-zinc-900 bg-zinc-900 text-white shadow-sm' 
+                      ? 'border-blue-600 bg-blue-50/70 text-blue-950 shadow-xs' 
                       : 'border-zinc-200/80 bg-white hover:border-zinc-300 text-zinc-900'
                   }`}
                 >
                   <div className="flex items-center justify-between text-[11px] font-mono">
                     <div className="flex items-center space-x-2">
-                      <span className={`font-bold ${selectedQuery?.id === q.id ? 'text-emerald-400' : 'text-zinc-500'}`}>
+                      <span className={`font-bold ${selectedQuery?.id === q.id ? 'text-blue-700' : 'text-zinc-500'}`}>
                         {q.ticketId}
                       </span>
                       <span className={`text-[10px] font-sans font-medium px-1.5 py-0.5 rounded ${
-                        selectedQuery?.id === q.id ? 'bg-zinc-800 text-zinc-300' : 'bg-zinc-100 text-zinc-500'
+                        selectedQuery?.id === q.id ? 'bg-blue-100 text-blue-700 font-semibold' : 'bg-zinc-100 text-zinc-500'
                       }`}>
                         {getTimeAgo(q.lastActivityTimestamp)}
                       </span>
@@ -288,11 +288,11 @@ export const QueryModule: React.FC = () => {
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSendReply()}
-                  className="flex-1 px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-zinc-900 text-zinc-900 placeholder:text-zinc-400"
+                  className="flex-1 px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-zinc-900 placeholder:text-zinc-400"
                 />
                 <button
                   onClick={handleSendReply}
-                  className="px-5 py-3 bg-zinc-900 hover:bg-zinc-800 text-white font-extrabold text-xs rounded-xl flex items-center space-x-1.5 transition-all cursor-pointer"
+                  className="px-5 py-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold text-xs rounded-xl flex items-center space-x-1.5 transition-all cursor-pointer shadow-sm shadow-blue-500/25"
                 >
                   <Send className="w-4 h-4" />
                   <span>REPLY</span>
@@ -353,13 +353,13 @@ export const QueryModule: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsCreating(false)}
-                  className="px-4 py-2 bg-zinc-100 text-zinc-700 text-xs font-bold rounded-xl"
+                  className="px-4 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-xs font-bold rounded-xl cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-zinc-900 text-white text-xs font-bold rounded-xl"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold rounded-xl shadow-sm shadow-blue-500/25 cursor-pointer"
                 >
                   Submit Ticket
                 </button>

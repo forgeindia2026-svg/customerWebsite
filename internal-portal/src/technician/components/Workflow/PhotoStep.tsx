@@ -146,7 +146,7 @@ export const PhotoStep: React.FC<PhotoStepProps> = ({
           <button
             type="submit"
             disabled={isSubmitting || !selectedPhoto}
-            className="w-full py-2.5 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 text-white text-xs font-semibold rounded-lg flex items-center justify-center space-x-2 transition-colors shadow-xs cursor-pointer"
+            className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-white text-xs font-bold rounded-xl flex items-center justify-center space-x-2 transition-all shadow-sm shadow-blue-500/25 cursor-pointer"
           >
             <Camera className="w-3.5 h-3.5" />
             <span>{isSubmitting ? 'Uploading Site Photo...' : `Upload ${type === 'BEFORE' ? 'Before' : 'After'} Inspection Photo`}</span>
@@ -187,7 +187,7 @@ export const PhotoStep: React.FC<PhotoStepProps> = ({
         <button
           onClick={handleContinueStep}
           disabled={isSubmitting}
-          className="px-5 py-2.5 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 text-white text-xs font-bold rounded-lg flex items-center space-x-2 transition-colors shadow-xs cursor-pointer"
+          className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-white text-xs font-bold rounded-xl flex items-center space-x-2 transition-all shadow-sm shadow-blue-500/25 cursor-pointer"
         >
           <span>{isSubmitting ? 'Uploading & Saving...' : 'Continue Workflow Step'}</span>
           <ChevronRight className="w-3.5 h-3.5" />

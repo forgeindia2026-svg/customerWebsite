@@ -140,7 +140,7 @@ export const DailyReportStep: React.FC<DailyReportStepProps> = ({
             type="text"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="w-full p-2.5 bg-white border border-zinc-300 rounded-lg text-xs text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900"
+            className="w-full p-2.5 bg-white border border-zinc-300 rounded-lg text-xs text-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
             placeholder="e.g. Completed wire layout, no issues encountered"
           />
         </div>
@@ -148,9 +148,9 @@ export const DailyReportStep: React.FC<DailyReportStepProps> = ({
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full py-2.5 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 text-white text-xs font-bold rounded-lg flex items-center justify-center space-x-2 transition-all shadow-xs cursor-pointer"
+          className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-white text-xs font-bold rounded-xl flex items-center justify-center space-x-2 transition-all shadow-sm shadow-blue-500/25 cursor-pointer"
         >
-          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
           <span>Submit Daily Progress Log</span>
         </button>
       </form>
@@ -187,7 +187,7 @@ export const DailyReportStep: React.FC<DailyReportStepProps> = ({
       <div className="flex items-center justify-end space-x-3 pt-2">
         <button
           onClick={onNextStep}
-          className="px-5 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold rounded-lg flex items-center space-x-2 transition-colors shadow-xs"
+          className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold rounded-xl flex items-center space-x-2 transition-all shadow-sm shadow-blue-500/25 cursor-pointer"
         >
           <span>Continue to After Photos</span>
           <ChevronRight className="w-3.5 h-3.5" />

@@ -139,7 +139,7 @@ export const TodaysScheduleModule: React.FC<TodaysScheduleModuleProps> = ({
                   {/* Time Badge */}
                   <div className={`w-16 h-16 rounded-2xl flex flex-col items-center justify-center flex-shrink-0 font-mono text-center border ${
                     isActive 
-                      ? 'bg-zinc-900 text-white border-zinc-900' 
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/20' 
                       : 'bg-zinc-100 text-zinc-800 border-zinc-200'
                   }`}>
                     <span className="text-[10px] font-bold uppercase opacity-80">SLOT {index + 1}</span>
@@ -147,7 +147,7 @@ export const TodaysScheduleModule: React.FC<TodaysScheduleModuleProps> = ({
                   </div>
 
                   <div className="space-y-1.5">
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex wrap items-center gap-2">
                       <span className="text-xs font-mono font-bold text-zinc-500">{job.jobCode}</span>
                       <span className={`px-2 py-0.5 text-[10px] font-bold font-mono rounded ${
                         job.priority === 'URGENT' 
@@ -201,7 +201,7 @@ export const TodaysScheduleModule: React.FC<TodaysScheduleModuleProps> = ({
                     className={`px-5 py-3 text-xs font-extrabold rounded-xl flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-xs flex-1 sm:flex-none ${
                       isActive 
                         ? 'bg-emerald-600 hover:bg-emerald-500 text-white' 
-                        : 'bg-zinc-900 hover:bg-zinc-800 text-white'
+                        : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white shadow-sm shadow-blue-500/25'
                     }`}
                   >
                     <Play className="w-4 h-4 fill-current" />

@@ -52,8 +52,8 @@ export const LiveMapModule: React.FC<LiveMapModuleProps> = ({
           </div>
 
           <div className="flex items-center space-x-2">
-            <span className="text-xs font-mono font-bold bg-zinc-900 text-white px-3.5 py-2 rounded-xl flex items-center space-x-2 shadow-xs">
-              <Navigation className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+            <span className="text-xs font-mono font-bold bg-blue-50 text-blue-800 border border-blue-200 px-3.5 py-2 rounded-xl flex items-center space-x-2 shadow-2xs">
+              <Navigation className="w-3.5 h-3.5 text-blue-600 animate-pulse" />
               <span>GPS SYNC: LIVE (3 SITES)</span>
             </span>
           </div>
@@ -185,7 +185,7 @@ export const LiveMapModule: React.FC<LiveMapModuleProps> = ({
                 href={`https://maps.google.com/?q=${encodeURIComponent(`${activeJob.customer.address}, ${activeJob.customer.city}`)}`}
                 target="_blank"
                 rel="noreferrer"
-                className="w-full py-3 bg-zinc-900 hover:bg-zinc-800 text-white font-extrabold text-xs rounded-xl flex items-center justify-center space-x-2 transition-all shadow-xs cursor-pointer"
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold text-xs rounded-xl flex items-center justify-center space-x-2 transition-all shadow-sm shadow-blue-500/25 cursor-pointer"
               >
                 <Navigation className="w-4 h-4 text-emerald-400" />
                 <span>LAUNCH GOOGLE NAV MAPS</span>
