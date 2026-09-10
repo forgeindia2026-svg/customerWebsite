@@ -493,7 +493,7 @@ export function App() {
   }
 
   return (
-    <div className="h-screen flex bg-zinc-50 font-sans text-zinc-900 overflow-hidden">
+    <div className="h-screen flex bg-[#F1F3F6] font-sans text-slate-900 overflow-hidden">
       {/* Sidebar */}
       <Sidebar
         activeTab={activeTab}
@@ -507,7 +507,7 @@ export function App() {
       />
 
       {/* Main Content Layout */}
-      <div className="flex-1 flex flex-col h-screen overflow-y-auto min-w-0">
+      <div className="flex-1 flex flex-col h-screen overflow-y-auto min-w-0 bg-[#F1F3F6]">
         <OfflineBanner
           isOnline={isOnline}
           queuedCount={queuedReportsCount}
@@ -524,7 +524,7 @@ export function App() {
           onNavigateToNotifications={() => setActiveTab('notifications')}
         />
 
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-10 pb-24 lg:pb-10 max-w-7xl w-full mx-auto space-y-6">
+        <main className="flex-1 px-3.5 py-4 sm:px-6 lg:px-8 lg:py-8 pb-24 lg:pb-10 max-w-7xl w-full mx-auto space-y-4">
           {/* Daily Attendance Shift Check-In / Check-Out Tracker */}
           <div className="hidden md:block">
             <AttendanceCard />

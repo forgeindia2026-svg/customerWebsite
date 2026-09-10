@@ -43,29 +43,29 @@ export const Header: React.FC<HeaderProps> = ({
   }, []);
 
   return (
-    <header className="py-3 sm:py-3.5 border-b border-slate-200/90 bg-white text-slate-800 px-3.5 sm:px-8 flex items-center justify-between sticky top-0 z-30 shadow-xs">
+    <header className="py-3 sm:py-3.5 border-b border-blue-700 bg-[#2874F0] text-white px-3.5 sm:px-8 flex items-center justify-between sticky top-0 z-30 shadow-md">
       {/* Brand Logo & Quick Search */}
       <div className="flex items-center space-x-2.5 sm:space-x-4 flex-1 max-w-lg">
         {/* 📱 Mobile Brand Title & Logo (Mobile View Only) */}
         <div className="flex items-center space-x-2.5 lg:hidden shrink-0">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-rose-600 to-red-500 flex items-center justify-center text-white font-black text-xs shadow-md shadow-rose-600/30">
+          <div className="w-8 h-8 rounded-xl bg-white text-[#2874F0] flex items-center justify-center font-black text-xs shadow-md">
             SK
           </div>
           <div className="flex flex-col leading-none">
-            <span className="text-xs font-black text-slate-900 tracking-tight">SK TECHNOLOGY</span>
-            <span className="text-[9px] font-bold text-blue-600 tracking-wider mt-0.5">FIELD PORTAL</span>
+            <span className="text-xs font-black text-white tracking-tight">SK TECHNOLOGY</span>
+            <span className="text-[9px] font-bold text-amber-300 tracking-wider mt-0.5">FIELD PORTAL</span>
           </div>
         </div>
 
         {/* Quick Search */}
         <div className="relative w-full hidden sm:block">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400" />
+          <Search className="w-4 h-4 absolute left-3.5 top-1/2 transform -translate-y-1/2 text-blue-200" />
           <input
             type="text"
             placeholder="Search job code, customer name..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-inner"
+            className="w-full pl-10 pr-4 py-2 bg-white/15 text-white placeholder-blue-100 border border-white/25 rounded-xl text-xs focus:outline-none focus:bg-white focus:text-slate-900 focus:placeholder-slate-400 transition-all shadow-inner"
           />
         </div>
       </div>
@@ -73,8 +73,8 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Right Action Tools */}
       <div className="flex items-center space-x-2.5 sm:space-x-4 pl-2">
         {/* Verification Status Pill */}
-        <div className="hidden sm:flex items-center space-x-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-full text-xs font-semibold text-blue-700 shadow-2xs">
-          <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
+        <div className="hidden sm:flex items-center space-x-2 px-3 py-1.5 bg-white/15 border border-white/25 rounded-full text-xs font-bold text-white shadow-2xs">
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
           <span>SK Certified Field Tech</span>
         </div>
 
@@ -82,12 +82,12 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="relative" ref={dropdownRef}>
           <button 
             onClick={() => setIsOpen(!isOpen)}
-            className="relative p-2 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all cursor-pointer border border-slate-200 bg-white shadow-xs"
+            className="relative p-2 rounded-xl text-white hover:bg-white/15 transition-all cursor-pointer border border-white/20 bg-white/10 shadow-xs"
             title="Notifications"
           >
             <Bell className="w-4.5 h-4.5" />
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-rose-500 text-white font-mono text-[10px] font-black rounded-full flex items-center justify-center shadow-xs border-2 border-white animate-pulse">
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-amber-400 text-slate-900 font-mono text-[10px] font-black rounded-full flex items-center justify-center shadow-xs border-2 border-[#2874F0] animate-pulse">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
@@ -162,7 +162,7 @@ export const Header: React.FC<HeaderProps> = ({
         {onToggleSidebar && (
           <button
             onClick={onToggleSidebar}
-            className="lg:hidden p-2 rounded-xl text-slate-700 hover:text-slate-950 bg-white border border-slate-200 hover:bg-slate-100 transition-all cursor-pointer shrink-0 shadow-xs"
+            className="lg:hidden p-2 rounded-xl text-white hover:bg-white/15 border border-white/20 bg-white/10 transition-all cursor-pointer shrink-0 shadow-xs"
             title="Open Navigation Menu"
           >
             <Menu className="w-5 h-5" />

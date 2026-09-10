@@ -126,18 +126,15 @@ export const AssignedJobsTable: React.FC<AssignedJobsTableProps> = ({
           <div
             key={job.id}
             onClick={() => onSelectJob(job)}
-            className="bg-white rounded-2xl p-4 shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-slate-100 transition-all cursor-pointer space-y-4 relative overflow-hidden active:scale-[0.98]"
+            className="bg-white rounded-2xl p-4 shadow-xs border border-slate-200/80 transition-all cursor-pointer space-y-3.5 relative overflow-hidden active:scale-[0.99]"
           >
-            {/* Colorful top bar */}
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-500 via-violet-500 to-purple-500"></div>
-
             {/* Top Header Row */}
-            <div className="flex items-center justify-between gap-2 pt-1">
+            <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="bg-blue-50 text-blue-800 border border-blue-200 font-mono font-black text-xs px-2.5 py-1 rounded-lg tracking-tight shadow-2xs">
+                <span className="bg-slate-100 text-slate-800 border border-slate-200 font-mono font-bold text-xs px-2.5 py-0.5 rounded-md tracking-tight">
                   {job.jobCode}
                 </span>
-                <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded-lg border border-blue-100 shrink-0">
+                <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 shrink-0">
                   {job.category}
                 </span>
               </div>
@@ -167,35 +164,33 @@ export const AssignedJobsTable: React.FC<AssignedJobsTableProps> = ({
             {/* Title & Equipment */}
             <div>
               <h3 className="font-extrabold text-slate-900 text-sm leading-snug">{job.title}</h3>
-              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                <p className="text-[11px] text-slate-500 font-semibold">
-                  Equipment: <span className="text-slate-800">{job.installation.equipmentType}</span>
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                <p className="text-[11px] text-slate-500 font-medium">
+                  Equipment: <span className="text-slate-800 font-semibold">{job.installation.equipmentType}</span>
                 </p>
-
               </div>
             </div>
 
             {/* Info Box: Customer & Schedule */}
-            <div className="bg-slate-50 border border-slate-100 rounded-lg p-2.5 text-xs space-y-1.5 relative">
-              <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-400 rounded-l-lg"></div>
-              <div className="pl-2 flex flex-col gap-0.5">
-                <span className="font-extrabold text-slate-800 leading-tight">{job.customer.name}</span>
-                <div className="flex items-center space-x-1 text-slate-500 text-[10px] font-medium">
-                  <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+            <div className="bg-slate-50 border border-slate-200/70 rounded-xl p-3 text-xs space-y-2">
+              <div className="flex flex-col gap-1">
+                <span className="font-extrabold text-slate-900 leading-tight">{job.customer.name}</span>
+                <div className="flex items-center space-x-1.5 text-slate-500 text-[11px]">
+                  <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                   <span className="truncate">{job.customer.address}, {job.customer.city}</span>
                 </div>
-                <div className="flex items-center space-x-1 text-slate-500 text-[10px] font-medium">
-                  <Phone className="w-3 h-3 text-slate-400 shrink-0" />
+                <div className="flex items-center space-x-1.5 text-slate-500 text-[11px]">
+                  <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                   <span>{job.customer.phone || 'N/A'}</span>
                 </div>
               </div>
-              <div className="flex items-center gap-3 text-[10px] pt-1.5 border-t border-slate-200/60 pl-2 mt-1">
-                <div className="flex items-center space-x-1 text-slate-700 font-bold">
-                  <Calendar className="w-3 h-3 text-blue-500" />
+              <div className="flex items-center gap-3 text-[11px] pt-2 border-t border-slate-200/60">
+                <div className="flex items-center space-x-1 text-slate-700 font-medium">
+                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
                   <span>{formatDate(job.scheduledDate)}</span>
                 </div>
-                <div className="flex items-center space-x-1 text-slate-600 font-mono font-bold">
-                  <Clock className="w-3 h-3 text-blue-500" />
+                <div className="flex items-center space-x-1 text-slate-700 font-mono font-medium">
+                  <Clock className="w-3.5 h-3.5 text-slate-400" />
                   <span>{job.scheduledTimeSlot}</span>
                 </div>
               </div>
