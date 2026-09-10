@@ -5,6 +5,7 @@ import {
   AlertTriangle, 
   Briefcase, 
   CheckCheck,
+  CheckCircle2,
   ShieldCheck,
   Sparkles
 } from 'lucide-react';

@@ -57,8 +57,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   const initials = currentTechnician?.name
-    ? currentTechnician.name.split(' ').map((n) => n[0]).join('').toUpperCase()
-    : (localStorage.getItem('user_name') ? localStorage.getItem('user_name')[0].toUpperCase() : 'T');
+    ? currentTechnician.name.trim().split(/\s+/).map((n) => n[0]).filter(Boolean).join('').toUpperCase() || 'T'
+    : (localStorage.getItem('user_name')?.trim()?.[0]?.toUpperCase() || 'T');
 
   const handleTabClick = (tabId: string) => {
     setActiveTab(tabId);

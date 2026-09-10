@@ -42,7 +42,7 @@ import { OfflineBanner } from './components/OfflineBanner';
 import { AttendanceCard } from './components/Attendance/AttendanceCard';
 import { AttendanceLogModule } from './components/Attendance/AttendanceLogModule';
 
-class ReportsErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: any }> {
+class ModuleErrorBoundary extends React.Component<{ children: React.ReactNode; moduleName?: string }, { hasError: boolean; error: any }> {
   constructor(props: any) {
     super(props);
     this.state = { hasError: false, error: null };
@@ -53,14 +53,14 @@ class ReportsErrorBoundary extends React.Component<{ children: React.ReactNode }
   }
 
   componentDidCatch(error: any, errorInfo: any) {
-    console.error("DailyReportsModule Error Boundary caught an error:", error, errorInfo);
+    console.error(`[${this.props.moduleName || 'Module'}] Error Boundary caught an error:`, error, errorInfo);
   }
 
   render() {
     if (this.state.hasError) {
       return (
-        <div className="bg-red-50 border border-red-200 text-red-700 p-6 rounded-2xl space-y-3 font-sans">
-          <h3 className="font-bold text-base">⚠️ Daily Reports Module Diagnostics</h3>
+        <div className="bg-red-50 border border-red-200 text-red-700 p-6 rounded-2xl space-y-3 font-sans my-4">
+          <h3 className="font-bold text-base">⚠️ {this.props.moduleName || 'Module'} Encountered an Error</h3>
           <p className="text-xs font-mono bg-white p-3 rounded-xl border border-red-100">{String(this.state.error?.message || this.state.error)}</p>
           <button 
             onClick={() => this.setState({ hasError: false, error: null })} 
@@ -628,10 +628,12 @@ export function App() {
           )}
 
           {activeTab === 'notifications' && (
-            <NotificationsModule
-              notifications={notifications}
-              onMarkRead={handleMarkNotificationRead}
-            />
+            <ModuleErrorBoundary moduleName="Notifications">
+              <NotificationsModule
+                notifications={notifications}
+                onMarkRead={handleMarkNotificationRead}
+              />
+            </ModuleErrorBoundary>
           )}
 
           {activeTab === 'profile' && profile && (
