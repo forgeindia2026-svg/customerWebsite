@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { socket } from '../../socket';
 import jsPDF from 'jspdf';
@@ -19,6 +20,7 @@ import Modal from '../../components/Modal';
 
 export default function Dashboard() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   // Retrieve states from Redux store
   const orders = useSelector(state => state.dashboard?.orders) || [];
@@ -402,12 +404,16 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       
-      {/* 4 KPI Cards Grid *      {/* 4 KPI Cards Grid (2 on top, 2 on bottom on Mobile) */}
+      {/* 4 KPI Cards Grid (2 on top, 2 on bottom on Mobile) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-6">
         
         {/* Total Revenue */}
-        <div className="bg-blue-100/90 border-blue-200/60 dark:bg-blue-900/30 dark:border-blue-800 p-3.5 sm:p-5 rounded-2xl border shadow-2xs flex items-center gap-2.5 sm:gap-4 transition-colors">
-          <div className="w-10 h-10 sm:w-14 sm:h-14 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-md shadow-blue-600/10 shrink-0">
+        <div 
+          onClick={() => navigate('/admin/payments')}
+          className="bg-blue-100/90 border-blue-200/60 dark:bg-blue-900/30 dark:border-blue-800 p-3.5 sm:p-5 rounded-2xl border shadow-2xs flex items-center gap-2.5 sm:gap-4 transition-all duration-200 cursor-pointer hover:shadow-md hover:scale-[1.01] active:scale-[0.99] select-none group"
+          title="Click to view Payments & Revenue"
+        >
+          <div className="w-10 h-10 sm:w-14 sm:h-14 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-md shadow-blue-600/10 shrink-0 group-hover:scale-105 transition-transform">
             <FiDollarSign className="w-4 h-4 sm:w-6 sm:h-6" />
           </div>
           <div className="min-w-0">
@@ -427,8 +433,12 @@ export default function Dashboard() {
         </div>
 
         {/* Today Orders */}
-        <div className="bg-emerald-100/90 border-emerald-200/60 dark:bg-emerald-900/30 dark:border-emerald-800 p-3.5 sm:p-5 rounded-2xl border shadow-2xs flex items-center gap-2.5 sm:gap-4 transition-colors">
-          <div className="w-10 h-10 sm:w-14 sm:h-14 bg-emerald-600 rounded-full flex items-center justify-center text-white shadow-md shadow-emerald-600/10 shrink-0">
+        <div 
+          onClick={() => navigate('/admin/orders')}
+          className="bg-emerald-100/90 border-emerald-200/60 dark:bg-emerald-900/30 dark:border-emerald-800 p-3.5 sm:p-5 rounded-2xl border shadow-2xs flex items-center gap-2.5 sm:gap-4 transition-all duration-200 cursor-pointer hover:shadow-md hover:scale-[1.01] active:scale-[0.99] select-none group"
+          title="Click to view Today Orders"
+        >
+          <div className="w-10 h-10 sm:w-14 sm:h-14 bg-emerald-600 rounded-full flex items-center justify-center text-white shadow-md shadow-emerald-600/10 shrink-0 group-hover:scale-105 transition-transform">
             <FiShoppingCart className="w-4 h-4 sm:w-6 sm:h-6" />
           </div>
           <div className="min-w-0">
@@ -444,8 +454,12 @@ export default function Dashboard() {
         </div>
 
         {/* Active Orders */}
-        <div className="bg-amber-100/95 border-amber-200/60 dark:bg-amber-900/30 dark:border-amber-800 p-3.5 sm:p-5 rounded-2xl border shadow-2xs flex items-center gap-2.5 sm:gap-4 transition-colors">
-          <div className="w-10 h-10 sm:w-14 sm:h-14 bg-amber-500 rounded-full flex items-center justify-center text-white shadow-md shadow-amber-500/10 shrink-0">
+        <div 
+          onClick={() => navigate('/admin/orders?status=In Progress')}
+          className="bg-amber-100/95 border-amber-200/60 dark:bg-amber-900/30 dark:border-amber-800 p-3.5 sm:p-5 rounded-2xl border shadow-2xs flex items-center gap-2.5 sm:gap-4 transition-all duration-200 cursor-pointer hover:shadow-md hover:scale-[1.01] active:scale-[0.99] select-none group"
+          title="Click to view Active Orders In Progress"
+        >
+          <div className="w-10 h-10 sm:w-14 sm:h-14 bg-amber-500 rounded-full flex items-center justify-center text-white shadow-md shadow-amber-500/10 shrink-0 group-hover:scale-105 transition-transform">
             <FiClock className="w-4 h-4 sm:w-6 sm:h-6" />
           </div>
           <div className="min-w-0">
@@ -461,8 +475,12 @@ export default function Dashboard() {
         </div>
 
         {/* Finished Orders */}
-        <div className="bg-purple-100/90 border-purple-200/60 dark:bg-purple-900/30 dark:border-purple-800 p-3.5 sm:p-5 rounded-2xl border shadow-2xs flex items-center gap-2.5 sm:gap-4 transition-colors">
-          <div className="w-10 h-10 sm:w-14 sm:h-14 bg-purple-600 rounded-full flex items-center justify-center text-white shadow-md shadow-purple-600/10 shrink-0">
+        <div 
+          onClick={() => navigate('/admin/orders?status=Completed')}
+          className="bg-purple-100/90 border-purple-200/60 dark:bg-purple-900/30 dark:border-purple-800 p-3.5 sm:p-5 rounded-2xl border shadow-2xs flex items-center gap-2.5 sm:gap-4 transition-all duration-200 cursor-pointer hover:shadow-md hover:scale-[1.01] active:scale-[0.99] select-none group"
+          title="Click to view Finished & Completed Orders"
+        >
+          <div className="w-10 h-10 sm:w-14 sm:h-14 bg-purple-600 rounded-full flex items-center justify-center text-white shadow-md shadow-purple-600/10 shrink-0 group-hover:scale-105 transition-transform">
             <FiCheckCircle className="w-4 h-4 sm:w-6 sm:h-6" />
           </div>
           <div className="min-w-0">

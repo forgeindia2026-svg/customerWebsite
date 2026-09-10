@@ -12,18 +12,32 @@ interface AssignedJobsModuleProps {
   summaryStats?: any;
   isLoading?: boolean;
   onOpenWorkflow: (job: Job) => void;
+  initialStatusFilter?: JobStatus | 'ALL';
 }
 
-export const AssignedJobsModule: React.FC<AssignedJobsModuleProps> = ({ jobs, summaryStats, isLoading = false, onOpenWorkflow }) => {
+export const AssignedJobsModule: React.FC<AssignedJobsModuleProps> = ({ 
+  jobs, 
+  summaryStats, 
+  isLoading = false, 
+  onOpenWorkflow,
+  initialStatusFilter = 'ALL'
+}) => {
   const [filters, setFilters] = useState<JobFilterOptions>({
     searchQuery: '',
-    status: 'ALL',
+    status: initialStatusFilter || 'ALL',
     priority: 'ALL',
     sortBy: 'scheduledDate',
     sortOrder: 'asc',
     page: 1,
     limit: 50,
   });
+
+  // Sync with initialStatusFilter if changed from parent
+  useEffect(() => {
+    if (initialStatusFilter) {
+      setFilters(prev => ({ ...prev, status: initialStatusFilter }));
+    }
+  }, [initialStatusFilter]);
 
   const [response, setResponse] = useState<PaginatedJobsResponse | null>(null);
   const [isFetching, setIsFetching] = useState<boolean>(false);
@@ -57,9 +71,31 @@ export const AssignedJobsModule: React.FC<AssignedJobsModuleProps> = ({ jobs, su
         onHoldCount: jobs.filter((j) => j.status === 'ON_HOLD').length,
       };
 
+      let filtered = [...jobs];
+      if (filters.status && filters.status !== 'ALL') {
+        if (filters.status === 'IN_PROGRESS') {
+          filtered = filtered.filter((j) => j.status === 'IN_PROGRESS' || j.status === 'ACCEPTED');
+        } else {
+          filtered = filtered.filter((j) => j.status === filters.status);
+        }
+      }
+      if (filters.priority && filters.priority !== 'ALL') {
+        filtered = filtered.filter((j) => j.priority === filters.priority);
+      }
+      if (filters.searchQuery) {
+        const q = filters.searchQuery.toLowerCase();
+        filtered = filtered.filter(
+          (j) =>
+            j.title?.toLowerCase().includes(q) ||
+            j.jobCode?.toLowerCase().includes(q) ||
+            j.customer?.name?.toLowerCase().includes(q) ||
+            j.customer?.address?.toLowerCase().includes(q)
+        );
+      }
+
       setResponse({
-        data: jobs,
-        total: jobs.length,
+        data: filtered,
+        total: filtered.length,
         page: 1,
         limit: 50,
         totalPages: 1,

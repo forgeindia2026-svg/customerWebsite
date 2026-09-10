@@ -92,7 +92,7 @@ const getInitialCustomers = (orders) => {
         name: order.customer,
         email: order.email || 'support@domain.com',
         phone: order.phone || '+91 99999 99999',
-        location: order.location || 'Chennai Area',
+        location: order.location || '',
         totalSpent: 0,
         installationsCount: 0,
       };
@@ -269,7 +269,7 @@ const dashboardSlice = createSlice({
           name: newOrder.customer,
           email: newOrder.email || 'support@domain.com',
           phone: newOrder.phone || '+91 99999 99999',
-          location: newOrder.location || 'Chennai Area',
+          location: newOrder.location || '',
           totalSpent: newOrder.amount || 0,
           installationsCount: 1,
         });

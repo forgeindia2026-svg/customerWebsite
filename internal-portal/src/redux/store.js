@@ -85,9 +85,9 @@ const dashboardSyncMiddleware = store => next => action => {
             name: orderToAssign.customer,
             phone: orderToAssign.phone || '+91 99999 99999',
             email: orderToAssign.email || 'customer@sktechnology.in',
-            address: orderToAssign.location || 'Chennai Area',
-            city: 'Chennai',
-            postalCode: '600032'
+            address: orderToAssign.location || '',
+            city: orderToAssign.city || '',
+            postalCode: orderToAssign.postalCode || ''
           },
           scopeOfWork
         })

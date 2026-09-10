@@ -165,7 +165,7 @@ router.get('/', async (req: Request, res: Response) => {
         name: job.title,
         technician: (job.assignedTechnicians && job.assignedTechnicians.length > 0) ? job.assignedTechnicians.map((t: any) => t.name).join(', ') : 'Unassigned',
         customer: job.customer?.name || 'Unknown Customer',
-        location: job.customer?.address || 'Chennai Area',
+        location: job.customer?.address || '',
         submissionDate: job.scheduledDate || (job.createdAt ? new Date(job.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Today'),
         status: (() => {
           if (job.status === 'PENDING') return (job.assignedTechnicians && job.assignedTechnicians.length > 0) ? 'In Progress' : 'Pending';
@@ -190,7 +190,7 @@ router.get('/', async (req: Request, res: Response) => {
           name: order.items?.map((item: any) => item.title).join(', ') || 'CCTV Installation',
           technician: 'Unassigned',
           customer: order.customerName,
-          location: order.shippingAddress || 'Chennai Area',
+          location: order.shippingAddress || '',
           submissionDate: order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Today',
           status: order.orderStatus === 'DELIVERED' ? 'Approved' : 'Pending',
           details: order.items?.map((item: any) => item.title).join(', ') || 'CCTV Installation',
@@ -238,7 +238,7 @@ router.get('/', async (req: Request, res: Response) => {
         email: order.customerEmail,
         phone: order.customerPhone,
         type: order.items?.map((item: any) => item.title).join(', ') || 'CCTV Installation',
-        location: order.shippingAddress || 'Chennai Area',
+        location: order.shippingAddress || '',
         assignedTechnician: (job?.assignedTechnicians && job.assignedTechnicians.length > 0) ? job.assignedTechnicians.map((t: any) => t.name).join(', ') : 'Unassigned',
         status: dashboardStatus,
         date: order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Today',
@@ -279,7 +279,7 @@ router.get('/', async (req: Request, res: Response) => {
         name: cust.name,
         email: cust.email,
         phone: cust.phone || '',
-        location: custOrders[0]?.shippingAddress || 'Chennai Area',
+        location: custOrders[0]?.shippingAddress || '',
         totalSpent,
         installationsCount: custOrders.length
       };
@@ -298,7 +298,7 @@ router.get('/', async (req: Request, res: Response) => {
           name: o.customerName || 'Unknown Customer',
           email: o.customerEmail || 'no-email@example.com',
           phone: o.customerPhone || '',
-          location: o.shippingAddress || 'Chennai Area',
+          location: o.shippingAddress || '',
           totalSpent,
           installationsCount: custOrders.length
         });
@@ -419,7 +419,7 @@ router.put('/', async (req: Request, res: Response) => {
             customerName: o.customer,
             customerEmail: o.email || `${o.customer.toLowerCase().replace(/\s+/g, '')}@example.com`,
             customerPhone: o.phone || '0000000000',
-            shippingAddress: o.location || 'Chennai Area',
+            shippingAddress: o.location || '',
             items: [{ productId: 'temp', title: o.type, price: o.amount, quantity: 1 }],
             totalAmount: o.amount,
             paymentStatus: 'PAID',
@@ -517,9 +517,9 @@ router.put('/', async (req: Request, res: Response) => {
                   name: o.customer,
                   phone: o.phone || '0000000000',
                   email: emailQuery,
-                  address: o.location || 'Chennai Area',
-                  city: 'Chennai',
-                  postalCode: '600032'
+                  address: o.location || '',
+                  city: o.city || '',
+                  postalCode: o.postalCode || ''
                 },
                 startDate: o.startDate,
                 targetCompletionDate: o.targetCompletionDate,
@@ -620,9 +620,9 @@ router.put('/', async (req: Request, res: Response) => {
               name: pr.customer,
               phone: '0000000000',
               email: `${pr.customer.toLowerCase().replace(/\s+/g, '')}@example.com`,
-              address: pr.location || 'Chennai Area',
-              city: 'Chennai',
-              postalCode: '600001'
+              address: pr.location || '',
+              city: pr.city || '',
+              postalCode: pr.postalCode || ''
             },
             assignedTechnicians: pr.technician !== 'Unassigned' ? [{ name: pr.technician, id: 'temp' }] : [],
             fieldNotes: pr.dailyLogs?.[0]?.report || ''

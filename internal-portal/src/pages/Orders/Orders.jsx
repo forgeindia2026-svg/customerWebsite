@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
+import { useSearchParams } from 'react-router-dom';
 import { FiSearch, FiSliders, FiCheckCircle, FiInfo, FiTrash2, FiPlusCircle, FiEye, FiGrid, FiList, FiPlus, FiUser, FiCalendar, FiDollarSign, FiChevronDown, FiCheck, FiEdit, FiShoppingBag, FiClock } from 'react-icons/fi';
 import { approveOrder, addOrder, assignTechnicianToOrder, editOrder, adminApproveJob, fetchDashboardData } from '../../redux/dashboardSlice';
 import { socket } from '../../socket';
@@ -7,16 +8,25 @@ import Modal from '../../components/Modal';
 
 export default function Orders() {
   const dispatch = useDispatch();
+  const [searchParams] = useSearchParams();
   const orders = useSelector(state => state.dashboard?.orders) || [];
   const technicians = useSelector(state => state.dashboard?.technicians) || [];
   const customers = useSelector(state => state.dashboard?.customers) || [];
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'All');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState(null);
   const [activeStatusDropdown, setActiveStatusDropdown] = useState(null);
+
+  // Sync statusFilter whenever searchParams change
+  useEffect(() => {
+    const param = searchParams.get('status');
+    if (param) {
+      setStatusFilter(param);
+    }
+  }, [searchParams]);
 
   const [scopeModalOpen, setScopeModalOpen] = useState(false);
   const [orderToScope, setOrderToScope] = useState(null);

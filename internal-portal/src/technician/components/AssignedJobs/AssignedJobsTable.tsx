@@ -15,6 +15,27 @@ import {
 
 import { formatDate } from '../../services/dateUtils';
 
+const formatLocation = (address?: string, city?: string) => {
+  const cleanAddr = (address || '').trim();
+  const cleanCity = (city || '').trim();
+
+  // If city is default 'Chennai' or not set, only use address
+  if (!cleanCity || cleanCity.toLowerCase() === 'chennai') {
+    return cleanAddr || 'Site Location';
+  }
+
+  if (!cleanAddr) {
+    return cleanCity;
+  }
+
+  // If address already contains the city name, don't duplicate it
+  if (cleanAddr.toLowerCase().includes(cleanCity.toLowerCase())) {
+    return cleanAddr;
+  }
+
+  return `${cleanAddr}, ${cleanCity}`;
+};
+
 interface AssignedJobsTableProps {
   jobs: Job[];
   isLoading?: boolean;
@@ -177,7 +198,7 @@ export const AssignedJobsTable: React.FC<AssignedJobsTableProps> = ({
                 <span className="font-extrabold text-slate-900 leading-tight">{job.customer.name}</span>
                 <div className="flex items-center space-x-1.5 text-slate-500 text-[11px]">
                   <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                  <span className="truncate">{job.customer.address}, {job.customer.city}</span>
+                  <span className="truncate">{formatLocation(job.customer.address, job.customer.city)}</span>
                 </div>
                 <div className="flex items-center space-x-1.5 text-slate-500 text-[11px]">
                   <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -332,7 +353,7 @@ export const AssignedJobsTable: React.FC<AssignedJobsTableProps> = ({
                     <div className="font-bold text-zinc-900 text-xs">{job.customer.name}</div>
                     <div className="flex items-center space-x-1 text-zinc-500 mt-1 text-[11px]">
                       <MapPin className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                      <span className="truncate max-w-[200px]">{job.customer.address}, {job.customer.city}</span>
+                      <span className="truncate max-w-[200px]">{formatLocation(job.customer.address, job.customer.city)}</span>
                     </div>
                   </td>
 

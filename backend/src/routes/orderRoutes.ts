@@ -76,9 +76,9 @@ router.post('/', async (req: Request, res: Response) => {
             name: req.body.customerName,
             phone: req.body.customerPhone || '0000000000',
             email: req.body.customerEmail || `${req.body.customerName.toLowerCase().replace(/\s+/g, '')}@example.com`,
-            address: req.body.shippingAddress || 'Chennai Area',
-            city: 'Chennai',
-            postalCode: '600032'
+            address: req.body.shippingAddress || '',
+            city: req.body.city || '',
+            postalCode: req.body.postalCode || ''
           },
           assignedTechnicians: [{
             id: assignedTech._id.toString(),
@@ -118,9 +118,9 @@ router.post('/', async (req: Request, res: Response) => {
             name: req.body.customerName,
             phone: req.body.customerPhone || '0000000000',
             email: req.body.customerEmail || `${req.body.customerName.toLowerCase().replace(/\s+/g, '')}@example.com`,
-            address: req.body.shippingAddress || 'Chennai Area',
-            city: 'Chennai',
-            postalCode: '600032'
+            address: req.body.shippingAddress || '',
+            city: req.body.city || '',
+            postalCode: req.body.postalCode || ''
           },
           assignedTechnicians: []
         });

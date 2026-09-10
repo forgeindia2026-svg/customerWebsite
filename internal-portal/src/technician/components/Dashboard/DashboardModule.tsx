@@ -42,6 +42,7 @@ interface DashboardModuleProps {
   isLoading?: boolean;
   onSelectJob: (job: Job) => void;
   onOpenWorkflow: (job: Job) => void;
+  onNavigateTab?: (tab: string, statusFilter?: any) => void;
 }
 
 export const DashboardModule: React.FC<DashboardModuleProps> = ({
@@ -50,6 +51,7 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
   isLoading = false,
   onSelectJob,
   onOpenWorkflow,
+  onNavigateTab,
 }) => {
   const myAssignedJobs = jobs && jobs.length > 0 ? jobs : [];
   const availablePoolJobs = myAssignedJobs.filter((j) => j.isAvailableToAccept);
@@ -150,7 +152,11 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
       {/* Modern Clean 4 KPI Metric Cards with Contrast */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         {/* 1. Assigned Jobs */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md transition-shadow flex items-center justify-between min-w-0">
+        <div 
+          onClick={() => onNavigateTab?.('assigned_jobs', 'ALL')}
+          className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer flex items-center justify-between min-w-0 select-none group"
+          title="Click to view all Assigned Jobs"
+        >
           <div className="min-w-0 pr-1">
             <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1 truncate">ASSIGNED JOBS</span>
             <p className="text-2xl sm:text-3xl font-black text-[#2874F0] leading-none">{totalAssignedVal ?? 0}</p>
@@ -158,13 +164,17 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
               Scheduled Jobs
             </span>
           </div>
-          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-blue-50 text-[#2874F0] border border-blue-100 flex items-center justify-center font-bold shrink-0">
+          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-blue-50 text-[#2874F0] border border-blue-100 flex items-center justify-center font-bold shrink-0 group-hover:scale-105 transition-transform">
             <Briefcase className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
         </div>
 
         {/* 2. In Progress */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md transition-shadow flex items-center justify-between min-w-0">
+        <div 
+          onClick={() => onNavigateTab?.('assigned_jobs', 'IN_PROGRESS')}
+          className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer flex items-center justify-between min-w-0 select-none group"
+          title="Click to view Active In Progress Jobs"
+        >
           <div className="min-w-0 pr-1">
             <span className="text-[9px] sm:text-[10px] font-bold text-amber-600 uppercase tracking-wider block mb-1 truncate">IN PROGRESS</span>
             <p className="text-2xl sm:text-3xl font-black text-amber-600 leading-none">{inProgressVal ?? 0}</p>
@@ -172,25 +182,33 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
               <Zap className="w-3 h-3 fill-current shrink-0" /> Active On Site
             </span>
           </div>
-          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-amber-50 text-amber-600 border border-amber-100 flex items-center justify-center font-bold shrink-0">
+          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-amber-50 text-amber-600 border border-amber-100 flex items-center justify-center font-bold shrink-0 group-hover:scale-105 transition-transform">
             <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
         </div>
 
         {/* 3. Completed Today */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md transition-shadow flex items-center justify-between min-w-0">
+        <div 
+          onClick={() => onNavigateTab?.('assigned_jobs', 'COMPLETED')}
+          className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer flex items-center justify-between min-w-0 select-none group"
+          title="Click to view Completed Today Jobs"
+        >
           <div className="min-w-0 pr-1">
             <span className="text-[9px] sm:text-[10px] font-bold text-emerald-600 uppercase tracking-wider block mb-1 truncate">COMPLETED TODAY</span>
             <p className="text-2xl sm:text-3xl font-black text-emerald-600 leading-none">{completedVal ?? 0}</p>
             <span className="text-[10px] sm:text-[11px] font-semibold text-emerald-600 mt-1.5 block truncate">QA Verified</span>
           </div>
-          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center font-bold shrink-0">
+          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center font-bold shrink-0 group-hover:scale-105 transition-transform">
             <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
         </div>
 
         {/* 4. Total Completed */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md transition-shadow flex items-center justify-between min-w-0">
+        <div 
+          onClick={() => onNavigateTab?.('history')}
+          className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer flex items-center justify-between min-w-0 select-none group"
+          title="Click to view All-Time Work Order History"
+        >
           <div className="min-w-0 pr-1">
             <span className="text-[9px] sm:text-[10px] font-bold text-indigo-600 uppercase tracking-wider block mb-1 truncate">TOTAL COMPLETED</span>
             <p className="text-2xl sm:text-3xl font-black text-indigo-600 leading-none">
@@ -201,7 +219,7 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
               <span>All-Time Work Orders</span>
             </span>
           </div>
-          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center font-bold shrink-0">
+          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center font-bold shrink-0 group-hover:scale-105 transition-transform">
             <Award className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
         </div>
@@ -278,7 +296,7 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
                     <h4 className="text-xs font-bold text-zinc-900 leading-snug">
                       {job.title}
                     </h4>
-                    <p className="text-[11px] text-zinc-500">{job.customer.name} — {job.customer.city}</p>
+                    <p className="text-[11px] text-zinc-500">{job.customer.name} — {job.customer.address || (job.customer.city && job.customer.city.toLowerCase() !== 'chennai' ? job.customer.city : 'On-Site')}</p>
                     <div className="flex items-center space-x-2 pt-1">
                       <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${
                         job.priority === 'URGENT' || job.priority === 'HIGH'

@@ -161,9 +161,9 @@ export const JobsApiService = {
             name: 'Customer Client',
             phone: '+91 98765 43210',
             email: 'customer@example.com',
-            address: 'Chennai Main Area',
-            city: 'Chennai',
-            postalCode: '600032'
+            address: 'Customer Location',
+            city: '',
+            postalCode: ''
           },
           installation: j.installation && typeof j.installation === 'object' ? j.installation : {
             equipmentType: 'CCTV Hardware & DVR',

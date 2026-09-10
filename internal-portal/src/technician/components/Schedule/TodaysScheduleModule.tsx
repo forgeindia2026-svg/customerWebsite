@@ -11,6 +11,18 @@ import {
 
 import { formatDate } from '../../services/dateUtils';
 
+const formatLocation = (address?: string, city?: string) => {
+  const cleanAddr = (address || '').trim();
+  const cleanCity = (city || '').trim();
+
+  if (!cleanCity || cleanCity.toLowerCase() === 'chennai') {
+    return cleanAddr || 'Site Location';
+  }
+  if (!cleanAddr) return cleanCity;
+  if (cleanAddr.toLowerCase().includes(cleanCity.toLowerCase())) return cleanAddr;
+  return `${cleanAddr}, ${cleanCity}`;
+};
+
 interface TodaysScheduleModuleProps {
   jobs: Job[];
   onSelectJob: (job: Job) => void;
@@ -173,7 +185,7 @@ export const TodaysScheduleModule: React.FC<TodaysScheduleModuleProps> = ({
                       </span>
                       <span className="flex items-center space-x-1 text-zinc-500">
                         <MapPin className="w-3.5 h-3.5 text-zinc-400" />
-                        <span>{job.customer.address}, {job.customer.city}</span>
+                        <span>{formatLocation(job.customer.address, job.customer.city)}</span>
                       </span>
                     </div>
                   </div>

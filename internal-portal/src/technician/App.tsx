@@ -89,7 +89,15 @@ export function App() {
     const saved = localStorage.getItem('sk_tech_tab') || 'dashboard';
     return saved === 'todays_jobs' ? 'assigned_jobs' : saved;
   });
+  const [assignedJobsFilter, setAssignedJobsFilter] = useState<JobStatus | 'ALL'>('ALL');
   const [globalSearchQuery, setGlobalSearchQuery] = useState<string>('');
+
+  const handleNavigateTab = (tab: string, statusFilter?: JobStatus | 'ALL') => {
+    if (statusFilter) {
+      setAssignedJobsFilter(statusFilter);
+    }
+    setActiveTab(tab);
+  };
 
   // Persist Active Tab to localStorage
   useEffect(() => {
@@ -561,6 +569,7 @@ export function App() {
               isLoading={isLoadingData}
               onSelectJob={handleSelectJob}
               onOpenWorkflow={handleOpenWorkflow}
+              onNavigateTab={handleNavigateTab}
             />
           )}
 
@@ -570,6 +579,7 @@ export function App() {
               summaryStats={summaryStats}
               isLoading={isLoadingData}
               onOpenWorkflow={handleOpenWorkflow}
+              initialStatusFilter={assignedJobsFilter}
             />
           )}
 
