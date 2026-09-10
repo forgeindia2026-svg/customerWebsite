@@ -13,7 +13,9 @@ import {
   Play,
   Square,
   Send,
-  FileText
+  FileText,
+  Upload,
+  Image as ImageIcon
 } from 'lucide-react';
 
 interface WorkflowModalProps {
@@ -43,6 +45,12 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   const [inspectionComments, setInspectionComments] = useState('');
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+
+  // File input refs for Direct Mobile Camera vs Gallery Selection
+  const beforeCameraInputRef = React.useRef<HTMLInputElement>(null);
+  const beforeGalleryInputRef = React.useRef<HTMLInputElement>(null);
+  const afterCameraInputRef = React.useRef<HTMLInputElement>(null);
+  const afterGalleryInputRef = React.useRef<HTMLInputElement>(null);
   
   // Before & After Photos Arrays
   const [beforePhotos, setBeforePhotos] = useState<string[]>([]);
@@ -553,17 +561,38 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
         </div>
 
         {/* Hidden Device Photo Upload Inputs */}
+        {/* Step 1: Direct Rear Camera */}
         <input
           type="file"
-          ref={beforeFileInputRef}
+          ref={beforeCameraInputRef}
+          onChange={handleBeforeFileSelect}
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+        />
+        {/* Step 1: Device Gallery / Multiple Files */}
+        <input
+          type="file"
+          ref={beforeGalleryInputRef}
           onChange={handleBeforeFileSelect}
           accept="image/*"
           multiple
           className="hidden"
         />
+
+        {/* Step 2: Direct Rear Camera */}
         <input
           type="file"
-          ref={afterFileInputRef}
+          ref={afterCameraInputRef}
+          onChange={handleAfterFileSelect}
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+        />
+        {/* Step 2: Device Gallery / Multiple Files */}
+        <input
+          type="file"
+          ref={afterGalleryInputRef}
           onChange={handleAfterFileSelect}
           accept="image/*"
           multiple
@@ -623,26 +652,45 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 </div>
                 
                 <div className="flex items-center space-x-2.5 overflow-x-auto pb-1">
-                  {/* Add Photo Button */}
+                  {/* Take Photo with Camera Button */}
                   <button
                     type="button"
-                    onClick={() => beforeFileInputRef.current?.click()}
+                    onClick={() => beforeCameraInputRef.current?.click()}
                     disabled={isUploadingBefore}
-                    className="w-20 h-20 rounded-xl border-2 border-dashed border-sky-300 bg-sky-50/50 hover:bg-sky-50 text-sky-600 flex flex-col items-center justify-center space-y-1 shrink-0 transition-all cursor-pointer disabled:opacity-50"
+                    className="w-24 h-20 rounded-xl border-2 border-dashed border-sky-400 bg-sky-50/70 hover:bg-sky-100 text-sky-700 flex flex-col items-center justify-center space-y-1 shrink-0 transition-all cursor-pointer disabled:opacity-50 active:scale-95 shadow-xs"
+                    title="Open Camera"
                   >
                     {isUploadingBefore ? (
                       <div className="w-5 h-5 border-2 border-sky-600 border-t-transparent rounded-full animate-spin" />
                     ) : (
                       <>
-                        <Camera className="w-5 h-5" />
-                        <span className="text-[10px] font-bold">Add Photo</span>
+                        <div className="w-7 h-7 rounded-lg bg-sky-500 text-white flex items-center justify-center shadow-xs">
+                          <Camera className="w-4 h-4" />
+                        </div>
+                        <span className="text-[10px] font-extrabold text-sky-900 leading-none">Take Photo</span>
+                        <span className="text-[8px] font-bold text-sky-600 uppercase tracking-wider">Camera</span>
                       </>
                     )}
                   </button>
 
+                  {/* Pick from Gallery Button */}
+                  <button
+                    type="button"
+                    onClick={() => beforeGalleryInputRef.current?.click()}
+                    disabled={isUploadingBefore}
+                    className="w-24 h-20 rounded-xl border-2 border-dashed border-zinc-300 bg-zinc-50 hover:bg-zinc-100 text-zinc-600 flex flex-col items-center justify-center space-y-1 shrink-0 transition-all cursor-pointer disabled:opacity-50 active:scale-95"
+                    title="Select from Gallery"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-zinc-200 text-zinc-700 flex items-center justify-center">
+                      <ImageIcon className="w-4 h-4" />
+                    </div>
+                    <span className="text-[10px] font-bold text-zinc-800 leading-none">Browse</span>
+                    <span className="text-[8px] font-medium text-zinc-400 uppercase tracking-wider">Gallery</span>
+                  </button>
+
                   {/* Thumbnails */}
                   {beforePhotos.map((url, idx) => (
-                    <div key={idx} className="relative w-20 h-20 rounded-xl border border-zinc-200 overflow-hidden shrink-0 group">
+                    <div key={idx} className="relative w-20 h-20 rounded-xl border border-zinc-200 overflow-hidden shrink-0 group shadow-xs">
                       <img src={url} alt="Before" className="w-full h-full object-cover" />
                       <button
                         type="button"
@@ -656,8 +704,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 </div>
 
                 {beforePhotos.length === 0 && (
-                  <p className="text-[11px] text-zinc-400 italic">
-                    Tap "Add Photo" to select or capture camera photos before working.
+                  <p className="text-[11px] text-zinc-500 font-medium">
+                    Tap <strong className="text-sky-700">"Take Photo"</strong> to open camera directly, or <strong className="text-zinc-700">"Browse"</strong> to pick from gallery.
                   </p>
                 )}
               </div>
@@ -702,26 +750,45 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 </div>
 
                 <div className="flex items-center space-x-2.5 overflow-x-auto pb-1">
-                  {/* Add Photo Button */}
+                  {/* Take Photo with Camera Button */}
                   <button
                     type="button"
-                    onClick={() => afterFileInputRef.current?.click()}
+                    onClick={() => afterCameraInputRef.current?.click()}
                     disabled={isUploadingAfter}
-                    className="w-20 h-20 rounded-xl border-2 border-dashed border-red-300 bg-red-50/50 hover:bg-red-50 text-red-600 flex flex-col items-center justify-center space-y-1 shrink-0 transition-all cursor-pointer disabled:opacity-50"
+                    className="w-24 h-20 rounded-xl border-2 border-dashed border-emerald-400 bg-emerald-50/70 hover:bg-emerald-100 text-emerald-700 flex flex-col items-center justify-center space-y-1 shrink-0 transition-all cursor-pointer disabled:opacity-50 active:scale-95 shadow-xs"
+                    title="Open Camera"
                   >
                     {isUploadingAfter ? (
-                      <div className="w-5 h-5 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                      <div className="w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
                     ) : (
                       <>
-                        <Camera className="w-5 h-5" />
-                        <span className="text-[10px] font-bold">Add Photo</span>
+                        <div className="w-7 h-7 rounded-lg bg-emerald-500 text-white flex items-center justify-center shadow-xs">
+                          <Camera className="w-4 h-4" />
+                        </div>
+                        <span className="text-[10px] font-extrabold text-emerald-900 leading-none">Take Photo</span>
+                        <span className="text-[8px] font-bold text-emerald-600 uppercase tracking-wider">Camera</span>
                       </>
                     )}
                   </button>
 
+                  {/* Pick from Gallery Button */}
+                  <button
+                    type="button"
+                    onClick={() => afterGalleryInputRef.current?.click()}
+                    disabled={isUploadingAfter}
+                    className="w-24 h-20 rounded-xl border-2 border-dashed border-zinc-300 bg-zinc-50 hover:bg-zinc-100 text-zinc-600 flex flex-col items-center justify-center space-y-1 shrink-0 transition-all cursor-pointer disabled:opacity-50 active:scale-95"
+                    title="Select from Gallery"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-zinc-200 text-zinc-700 flex items-center justify-center">
+                      <ImageIcon className="w-4 h-4" />
+                    </div>
+                    <span className="text-[10px] font-bold text-zinc-800 leading-none">Browse</span>
+                    <span className="text-[8px] font-medium text-zinc-400 uppercase tracking-wider">Gallery</span>
+                  </button>
+
                   {/* Thumbnails */}
                   {afterPhotos.map((url, idx) => (
-                    <div key={idx} className="relative w-20 h-20 rounded-xl border border-zinc-200 overflow-hidden shrink-0 group">
+                    <div key={idx} className="relative w-20 h-20 rounded-xl border border-zinc-200 overflow-hidden shrink-0 group shadow-xs">
                       <img src={url} alt="After" className="w-full h-full object-cover" />
                       <button
                         type="button"
@@ -735,8 +802,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 </div>
 
                 {afterPhotos.length === 0 && (
-                  <p className="text-[11px] text-zinc-400 italic">
-                    Tap "Add Photo" to upload finished installation and clean site evidence.
+                  <p className="text-[11px] text-zinc-500 font-medium">
+                    Tap <strong className="text-emerald-700">"Take Photo"</strong> to open camera directly, or <strong className="text-zinc-700">"Browse"</strong> to pick from gallery.
                   </p>
                 )}
               </div>

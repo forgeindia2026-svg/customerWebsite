@@ -27,6 +27,8 @@ export const PhotoStep: React.FC<PhotoStepProps> = ({
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const photos = type === 'BEFORE' ? job.beforePhotos : job.afterPhotos;
@@ -107,9 +109,19 @@ export const PhotoStep: React.FC<PhotoStepProps> = ({
             />
           </div>
 
+          {/* Direct Camera Input */}
           <input
             type="file"
-            ref={fileInputRef}
+            ref={cameraInputRef}
+            onChange={handleFileChange}
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+          />
+          {/* Gallery Input */}
+          <input
+            type="file"
+            ref={galleryInputRef}
             onChange={handleFileChange}
             accept="image/*"
             className="hidden"
@@ -122,24 +134,41 @@ export const PhotoStep: React.FC<PhotoStepProps> = ({
                 type="button"
                 onClick={() => {
                   setSelectedPhoto(null);
-                  if (fileInputRef.current) fileInputRef.current.value = '';
+                  setSelectedFile(null);
+                  if (cameraInputRef.current) cameraInputRef.current.value = '';
+                  if (galleryInputRef.current) galleryInputRef.current.value = '';
                 }}
-                className="text-xs font-semibold text-red-655 hover:text-red-500 bg-white border border-red-200 px-3 py-1.5 rounded-lg shadow-xs hover:bg-red-50 transition-colors flex items-center gap-1"
+                className="text-xs font-semibold text-red-655 hover:text-red-500 bg-white border border-red-200 px-3 py-1.5 rounded-lg shadow-xs hover:bg-red-50 transition-colors flex items-center gap-1 cursor-pointer"
               >
                 <RemoveIcon className="w-3.5 h-3.5" />
-                <span>Remove Photo</span>
+                <span>Remove / Retake</span>
               </button>
             </div>
           ) : (
-            <div 
-              onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-zinc-305 hover:border-zinc-400 rounded-xl p-6 text-center bg-zinc-50/50 hover:bg-zinc-50 transition-colors cursor-pointer"
-            >
-              <div className="w-10 h-10 rounded-full bg-zinc-200 flex items-center justify-center mx-auto text-zinc-600 mb-2">
-                <Upload className="w-5 h-5" />
-              </div>
-              <p className="text-xs font-semibold text-zinc-800">Click or tap to capture high-res camera evidence</p>
-              <p className="text-[11px] text-zinc-450 mt-1">Supports JPG, PNG, WEBP with embedded GPS timestamp metadata</p>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                className="p-4 rounded-xl border-2 border-dashed border-blue-400 bg-blue-50/60 hover:bg-blue-100 flex flex-col items-center justify-center space-y-1.5 transition-all cursor-pointer active:scale-95"
+              >
+                <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                  <Camera className="w-4 h-4" />
+                </div>
+                <span className="text-xs font-bold text-blue-900">Take Photo</span>
+                <span className="text-[10px] text-blue-600 font-medium">Open Camera Directly</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => galleryInputRef.current?.click()}
+                className="p-4 rounded-xl border-2 border-dashed border-zinc-300 bg-zinc-50 hover:bg-zinc-100 flex flex-col items-center justify-center space-y-1.5 transition-all cursor-pointer active:scale-95"
+              >
+                <div className="w-9 h-9 rounded-full bg-zinc-200 text-zinc-700 flex items-center justify-center shadow-xs">
+                  <Upload className="w-4 h-4" />
+                </div>
+                <span className="text-xs font-bold text-zinc-800">Browse Device</span>
+                <span className="text-[10px] text-zinc-500 font-medium">Select from Photos</span>
+              </button>
             </div>
           )}
 
