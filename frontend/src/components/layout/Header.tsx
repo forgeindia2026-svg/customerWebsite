@@ -263,16 +263,6 @@ export default function Header() {
 
           {/* Right Actions: Search, Cart, User & CTA */}
           <div className="flex items-center gap-3 shrink-0">
-            {/* Mobile Menu Toggle */}
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="md:hidden h-9 w-9 rounded-full hover:bg-muted"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
-              {mobileMenuOpen ? <X className="h-5 w-5 text-foreground" /> : <Menu className="h-5 w-5 text-foreground" />}
-            </Button>
-            
             <div className="hidden lg:flex relative w-56 items-center">
               <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
               <Input
@@ -282,8 +272,8 @@ export default function Header() {
               />
             </div>
             
-            {/* Wishlist Button - ALWAYS visible */}
-            <Link to="/products?filter=wishlist" title="View Wishlist">
+            {/* Wishlist Button - Desktop only (hidden on mobile, moved inside mobile menu) */}
+            <Link to="/products?filter=wishlist" title="View Wishlist" className="hidden md:inline-flex">
               <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-full hover:bg-muted text-foreground">
                 <Heart className="h-5 w-5 hover:text-red-500 transition-colors" />
                 {wishlistCount > 0 && (
@@ -294,8 +284,8 @@ export default function Header() {
               </Button>
             </Link>
 
-            {/* Shopping Cart Button - ALWAYS visible for both guests and logged-in users */}
-            <Link to="/cart" title="Shopping Cart">
+            {/* Shopping Cart Button - Desktop only (hidden on mobile, moved inside mobile menu) */}
+            <Link to="/cart" title="Shopping Cart" className="hidden md:inline-flex">
               <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-full hover:bg-muted text-foreground">
                 <ShoppingCart className="h-5 w-5 hover:text-red-500 transition-colors" />
                 {cartCount > 0 && (
@@ -343,6 +333,16 @@ export default function Header() {
                 Get Quote
               </Button>
             </Link>
+
+            {/* Mobile Menu Toggle (Far Right on Mobile) */}
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="md:hidden h-9 w-9 rounded-full hover:bg-muted"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? <X className="h-5 w-5 text-foreground" /> : <Menu className="h-5 w-5 text-foreground" />}
+            </Button>
           </div>
         </div>
       </header>
@@ -351,6 +351,41 @@ export default function Header() {
       {mobileMenuOpen && (
         <div className="md:hidden absolute left-0 right-0 bg-background/95 backdrop-blur-xl border-b border-border/40 shadow-xl z-[45] animate-in slide-in-from-top-4 duration-200">
           <nav className="flex flex-col p-4 px-6 space-y-3">
+            {/* Mobile View Quick Actions: Wishlist & Cart */}
+            <div className="grid grid-cols-2 gap-3 pb-3 border-b border-gray-100/60 dark:border-gray-800">
+              <Link 
+                to="/products?filter=wishlist" 
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200/60 dark:border-rose-900/40 text-rose-700 dark:text-rose-300 font-bold text-xs hover:bg-rose-100 transition-all shadow-2xs"
+              >
+                <div className="relative flex items-center">
+                  <Heart className="h-4 w-4 fill-rose-500 text-rose-500" />
+                  {wishlistCount > 0 && (
+                    <span className="absolute -top-2 -right-2.5 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-rose-600 text-[10px] font-extrabold text-white">
+                      {wishlistCount}
+                    </span>
+                  )}
+                </div>
+                <span>Wishlist ({wishlistCount})</span>
+              </Link>
+
+              <Link 
+                to="/cart" 
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200/60 dark:border-red-900/40 text-red-700 dark:text-red-300 font-bold text-xs hover:bg-red-100 transition-all shadow-2xs"
+              >
+                <div className="relative flex items-center">
+                  <ShoppingCart className="h-4 w-4 text-red-600" />
+                  {cartCount > 0 && (
+                    <span className="absolute -top-2 -right-2.5 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-red-600 text-[10px] font-extrabold text-white">
+                      {cartCount}
+                    </span>
+                  )}
+                </div>
+                <span>Cart ({cartCount})</span>
+              </Link>
+            </div>
+
             {navItems.map((item) => (
               <div key={item.name} className="flex flex-col">
                 <Link 
