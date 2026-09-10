@@ -555,12 +555,14 @@ export default function Technicians() {
 
       {/* Modal Add Technician */}
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Onboard New Technician">
-        <form onSubmit={handleAddTech} className="space-y-4">
+        <form onSubmit={handleAddTech} className="space-y-4" autoComplete="off">
           <div>
             <label className="block text-xs font-semibold text-slate-500 mb-1.5">Full Name</label>
             <input 
               required
               type="text" 
+              name="technicianFullName"
+              autoComplete="off"
               placeholder="e.g. Manoj Dev" 
               value={techForm.name}
               onChange={(e) => setTechForm({ ...techForm, name: e.target.value })}
@@ -573,6 +575,8 @@ export default function Technicians() {
               <input 
                 required
                 type="tel" 
+                name="technicianPhone"
+                autoComplete="off"
                 maxLength={10}
                 placeholder="10-digit mobile number" 
                 value={techForm.phone}
@@ -602,6 +606,8 @@ export default function Technicians() {
               <input 
                 required
                 type="email" 
+                name="technicianEmail"
+                autoComplete="new-password"
                 placeholder="tech@sktechnology.in" 
                 value={techForm.email}
                 onChange={(e) => setTechForm({ ...techForm, email: e.target.value })}
@@ -627,6 +633,8 @@ export default function Technicians() {
                 <input 
                   required
                   type={showAddPassword ? "text" : "password"} 
+                  name="technicianPassword"
+                  autoComplete="new-password"
                   placeholder="Min 6 characters" 
                   value={techForm.password}
                   onChange={(e) => setTechForm({ ...techForm, password: e.target.value })}
@@ -672,12 +680,14 @@ export default function Technicians() {
       {/* Modal Edit Technician */}
       <Modal isOpen={editModalOpen} onClose={() => setEditModalOpen(false)} title="Edit Technician Details">
         {editingTech && (
-          <form onSubmit={handleEditTechSubmit} className="space-y-4">
+          <form onSubmit={handleEditTechSubmit} className="space-y-4" autoComplete="off">
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1.5">Full Name</label>
               <input 
                 required
                 type="text" 
+                name="editTechName"
+                autoComplete="off"
                 value={editingTech.name}
                 onChange={(e) => setEditingTech({ ...editingTech, name: e.target.value })}
                 className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
@@ -689,6 +699,8 @@ export default function Technicians() {
                 <input 
                   required
                   type="tel" 
+                  name="editTechPhone"
+                  autoComplete="off"
                   maxLength={10}
                   placeholder="10-digit mobile number"
                   value={editingTech.phone}
@@ -718,6 +730,8 @@ export default function Technicians() {
                 <input 
                   required
                   type="email" 
+                  name="editTechEmail"
+                  autoComplete="new-password"
                   value={editingTech.email}
                   onChange={(e) => setEditingTech({ ...editingTech, email: e.target.value })}
                   className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
@@ -742,6 +756,8 @@ export default function Technicians() {
                   <input 
                     required
                     type={showEditPassword ? "text" : "password"} 
+                    name="editTechPassword"
+                    autoComplete="new-password"
                     placeholder="Min 6 characters" 
                     value={editingTech.password}
                     onChange={(e) => setEditingTech({ ...editingTech, password: e.target.value })}
