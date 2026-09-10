@@ -461,10 +461,12 @@ router.put('/:id', async (req: Request, res: Response) => {
       if (technicianId) job.workProgress.updatedBy = technicianId;
     }
 
-    if (req.body.status === 'IN_PROGRESS' || (!job.status || (job.status as string) === 'PENDING' || (job.status as string) === 'ACCEPTED')) {
-      if (req.body.status) job.status = req.body.status;
-      if (!job.startDate) job.startDate = new Date().toISOString();
-      if (job.workProgress && !job.workProgress.startedAt) job.workProgress.startedAt = new Date();
+    if (req.body.status) {
+      job.status = req.body.status;
+      if (req.body.status === 'IN_PROGRESS' || req.body.status === 'ACCEPTED') {
+        if (!job.startDate) job.startDate = new Date().toISOString();
+        if (job.workProgress && !job.workProgress.startedAt) job.workProgress.startedAt = new Date();
+      }
     }
 
     // Support pushing daily report

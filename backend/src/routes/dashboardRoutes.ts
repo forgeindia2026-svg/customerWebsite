@@ -171,7 +171,7 @@ router.get('/', async (req: Request, res: Response) => {
           if (job.status === 'PENDING') return (job.assignedTechnicians && job.assignedTechnicians.length > 0) ? 'In Progress' : 'Pending';
           if (job.status === 'ASSIGNED' || job.status === 'IN_PROGRESS') return 'In Progress';
           if (job.status === 'WAITING_ADMIN_APPROVAL') return 'Completed';
-          if (job.status === 'COMPLETED') return 'Approved';
+          if (job.status === 'COMPLETED') return 'Completed';
           return 'Pending';
         })(),
         details: job.scopeOfWork?.join(', ') || job.title,
@@ -215,7 +215,7 @@ router.get('/', async (req: Request, res: Response) => {
       }
       if (job) {
         if (job.status === 'COMPLETED') {
-          dashboardStatus = 'Approved';
+          dashboardStatus = 'Completed';
         } else if (job.status === 'IN_PROGRESS' || job.status === 'ASSIGNED') {
           dashboardStatus = 'In Progress';
         } else if (job.status === 'PENDING') {
@@ -411,7 +411,7 @@ router.put('/', async (req: Request, res: Response) => {
     // 1. Sync orders back to live Orders collection
     if (req.body.orders && Array.isArray(req.body.orders)) {
       for (const o of req.body.orders) {
-        const dbStatus = o.status === 'Completed' ? 'DELIVERED' : 'PROCESSING';
+        const dbStatus = (o.status === 'Completed' || o.status === 'Approved' || o.status === 'DELIVERED') ? 'DELIVERED' : 'PROCESSING';
         const existingOrder = await Order.findOne({ orderNumber: o.id });
         if (!existingOrder) {
           await Order.create({
@@ -436,7 +436,11 @@ router.put('/', async (req: Request, res: Response) => {
             jobCode: o.id
           });
           if (associatedJob) {
-            if (o.status === 'Approved') {
+            if (o.status === 'Completed' || o.status === 'DELIVERED') {
+              associatedJob.status = 'COMPLETED';
+            } else if (associatedJob.status === 'COMPLETED') {
+              // Never demote a completed job back to ASSIGNED or IN_PROGRESS
+            } else if (o.status === 'Approved') {
               const isNewlyApproved = associatedJob.status !== 'ASSIGNED';
               associatedJob.status = 'ASSIGNED';
               
@@ -454,8 +458,6 @@ router.put('/', async (req: Request, res: Response) => {
               }
             } else if (o.status === 'In Progress') {
               associatedJob.status = 'IN_PROGRESS';
-            } else if (o.status === 'Completed') {
-              associatedJob.status = 'COMPLETED';
             } else if (o.status === 'Pending Approval' || o.status === 'Pending') {
               associatedJob.status = 'PENDING';
             }
