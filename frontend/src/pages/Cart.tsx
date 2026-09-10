@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { Trash2, ArrowRight, ShoppingBag, CheckCircle2, X, MapPin } from "lucide-react";
+import { Trash2, ArrowRight, ShoppingBag, CheckCircle2, X, MapPin, Building, Navigation, Map } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface CartItem {
@@ -23,12 +23,14 @@ export default function Cart() {
     name: "",
     email: "",
     phone: "",
-    address: "", // Street Address
+    doorNo: "",
+    street: "",
     city: "",
-    state: "",
+    state: "Tamil Nadu",
     zipcode: "",
-    serviceType: "ONLY_PRODUCT_DELIVERY",
-    paymentMethod: "RAZORPAY" // "RAZORPAY" | "COD"
+    landmark: "",
+    serviceType: "ONLY_PRODUCT_DELIVERY" as "ONLY_PRODUCT_DELIVERY" | "DELIVERY_INSTALLATION",
+    paymentMethod: "RAZORPAY" as "RAZORPAY" | "COD"
   });
   const [fetchingLocation, setFetchingLocation] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
@@ -80,27 +82,22 @@ export default function Cart() {
           .then((data) => {
             if (data && data.address) {
               const addr = data.address;
-              const house = addr.house_number || addr.building || "";
-              const road = addr.road || "";
+              const house = addr.house_number || addr.building || addr.house || "";
+              const road = addr.road || addr.street || "";
               const suburb = addr.suburb || addr.neighbourhood || addr.city_district || "";
               const city = addr.city || addr.town || addr.village || "";
-
-              let addressParts = [];
-              if (house) addressParts.push(house);
-              if (road) addressParts.push(road);
-              if (suburb) addressParts.push(suburb);
-              if (city) addressParts.push(city);
-
-              const streetAddress = addressParts.length > 0 ? addressParts.join(", ") : city;
-              const state = addr.state || "";
+              const state = addr.state || "Tamil Nadu";
               const postcode = addr.postcode || "";
+
+              const streetName = [road, suburb].filter(Boolean).join(", ");
 
               setCheckoutForm((prev) => ({
                 ...prev,
-                address: streetAddress,
-                city: city || suburb || "Chennai",
+                doorNo: house || prev.doorNo || "",
+                street: streetName || prev.street || "",
+                city: city || suburb || prev.city || "Chennai",
                 state: state || "Tamil Nadu",
-                zipcode: postcode || "600001",
+                zipcode: postcode || prev.zipcode || "600001",
               }));
             }
           })
@@ -108,7 +105,7 @@ export default function Cart() {
             console.error("Geocoding failed:", err);
             setCheckoutForm((prev) => ({
               ...prev,
-              address: `Lat: ${latitude.toFixed(4)}, Lon: ${longitude.toFixed(4)}`,
+              street: `Lat: ${latitude.toFixed(4)}, Lon: ${longitude.toFixed(4)}`,
             }));
           })
           .finally(() => {
@@ -141,14 +138,48 @@ export default function Cart() {
     const name = localStorage.getItem("user_name") || "";
     const phone = localStorage.getItem("user_phone") || "";
 
+    const localDoorNo = localStorage.getItem("user_door_no") || "";
+    const localStreet = localStorage.getItem("user_street") || "";
+    const localCity = localStorage.getItem("user_city") || "";
+    const localState = localStorage.getItem("user_state") || "Tamil Nadu";
+    const localPincode = localStorage.getItem("user_pincode") || "";
+    const localLandmark = localStorage.getItem("user_landmark") || "";
+    const localAddress = localStorage.getItem("user_address") || "";
+
+    let initialDoor = localDoorNo;
+    let initialStreet = localStreet;
+    let initialCity = localCity;
+    let initialState = localState;
+    let initialZip = localPincode;
+    let initialLandmark = localLandmark;
+
+    if (!initialDoor && !initialStreet && localAddress) {
+      const parts = localAddress.split(',').map((s: string) => s.trim());
+      if (parts.length >= 2) {
+        initialDoor = parts[0] || '';
+        initialStreet = parts[1] || '';
+        const landmarkPart = parts.find((p: string) => /^Near\s+/i.test(p));
+        if (landmarkPart) initialLandmark = landmarkPart.replace(/^Near\s+/i, '').trim();
+        const pinMatch = localAddress.match(/\b\d{6}\b/);
+        if (pinMatch) initialZip = pinMatch[0];
+        if (parts.length >= 4) {
+          initialCity = parts[parts.length - 2].replace(/^Near\s+.*$/i, '').trim() || '';
+          const lastPart = parts[parts.length - 1];
+          initialState = lastPart.replace(/-\s*\d{6}/, '').replace(/\b\d{6}\b/, '').trim() || 'Tamil Nadu';
+        }
+      }
+    }
+
     setCheckoutForm({
       name,
       email,
       phone,
-      address: "",
-      city: "",
-      state: "",
-      zipcode: "",
+      doorNo: initialDoor,
+      street: initialStreet,
+      city: initialCity,
+      state: initialState,
+      zipcode: initialZip,
+      landmark: initialLandmark,
       serviceType: "ONLY_PRODUCT_DELIVERY",
       paymentMethod: "RAZORPAY"
     });
@@ -160,8 +191,42 @@ export default function Cart() {
       .then(res => res.json())
       .then(data => {
         if (data.success && data.data) {
-          const freshAddress = data.data.shippingAddress || data.data.address || "";
-          setCheckoutForm(prev => ({ ...prev, address: freshAddress }));
+          const u = data.data;
+          setCheckoutForm(prev => {
+            let dNo = u.doorNo || prev.doorNo;
+            let str = u.street || prev.street;
+            let ct = u.city || prev.city;
+            let st = u.state || prev.state;
+            let pin = u.pincode || prev.zipcode;
+            let lmk = u.landmark || prev.landmark;
+
+            if (!dNo && !str && (u.shippingAddress || u.address)) {
+              const full = u.shippingAddress || u.address || '';
+              const parts = full.split(',').map((s: string) => s.trim());
+              if (parts.length >= 2) {
+                dNo = parts[0] || '';
+                str = parts[1] || '';
+                const lPart = parts.find((p: string) => /^Near\s+/i.test(p));
+                if (lPart) lmk = lPart.replace(/^Near\s+/i, '').trim();
+                const pMatch = full.match(/\b\d{6}\b/);
+                if (pMatch) pin = pMatch[0];
+                if (parts.length >= 4) {
+                  ct = parts[parts.length - 2].replace(/^Near\s+.*$/i, '').trim() || '';
+                  st = parts[parts.length - 1].replace(/-\s*\d{6}/, '').replace(/\b\d{6}\b/, '').trim() || 'Tamil Nadu';
+                }
+              }
+            }
+
+            return {
+              ...prev,
+              doorNo: dNo,
+              street: str,
+              city: ct,
+              state: st,
+              zipcode: pin,
+              landmark: lmk,
+            };
+          });
         }
       })
       .catch(err => console.warn("Could not load address on checkout open:", err));
@@ -184,8 +249,8 @@ export default function Cart() {
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!checkoutForm.name || !checkoutForm.phone || !checkoutForm.address || !checkoutForm.state || !checkoutForm.zipcode) {
-      setCheckoutError("Please fill in all fields.");
+    if (!checkoutForm.name || !checkoutForm.phone || (!checkoutForm.doorNo && !checkoutForm.street)) {
+      setCheckoutError("Please enter your name, phone, door number and street address.");
       return;
     }
 
@@ -203,12 +268,38 @@ export default function Cart() {
     }));
 
     const addressParts = [
-      checkoutForm.address,
-      checkoutForm.city,
-      checkoutForm.state,
-      checkoutForm.zipcode
+      checkoutForm.doorNo ? checkoutForm.doorNo.trim() : "",
+      checkoutForm.street ? checkoutForm.street.trim() : "",
+      checkoutForm.landmark ? `Near ${checkoutForm.landmark.trim()}` : "",
+      checkoutForm.city ? checkoutForm.city.trim() : "",
+      checkoutForm.state ? (checkoutForm.zipcode ? `${checkoutForm.state.trim()} - ${checkoutForm.zipcode.trim()}` : checkoutForm.state.trim()) : checkoutForm.zipcode?.trim()
     ].filter(Boolean).join(', ');
     const fullAddress = `${addressParts} [Service: ${checkoutForm.serviceType === 'DELIVERY_INSTALLATION' ? 'DELIVERY + INSTALLATION' : 'ONLY PRODUCT DELIVERY'}]`;
+
+    // Persist updated structured address to localStorage
+    localStorage.setItem("user_door_no", checkoutForm.doorNo);
+    localStorage.setItem("user_street", checkoutForm.street);
+    localStorage.setItem("user_city", checkoutForm.city);
+    localStorage.setItem("user_state", checkoutForm.state);
+    localStorage.setItem("user_pincode", checkoutForm.zipcode);
+    localStorage.setItem("user_landmark", checkoutForm.landmark);
+    localStorage.setItem("user_address", addressParts);
+
+    // Background sync to backend profile
+    fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/auth/profile`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: checkoutForm.email,
+        doorNo: checkoutForm.doorNo,
+        street: checkoutForm.street,
+        city: checkoutForm.city,
+        state: checkoutForm.state,
+        pincode: checkoutForm.zipcode,
+        landmark: checkoutForm.landmark,
+        address: addressParts
+      })
+    }).catch(e => console.warn("Background profile sync:", e));
 
     try {
       // 1. Create Order in backend database
@@ -220,10 +311,13 @@ export default function Cart() {
           customerEmail: checkoutForm.email,
           customerPhone: checkoutForm.phone,
           shippingAddress: fullAddress,
-          city: checkoutForm.city || checkoutForm.state || 'Local',
+          doorNo: checkoutForm.doorNo,
+          street: checkoutForm.street,
+          city: checkoutForm.city || 'Local',
           state: checkoutForm.state || 'Tamil Nadu',
           postalCode: checkoutForm.zipcode || '600001',
           zipcode: checkoutForm.zipcode || '600001',
+          landmark: checkoutForm.landmark || '',
           items: orderItems,
           totalAmount: total,
           serviceType: checkoutForm.serviceType,
@@ -542,10 +636,13 @@ export default function Cart() {
                     )}
                   </div>
 
-                  {/* Street Address */}
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center">
-                      <label className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Street Address</label>
+                  {/* INSTALLATION & DELIVERY ADDRESS */}
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                    <div className="flex items-center justify-between pb-1">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
+                        <MapPin className="h-4 w-4 text-[#ff3b30]" />
+                        <span>INSTALLATION & DELIVERY ADDRESS</span>
+                      </div>
                       <button
                         type="button"
                         onClick={handleFetchLocation}
@@ -556,50 +653,106 @@ export default function Cart() {
                         <span>{fetchingLocation ? "Fetching..." : "Fetch Live Location"}</span>
                       </button>
                     </div>
-                    <div className="relative">
-                      <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-450">
-                        <MapPin className="h-4 w-4" />
-                      </span>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Street, locality, area name..."
-                        value={checkoutForm.address}
-                        onChange={e => setCheckoutForm(prev => ({ ...prev, address: e.target.value }))}
-                        className="w-full pl-10 pr-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#ff3b30] bg-white text-gray-900 shadow-2xs font-semibold"
-                      />
-                    </div>
-                  </div>
 
-                  {/* City, State & Zipcode */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">City / District</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Chennai"
-                        value={checkoutForm.city}
-                        onChange={e => setCheckoutForm(prev => ({ ...prev, city: e.target.value }))}
-                        className="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#ff3b30] bg-white text-gray-900 shadow-2xs font-semibold"
-                      />
+                    {/* 1. Door No & 2. Street / Area */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
+                          1. Door No / Building / Apartment Name <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <Building className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+                          <input
+                            type="text"
+                            required
+                            value={checkoutForm.doorNo}
+                            onChange={e => setCheckoutForm(prev => ({ ...prev, doorNo: e.target.value }))}
+                            placeholder="Flat 4B / House No"
+                            className="w-full pl-10 pr-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#ff3b30] bg-white text-gray-900 shadow-2xs font-semibold"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
+                          2. Street / Area / Colony <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <Navigation className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+                          <input
+                            type="text"
+                            required
+                            value={checkoutForm.street}
+                            onChange={e => setCheckoutForm(prev => ({ ...prev, street: e.target.value }))}
+                            placeholder="Street Name, Area"
+                            className="w-full pl-10 pr-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#ff3b30] bg-white text-gray-900 shadow-2xs font-semibold"
+                          />
+                        </div>
+                      </div>
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">State</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Tamil Nadu"
-                        value={checkoutForm.state}
-                        onChange={e => setCheckoutForm(prev => ({ ...prev, state: e.target.value }))}
-                        className="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#ff3b30] bg-white text-gray-900 shadow-2xs font-semibold"
-                      />
+
+                    {/* 3. City, 4. State & 5. Pincode */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
+                          3. City / Town <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <Map className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+                          <input
+                            type="text"
+                            required
+                            value={checkoutForm.city}
+                            onChange={e => setCheckoutForm(prev => ({ ...prev, city: e.target.value }))}
+                            placeholder="City"
+                            className="w-full pl-10 pr-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#ff3b30] bg-white text-gray-900 shadow-2xs font-semibold"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
+                          4. State <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={checkoutForm.state}
+                          onChange={e => setCheckoutForm(prev => ({ ...prev, state: e.target.value }))}
+                          placeholder="Tamil Nadu"
+                          className="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#ff3b30] bg-white text-gray-900 shadow-2xs font-semibold"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
+                          5. Pincode (6 digits) <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          maxLength={6}
+                          value={checkoutForm.zipcode}
+                          onChange={e => {
+                            const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                            setCheckoutForm(prev => ({ ...prev, zipcode: val }));
+                          }}
+                          placeholder="600001"
+                          className="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#ff3b30] bg-white text-gray-900 shadow-2xs font-semibold"
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Zipcode</label>
+
+                    {/* 6. Landmark (Optional) */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
+                        6. Landmark (Optional)
+                      </label>
                       <input
                         type="text"
-                        placeholder="e.g. 600001"
-                        value={checkoutForm.zipcode}
-                        onChange={e => setCheckoutForm(prev => ({ ...prev, zipcode: e.target.value }))}
+                        value={checkoutForm.landmark}
+                        onChange={e => setCheckoutForm(prev => ({ ...prev, landmark: e.target.value }))}
+                        placeholder="e.g. Near Bus Stand, Opp. Temple"
                         className="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#ff3b30] bg-white text-gray-900 shadow-2xs font-semibold"
                       />
                     </div>
