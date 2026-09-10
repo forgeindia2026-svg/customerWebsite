@@ -1,6 +1,32 @@
-import React, { useState, useEffect } from 'react';
-import { LogIn, LogOut, Clock, CheckCircle, AlertCircle, ShieldCheck, MapPin } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  LogIn, 
+  LogOut, 
+  Clock, 
+  CheckCircle, 
+  AlertCircle, 
+  ShieldCheck, 
+  MapPin, 
+  Camera, 
+  X, 
+  RefreshCw, 
+  Image as ImageIcon,
+  ChevronDown,
+  ChevronUp
+} from 'lucide-react';
 import { getApiUrl } from '../../../utils/config';
+
+interface PunchSession {
+  _id?: string;
+  punchInTime: string;
+  punchInTimestamp: string | Date;
+  punchInPhoto?: string;
+  punchInLocation?: string;
+  punchOutTime?: string;
+  punchOutTimestamp?: string | Date;
+  durationHours?: number;
+  notes?: string;
+}
 
 interface AttendanceRecord {
   _id?: string;
@@ -9,6 +35,7 @@ interface AttendanceRecord {
   date: string;
   checkInTime?: string;
   checkInTimestamp?: string;
+  punchInPhoto?: string;
   checkOutTime?: string;
   checkOutTimestamp?: string;
   totalHours?: number;
@@ -16,6 +43,7 @@ interface AttendanceRecord {
   location?: string;
   latitude?: number;
   longitude?: number;
+  punches?: PunchSession[];
 }
 
 // Helper to get Live GPS Coordinates & Human-readable area
@@ -68,7 +96,16 @@ export const AttendanceCard: React.FC = () => {
   const [locationStatus, setLocationStatus] = useState<string | null>(null);
   const [elapsedTime, setElapsedTime] = useState<string>('00:00:00');
   const [notes, setNotes] = useState<string>('');
+  
+  // Modals & Photo capture states
+  const [showPunchInModal, setShowPunchInModal] = useState<boolean>(false);
   const [showCheckoutConfirm, setShowCheckoutConfirm] = useState<boolean>(false);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState<boolean>(false);
+  const [showSessionsList, setShowSessionsList] = useState<boolean>(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const authUser = JSON.parse(localStorage.getItem('tech_user') || '{}');
   const techId = authUser.id || authUser._id || localStorage.getItem('user_id') || 'TECH-01';
@@ -104,14 +141,21 @@ export const AttendanceCard: React.FC = () => {
     fetchAttendance();
   }, [techId]);
 
+  // Determine active open session
+  const punches = attendance?.punches || [];
+  const activeSession = punches.find(p => p.punchInTimestamp && !p.punchOutTimestamp);
+  const isOnDuty = Boolean(activeSession || (attendance?.checkInTimestamp && !attendance?.checkOutTimestamp && attendance.status === 'PRESENT'));
+  const completedPunches = punches.filter(p => p.punchOutTimestamp);
+
   // Live timer tick when ON DUTY
   useEffect(() => {
-    if (!attendance || !attendance.checkInTimestamp || attendance.checkOutTimestamp) {
-      return;
-    }
+    if (!isOnDuty) return;
+
+    const startTimestamp = activeSession?.punchInTimestamp || attendance?.checkInTimestamp;
+    if (!startTimestamp) return;
 
     const interval = setInterval(() => {
-      const diffMs = Date.now() - new Date(attendance.checkInTimestamp!).getTime();
+      const diffMs = Date.now() - new Date(startTimestamp).getTime();
       if (diffMs > 0) {
         const totalSeconds = Math.floor(diffMs / 1000);
         const hours = Math.floor(totalSeconds / 3600);
@@ -124,14 +168,59 @@ export const AttendanceCard: React.FC = () => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [attendance]);
+  }, [isOnDuty, activeSession, attendance]);
 
-  const handlePunchIn = async () => {
+  // Photo change handler
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPhotoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Upload photo to backend or use base64 fallback
+  const uploadPhoto = async (file: File): Promise<string> => {
+    try {
+      setIsUploadingPhoto(true);
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('folder', 'attendance');
+
+      const res = await fetch(`${getApiUrl()}/api/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && (data.imageUrl || data.url)) {
+          return data.imageUrl || data.url;
+        }
+      }
+    } catch (err) {
+      console.warn('Image upload endpoint fallback, using encoded preview', err);
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+    return photoPreview || '';
+  };
+
+  const handleConfirmPunchIn = async () => {
+    if (!photoPreview) {
+      alert('Please take or upload a selfie / verification photo to Punch In.');
+      return;
+    }
+
     setLocationStatus('Getting live GPS location...');
     try {
       setIsPunching(true);
 
-      // 1. Enforce live GPS Location
+      // 1. Live GPS Location
       let coordsData;
       try {
         coordsData = await getLiveLocation();
@@ -140,30 +229,54 @@ export const AttendanceCard: React.FC = () => {
         setLocationStatus(null);
         alert(locErr.message || 'Please turn on GPS and allow location permission to Punch In.');
         setIsPunching(false);
-        return; // BLOCK punch in if location is not enabled
+        return;
+      }
+
+      // 2. Upload Photo
+      let finalPhotoUrl = photoPreview;
+      if (photoFile) {
+        finalPhotoUrl = await uploadPhoto(photoFile);
       }
 
       const now = new Date();
       const today = now.toISOString().split('T')[0];
       const checkInTimeStr = now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true });
 
-      const localRecord: AttendanceRecord = {
-        technicianId: techId,
-        technicianName: techName,
-        date: today,
-        checkInTime: checkInTimeStr,
-        checkInTimestamp: now.toISOString(),
+      const newPunch: PunchSession = {
+        punchInTime: checkInTimeStr,
+        punchInTimestamp: now.toISOString(),
+        punchInPhoto: finalPhotoUrl,
+        punchInLocation: coordsData.locationName,
+        notes: `Session ${punches.length + 1}`
+      };
+
+      const updatedRecord: AttendanceRecord = {
+        ...(attendance || {
+          technicianId: techId,
+          technicianName: techName,
+          date: today,
+          totalHours: 0
+        }),
+        checkInTime: attendance?.checkInTime || checkInTimeStr,
+        checkInTimestamp: attendance?.checkInTimestamp || now.toISOString(),
+        punchInPhoto: finalPhotoUrl,
+        checkOutTime: '',
+        checkOutTimestamp: undefined,
         status: 'PRESENT',
         location: coordsData.locationName,
         latitude: coordsData.lat,
-        longitude: coordsData.lng
+        longitude: coordsData.lng,
+        punches: [...punches, newPunch]
       };
 
-      // 2. Instant local UI update
-      setAttendance(localRecord);
-      localStorage.setItem(`sk_tech_attendance_${techId}_${today}`, JSON.stringify(localRecord));
+      // 3. Instant local UI update
+      setAttendance(updatedRecord);
+      localStorage.setItem(`sk_tech_attendance_${techId}_${today}`, JSON.stringify(updatedRecord));
+      setShowPunchInModal(false);
+      setPhotoPreview(null);
+      setPhotoFile(null);
 
-      // 3. Sync to Backend API with exact live location
+      // 4. Sync to Backend API
       const res = await fetch(`${getApiUrl()}/api/attendance/check-in`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -173,7 +286,8 @@ export const AttendanceCard: React.FC = () => {
           location: coordsData.locationName,
           latitude: coordsData.lat,
           longitude: coordsData.lng,
-          notes: 'Full Day (1.0 Day)'
+          photo: finalPhotoUrl,
+          notes: `Session ${punches.length + 1}`
         })
       });
 
@@ -199,24 +313,43 @@ export const AttendanceCard: React.FC = () => {
       const today = now.toISOString().split('T')[0];
       const checkOutTimeStr = now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true });
 
-      let hours = 0;
-      if (attendance?.checkInTimestamp) {
-        const diffMs = now.getTime() - new Date(attendance.checkInTimestamp).getTime();
-        hours = Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100;
-      }
+      // Calculate session duration
+      const startMs = activeSession?.punchInTimestamp 
+        ? new Date(activeSession.punchInTimestamp).getTime() 
+        : attendance?.checkInTimestamp ? new Date(attendance.checkInTimestamp).getTime() : now.getTime();
+      
+      const sessionHours = Math.max(0, Math.round(((now.getTime() - startMs) / (1000 * 60 * 60)) * 100) / 100);
+
+      // Update punch list
+      const updatedPunches = punches.map(p => {
+        if (p.punchInTimestamp && !p.punchOutTimestamp) {
+          return {
+            ...p,
+            punchOutTime: checkOutTimeStr,
+            punchOutTimestamp: now.toISOString(),
+            durationHours: sessionHours,
+            notes: notes || p.notes
+          };
+        }
+        return p;
+      });
+
+      const totalWorked = updatedPunches.reduce((acc, p) => acc + (p.durationHours || 0), 0);
 
       const updatedRecord: AttendanceRecord = {
         ...(attendance || { technicianId: techId, technicianName: techName, date: today }),
         checkOutTime: checkOutTimeStr,
         checkOutTimestamp: now.toISOString(),
         status: 'OFF_DUTY',
-        totalHours: hours
+        totalHours: Math.round(totalWorked * 100) / 100,
+        punches: updatedPunches
       };
 
       // 1. Instant local UI update
       setAttendance(updatedRecord);
       localStorage.setItem(`sk_tech_attendance_${techId}_${today}`, JSON.stringify(updatedRecord));
       setShowCheckoutConfirm(false);
+      setNotes('');
 
       // 2. Sync to Backend API
       const res = await fetch(`${getApiUrl()}/api/attendance/check-out`, {
@@ -224,7 +357,7 @@ export const AttendanceCard: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           technicianId: techId,
-          notes: notes || 'Full Day (1.0 Day)'
+          notes: notes || 'Session Completed'
         })
       });
 
@@ -242,23 +375,22 @@ export const AttendanceCard: React.FC = () => {
     }
   };
 
-  const isOnDuty = Boolean(attendance && attendance.checkInTimestamp && !attendance.checkOutTimestamp);
-  const isShiftEnded = Boolean(attendance && attendance.checkOutTimestamp);
+  const hasPunchedToday = punches.length > 0 || Boolean(attendance?.checkInTimestamp);
 
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl px-3.5 sm:px-4 py-3 shadow-[0_2px_10px_rgb(0,0,0,0.03)] mb-5">
       <div className="flex items-center justify-between gap-2.5">
         
-        {/* Left Side: Small Icon + Title + Status Badge */}
+        {/* Left Side: Icon + Title + Status Badge */}
         <div className="flex items-center space-x-2.5 min-w-0">
           <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
             isOnDuty 
               ? 'bg-emerald-500 text-white shadow-emerald-500/20 animate-pulse' 
-              : isShiftEnded 
+              : hasPunchedToday 
               ? 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300' 
               : 'bg-blue-50 dark:bg-blue-900/30 text-[#2563eb] dark:text-blue-400'
           }`}>
-            {isOnDuty ? <Clock className="w-4 h-4" /> : isShiftEnded ? <CheckCircle className="w-4 h-4 text-emerald-600" /> : <ShieldCheck className="w-4 h-4" />}
+            {isOnDuty ? <Clock className="w-4 h-4" /> : hasPunchedToday ? <CheckCircle className="w-4 h-4 text-emerald-600" /> : <ShieldCheck className="w-4 h-4" />}
           </div>
 
           <div className="flex items-center space-x-2 min-w-0">
@@ -268,33 +400,32 @@ export const AttendanceCard: React.FC = () => {
             <span className={`px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider shrink-0 ${
               isOnDuty 
                 ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200' 
-                : isShiftEnded 
+                : hasPunchedToday 
                 ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200' 
                 : 'bg-[#fffbeb] dark:bg-amber-950/50 text-[#b45309] dark:text-amber-300 border border-[#fde68a]'
             }`}>
-              {isOnDuty ? '🟢 ON DUTY' : isShiftEnded ? '🏁 ENDED' : '🟡 NOT PUNCHED'}
+              {isOnDuty 
+                ? `🟢 ON DUTY ${punches.length > 1 ? `(S${punches.length})` : ''}` 
+                : hasPunchedToday 
+                ? `🏁 OFF DUTY (${punches.length} ${punches.length === 1 ? 'session' : 'sessions'})` 
+                : '🟡 NOT PUNCHED'}
             </span>
           </div>
         </div>
 
-        {/* Right Side: Action Button & Active Time Inline */}
+        {/* Right Side: Action Button & Active Time / Total Today */}
         <div className="flex items-center space-x-2 shrink-0">
-          {isOnDuty && (
-            <div className="hidden sm:block font-mono font-black text-emerald-600 dark:text-emerald-400 text-xs px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/50 rounded-lg">
-              {elapsedTime}
+          {isOnDuty ? (
+            <div className="hidden sm:flex items-center space-x-1 font-mono font-black text-emerald-600 dark:text-emerald-400 text-xs px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/50 rounded-lg">
+              <span>{elapsedTime}</span>
             </div>
-          )}
+          ) : attendance?.totalHours ? (
+            <div className="hidden sm:block text-[11px] font-bold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/80 px-2 py-1 rounded-lg">
+              Today: <strong className="text-slate-800 dark:text-slate-200">{attendance.totalHours} hrs</strong>
+            </div>
+          ) : null}
 
-          {!attendance || (!isOnDuty && !isShiftEnded) ? (
-            <button
-              onClick={handlePunchIn}
-              disabled={isPunching}
-              className="flex items-center space-x-1.5 bg-[#059669] hover:bg-emerald-700 active:scale-[0.98] text-white font-bold px-3.5 py-2 rounded-xl shadow-xs transition-all cursor-pointer text-xs"
-            >
-              <LogIn className="w-3.5 h-3.5" />
-              <span>{isPunching ? 'Punching...' : 'Punch In'}</span>
-            </button>
-          ) : isOnDuty ? (
+          {isOnDuty ? (
             <button
               onClick={() => setShowCheckoutConfirm(true)}
               disabled={isPunching}
@@ -304,27 +435,217 @@ export const AttendanceCard: React.FC = () => {
               <span>Punch Out</span>
             </button>
           ) : (
-            <div className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5 rounded-xl border border-emerald-200/60">
-              ✓ Day Completed
-            </div>
+            <button
+              onClick={() => setShowPunchInModal(true)}
+              disabled={isPunching}
+              className="flex items-center space-x-1.5 bg-[#059669] hover:bg-emerald-700 active:scale-[0.98] text-white font-bold px-3.5 py-2 rounded-xl shadow-xs transition-all cursor-pointer text-xs"
+            >
+              <Camera className="w-3.5 h-3.5" />
+              <span>
+                {punches.length === 0 ? 'Punch In' : `Punch In (Session ${punches.length + 1})`}
+              </span>
+            </button>
+          )}
+
+          {/* Toggle Sessions Dropdown if multiple punches */}
+          {punches.length > 0 && (
+            <button
+              onClick={() => setShowSessionsList(!showSessionsList)}
+              title="View today's punch sessions"
+              className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg border border-slate-200 dark:border-slate-700"
+            >
+              {showSessionsList ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
           )}
         </div>
       </div>
 
-      {/* Punch Out Confirmation Modal */}
+      {/* Expanded Sessions History for Today */}
+      {showSessionsList && punches.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs space-y-2">
+          <div className="flex items-center justify-between text-[11px] font-bold text-slate-500">
+            <span>Today's Sessions ({punches.length})</span>
+            <span>Total: {attendance?.totalHours || 0} hrs</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {punches.map((p, idx) => (
+              <div 
+                key={idx} 
+                className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60"
+              >
+                <div className="flex items-center space-x-2">
+                  {p.punchInPhoto ? (
+                    <img 
+                      src={p.punchInPhoto} 
+                      alt="Selfie" 
+                      className="w-7 h-7 rounded-lg object-cover border border-slate-200 shrink-0" 
+                    />
+                  ) : (
+                    <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center text-[10px] font-bold">
+                      S{idx + 1}
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-bold text-slate-800 dark:text-slate-200 text-[11px]">
+                      Session {idx + 1}
+                    </p>
+                    <p className="text-[10px] text-slate-400 font-mono">
+                      {p.punchInTime} - {p.punchOutTime || 'Active'}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold text-emerald-600 font-mono">
+                  {p.durationHours ? `${p.durationHours} hrs` : 'In Progress'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ================= PUNCH IN MODAL (WITH PHOTO CAPTURE) ================= */}
+      {showPunchInModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-xs p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-md shadow-2xl p-6 space-y-4 border border-slate-100 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-200">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center font-bold">
+                  <Camera className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-slate-900 dark:text-white text-base leading-tight">
+                    Technician Punch In
+                  </h4>
+                  <p className="text-[11px] text-slate-400 font-medium">
+                    Session {punches.length + 1} • Take selfie / site photo
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  setShowPunchInModal(false);
+                  setPhotoPreview(null);
+                  setPhotoFile(null);
+                }}
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Photo Capture / Upload Area */}
+            <div className="space-y-3">
+              <input
+                type="file"
+                accept="image/*"
+                capture="user"
+                ref={fileInputRef}
+                onChange={handlePhotoSelect}
+                className="hidden"
+              />
+
+              {photoPreview ? (
+                <div className="relative rounded-2xl overflow-hidden border-2 border-emerald-500 aspect-4/3 bg-slate-950 flex items-center justify-center group shadow-md">
+                  <img
+                    src={photoPreview}
+                    alt="Punch In Preview"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-3 py-1.5 bg-white text-slate-900 font-bold text-xs rounded-xl shadow-lg flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Retake</span>
+                    </button>
+                  </div>
+                  <div className="absolute top-3 left-3 bg-emerald-600 text-white text-[10px] font-extrabold px-2.5 py-1 rounded-full shadow-md flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3" />
+                    <span>Photo Verified</span>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-500 p-8 text-center cursor-pointer transition-colors bg-slate-50/50 dark:bg-slate-800/30 flex flex-col items-center justify-center gap-2.5"
+                >
+                  <div className="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center shadow-xs">
+                    <Camera className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">
+                      Take Selfie / Upload Photo <span className="text-red-500">*</span>
+                    </p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Required for Admin attendance verification
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="mt-1 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs"
+                  >
+                    Open Camera / Browse
+                  </button>
+                </div>
+              )}
+
+              {/* GPS Location Indicator */}
+              <div className="flex items-center gap-2 text-xs bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
+                <MapPin className="w-4 h-4 text-rose-500 shrink-0" />
+                <span className="text-slate-600 dark:text-slate-300 font-medium truncate">
+                  {locationStatus || 'GPS coordinates will be recorded on submission'}
+                </span>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex space-x-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPunchInModal(false);
+                  setPhotoPreview(null);
+                  setPhotoFile(null);
+                }}
+                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmPunchIn}
+                disabled={isPunching || isUploadingPhoto || !photoPreview}
+                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>{isPunching ? 'Verifying & Punching...' : 'Confirm Punch In'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= PUNCH OUT CONFIRMATION MODAL ================= */}
       {showCheckoutConfirm && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
           <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-sm shadow-2xl p-5 space-y-4 border border-slate-100 dark:border-slate-800">
-            <h4 className="font-bold text-slate-900 dark:text-white text-base">Confirm Punch Out (End Work Day)</h4>
+            <h4 className="font-bold text-slate-900 dark:text-white text-base">Confirm Punch Out</h4>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Work started at <strong>{attendance?.checkInTime}</strong>. Total recorded duration will be logged for admin attendance and records.
+              Session started at <strong>{activeSession?.punchInTime || attendance?.checkInTime}</strong>. 
+              You can punch in again later today for subsequent sessions or after your break.
             </p>
             <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Work Notes (Optional)</label>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Session Notes (Optional)
+              </label>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="E.g. Completed 3 installations, 1 pending follow-up..."
+                placeholder="E.g. Lunch break, Completed site A, heading to site B..."
                 className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs text-slate-800 dark:text-white outline-none resize-none min-h-[60px]"
               />
             </div>

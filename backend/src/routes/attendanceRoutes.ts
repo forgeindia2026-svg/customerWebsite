@@ -45,40 +45,92 @@ router.get('/today', async (req: Request, res: Response) => {
 // POST Check-In (Punch In)
 router.post('/check-in', async (req: Request, res: Response) => {
   try {
-    const { technicianId, technicianName, location, latitude, longitude, notes } = req.body;
+    const { technicianId, technicianName, location, latitude, longitude, photo, punchInPhoto, notes } = req.body;
     if (!technicianId || !technicianName) {
       return res.status(400).json({ message: 'Technician information is required' });
     }
 
+    const photoUrl = (photo || punchInPhoto || '').trim();
     const now = new Date();
     const today = getTodayIST();
     const checkInTimeStr = now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true });
 
-    // Check if already punched in today
+    // Check if record exists for today
     let record = await TechnicianAttendance.findOne({ technicianId, date: today });
     if (record) {
-      // Update check in if not set
-      if (!record.checkInTimestamp) {
-        record.checkInTime = checkInTimeStr;
-        record.checkInTimestamp = now;
-        record.status = 'PRESENT';
-        if (location) record.location = location;
-        if (latitude) record.latitude = latitude;
-        if (longitude) record.longitude = longitude;
-        await record.save();
+      if (!Array.isArray(record.punches)) {
+        record.punches = [];
       }
+
+      // Check if there is already an open session (punched in but not punched out)
+      const activeSession = record.punches.find((p: any) => p.punchInTimestamp && !p.punchOutTimestamp);
+      if (activeSession) {
+        if (photoUrl) {
+          activeSession.punchInPhoto = photoUrl;
+          record.punchInPhoto = photoUrl;
+        }
+        if (location) activeSession.punchInLocation = location;
+        if (latitude) activeSession.punchInLatitude = latitude;
+        if (longitude) activeSession.punchInLongitude = longitude;
+        record.status = 'PRESENT';
+        await record.save();
+
+        return res.status(200).json({ 
+          success: true, 
+          message: 'Already checked in for active session.', 
+          attendance: record 
+        });
+      }
+
+      // Start a NEW Punch Session for today
+      const newSession: any = {
+        punchInTime: checkInTimeStr,
+        punchInTimestamp: now,
+        punchInPhoto: photoUrl,
+        punchInLocation: location || 'Field Operations',
+        punchInLatitude: latitude || null,
+        punchInLongitude: longitude || null,
+        notes: notes || `Session ${record.punches.length + 1}`
+      };
+
+      record.punches.push(newSession);
+      record.status = 'PRESENT';
+      record.checkInTime = record.checkInTime || checkInTimeStr;
+      record.checkInTimestamp = record.checkInTimestamp || now;
+      if (photoUrl) record.punchInPhoto = photoUrl;
+      record.checkOutTime = '';
+      record.checkOutTimestamp = undefined;
+      if (location) record.location = location;
+      if (latitude) record.latitude = latitude;
+      if (longitude) record.longitude = longitude;
+
+      await record.save();
     } else {
+      // First punch of the day
+      const firstSession: any = {
+        punchInTime: checkInTimeStr,
+        punchInTimestamp: now,
+        punchInPhoto: photoUrl,
+        punchInLocation: location || 'Field Operations',
+        punchInLatitude: latitude || null,
+        punchInLongitude: longitude || null,
+        notes: notes || 'Session 1'
+      };
+
       record = new TechnicianAttendance({
         technicianId,
         technicianName,
         date: today,
         checkInTime: checkInTimeStr,
         checkInTimestamp: now,
+        punchInPhoto: photoUrl,
         status: 'PRESENT',
         location: location || 'Field Operations',
         latitude: latitude || null,
         longitude: longitude || null,
-        notes: notes || 'Full Day (1.0 Day)'
+        notes: notes || 'Session 1',
+        totalHours: 0,
+        punches: [firstSession]
       });
       await record.save();
     }
@@ -99,7 +151,9 @@ router.post('/check-in', async (req: Request, res: Response) => {
       technicianName,
       status: 'ONLINE',
       isAvailable: true,
-      checkInTime: checkInTimeStr
+      checkInTime: checkInTimeStr,
+      punchInPhoto: photoUrl,
+      punchesCount: record.punches?.length || 1
     });
 
     res.status(201).json({ success: true, message: 'Check-In Successful. You are now ONLINE.', attendance: record });
@@ -126,6 +180,48 @@ router.post('/check-out', async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'No check-in record found for today' });
     }
 
+    if (!Array.isArray(record.punches)) {
+      record.punches = [];
+    }
+
+    // Find the latest open session
+    let activeSessionIndex = -1;
+    for (let i = record.punches.length - 1; i >= 0; i--) {
+      if (record.punches[i].punchInTimestamp && !record.punches[i].punchOutTimestamp) {
+        activeSessionIndex = i;
+        break;
+      }
+    }
+
+    if (activeSessionIndex >= 0) {
+      const session = record.punches[activeSessionIndex];
+      session.punchOutTime = checkOutTimeStr;
+      session.punchOutTimestamp = now;
+      if (location) session.punchOutLocation = location;
+      if (latitude) session.punchOutLatitude = latitude;
+      if (longitude) session.punchOutLongitude = longitude;
+      if (notes) session.notes = notes;
+
+      const diffMs = now.getTime() - new Date(session.punchInTimestamp).getTime();
+      const sessionHours = Math.max(0, Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100);
+      session.durationHours = sessionHours;
+    } else if (record.checkInTimestamp && !record.checkOutTimestamp) {
+      const diffMs = now.getTime() - new Date(record.checkInTimestamp).getTime();
+      const sessionHours = Math.max(0, Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100);
+      record.punches.push({
+        punchInTime: record.checkInTime || checkOutTimeStr,
+        punchInTimestamp: record.checkInTimestamp || now,
+        punchOutTime: checkOutTimeStr,
+        punchOutTimestamp: now,
+        durationHours: sessionHours,
+        notes: notes || 'Single Session'
+      });
+    }
+
+    // Recalculate cumulative totalHours from all completed sessions
+    const cumulativeHours = record.punches.reduce((acc: number, p: any) => acc + (p.durationHours || 0), 0);
+    record.totalHours = Math.round(cumulativeHours * 100) / 100;
+
     record.checkOutTime = checkOutTimeStr;
     record.checkOutTimestamp = now;
     record.status = 'OFF_DUTY';
@@ -133,13 +229,6 @@ router.post('/check-out', async (req: Request, res: Response) => {
     if (latitude) record.checkOutLatitude = latitude;
     if (longitude) record.checkOutLongitude = longitude;
     if (notes) record.notes = notes;
-
-    // Calculate total hours worked
-    if (record.checkInTimestamp) {
-      const diffMs = now.getTime() - new Date(record.checkInTimestamp).getTime();
-      const hours = Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100;
-      record.totalHours = hours;
-    }
 
     await record.save();
 
@@ -156,7 +245,9 @@ router.post('/check-out', async (req: Request, res: Response) => {
       technicianName: record.technicianName,
       status: 'OFFLINE',
       isAvailable: false,
-      checkOutTime: checkOutTimeStr
+      checkOutTime: checkOutTimeStr,
+      totalHours: record.totalHours,
+      punchesCount: record.punches.length
     });
 
     res.json({ success: true, message: 'Check-Out Successful. You are now OFFLINE.', attendance: record });

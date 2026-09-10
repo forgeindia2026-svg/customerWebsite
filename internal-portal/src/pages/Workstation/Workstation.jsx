@@ -43,6 +43,7 @@ export default function Workstation() {
   const [dbReports, setDbReports] = useState([]);
   const [liveAttendance, setLiveAttendance] = useState([]);
   const [liveLocations, setLiveLocations] = useState({});
+  const [previewPhotoModal, setPreviewPhotoModal] = useState(null);
 
   // Fetch live reports, attendance and dashboard data on mount
   React.useEffect(() => {
@@ -369,32 +370,96 @@ export default function Workstation() {
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                    <th className="py-3 px-3">Photo</th>
                     <th className="py-3 px-3">Technician</th>
                     <th className="py-3 px-3">Date</th>
                     <th className="py-3 px-3">Punch-In Time</th>
                     <th className="py-3 px-3">Punch-Out Time</th>
                     <th className="py-3 px-3">Total Shift Hours</th>
+                    <th className="py-3 px-3">Sessions Today</th>
                     <th className="py-3 px-3">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {liveAttendance.map((att) => {
                     const isDuty = att.status === 'PRESENT' && !att.checkOutTimestamp;
+                    const punchPhoto = att.punchInPhoto || att.punches?.[0]?.punchInPhoto;
+                    const punchesCount = att.punches?.length || 1;
+
                     return (
                       <tr key={att._id || att.technicianId} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                        {/* 📸 Punch-In Selfie / Photo */}
+                        <td className="py-3 px-3">
+                          {punchPhoto ? (
+                            <div 
+                              className="relative group w-10 h-10 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-xs cursor-pointer"
+                              onClick={() => setPreviewPhotoModal({
+                                photo: punchPhoto,
+                                technicianName: att.technicianName,
+                                time: att.checkInTime,
+                                location: att.location || att.punches?.[0]?.punchInLocation
+                              })}
+                              title="Click to view verified selfie"
+                            >
+                              <img 
+                                src={punchPhoto} 
+                                alt={att.technicianName} 
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200"
+                              />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[9px] font-bold">
+                                View
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-xs">
+                              {att.technicianName?.slice(0, 2)?.toUpperCase() || 'TC'}
+                            </div>
+                          )}
+                        </td>
+
+                        {/* Technician Name & Location */}
                         <td className="py-3 px-3 font-bold text-slate-900 dark:text-white">
-                          {att.technicianName}
+                          <div className="text-xs">{att.technicianName}</div>
+                          {(att.location || att.punches?.[0]?.punchInLocation) && (
+                            <div className="text-[10px] font-normal text-slate-400 truncate max-w-[160px] flex items-center gap-1 mt-0.5">
+                              <span>📍</span>
+                              <span className="truncate">{att.location || att.punches?.[0]?.punchInLocation}</span>
+                            </div>
+                          )}
                         </td>
+
                         <td className="py-3 px-3 font-mono text-slate-600 dark:text-slate-300">{att.date}</td>
+                        
                         <td className="py-3 px-3 font-bold text-emerald-600 dark:text-emerald-400 font-mono">
-                          {att.checkInTime || '-'}
+                          {att.checkInTime || att.punches?.[0]?.punchInTime || '-'}
                         </td>
+                        
                         <td className="py-3 px-3 font-mono text-slate-600 dark:text-slate-300">
                           {att.checkOutTime || (isDuty ? '🟢 Active in Shift' : '-')}
                         </td>
+                        
                         <td className="py-3 px-3 font-mono font-bold text-slate-800 dark:text-slate-200">
                           {att.totalHours ? `${att.totalHours} Hours` : isDuty ? 'Counting...' : '-'}
                         </td>
+
+                        {/* Multiple Sessions Breakdown */}
+                        <td className="py-3 px-3">
+                          <div className="space-y-1">
+                            <span className="inline-block px-2.5 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 text-[10px] font-bold border border-blue-200/60">
+                              {punchesCount} {punchesCount === 1 ? 'Session' : 'Sessions'}
+                            </span>
+                            {att.punches && att.punches.length > 1 && (
+                              <div className="flex flex-wrap gap-1 text-[9px] font-mono text-slate-500">
+                                {att.punches.map((p, pIdx) => (
+                                  <span key={pIdx} className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200/60 dark:border-slate-700">
+                                    S{pIdx + 1}: {p.durationHours ? `${p.durationHours}h` : 'Active'}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+
                         <td className="py-3 px-3">
                           <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-full border uppercase ${
                             isDuty 
@@ -409,6 +474,51 @@ export default function Workstation() {
                   })}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* 🔍 Admin Photo Preview Modal */}
+          {previewPhotoModal && (
+            <div 
+              onClick={() => setPreviewPhotoModal(null)}
+              className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 cursor-pointer"
+            >
+              <div 
+                className="relative max-w-md w-full bg-white dark:bg-slate-900 rounded-3xl overflow-hidden shadow-2xl p-5 border border-slate-100 dark:border-slate-800 space-y-3 cursor-default animate-in fade-in zoom-in-95" 
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
+                  <div>
+                    <h4 className="font-bold text-slate-900 dark:text-white text-sm">
+                      {previewPhotoModal.technicianName}
+                    </h4>
+                    <p className="text-[11px] text-slate-400">
+                      Punched In at {previewPhotoModal.time}
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => setPreviewPhotoModal(null)}
+                    className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg text-sm font-bold"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="rounded-2xl overflow-hidden aspect-4/3 bg-black flex items-center justify-center border border-slate-200 dark:border-slate-800">
+                  <img 
+                    src={previewPhotoModal.photo} 
+                    alt="Punch In Verification" 
+                    className="w-full h-full object-cover" 
+                  />
+                </div>
+
+                {previewPhotoModal.location && (
+                  <div className="text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-xl flex items-center gap-1.5">
+                    <span>📍</span>
+                    <span className="font-medium truncate">{previewPhotoModal.location}</span>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

@@ -2,6 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle2, ShieldCheck, Filter, ArrowUpRight, Zap, Award } from 'lucide-react';
 import { getApiUrl } from '../../../utils/config';
 
+interface PunchSession {
+  _id?: string;
+  punchInTime: string;
+  punchInTimestamp: string | Date;
+  punchInPhoto?: string;
+  punchOutTime?: string;
+  punchOutTimestamp?: string | Date;
+  durationHours?: number;
+  notes?: string;
+}
+
 interface AttendanceRecord {
   _id?: string;
   technicianId: string;
@@ -9,17 +20,20 @@ interface AttendanceRecord {
   date: string;
   checkInTime?: string;
   checkInTimestamp?: string;
+  punchInPhoto?: string;
   checkOutTime?: string;
   checkOutTimestamp?: string;
   totalHours?: number;
   status: 'PRESENT' | 'HALF_DAY' | 'OVERTIME' | 'OFF_DUTY';
   notes?: string;
+  punches?: PunchSession[];
 }
 
 export const AttendanceLogModule: React.FC = () => {
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [filterMonth, setFilterMonth] = useState<string>(new Date().toISOString().slice(0, 7)); // YYYY-MM
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
   const authUser = JSON.parse(localStorage.getItem('tech_user') || '{}');
   const techId = authUser.id || authUser._id || localStorage.getItem('user_id') || 'TECH-01';
@@ -170,46 +184,95 @@ export const AttendanceLogModule: React.FC = () => {
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] uppercase tracking-wider font-extrabold text-slate-400">
+                  <th className="py-3 px-3">Photo</th>
                   <th className="py-3 px-3">Date</th>
                   <th className="py-3 px-3">Punch In</th>
                   <th className="py-3 px-3">Punch Out</th>
                   <th className="py-3 px-3">Work Hours</th>
+                  <th className="py-3 px-3">Sessions</th>
                   <th className="py-3 px-3 text-right">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-                {records.map((rec, idx) => (
-                  <tr key={rec._id || idx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
-                    <td className="py-3.5 px-3 font-bold text-slate-900 dark:text-white font-mono">
-                      {rec.date}
-                    </td>
-                    <td className="py-3.5 px-3 text-slate-700 dark:text-slate-300">
-                      {rec.checkInTime || '—'}
-                    </td>
-                    <td className="py-3.5 px-3 text-slate-700 dark:text-slate-300">
-                      {rec.checkOutTime || 'Active On Duty'}
-                    </td>
-                    <td className="py-3.5 px-3 font-mono font-bold text-emerald-600">
-                      {rec.totalHours ? `${rec.totalHours.toFixed(1)} hrs` : 'In Progress'}
-                    </td>
-                    <td className="py-3.5 px-3 text-right">
-                      <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                        rec.status === 'PRESENT'
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          : rec.status === 'OFF_DUTY'
-                          ? 'bg-slate-100 text-slate-700 border border-slate-200'
-                          : 'bg-blue-50 text-blue-700 border border-blue-200'
-                      }`}>
-                        {rec.status === 'PRESENT' ? '🟢 Present' : rec.status === 'OFF_DUTY' ? '🏁 Completed' : rec.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {records.map((rec, idx) => {
+                  const punchPhoto = rec.punchInPhoto || rec.punches?.[0]?.punchInPhoto;
+                  const punchesCount = rec.punches?.length || 1;
+
+                  return (
+                    <tr key={rec._id || idx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                      <td className="py-3 px-3">
+                        {punchPhoto ? (
+                          <img
+                            src={punchPhoto}
+                            alt="Selfie"
+                            onClick={() => setSelectedPhoto(punchPhoto)}
+                            className="w-8 h-8 rounded-lg object-cover border border-slate-200 dark:border-slate-700 cursor-pointer hover:scale-105 transition-transform shadow-xs"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center text-[10px] font-bold">
+                            N/A
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-3 font-bold text-slate-900 dark:text-white font-mono">
+                        {rec.date}
+                      </td>
+                      <td className="py-3.5 px-3 text-slate-700 dark:text-slate-300 font-mono">
+                        {rec.checkInTime || '—'}
+                      </td>
+                      <td className="py-3.5 px-3 text-slate-700 dark:text-slate-300 font-mono">
+                        {rec.checkOutTime || 'Active On Duty'}
+                      </td>
+                      <td className="py-3.5 px-3 font-mono font-bold text-emerald-600">
+                        {rec.totalHours ? `${rec.totalHours.toFixed(1)} hrs` : 'In Progress'}
+                      </td>
+                      <td className="py-3.5 px-3">
+                        <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold">
+                          {punchesCount} {punchesCount === 1 ? 'Session' : 'Sessions'}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-3 text-right">
+                        <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                          rec.status === 'PRESENT'
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : rec.status === 'OFF_DUTY'
+                            ? 'bg-slate-100 text-slate-700 border border-slate-200'
+                            : 'bg-blue-50 text-blue-700 border border-blue-200'
+                        }`}>
+                          {rec.status === 'PRESENT' ? '🟢 Present' : rec.status === 'OFF_DUTY' ? '🏁 Completed' : rec.status}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
+
+      {/* Photo Preview Modal */}
+      {selectedPhoto && (
+        <div 
+          onClick={() => setSelectedPhoto(null)}
+          className="fixed inset-0 z-[110] bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 cursor-pointer"
+        >
+          <div className="relative max-w-md w-full bg-white dark:bg-slate-900 rounded-3xl overflow-hidden shadow-2xl p-4 border border-slate-100 dark:border-slate-800" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <h4 className="font-bold text-slate-900 dark:text-white text-sm">Punch-In Verification Photo</h4>
+              <button 
+                onClick={() => setSelectedPhoto(null)}
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="mt-3 rounded-2xl overflow-hidden aspect-4/3 bg-black flex items-center justify-center">
+              <img src={selectedPhoto} alt="Enlarged Selfie" className="w-full h-full object-cover" />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
