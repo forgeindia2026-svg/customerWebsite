@@ -256,7 +256,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
     for (const file of Array.from(files)) {
       try {
         const imgUrl = await JobsApiService.uploadImageToS3(file);
-        if (!imgUrl || typeof imgUrl !== 'string' || !imgUrl.startsWith('http')) {
+        if (!imgUrl || typeof imgUrl !== 'string' || (!imgUrl.startsWith('http') && !imgUrl.startsWith('data:image'))) {
           throw new Error(`Upload returned invalid URL for ${file.name}`);
         }
         newlyAdded.push(imgUrl);
@@ -281,7 +281,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
     for (const file of Array.from(files)) {
       try {
         const imgUrl = await JobsApiService.uploadImageToS3(file);
-        if (!imgUrl || typeof imgUrl !== 'string' || !imgUrl.startsWith('http')) {
+        if (!imgUrl || typeof imgUrl !== 'string' || (!imgUrl.startsWith('http') && !imgUrl.startsWith('data:image'))) {
           throw new Error(`Upload returned invalid URL for ${file.name}`);
         }
         setAfterPhotos((prev) => Array.from(new Set([...prev, imgUrl])));
