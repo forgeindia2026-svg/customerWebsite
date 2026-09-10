@@ -10,7 +10,8 @@ import {
   ClipboardCheck, 
   CheckCheck,
   Briefcase,
-  Phone
+  Phone,
+  Eye
 } from 'lucide-react';
 
 import { formatDate } from '../../services/dateUtils';
@@ -159,27 +160,25 @@ export const AssignedJobsTable: React.FC<AssignedJobsTableProps> = ({
                   {job.category}
                 </span>
               </div>
-              {job.status === 'COMPLETED' ? (
-                <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-[10px] font-extrabold rounded-md flex items-center gap-1 shrink-0">
-                  <CheckCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Work Completed</span>
-                </span>
-              ) : (job.isAssignedToMe || job.status === 'IN_PROGRESS' || (job.beforePhotos && job.beforePhotos.length > 0)) ? (
-                <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-[10px] font-extrabold rounded-md flex items-center gap-1 shrink-0">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                  <span>Assigned to You</span>
-                </span>
-              ) : job.assignedTechnicianName ? (
-                <span className="px-2 py-0.5 bg-sky-50 text-sky-700 border border-sky-200/80 text-[10px] font-extrabold rounded-md flex items-center gap-1 shrink-0">
-                  <span className="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
-                  <span>Assigned to {job.assignedTechnicianName}</span>
-                </span>
-              ) : (
-                <span className="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200/80 text-[10px] font-extrabold rounded-md flex items-center gap-1 shrink-0">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                  <span>Available to Accept</span>
-                </span>
-              )}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <StatusBadge priority={job.priority} size="sm" />
+                {(job.isAssignedToMe || (job.beforePhotos && job.beforePhotos.length > 0)) ? (
+                  <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200/80 text-[10px] font-extrabold rounded-md flex items-center gap-1.5 shrink-0 shadow-2xs">
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
+                    <span>Assigned to You</span>
+                  </span>
+                ) : job.assignedTechnicianName ? (
+                  <span className="px-2 py-0.5 bg-sky-50 text-sky-700 border border-sky-200/80 text-[10px] font-extrabold rounded-md flex items-center gap-1 shrink-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
+                    <span>Assigned to {job.assignedTechnicianName}</span>
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200/80 text-[10px] font-extrabold rounded-md flex items-center gap-1 shrink-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                    <span>Available to Accept</span>
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Title & Equipment */}
@@ -231,10 +230,16 @@ export const AssignedJobsTable: React.FC<AssignedJobsTableProps> = ({
               </div>
 
               {job.status === 'COMPLETED' ? (
-                <span className="px-3 py-1.5 bg-emerald-50 text-emerald-700 font-bold text-[11px] rounded-xl border border-emerald-200 flex items-center gap-1.5">
-                  <CheckCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Signed Off & Complete</span>
-                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectJob(job);
+                  }}
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl flex items-center space-x-1.5 transition-all cursor-pointer active:scale-95 border border-slate-200/80"
+                >
+                  <Eye className="w-3.5 h-3.5 text-slate-500" />
+                  <span>View Details</span>
+                </button>
               ) : (job.isAssignedToMe || job.status === 'IN_PROGRESS' || (job.beforePhotos && job.beforePhotos.length > 0)) ? (
                 <button
                   onClick={() => onOpenWorkflow && onOpenWorkflow(job)}
@@ -318,14 +323,9 @@ export const AssignedJobsTable: React.FC<AssignedJobsTableProps> = ({
                       <span className="text-[10px] font-sans font-medium text-zinc-500 bg-zinc-100 border border-zinc-200 px-1.5 py-0.5 rounded-md shrink-0">
                         {job.category}
                       </span>
-                      {job.status === 'COMPLETED' ? (
-                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-[10px] font-extrabold rounded-md flex items-center gap-1.5 shrink-0">
-                          <CheckCheck className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Work Completed</span>
-                        </span>
-                      ) : (job.isAssignedToMe || job.status === 'IN_PROGRESS' || (job.beforePhotos && job.beforePhotos.length > 0)) ? (
-                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-[10px] font-extrabold rounded-md flex items-center gap-1.5 shrink-0">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                      {(job.isAssignedToMe || job.status === 'IN_PROGRESS' || (job.beforePhotos && job.beforePhotos.length > 0)) ? (
+                        <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200/80 text-[10px] font-extrabold rounded-md flex items-center gap-1.5 shrink-0 shadow-2xs">
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
                           <span>Assigned to You</span>
                         </span>
                       ) : job.assignedTechnicianName ? (
@@ -392,10 +392,16 @@ export const AssignedJobsTable: React.FC<AssignedJobsTableProps> = ({
                   <td className="py-4 px-4 align-middle" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center space-x-2">
                       {job.status === 'COMPLETED' ? (
-                        <span className="px-3.5 py-1.5 bg-emerald-50 text-emerald-700 font-bold text-[11px] rounded-xl border border-emerald-200 flex items-center gap-1.5">
-                          <CheckCheck className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Signed Off & Complete</span>
-                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectJob(job);
+                          }}
+                          className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl flex items-center space-x-1.5 transition-all cursor-pointer active:scale-95 border border-slate-200/80"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-slate-500" />
+                          <span>View Details</span>
+                        </button>
                       ) : (job.isAssignedToMe || job.status === 'IN_PROGRESS' || (job.beforePhotos && job.beforePhotos.length > 0)) ? (
                         <button
                           onClick={() => onOpenWorkflow && onOpenWorkflow(job)}

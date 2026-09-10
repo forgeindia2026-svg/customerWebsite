@@ -99,6 +99,7 @@ export default function FloatingButtons() {
           size="icon"
           onClick={() => setIsOpen(!isOpen)}
           aria-label={isOpen ? "Close contact options" : "Open contact options"}
+          style={!isOpen ? { animationDuration: "4.5s" } : undefined}
           className={`h-14 w-14 rounded-full shadow-xl transition-all duration-300 ${
             isOpen
               ? "bg-slate-900 hover:bg-slate-800 text-white border-2 border-slate-700"

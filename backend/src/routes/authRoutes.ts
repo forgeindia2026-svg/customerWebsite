@@ -51,6 +51,7 @@ router.post('/login', async (req: Request, res: Response) => {
         email: user.email,
         role: user.role,
         phone: user.phone || '',
+        address: user.address || '',
         avatar: user.avatar || '',
         amcPlan: user.amcPlan || 'Gold AMC Plan',
         amcExpires: user.amcExpires || 'May 20, 2026',
@@ -65,7 +66,7 @@ router.post('/login', async (req: Request, res: Response) => {
 // POST Register
 router.post('/register', async (req: Request, res: Response) => {
   try {
-    const { name, email, password, role, phone, specialties } = req.body;
+    const { name, email, password, role, phone, address, specialties } = req.body;
 
     // NoSQL Injection Protection & Type Validation
     if (typeof email !== 'string' || typeof password !== 'string' || typeof name !== 'string') {
@@ -89,6 +90,7 @@ router.post('/register', async (req: Request, res: Response) => {
     const cleanEmail = email.toLowerCase().trim().replace(/[${\}]/g, '');
     const cleanPassword = password.replace(/[${\}]/g, '');
     const cleanName = name.replace(/[${\}]/g, '');
+    const cleanAddress = typeof address === 'string' ? address.trim().replace(/[${\}]/g, '') : '';
 
     const existing = await User.findOne({ email: cleanEmail });
 
@@ -102,12 +104,11 @@ router.post('/register', async (req: Request, res: Response) => {
       passwordHash: cleanPassword,
       role: role || 'CUSTOMER',
       phone,
+      address: cleanAddress,
       specialties: Array.isArray(specialties) ? specialties : []
     });
 
     const savedUser = await newUser.save();
-
-
 
     res.status(201).json({
       success: true,
@@ -117,6 +118,7 @@ router.post('/register', async (req: Request, res: Response) => {
         email: savedUser.email,
         role: savedUser.role,
         phone: savedUser.phone || '',
+        address: savedUser.address || '',
         amcPlan: savedUser.amcPlan || 'Gold AMC Plan',
         amcExpires: savedUser.amcExpires || 'May 20, 2026',
         token: `jwt-session-${savedUser._id}`,
@@ -153,12 +155,13 @@ router.get('/profile', async (req: Request, res: Response) => {
 // PUT Profile — update name/phone for a customer
 router.put('/profile', async (req: Request, res: Response) => {
   try {
-    const { email, name, phone } = req.body;
+    const { email, name, phone, address } = req.body;
     if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
     const cleanEmail = (email as string).toLowerCase().trim();
     const updateFields: any = {};
     if (name && name.trim()) updateFields.name = name.trim();
     if (phone && phone.trim()) updateFields.phone = phone.trim();
+    if (address !== undefined) updateFields.address = address.trim();
     const updated = await User.findOneAndUpdate(
       { email: cleanEmail },
       { $set: updateFields },

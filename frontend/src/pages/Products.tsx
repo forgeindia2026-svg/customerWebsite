@@ -103,14 +103,11 @@ export default function Products() {
             let subCat: string | undefined = undefined;
 
             const lowerCat = (item.category || '').toLowerCase().trim();
-            if (lowerCat.includes('ip') || lowerCat.includes('wifi') || lowerCat.includes('ptz') || lowerCat.includes('dome') || lowerCat.includes('bullet') || lowerCat.includes('camera') || lowerCat.includes('cctv')) {
-              mainCat = 'cctv';
-              if (lowerCat.includes('ip')) subCat = 'ip';
-              else if (lowerCat.includes('wifi')) subCat = 'wifi';
-              else if (lowerCat.includes('ptz')) subCat = 'ptz';
-              else if (lowerCat.includes('dome')) subCat = 'dome';
-              else if (lowerCat.includes('bullet') || lowerCat.includes('analog')) subCat = 'bullet';
-            } else if (lowerCat.includes('dvr')) {
+            const lowerSub = (item.subCategory || item.subcategory || '').toLowerCase().trim();
+            const lowerTitle = (item.name || item.title || '').toLowerCase();
+
+            // 1. Detect Main Category
+            if (lowerCat.includes('dvr')) {
               mainCat = 'dvr';
             } else if (lowerCat.includes('nvr')) {
               mainCat = 'nvr';
@@ -124,6 +121,29 @@ export default function Products() {
               mainCat = 'alarm';
             } else if (lowerCat.includes('network')) {
               mainCat = 'networking';
+            } else if (lowerCat.includes('ssd')) {
+              mainCat = 'ssd';
+            } else if (lowerCat.includes('pendrive')) {
+              mainCat = 'pendrive';
+            } else if (lowerCat.includes('hdmi')) {
+              mainCat = 'hdmi';
+            } else if (lowerCat.includes('kit') && !lowerCat.includes('cctv')) {
+              mainCat = 'kit';
+            } else {
+              mainCat = 'cctv';
+            }
+
+            // 2. Detect Subcategory under CCTV (check subCategory field, category field, and title keywords)
+            if (lowerSub.includes('ip') || lowerCat.includes('ip') || lowerTitle.includes('ip camera') || lowerTitle.includes('ip indoor') || lowerTitle.includes('ip outdoor')) {
+              subCat = 'ip';
+            } else if (lowerSub.includes('wifi') || lowerCat.includes('wifi') || lowerTitle.includes('wifi')) {
+              subCat = 'wifi';
+            } else if (lowerSub.includes('ptz') || lowerCat.includes('ptz') || lowerTitle.includes('ptz') || lowerTitle.includes('pan tilt')) {
+              subCat = 'ptz';
+            } else if (lowerSub.includes('dome') || lowerCat.includes('dome') || lowerTitle.includes('dome')) {
+              subCat = 'dome';
+            } else if (lowerSub.includes('bullet') || lowerCat.includes('bullet') || lowerTitle.includes('bullet') || lowerSub.includes('analog') || lowerTitle.includes('analog')) {
+              subCat = 'bullet';
             }
 
             const titleStr = item.name || item.title || 'CCTV Security Product';
@@ -305,7 +325,13 @@ export default function Products() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("popularity");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [wishlist, setWishlist] = useState<number[]>([]);
+  const [wishlist, setWishlist] = useState<number[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("customer_wishlist") || "[]");
+    } catch {
+      return [];
+    }
+  });
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   
   // Quick View Modal state
@@ -360,11 +386,25 @@ export default function Products() {
     setSearchQuery("");
   };
 
-  // Toggle Wishlist
+  // Toggle Wishlist with persistence and toast
   const toggleWishlist = (id: number) => {
-    setWishlist((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
+    setWishlist((prev) => {
+      const isAlreadyAdded = prev.includes(id);
+      const next = isAlreadyAdded ? prev.filter((item) => item !== id) : [...prev, id];
+      localStorage.setItem("customer_wishlist", JSON.stringify(next));
+      window.dispatchEvent(new Event("wishlist-updated"));
+
+      const prod = productsList.find((p) => p.id === id);
+      const prodName = prod ? prod.name : "Product";
+      if (!isAlreadyAdded) {
+        setAddedToCartToast(`❤️ Added "${prodName}" to Wishlist!`);
+      } else {
+        setAddedToCartToast(`Removed "${prodName}" from Wishlist`);
+      }
+      setTimeout(() => setAddedToCartToast(null), 3000);
+
+      return next;
+    });
   };
 
   // Toast feedback
@@ -403,6 +443,10 @@ export default function Products() {
   // Filtered and Sorted products
   const filteredProducts = useMemo(() => {
     return productsList.filter((product) => {
+      // Wishlist Filter from URL
+      if (searchParams.get("filter") === "wishlist" && !wishlist.includes(product.id)) {
+        return false;
+      }
       // Main Category Filter
       if (selectedCategory !== "all" && product.category !== selectedCategory) {
         return false;
@@ -470,6 +514,9 @@ export default function Products() {
 
   // Dynamic Heading Title
   const pageTitle = useMemo(() => {
+    if (searchParams.get("filter") === "wishlist") {
+      return "My Saved Wishlist Items ❤️";
+    }
     if (selectedSubCategory !== "all") {
       const sub = categoryTree[0].subcategories?.find((s) => s.id === selectedSubCategory);
       if (sub) return `CCTV Cameras - ${sub.name}`;

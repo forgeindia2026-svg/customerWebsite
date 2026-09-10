@@ -4,6 +4,7 @@ import {
   Camera,
   Search,
   ShoppingCart,
+  Heart,
   User,
   Phone,
   Mail,
@@ -56,20 +57,31 @@ export default function Header() {
   const [userToken, setUserToken] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
   const [cartCount, setCartCount] = useState(0);
+  const [wishlistCount, setWishlistCount] = useState(0);
 
   useEffect(() => {
-    const updateCartCount = () => {
-      const cart = JSON.parse(localStorage.getItem("shopping_cart") || "[]");
-      const count = cart.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0);
-      setCartCount(count);
+    const updateCounts = () => {
+      try {
+        const cart = JSON.parse(localStorage.getItem("shopping_cart") || "[]");
+        const count = cart.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0);
+        setCartCount(count);
+
+        const wishlist = JSON.parse(localStorage.getItem("customer_wishlist") || "[]");
+        setWishlistCount(Array.isArray(wishlist) ? wishlist.length : 0);
+      } catch {
+        setCartCount(0);
+        setWishlistCount(0);
+      }
     };
 
-    updateCartCount();
-    window.addEventListener("storage", updateCartCount);
-    window.addEventListener("cart-updated", updateCartCount);
+    updateCounts();
+    window.addEventListener("storage", updateCounts);
+    window.addEventListener("cart-updated", updateCounts);
+    window.addEventListener("wishlist-updated", updateCounts);
     return () => {
-      window.removeEventListener("storage", updateCartCount);
-      window.removeEventListener("cart-updated", updateCartCount);
+      window.removeEventListener("storage", updateCounts);
+      window.removeEventListener("cart-updated", updateCounts);
+      window.removeEventListener("wishlist-updated", updateCounts);
     };
   }, []);
 
@@ -270,42 +282,60 @@ export default function Header() {
               />
             </div>
             
-            {userToken && (
-              <>
-                <Link to="/cart">
-                  <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-full hover:bg-muted">
-                    <ShoppingCart className="h-5 w-5 text-foreground" />
-                    {cartCount > 0 && (
-                      <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow animate-in scale-in duration-200">
-                        {cartCount}
-                      </span>
-                    )}
-                  </Button>
-                </Link>
+            {/* Wishlist Button - ALWAYS visible */}
+            <Link to="/products?filter=wishlist" title="View Wishlist">
+              <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-full hover:bg-muted text-foreground">
+                <Heart className="h-5 w-5 hover:text-red-500 transition-colors" />
+                {wishlistCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white shadow animate-in scale-in duration-200">
+                    {wishlistCount}
+                  </span>
+                )}
+              </Button>
+            </Link>
 
-                <div className="relative group py-2">
-                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-muted flex items-center justify-center font-bold text-xs bg-red-500/10 text-red-500 border border-red-500/20">
-                    {(userName || "C").charAt(0).toUpperCase()}
-                  </Button>
-                  <div className="absolute right-0 top-full mt-1 w-40 rounded-xl bg-white border border-gray-200/90 shadow-xl p-1.5 hidden group-hover:block z-50 animate-in fade-in slide-in-from-top-1 duration-150">
-                    <div className="px-3 py-1.5 text-[10px] font-bold text-slate-500 border-b border-gray-100 mb-1 truncate">
-                      {userName || "Customer"}
-                    </div>
-                    <Link
-                      to="/dashboard"
-                      className="w-full block text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg transition-colors mb-0.5"
-                    >
-                      My Dashboard
-                    </Link>
-                    <button
-                      onClick={handleLogout}
-                      className="w-full text-left px-3 py-2 text-xs font-semibold text-red-650 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                    >
-                      Sign Out
-                    </button>
+            {/* Shopping Cart Button - ALWAYS visible for both guests and logged-in users */}
+            <Link to="/cart" title="Shopping Cart">
+              <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-full hover:bg-muted text-foreground">
+                <ShoppingCart className="h-5 w-5 hover:text-red-500 transition-colors" />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow animate-in scale-in duration-200">
+                    {cartCount}
+                  </span>
+                )}
+              </Button>
+            </Link>
+
+            {/* User Profile or Login CTA */}
+            {userToken ? (
+              <div className="relative group py-2">
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-muted flex items-center justify-center font-bold text-xs bg-red-500/10 text-red-500 border border-red-500/20">
+                  {(userName || "C").charAt(0).toUpperCase()}
+                </Button>
+                <div className="absolute right-0 top-full mt-1 w-40 rounded-xl bg-white border border-gray-200/90 shadow-xl p-1.5 hidden group-hover:block z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+                  <div className="px-3 py-1.5 text-[10px] font-bold text-slate-500 border-b border-gray-100 mb-1 truncate">
+                    {userName || "Customer"}
                   </div>
+                  <Link
+                    to="/dashboard"
+                    className="w-full block text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg transition-colors mb-0.5"
+                  >
+                    My Dashboard
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left px-3 py-2 text-xs font-semibold text-red-650 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                  >
+                    Sign Out
+                  </button>
                 </div>
-              </>
+              </div>
+            ) : (
+              <Link to="/login" className="hidden sm:inline-flex">
+                <Button variant="outline" size="sm" className="rounded-full text-xs font-bold border-slate-300 hover:border-red-500 hover:text-red-500 transition-all">
+                  Login
+                </Button>
+              </Link>
             )}
 
             <Link to="/contact" className="hidden xl:inline-flex">
