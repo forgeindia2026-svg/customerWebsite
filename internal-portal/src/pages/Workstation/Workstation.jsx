@@ -568,7 +568,7 @@ export default function Workstation() {
 
       {/* 📺 Stock Market Style Technician Workstation Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredTechnicians.map((tech) => (
+        {filteredTechs.map((tech) => (
           <div 
             key={tech.id}
             className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col justify-between group"
