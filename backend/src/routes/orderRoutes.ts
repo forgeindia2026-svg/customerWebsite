@@ -73,12 +73,12 @@ router.post('/', async (req: Request, res: Response) => {
           requiredTechniciansCount: 1,
           orderCategory: 'Delivery & Installation',
           customer: {
-            name: req.body.customerName,
+            name: req.body.customerName || 'Customer',
             phone: req.body.customerPhone || '0000000000',
-            email: req.body.customerEmail || `${req.body.customerName.toLowerCase().replace(/\s+/g, '')}@example.com`,
-            address: req.body.shippingAddress || '',
-            city: req.body.city || '',
-            postalCode: req.body.postalCode || ''
+            email: req.body.customerEmail || `${(req.body.customerName || 'customer').toLowerCase().replace(/\s+/g, '')}@example.com`,
+            address: req.body.shippingAddress || req.body.address || 'Standard Site Address',
+            city: req.body.city || req.body.customerCity || req.body.state || 'Local',
+            postalCode: req.body.postalCode || req.body.zipcode || req.body.customerPostalCode || '600001'
           },
           assignedTechnicians: [{
             id: assignedTech._id.toString(),
@@ -115,12 +115,12 @@ router.post('/', async (req: Request, res: Response) => {
           requiredTechniciansCount: 1,
           orderCategory: 'Delivery & Installation',
           customer: {
-            name: req.body.customerName,
+            name: req.body.customerName || 'Customer',
             phone: req.body.customerPhone || '0000000000',
-            email: req.body.customerEmail || `${req.body.customerName.toLowerCase().replace(/\s+/g, '')}@example.com`,
-            address: req.body.shippingAddress || '',
-            city: req.body.city || '',
-            postalCode: req.body.postalCode || ''
+            email: req.body.customerEmail || `${(req.body.customerName || 'customer').toLowerCase().replace(/\s+/g, '')}@example.com`,
+            address: req.body.shippingAddress || req.body.address || 'Standard Site Address',
+            city: req.body.city || req.body.customerCity || req.body.state || 'Local',
+            postalCode: req.body.postalCode || req.body.zipcode || req.body.customerPostalCode || '600001'
           },
           assignedTechnicians: []
         });

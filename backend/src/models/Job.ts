@@ -40,9 +40,9 @@ export interface IJob extends Document {
     name: string;
     phone: string;
     email: string;
-    address: string;
-    city: string;
-    postalCode: string;
+    address?: string;
+    city?: string;
+    postalCode?: string;
   };
   scopeOfWork?: string[];
   equipmentList?: Array<{ name: string; serialNumber?: string; status?: string }>;
@@ -153,9 +153,9 @@ const JobSchema: Schema = new Schema(
       name: { type: String, required: true },
       phone: { type: String, required: true },
       email: { type: String, required: true },
-      address: { type: String, required: true },
-      city: { type: String, required: true },
-      postalCode: { type: String, required: true },
+      address: { type: String, default: '' },
+      city: { type: String, default: 'Local' },
+      postalCode: { type: String, default: '600001' },
     },
     scopeOfWork: [{ type: String }],
     equipmentList: [

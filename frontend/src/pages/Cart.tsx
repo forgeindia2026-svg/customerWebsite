@@ -24,6 +24,7 @@ export default function Cart() {
     email: "",
     phone: "",
     address: "", // Street Address
+    city: "",
     state: "",
     zipcode: "",
     serviceType: "ONLY_PRODUCT_DELIVERY",
@@ -97,8 +98,9 @@ export default function Cart() {
               setCheckoutForm((prev) => ({
                 ...prev,
                 address: streetAddress,
-                state: state,
-                zipcode: postcode,
+                city: city || suburb || "Chennai",
+                state: state || "Tamil Nadu",
+                zipcode: postcode || "600001",
               }));
             }
           })
@@ -144,6 +146,7 @@ export default function Cart() {
       email,
       phone,
       address: "",
+      city: "",
       state: "",
       zipcode: "",
       serviceType: "ONLY_PRODUCT_DELIVERY",
@@ -199,7 +202,13 @@ export default function Cart() {
       image: item.image ? item.image.replace('https://65.0.45.64.sslip.io', import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io') : ''
     }));
 
-    const fullAddress = `${checkoutForm.address}, ${checkoutForm.state} - ${checkoutForm.zipcode} [Service: ${checkoutForm.serviceType === 'DELIVERY_INSTALLATION' ? 'DELIVERY + INSTALLATION' : 'ONLY PRODUCT DELIVERY'}]`;
+    const addressParts = [
+      checkoutForm.address,
+      checkoutForm.city,
+      checkoutForm.state,
+      checkoutForm.zipcode
+    ].filter(Boolean).join(', ');
+    const fullAddress = `${addressParts} [Service: ${checkoutForm.serviceType === 'DELIVERY_INSTALLATION' ? 'DELIVERY + INSTALLATION' : 'ONLY PRODUCT DELIVERY'}]`;
 
     try {
       // 1. Create Order in backend database
@@ -211,6 +220,10 @@ export default function Cart() {
           customerEmail: checkoutForm.email,
           customerPhone: checkoutForm.phone,
           shippingAddress: fullAddress,
+          city: checkoutForm.city || checkoutForm.state || 'Local',
+          state: checkoutForm.state || 'Tamil Nadu',
+          postalCode: checkoutForm.zipcode || '600001',
+          zipcode: checkoutForm.zipcode || '600001',
           items: orderItems,
           totalAmount: total,
           serviceType: checkoutForm.serviceType,
@@ -558,13 +571,22 @@ export default function Cart() {
                     </div>
                   </div>
 
-                  {/* State & Zipcode */}
-                  <div className="grid grid-cols-2 gap-4">
+                  {/* City, State & Zipcode */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">City / District</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Chennai"
+                        value={checkoutForm.city}
+                        onChange={e => setCheckoutForm(prev => ({ ...prev, city: e.target.value }))}
+                        className="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#ff3b30] bg-white text-gray-900 shadow-2xs font-semibold"
+                      />
+                    </div>
                     <div className="space-y-1.5">
                       <label className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">State</label>
                       <input
                         type="text"
-                        required
                         placeholder="e.g. Tamil Nadu"
                         value={checkoutForm.state}
                         onChange={e => setCheckoutForm(prev => ({ ...prev, state: e.target.value }))}
@@ -575,7 +597,6 @@ export default function Cart() {
                       <label className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Zipcode</label>
                       <input
                         type="text"
-                        required
                         placeholder="e.g. 600001"
                         value={checkoutForm.zipcode}
                         onChange={e => setCheckoutForm(prev => ({ ...prev, zipcode: e.target.value }))}
