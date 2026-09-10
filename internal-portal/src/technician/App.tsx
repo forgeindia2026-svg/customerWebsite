@@ -76,6 +76,8 @@ class ModuleErrorBoundary extends React.Component<{ children: React.ReactNode; m
   }
 }
 
+const ReportsErrorBoundary = ModuleErrorBoundary;
+
 export function App() {
   const [globalError, setGlobalError] = useState<GlobalErrorState | null>(null);
   const [autoSyncEnabled, setAutoSyncEnabled] = useState<boolean>(true);
@@ -564,68 +566,84 @@ export function App() {
 
           {/* Module Views Routing */}
           {activeTab === 'dashboard' && (
-            <DashboardModule
-              jobs={jobs}
-              summaryStats={summaryStats}
-              isLoading={isLoadingData}
-              onSelectJob={handleSelectJob}
-              onOpenWorkflow={handleOpenWorkflow}
-              onNavigateTab={handleNavigateTab}
-            />
+            <ModuleErrorBoundary moduleName="Dashboard">
+              <DashboardModule
+                jobs={jobs}
+                summaryStats={summaryStats}
+                isLoading={isLoadingData}
+                onSelectJob={handleSelectJob}
+                onOpenWorkflow={handleOpenWorkflow}
+                onNavigateTab={handleNavigateTab}
+              />
+            </ModuleErrorBoundary>
           )}
 
           {activeTab === 'assigned_jobs' && (
-            <AssignedJobsModule
-              jobs={jobs}
-              summaryStats={summaryStats}
-              isLoading={isLoadingData}
-              onOpenWorkflow={handleOpenWorkflow}
-              initialStatusFilter={assignedJobsFilter}
-            />
+            <ModuleErrorBoundary moduleName="Assigned Jobs">
+              <AssignedJobsModule
+                jobs={jobs}
+                summaryStats={summaryStats}
+                isLoading={isLoadingData}
+                onOpenWorkflow={handleOpenWorkflow}
+                initialStatusFilter={assignedJobsFilter}
+              />
+            </ModuleErrorBoundary>
           )}
 
           {activeTab === 'todays_jobs' && (
-            <TodaysScheduleModule
-              jobs={jobs}
-              onSelectJob={handleSelectJob}
-              onOpenWorkflow={handleOpenWorkflow}
-            />
+            <ModuleErrorBoundary moduleName="Today's Schedule">
+              <TodaysScheduleModule
+                jobs={jobs}
+                onSelectJob={handleSelectJob}
+                onOpenWorkflow={handleOpenWorkflow}
+              />
+            </ModuleErrorBoundary>
           )}
 
           {activeTab === 'attendance_log' && (
-            <AttendanceLogModule />
+            <ModuleErrorBoundary moduleName="Attendance Log">
+              <AttendanceLogModule />
+            </ModuleErrorBoundary>
           )}
 
           {activeTab === 'reports' && (
-            <ReportsErrorBoundary>
+            <ModuleErrorBoundary moduleName="Daily Reports">
               <DailyReportsModule
                 jobs={jobs}
                 isLoading={isLoadingData}
                 onOpenWorkflow={handleOpenWorkflow}
               />
-            </ReportsErrorBoundary>
+            </ModuleErrorBoundary>
           )}
 
           {activeTab === 'history' && (
-            <JobHistoryModule
-              jobs={jobs}
-              onSelectJob={handleSelectJob}
-            />
+            <ModuleErrorBoundary moduleName="Job History">
+              <JobHistoryModule
+                jobs={jobs}
+                onSelectJob={handleSelectJob}
+              />
+            </ModuleErrorBoundary>
           )}
 
           {activeTab === 'query' && (
-            <QueryModule />
+            <ModuleErrorBoundary moduleName="Queries">
+              <QueryModule />
+            </ModuleErrorBoundary>
           )}
 
           {activeTab === 'scanner' && (
-            <ScannerModule />
+            <ModuleErrorBoundary moduleName="QR Scanner">
+              <ScannerModule />
+            </ModuleErrorBoundary>
           )}
 
           {activeTab === 'analytics' && (
-            <PerformanceAnalyticsModule
-              jobs={jobs}
-              profile={profile}
-            />
+            <ModuleErrorBoundary moduleName="Performance Analytics">
+              <PerformanceAnalyticsModule
+                jobs={jobs}
+                profile={profile}
+              />
+            </ModuleErrorBoundary>
           )}
 
           {activeTab === 'leaderboard' && (
@@ -647,23 +665,27 @@ export function App() {
           )}
 
           {activeTab === 'profile' && profile && (
-            <ProfileModule
-              profile={profile}
-              onUpdateStatus={handleUpdateProfileStatus}
-            />
+            <ModuleErrorBoundary moduleName="Profile">
+              <ProfileModule
+                profile={profile}
+                onUpdateStatus={handleUpdateProfileStatus}
+              />
+            </ModuleErrorBoundary>
           )}
 
           {activeTab === 'settings' && (
-            <SettingsModule
-              autoSync={autoSyncEnabled}
-              onAutoSyncChange={setAutoSyncEnabled}
-              onSyncError={(title, message) => setGlobalError({
-                id: `sync-${Date.now()}`,
-                type: 'SYNC',
-                title,
-                message,
-              })}
-            />
+            <ModuleErrorBoundary moduleName="Settings">
+              <SettingsModule
+                autoSync={autoSyncEnabled}
+                onAutoSyncChange={setAutoSyncEnabled}
+                onSyncError={(title, message) => setGlobalError({
+                  id: `sync-${Date.now()}`,
+                  type: 'SYNC',
+                  title,
+                  message,
+                })}
+              />
+            </ModuleErrorBoundary>
           )}
         </main>
       </div>

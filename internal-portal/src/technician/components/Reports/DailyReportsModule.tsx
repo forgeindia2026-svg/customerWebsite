@@ -42,21 +42,39 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
   const [mobileFullReportModal, setMobileFullReportModal] = useState<any | null>(null);
   const [showGeneralReportModal, setShowGeneralReportModal] = useState(false);
   const [punchStatus, setPunchStatus] = useState<'PUNCHED_IN' | 'PUNCHED_OUT'>(() => {
-    const authUser = JSON.parse(localStorage.getItem('tech_user') || '{}');
-    const techId = authUser.id || authUser._id || 'TECH-01';
-    return localStorage.getItem(`tech_checkin_${techId}`) ? 'PUNCHED_IN' : 'PUNCHED_OUT';
+    try {
+      const raw = localStorage.getItem('tech_user');
+      const authUser = raw ? JSON.parse(raw) : {};
+      const techId = authUser.id || authUser._id || localStorage.getItem('user_id') || 'TECH-01';
+      return localStorage.getItem(`tech_checkin_${techId}`) ? 'PUNCHED_IN' : 'PUNCHED_OUT';
+    } catch (e) {
+      return 'PUNCHED_OUT';
+    }
   });
   const [checkInTimestamp, setCheckInTimestamp] = useState<string | null>(() => {
-    const authUser = JSON.parse(localStorage.getItem('tech_user') || '{}');
-    const techId = authUser.id || authUser._id || 'TECH-01';
-    return localStorage.getItem(`tech_checkin_${techId}`) || null;
+    try {
+      const raw = localStorage.getItem('tech_user');
+      const authUser = raw ? JSON.parse(raw) : {};
+      const techId = authUser.id || authUser._id || localStorage.getItem('user_id') || 'TECH-01';
+      return localStorage.getItem(`tech_checkin_${techId}`) || null;
+    } catch (e) {
+      return null;
+    }
   });
 
   const handleCheckIn = async () => {
     const now = new Date();
-    const authUser = JSON.parse(localStorage.getItem('tech_user') || '{}');
-    const techId = authUser.id || authUser._id || 'TECH-01';
-    const techName = authUser.name || 'Technician';
+    let techId = 'TECH-01';
+    let techName = 'Technician';
+    try {
+      const raw = localStorage.getItem('tech_user');
+      const authUser = raw ? JSON.parse(raw) : {};
+      techId = authUser.id || authUser._id || localStorage.getItem('user_id') || 'TECH-01';
+      techName = authUser.name || localStorage.getItem('user_name') || 'Technician';
+    } catch (e) {
+      techId = localStorage.getItem('user_id') || 'TECH-01';
+      techName = localStorage.getItem('user_name') || 'Technician';
+    }
 
     const checkInTimeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const isoString = now.toISOString();
