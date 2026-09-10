@@ -65,7 +65,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
         {isOpen && (
           <div className="transition-opacity duration-300 text-left flex-1 min-w-0">
             <h1 className="font-bold text-slate-900 text-sm leading-tight tracking-tight truncate">SK Technology</h1>
-            <p className="text-[11px] text-blue-600 font-bold tracking-wide truncate">CCTV Solutions</p>
+            <p className="text-[11px] text-blue-600 font-bold tracking-wide truncate">Your Safety Is Our Priority</p>
           </div>
         )}
       </div>

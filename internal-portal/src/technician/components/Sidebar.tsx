@@ -91,7 +91,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <h1 className="font-extrabold text-base tracking-tight text-slate-900 flex items-center space-x-1.5">
                   <span>SK Technology</span>
                 </h1>
-                <p className="text-[10px] text-blue-600 font-black tracking-wider uppercase">CCTV SOLUTIONS</p>
+                <p className="text-[10px] text-blue-600 font-black tracking-wider uppercase">YOUR SAFETY IS OUR PRIORITY</p>
               </div>
             </div>
 

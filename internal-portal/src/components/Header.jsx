@@ -59,7 +59,7 @@ export default function Header({ toggleMobileSidebar }) {
           <img src="/logo.png" alt="SK Technology" className="w-8 h-8 object-contain rounded-lg bg-white p-0.5 shadow-2xs" />
           <div>
             <h2 className="text-xs font-black tracking-tight text-slate-900 dark:text-white leading-tight">SK TECHNOLOGY</h2>
-            <p className="text-[9px] font-bold text-red-600 uppercase tracking-widest leading-tight">CCTV Solutions</p>
+            <p className="text-[9px] font-bold text-red-600 uppercase tracking-widest leading-tight">Your Safety Is Our Priority</p>
           </div>
         </div>
 

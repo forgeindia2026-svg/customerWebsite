@@ -51,7 +51,7 @@ export default function SKLogo({
         SK Technology
       </span>
       <span className={`text-[9.5px] sm:text-[10.5px] font-black tracking-widest mt-2 uppercase leading-none ${subtitleColor}`}>
-        CCTV Solutions
+        Your Safety Is Our Priority
       </span>
     </div>
   );

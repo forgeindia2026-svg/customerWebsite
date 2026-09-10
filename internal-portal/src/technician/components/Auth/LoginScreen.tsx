@@ -112,7 +112,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           </div>
           <div>
             <h2 className="font-bold text-lg text-white tracking-tight">SK Technology</h2>
-            <p className="text-[11px] text-sky-400 font-semibold tracking-wider uppercase">CCTV SOLUTIONS</p>
+            <p className="text-[11px] text-sky-400 font-semibold tracking-wider uppercase">YOUR SAFETY IS OUR PRIORITY</p>
           </div>
         </div>
 
