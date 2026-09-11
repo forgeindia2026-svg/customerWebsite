@@ -55,8 +55,8 @@ export default function Dashboard() {
     try {
       const doc = new jsPDF();
 
-      // Header Banner
-      doc.setFillColor(15, 23, 42); 
+      // Header Banner - Slate Charcoal
+      doc.setFillColor(51, 65, 85); 
       doc.rect(0, 0, 210, 40, 'F');
 
       doc.setTextColor(255, 255, 255);
@@ -109,7 +109,7 @@ export default function Dashboard() {
       doc.setFont('helvetica', 'bold');
       doc.text('ORDER SUMMARY & INVENTORY BREAKDOWN', 14, 100);
 
-      doc.setFillColor(15, 23, 42);
+      doc.setFillColor(51, 65, 85);
       doc.rect(14, 105, 182, 8, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(8);

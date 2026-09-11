@@ -666,7 +666,8 @@ export default function Reports() {
     try {
       const doc = new jsPDF();
 
-      doc.setFillColor(15, 23, 42); 
+      // Header Banner - Slate Charcoal
+      doc.setFillColor(51, 65, 85); 
       doc.rect(0, 0, 210, 38, 'F');
 
       doc.setTextColor(255, 255, 255);
@@ -724,8 +725,8 @@ export default function Reports() {
       const doc = new jsPDF();
       const isApproved = localStorage.getItem(`report_approved_${report?.jobCode}`) === 'true' || report?.status === 'Approved' || report?.status === 'COMPLETED';
 
-      // Header Banner - Navy Blue
-      doc.setFillColor(15, 23, 42); 
+      // Header Banner - Slate Charcoal
+      doc.setFillColor(51, 65, 85); 
       doc.rect(0, 0, 210, 38, 'F');
 
       doc.setTextColor(255, 255, 255);
@@ -842,7 +843,7 @@ export default function Reports() {
       if (beforePhotos.length > 0 || afterPhotos.length > 0) {
         doc.addPage();
         
-        doc.setFillColor(15, 23, 42); 
+        doc.setFillColor(51, 65, 85); 
         doc.rect(0, 0, 210, 25, 'F');
         doc.setTextColor(255, 255, 255);
         doc.setFont('helvetica', 'bold');
@@ -925,7 +926,8 @@ export default function Reports() {
     try {
       const doc = new jsPDF();
 
-      doc.setFillColor(15, 23, 42); 
+      // Header Banner - Slate Charcoal
+      doc.setFillColor(51, 65, 85); 
       doc.rect(0, 0, 210, 38, 'F');
 
       doc.setTextColor(255, 255, 255);
