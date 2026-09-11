@@ -110,14 +110,26 @@ export default function Orders() {
     if (!ord) return 'Pending';
     let localApproved = false;
     try {
-      const stored = JSON.parse(localStorage.getItem('sk_approved_orders') || '[]');
-      if (stored.includes(ord.id) || stored.includes(ord.orderNumber) || stored.includes(ord.jobCode)) {
+      const rawStored = JSON.parse(localStorage.getItem('sk_approved_orders') || '[]');
+      const cleanList = Array.isArray(rawStored)
+        ? rawStored.filter(item => typeof item === 'string' && item.trim().length > 0 && item !== 'undefined' && item !== 'null')
+        : [];
+      
+      const ordId = (ord.id && typeof ord.id === 'string' && ord.id !== 'undefined') ? ord.id : null;
+      const ordNum = (ord.orderNumber && typeof ord.orderNumber === 'string' && ord.orderNumber !== 'undefined') ? ord.orderNumber : null;
+      const ordJob = (ord.jobCode && typeof ord.jobCode === 'string' && ord.jobCode !== 'undefined') ? ord.jobCode : null;
+
+      if (
+        (ordId && cleanList.includes(ordId)) ||
+        (ordNum && cleanList.includes(ordNum)) ||
+        (ordJob && cleanList.includes(ordJob))
+      ) {
         localApproved = true;
       }
     } catch (e) {}
 
     // 1. If explicitly approved by admin in database or locally
-    if (localApproved || ord.status === 'APPROVED' || ord.rawJobStatus === 'APPROVED') {
+    if (localApproved || ord.status === 'Approved' || ord.status === 'APPROVED' || ord.rawJobStatus === 'APPROVED') {
       return 'Approved';
     }
 
@@ -135,11 +147,6 @@ export default function Orders() {
       return 'Completed';
     }
 
-    // 3. If explicitly approved by admin
-    if (ord.status === 'Approved') {
-      return 'Approved';
-    }
-
     if (ord.status === 'Rework') {
       return 'Rework';
     }
@@ -147,6 +154,23 @@ export default function Orders() {
       return 'Pending';
     }
     return 'In Progress';
+  };
+
+  const formatOrderDate = (ord) => {
+    if (!ord) return '—';
+    const raw = ord.createdAt || ord.date;
+    if (!raw) return '—';
+    try {
+      const parsed = new Date(raw);
+      if (!isNaN(parsed.getTime())) {
+        return parsed.toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric'
+        });
+      }
+    } catch (e) {}
+    return String(raw);
   };
 
   const openApprovalModal = (ord) => {
@@ -172,21 +196,33 @@ export default function Orders() {
     if (e) e.preventDefault();
     if (!approvalTargetOrder) return;
     const orderId = approvalTargetOrder.id || approvalTargetOrder.orderNumber || approvalTargetOrder.jobCode;
+    if (!orderId || typeof orderId !== 'string' || orderId === 'undefined' || orderId === 'null') {
+      toast.error('Unable to identify Order ID for approval');
+      setApprovalModalOpen(false);
+      setApprovalTargetOrder(null);
+      return;
+    }
+
     const totalVal = parseFloat(approvalForm.totalValue) || 0;
     const profitVal = parseFloat(approvalForm.companyProfit) || 0;
     const earningVal = parseFloat(approvalForm.technicianEarning) || 0;
 
     setApprovalSubmitting(true);
     try {
-      const list = JSON.parse(localStorage.getItem('sk_approved_orders') || '[]');
-      if (!list.includes(orderId)) {
-        list.push(orderId);
-        localStorage.setItem('sk_approved_orders', JSON.stringify(list));
+      const rawStored = JSON.parse(localStorage.getItem('sk_approved_orders') || '[]');
+      const cleanList = Array.isArray(rawStored)
+        ? rawStored.filter(item => typeof item === 'string' && item.trim().length > 0 && item !== 'undefined' && item !== 'null')
+        : [];
+      if (!cleanList.includes(orderId)) {
+        cleanList.push(orderId);
       }
+      localStorage.setItem('sk_approved_orders', JSON.stringify(cleanList));
     } catch (err) {}
 
     dispatch(approveOrderCompletion({
-      orderId,
+      id: orderId,
+      jobId: orderId,
+      orderId: orderId,
       totalValue: totalVal,
       companyProfit: profitVal,
       technicianEarning: earningVal
@@ -559,11 +595,17 @@ export default function Orders() {
                     onClick={() => setSelectedOrder(ord)}
                     className="bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 space-y-3 transition-all cursor-pointer hover:border-primary shadow-2xs"
                   >
-                    {/* Header Row: Order ID & Status Badge */}
+                    {/* Header Row: Order ID, Created Date & Status Badge */}
                     <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-700/60 pb-2.5">
-                      <span className="font-mono font-extrabold text-xs text-slate-900 dark:text-white bg-slate-200/80 dark:bg-slate-700 px-2 py-0.5 rounded">
-                        {ord.id}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-extrabold text-xs text-slate-900 dark:text-white bg-slate-200/80 dark:bg-slate-700 px-2 py-0.5 rounded">
+                          {ord.id}
+                        </span>
+                        <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
+                          <FiCalendar size={11} />
+                          {formatOrderDate(ord)}
+                        </span>
+                      </div>
 
                       {/* Interactive Status Badge Dropdown */}
                       <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
@@ -671,7 +713,8 @@ export default function Orders() {
               <table className="w-full text-left border-collapse table-auto">
                 <thead>
                   <tr className="bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-200/80 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider text-[11px]">
-                    <th className="py-3.5 px-4 whitespace-nowrap w-32">Order ID</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap w-28">Order ID</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap w-28">Created Date</th>
                     <th className="py-3.5 px-4 min-w-[180px] max-w-[220px]">Customer Details</th>
                     <th className="py-3.5 px-4 min-w-[220px]">Order Type</th>
                     <th className="py-3.5 px-4 whitespace-nowrap w-36">Assigned Staff</th>
@@ -689,6 +732,12 @@ export default function Orders() {
                         className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors cursor-pointer group"
                       >
                         <td className="py-4 px-4 align-middle font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">{ord.id}</td>
+                        <td className="py-4 px-4 align-middle whitespace-nowrap">
+                          <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300 font-medium">
+                            <FiCalendar size={13} className="text-slate-400 shrink-0" />
+                            <span>{formatOrderDate(ord)}</span>
+                          </div>
+                        </td>
                         <td className="py-4 px-4 align-middle max-w-[220px]">
                           <div className="font-bold text-slate-900 dark:text-slate-100 text-xs group-hover:text-primary transition-colors truncate" title={ord.customer}>{ord.customer}</div>
                           <div className="text-[11px] text-slate-400 font-medium mt-0.5 font-sans truncate" title={`${ord.phone || ''} | ${ord.email || ''}`}>{ord.phone} | {ord.email}</div>
@@ -837,6 +886,10 @@ export default function Orders() {
                 <div>
                   <div className="flex items-center justify-between">
                     <span className="px-2 py-0.5 rounded-lg text-xs font-semibold bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-300">{ord.id}</span>
+                    <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
+                      <FiCalendar size={11} />
+                      {formatOrderDate(ord)}
+                    </span>
                     <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusBadge(getDisplayStatus(ord))}`}>
                       {getDisplayStatus(ord)}
                     </span>
@@ -1225,7 +1278,10 @@ export default function Orders() {
               </div>
               <div>
                 <span className="block text-slate-400 font-semibold mb-0.5">Date Created</span>
-                <span className="font-semibold text-slate-850 dark:text-slate-205">{selectedOrder.date}</span>
+                <span className="font-semibold text-slate-850 dark:text-slate-205 flex items-center gap-1">
+                  <FiCalendar size={12} className="text-slate-400" />
+                  {formatOrderDate(selectedOrder)}
+                </span>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4 border-b border-slate-105 dark:border-slate-800 pb-3">

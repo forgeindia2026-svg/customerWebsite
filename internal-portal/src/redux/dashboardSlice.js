@@ -245,19 +245,27 @@ const dashboardSlice = createSlice({
       const rawOrders = Array.isArray(payload.orders) ? payload.orders : (state.orders || []);
       let storedApproved = [];
       try {
-        storedApproved = JSON.parse(localStorage.getItem('sk_approved_orders') || '[]');
+        storedApproved = JSON.parse(localStorage.getItem('sk_approved_orders') || '[]')
+          .filter(x => typeof x === 'string' && x.trim().length > 0 && x !== 'undefined' && x !== 'null');
       } catch (e) {}
 
       const normalizedOrders = rawOrders.map(o => {
         const id = o.id || o.orderNumber || o._id;
-        const isApproved = storedApproved.includes(id) || o.status === 'Approved' || o.status === 'APPROVED' || o.rawJobStatus === 'APPROVED' || o.orderStatus === 'DELIVERED';
+        const isApproved = (id && storedApproved.includes(id)) || 
+          (o.orderNumber && storedApproved.includes(o.orderNumber)) || 
+          (o.jobCode && storedApproved.includes(o.jobCode)) || 
+          o.status === 'Approved' || 
+          o.status === 'APPROVED' || 
+          o.rawJobStatus === 'APPROVED';
+
         const fallbackStatus = isApproved 
           ? 'Approved' 
-          : (o.orderStatus === 'DELIVERED' ? 'Approved' : o.orderStatus === 'PROCESSING' ? 'In Progress' : o.orderStatus) || 'Pending';
+          : (o.orderStatus === 'PROCESSING' ? 'In Progress' : o.orderStatus) || 'Pending';
 
         return {
           ...o,
           id,
+          orderNumber: o.orderNumber || id,
           customer: o.customer || o.customerName || 'Customer Client',
           amount: parseFloat(o.amount || o.totalAmount) || 0,
           status: isApproved ? 'Approved' : (o.status || fallbackStatus),
@@ -285,9 +293,15 @@ const dashboardSlice = createSlice({
     },
     // Orders actions
     addOrder: (state, action) => {
+      const generatedId = `ORD-${Date.now().toString().slice(-4)}`;
+      const hasTech = action.payload?.assignedTechnician && action.payload.assignedTechnician !== 'Unassigned';
+      const initialStatus = hasTech ? 'In Progress' : 'Pending';
       const newOrder = {
-        id: `ORD-${Date.now().toString().slice(-4)}`,
-        status: 'Pending',
+        id: generatedId,
+        orderNumber: generatedId,
+        jobCode: generatedId,
+        status: initialStatus,
+        rawJobStatus: hasTech ? 'IN_PROGRESS' : 'PENDING',
         date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
         ...action.payload,
       };
@@ -298,21 +312,23 @@ const dashboardSlice = createSlice({
         mayData.orders += 1;
       }
       // Find or create customer
-      const key = newOrder.customer.toLowerCase().trim();
-      const existingCust = state.customers.find(c => c.name.toLowerCase().trim() === key);
-      if (existingCust) {
-        existingCust.totalSpent += newOrder.amount || 0;
-        existingCust.installationsCount += 1;
-      } else {
-        state.customers.unshift({
-          id: `CUST-${Date.now().toString().slice(-4)}`,
-          name: newOrder.customer,
-          email: newOrder.email || 'support@domain.com',
-          phone: newOrder.phone || '+91 99999 99999',
-          location: newOrder.location || '',
-          totalSpent: newOrder.amount || 0,
-          installationsCount: 1,
-        });
+      const key = (newOrder.customer || '').toLowerCase().trim();
+      if (key) {
+        const existingCust = state.customers.find(c => c.name.toLowerCase().trim() === key);
+        if (existingCust) {
+          existingCust.totalSpent += newOrder.amount || 0;
+          existingCust.installationsCount += 1;
+        } else {
+          state.customers.unshift({
+            id: `CUST-${Date.now().toString().slice(-4)}`,
+            name: newOrder.customer,
+            email: newOrder.email || 'support@domain.com',
+            phone: newOrder.phone || '+91 99999 99999',
+            location: newOrder.location || '',
+            totalSpent: newOrder.amount || 0,
+            installationsCount: 1,
+          });
+        }
       }
       // Add notification
       state.notifications.unshift({
@@ -326,8 +342,13 @@ const dashboardSlice = createSlice({
     },
     approveOrder: (state, action) => {
       const payload = action.payload;
-      const orderId = typeof payload === 'string' ? payload : payload.id;
-      const order = state.orders.find(o => o.id === orderId);
+      const orderId = typeof payload === 'string' ? payload : (payload?.id || payload?.orderId);
+      if (!orderId || typeof orderId !== 'string' || orderId === 'undefined' || orderId === 'null') return;
+      const order = state.orders.find(o => 
+        (Boolean(o.id) && o.id === orderId) || 
+        (Boolean(o.orderNumber) && o.orderNumber === orderId) || 
+        (Boolean(o.jobCode) && o.jobCode === orderId)
+      );
       
       if (order) {
         order.status = 'Approved';
@@ -355,29 +376,48 @@ const dashboardSlice = createSlice({
         order.acceptedBy = candidates;
 
         // Also update the associated project status to Approved to prevent sync reverting
-        const associatedProject = state.projects.find(p => p.id === order.id || p.customer?.toLowerCase() === order.customer?.toLowerCase());
+        const associatedProject = state.projects.find(p => 
+          (Boolean(p.id) && p.id === order.id) || 
+          (Boolean(p.jobCode) && p.jobCode === order.id) ||
+          (p.customer && p.customer.toLowerCase() === order.customer?.toLowerCase())
+        );
         if (associatedProject) {
           associatedProject.status = 'Approved';
         }
       }
     },
     approveOrderCompletion: (state, action) => {
-      const orderId = typeof action.payload === 'string' ? action.payload : (action.payload?.jobId || action.payload?.id);
+      const orderId = typeof action.payload === 'string' 
+        ? action.payload 
+        : (action.payload?.id || action.payload?.jobId || action.payload?.orderId);
+
+      if (!orderId || typeof orderId !== 'string' || orderId === 'undefined' || orderId === 'null') {
+        return;
+      }
+
       const financials = typeof action.payload === 'object' ? {
         totalValue: Number(action.payload.totalValue) || 0,
         companyProfit: Number(action.payload.companyProfit) || 0,
         technicianEarning: Number(action.payload.technicianEarning) || 0
       } : null;
-      if (orderId) {
-        try {
-          const list = JSON.parse(localStorage.getItem('sk_approved_orders') || '[]');
-          if (!list.includes(orderId)) {
-            list.push(orderId);
-            localStorage.setItem('sk_approved_orders', JSON.stringify(list));
-          }
-        } catch (e) {}
-      }
-      const order = state.orders.find(o => o.id === orderId || o.orderNumber === orderId || (o.jobCode && o.jobCode === orderId));
+
+      try {
+        const rawStored = JSON.parse(localStorage.getItem('sk_approved_orders') || '[]');
+        const cleanList = Array.isArray(rawStored)
+          ? rawStored.filter(item => typeof item === 'string' && item.trim().length > 0 && item !== 'undefined' && item !== 'null')
+          : [];
+        if (!cleanList.includes(orderId)) {
+          cleanList.push(orderId);
+        }
+        localStorage.setItem('sk_approved_orders', JSON.stringify(cleanList));
+      } catch (e) {}
+
+      const order = state.orders.find(o => 
+        (Boolean(o.id) && o.id === orderId) || 
+        (Boolean(o.orderNumber) && o.orderNumber === orderId) || 
+        (Boolean(o.jobCode) && o.jobCode === orderId)
+      );
+
       if (order) {
         order.status = 'Approved';
         order.rawJobStatus = 'APPROVED';
@@ -387,7 +427,10 @@ const dashboardSlice = createSlice({
           order.technicianEarning = financials.technicianEarning;
         }
       }
-      const project = state.projects.find(p => p.id === orderId || p.jobCode === orderId);
+      const project = state.projects.find(p => 
+        (Boolean(p.id) && p.id === orderId) || 
+        (Boolean(p.jobCode) && p.jobCode === orderId)
+      );
       if (project) {
         project.status = 'Approved';
         if (financials) {
@@ -398,7 +441,11 @@ const dashboardSlice = createSlice({
       try {
         const cached = JSON.parse(localStorage.getItem('sk_admin_dashboard_cache') || '{}');
         if (cached && cached.orders) {
-          const cachedOrd = cached.orders.find(o => o.id === orderId || o.orderNumber === orderId);
+          const cachedOrd = cached.orders.find(o => 
+            (Boolean(o.id) && o.id === orderId) || 
+            (Boolean(o.orderNumber) && o.orderNumber === orderId) ||
+            (Boolean(o.jobCode) && o.jobCode === orderId)
+          );
           if (cachedOrd) {
             cachedOrd.status = 'Approved';
             cachedOrd.rawJobStatus = 'APPROVED';
@@ -409,13 +456,27 @@ const dashboardSlice = createSlice({
       } catch (e) {}
     },
     reworkOrder: (state, action) => {
-      const orderId = typeof action.payload === 'string' ? action.payload : (action.payload?.jobId || action.payload?.id);
-      const order = state.orders.find(o => o.id === orderId || o.orderNumber === orderId || (o.jobCode && o.jobCode === orderId));
+      const orderId = typeof action.payload === 'string' 
+        ? action.payload 
+        : (action.payload?.id || action.payload?.jobId || action.payload?.orderId);
+
+      if (!orderId || typeof orderId !== 'string' || orderId === 'undefined' || orderId === 'null') {
+        return;
+      }
+
+      const order = state.orders.find(o => 
+        (Boolean(o.id) && o.id === orderId) || 
+        (Boolean(o.orderNumber) && o.orderNumber === orderId) || 
+        (Boolean(o.jobCode) && o.jobCode === orderId)
+      );
       if (order) {
         order.status = 'Rework';
         order.rawJobStatus = 'IN_PROGRESS';
       }
-      const project = state.projects.find(p => p.id === orderId || p.jobCode === orderId);
+      const project = state.projects.find(p => 
+        (Boolean(p.id) && p.id === orderId) || 
+        (Boolean(p.jobCode) && p.jobCode === orderId)
+      );
       if (project) {
         project.status = 'Rework';
       }
