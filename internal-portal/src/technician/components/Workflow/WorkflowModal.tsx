@@ -334,11 +334,19 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
         uploadedAt: new Date().toLocaleTimeString()
       }));
 
+      const formattedAfter = afterPhotos.map((url, i) => ({
+        id: `PHO-AFTER-${i}-${Date.now()}`,
+        url: url,
+        caption: 'Completed Equipment Setup',
+        uploadedAt: new Date().toLocaleTimeString()
+      }));
+
       // 1. Save progress in backend Job
       const updatedJob = await JobsApiService.saveJobProgress(job.id, {
         taskDescription: taskDescription.trim(),
         inspectionComments: inspectionComments.trim(),
         beforePhotos: formattedBefore,
+        afterPhotos: formattedAfter,
         technicianId: techId,
         technicianName: techName,
         voiceNoteUrl: hasVoiceNote ? (audioUrl || '') : '',
@@ -406,18 +414,26 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
       const finalVoiceUrl = hasVoiceNote ? (audioUrl || 'recorded-audio-memo') : '';
       const finalHasVoice = Boolean(hasVoiceNote);
 
-      if (saveOnly || completionStatus === 'In Progress') {
-        const formattedBefore = beforePhotos.map((url, i) => ({
-          id: `PHO-BEFORE-${i}-${Date.now()}`,
-          url: url,
-          caption: 'Before Work Site Condition',
-          uploadedAt: new Date().toLocaleTimeString()
-        }));
+      const formattedBefore = beforePhotos.map((url, i) => ({
+        id: `PHO-BEFORE-${i}-${Date.now()}`,
+        url: url,
+        caption: 'Before Work Site Condition',
+        uploadedAt: new Date().toLocaleTimeString()
+      }));
 
+      const formattedAfter = afterPhotos.map((url, i) => ({
+        id: `PHO-AFTER-${i}-${Date.now()}`,
+        url: url,
+        caption: 'Completed Equipment Setup',
+        uploadedAt: new Date().toLocaleTimeString()
+      }));
+
+      if (saveOnly || completionStatus === 'In Progress') {
         const updatedJob = await JobsApiService.saveJobProgress(job.id, {
           taskDescription: taskDescription.trim(),
           inspectionComments: inspectionComments.trim(),
           beforePhotos: formattedBefore,
+          afterPhotos: formattedAfter,
           technicianId: techId,
           technicianName: techName,
           voiceNoteUrl: finalVoiceUrl,
@@ -460,6 +476,18 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
       // Complete work report submission flow
       const summaryText = inspectionComments?.trim() || taskDescription?.trim() || 'Work completed and verified on site.';
+
+      // Save photos to Job model first
+      await JobsApiService.saveJobProgress(job.id, {
+        taskDescription: taskDescription.trim(),
+        inspectionComments: summaryText,
+        beforePhotos: formattedBefore,
+        afterPhotos: formattedAfter,
+        technicianId: techId,
+        technicianName: techName,
+        voiceNoteUrl: finalVoiceUrl,
+        hasVoiceNote: finalHasVoice
+      }).catch(err => console.warn('Pre-complete save progress error:', err));
 
       const reportPromise = fetch(`${baseUrl}/api/reports`, {
         method: 'POST',
@@ -961,6 +989,34 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   </>
                 )}
               </button>
+            </div>
+          ) : (job.status === 'COMPLETED' || job.status === 'VERIFIED' || job.status === 'WAITING_ADMIN_APPROVAL' || job.status === 'APPROVED') ? (
+            <div className="space-y-2.5">
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-900">
+                <span className="font-bold flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  Job Already Completed & Submitted
+                </span>
+                <span className="text-[10px] font-mono bg-emerald-200/60 text-emerald-800 px-2 py-0.5 rounded font-bold uppercase">
+                  {job.status}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(1)}
+                  className="flex-1 py-3 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-bold text-xs rounded-xl transition-all cursor-pointer text-center"
+                >
+                  ◂ View Before Photos
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 py-3 bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer text-center"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           ) : (
             <div className="space-y-2">

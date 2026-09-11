@@ -509,13 +509,15 @@ const dashboardSlice = createSlice({
       }
     },
     editTechnician: (state, action) => {
-      const { id, name, phone, email, specialization, avatarUrl, password } = action.payload;
+      const { id, name, phone, email, specialization, role, avatarUrl, password } = action.payload;
       const tech = state.technicians.find(t => t.id === id);
       if (tech) {
         tech.name = name;
         tech.phone = phone;
         tech.email = email;
-        tech.specialization = specialization;
+        const effectiveRole = role || specialization || tech.role || tech.specialization || 'Technician';
+        tech.role = effectiveRole;
+        tech.specialization = effectiveRole;
         if (avatarUrl !== undefined) {
           tech.avatarUrl = avatarUrl;
         }

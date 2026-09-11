@@ -41,15 +41,20 @@ router.get('/analytics', async (req: Request, res: Response) => {
 
     // Technician performance metrics
     const techPerformance = technicians.map(t => {
-      const techJobs = jobs.filter(j => j.assignedTechnicians?.some(at => at.id === t._id.toString() || at.name === t.name));
-      const completed = techJobs.filter(j => j.status === 'COMPLETED').length;
+      const techJobs = jobs.filter(j => j.assignedTechnicians?.some((at: any) => 
+        (at.id && at.id === t._id.toString()) || 
+        (at.name && at.name.toLowerCase() === t.name.toLowerCase())
+      ));
+      const completed = techJobs.filter(j => j.status === 'COMPLETED' || j.status === 'APPROVED').length;
       return {
-        id: t._id,
+        id: t._id.toString(),
         name: t.name,
         totalJobs: techJobs.length,
         completedJobs: completed,
-        rating: t.rating || 4.8,
-        specialization: t.specialties?.join(', ') || 'CCTV & Cabling',
+        rating: t.rating || 5.0,
+        specialization: t.specialties?.join(', ') || 'CCTV & Surveillance',
+        avatar: t.avatar || (t as any).avatarUrl || '',
+        badgeNumber: (t as any).badgeNumber || `SK-TECH-${t._id.toString().slice(-4).toUpperCase()}`
       };
     });
 
@@ -101,7 +106,7 @@ router.get('/', async (req: Request, res: Response) => {
       Dashboard.findOne().lean().catch(() => null),
       Order.find().sort({ createdAt: -1 }).lean().catch(() => []),
       Product.find().lean().catch(() => []),
-      User.find({ role: 'TECHNICIAN' }).lean().catch(() => []),
+      User.find({ role: { $in: ['TECHNICIAN', 'HR'] } }).lean().catch(() => []),
       User.find({ role: 'CUSTOMER' }).lean().catch(() => []),
       // Optimize Job query by excluding large Base64 image fields to prevent 504 Gateway Timeouts
       Job.find().select('-proofImages').sort({ createdAt: -1 }).lean().catch(() => []),
@@ -223,11 +228,17 @@ router.get('/', async (req: Request, res: Response) => {
       const beforePhotosList = (job?.beforePhotos && job.beforePhotos.length > 0)
         ? job.beforePhotos
         : (job?.workProgress?.beforeWorkPhotos || []);
-      const afterPhotosList = job?.afterPhotos || [];
-      const taskDesc = job?.workProgress?.taskDescription || job?.fieldNotes || '';
+      const afterPhotosList = (job?.afterPhotos && job.afterPhotos.length > 0)
+        ? job.afterPhotos
+        : ((job?.workProgress as any)?.afterWorkPhotos || []);
+      const taskDesc = job?.workProgress?.inspectionComments || job?.workProgress?.taskDescription || job?.fieldNotes || '';
       const inspectionNotes = job?.workProgress?.inspectionComments || job?.inspection?.notes || '';
       const startedAt = job?.workProgress?.startedAt || job?.startDate || '';
       const updatedAt = job?.workProgress?.updatedAt || job?.updatedAt || order.updatedAt || '';
+
+      const techName = (job?.assignedTechnicians && job.assignedTechnicians.length > 0)
+        ? job.assignedTechnicians.map((t: any) => t.name).join(', ')
+        : (order.assignedTechnicianName || (job as any)?.technicianName || 'Unassigned');
 
       return {
         id: order.orderNumber,
@@ -236,7 +247,8 @@ router.get('/', async (req: Request, res: Response) => {
         phone: order.customerPhone,
         type: order.items?.map((item: any) => item.title).join(', ') || 'CCTV Installation',
         location: order.shippingAddress || '',
-        assignedTechnician: (job?.assignedTechnicians && job.assignedTechnicians.length > 0) ? job.assignedTechnicians.map((t: any) => t.name).join(', ') : 'Unassigned',
+        assignedTechnician: techName,
+        assignedTechnicianName: techName,
         status: dashboardStatus,
         rawJobStatus: job?.status || 'PENDING',
         rawJobId: job?._id?.toString(),
@@ -256,16 +268,21 @@ router.get('/', async (req: Request, res: Response) => {
     // Map live Technicians
     const mappedTechnicians = liveTechnicians.map((tech: any) => {
       const activeJob = liveJobs.find((j: any) => (j.assignedTechnicians && j.assignedTechnicians.some((t: any) => t.id === tech._id.toString())) && j.status !== 'COMPLETED' && j.status !== 'CANCELLED');
+      const isHR = tech.role === 'HR' || tech.specialties?.includes('HR');
+      const effectiveRole = isHR ? 'HR' : ((tech.specialties && tech.specialties[0]) || tech.role || 'Technician');
       return {
         id: tech._id.toString(),
         name: tech.name,
         phone: tech.phone || '',
         email: tech.email,
+        role: effectiveRole,
         status: activeJob ? 'Busy' : 'Available',
         currentProject: activeJob ? activeJob.title : 'None',
         rating: tech.rating || 5.0,
-        specialization: tech.specialties?.join(', ') || 'IP Cameras & Networking',
-        password: tech.passwordHash || ''
+        specialization: effectiveRole,
+        password: tech.passwordHash || '',
+        avatar: tech.avatar || tech.avatarUrl || '',
+        avatarUrl: tech.avatar || tech.avatarUrl || ''
       };
     });
 

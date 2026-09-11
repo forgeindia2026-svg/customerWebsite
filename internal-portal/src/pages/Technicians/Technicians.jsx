@@ -126,28 +126,54 @@ export default function Technicians() {
   };
 
   const handleEditTechClick = (tech) => {
+    const currentRole = tech.role || tech.specialization || 'Technician';
     setEditingTech({
       id: tech.id,
       name: tech.name,
       phone: tech.phone,
       email: tech.email,
       password: tech.password || '',
-      role: tech.role || 'Technician',
-      specialization: tech.specialization,
+      role: currentRole,
+      specialization: currentRole,
       avatarUrl: tech.avatarUrl || ''
     });
     setEditModalOpen(true);
   };
 
-  const handleEditTechSubmit = (e) => {
+  const handleEditTechSubmit = async (e) => {
     e.preventDefault();
     if (!editingTech.phone || editingTech.phone.length !== 10 || !/^[6-9]\d{9}$/.test(editingTech.phone)) {
       alert('Please enter a valid 10-digit Indian mobile number.');
       return;
     }
-    dispatch(editTechnician(editingTech));
+    
+    // 1. Optimistic UI update
+    const updatedPayload = {
+      ...editingTech,
+      role: editingTech.role || 'Technician',
+      specialization: editingTech.role || 'Technician'
+    };
+    dispatch(editTechnician(updatedPayload));
     setEditModalOpen(false);
-    setEditingTech(null);
+
+    // 2. Persist to MongoDB backend
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/auth/technician/${editingTech.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedPayload)
+      });
+      const data = await response.json();
+      if (data.success) {
+        dispatch(fetchDashboardData());
+      } else {
+        console.warn('Backend update notice:', data.message);
+      }
+    } catch (err) {
+      console.error('Failed to update technician in database:', err);
+    } finally {
+      setEditingTech(null);
+    }
   };
 
   const handleDeleteTech = async (id, e) => {
@@ -389,7 +415,7 @@ export default function Technicians() {
                           <span className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border border-white dark:border-slate-900 ${getStatusColor(tech.status)}`} />
                         </div>
                         <h4 className="font-bold text-slate-850 dark:text-slate-100 text-xs mt-1 leading-tight">{tech.name}</h4>
-                        <p className={`text-[10px] font-bold mt-0.5 uppercase tracking-wide truncate ${theme.specialization}`}>{tech.specialization}</p>
+                        <p className={`text-[10px] font-bold mt-0.5 uppercase tracking-wide truncate ${theme.specialization}`}>{tech.role || tech.specialization || 'Technician'}</p>
                       </div>
 
                       {/* Info Details */}
@@ -742,8 +768,8 @@ export default function Technicians() {
               <div>
                 <label className="block text-xs font-semibold text-slate-500 mb-1.5">Role</label>
                 <select
-                  value={editingTech.role || 'Technician'}
-                  onChange={(e) => setEditingTech({ ...editingTech, role: e.target.value })}
+                  value={editingTech.role || editingTech.specialization || 'Technician'}
+                  onChange={(e) => setEditingTech({ ...editingTech, role: e.target.value, specialization: e.target.value })}
                   className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
                 >
                   <option value="Technician">Technician</option>

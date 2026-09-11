@@ -42,6 +42,44 @@ router.get('/active-broadcast', async (_req: Request, res: Response) => {
   }
 });
 
+// 📍 Live Locations of Active Technicians / Jobs
+router.get('/live-locations', async (_req: Request, res: Response) => {
+  try {
+    // Find active jobs that have currentLocation set
+    const activeJobs = await Job.find({
+      'currentLocation.lat': { $exists: true },
+      status: { $in: ['IN_PROGRESS', 'ASSIGNED', 'WAITING_ADMIN_APPROVAL', 'ASSIGNMENT_PENDING_ACCEPTANCE'] }
+    }).sort({ 'currentLocation.updatedAt': -1 });
+
+    // Fallback: If no active jobs, get the most recent jobs with location
+    const jobs = activeJobs.length > 0 
+      ? activeJobs 
+      : await Job.find({ 'currentLocation.lat': { $exists: true } }).sort({ 'currentLocation.updatedAt': -1 }).limit(5);
+
+    const locations: Record<string, { lat: number; lng: number; jobCode: string; technicianName?: string; updatedAt?: string }> = {};
+
+    jobs.forEach(j => {
+      if (j.currentLocation?.lat && j.currentLocation?.lng) {
+        const techName = j.assignedTechnicians?.[0]?.name || (j as any).technicianName || j.jobCode;
+        const key = j.assignedTechnicians?.[0]?.id || techName;
+        if (!locations[key]) {
+          locations[key] = {
+            lat: j.currentLocation.lat,
+            lng: j.currentLocation.lng,
+            jobCode: j.jobCode,
+            technicianName: techName,
+            updatedAt: j.currentLocation.updatedAt || j.updatedAt?.toISOString() || new Date().toISOString(),
+          };
+        }
+      }
+    });
+
+    res.json({ success: true, locations });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // 🎯 Auto-Dispatch Completion (Executes after 20-second countdown)
 router.post('/auto-dispatch-complete', async (req: Request, res: Response) => {
   try {
@@ -433,6 +471,40 @@ router.put('/:id', async (req: Request, res: Response) => {
       (job as any).markModified('workProgress');
     }
 
+    if (req.body.afterPhotos !== undefined && Array.isArray(req.body.afterPhotos)) {
+      const seenUrls = new Set<string>();
+      const dedupedAfter: any[] = [];
+
+      req.body.afterPhotos.forEach((p: any, i: number) => {
+        const url = typeof p === 'string' ? p : (p?.url || p?.imageUrl || '');
+        if (url && !seenUrls.has(url)) {
+          seenUrls.add(url);
+          dedupedAfter.push(
+            typeof p === 'string'
+              ? {
+                  id: `PHO-AFTER-${i}-${Date.now()}`,
+                  url: p,
+                  caption: 'Completed Work Site Photo',
+                  uploadedAt: new Date().toLocaleTimeString()
+                }
+              : {
+                  id: p.id || `PHO-AFTER-${i}-${Date.now()}`,
+                  url: p.url || p.imageUrl || p,
+                  key: p.key,
+                  caption: p.caption || 'Completed Work Site Photo',
+                  uploadedAt: p.uploadedAt || new Date().toLocaleTimeString()
+                }
+          );
+        }
+      });
+      job.afterPhotos = dedupedAfter;
+      if (job.workProgress) {
+        (job.workProgress as any).afterWorkPhotos = dedupedAfter;
+      }
+      (job as any).markModified('afterPhotos');
+      (job as any).markModified('workProgress');
+    }
+
     if (req.body.workProgress) {
       job.workProgress = {
         ...job.workProgress,
@@ -457,6 +529,22 @@ router.put('/:id', async (req: Request, res: Response) => {
           job.workProgress.beforeWorkPhotos = deduped;
         }
         (job as any).markModified('beforePhotos');
+      }
+      if ((req.body.workProgress as any).afterWorkPhotos && Array.isArray((req.body.workProgress as any).afterWorkPhotos)) {
+        const seenUrls = new Set<string>();
+        const deduped: any[] = [];
+        (req.body.workProgress as any).afterWorkPhotos.forEach((p: any) => {
+          const url = typeof p === 'string' ? p : (p?.url || p?.imageUrl || '');
+          if (url && !seenUrls.has(url)) {
+            seenUrls.add(url);
+            deduped.push(p);
+          }
+        });
+        job.afterPhotos = deduped;
+        if (job.workProgress) {
+          (job.workProgress as any).afterWorkPhotos = deduped;
+        }
+        (job as any).markModified('afterPhotos');
       }
       (job as any).markModified('workProgress');
     }
@@ -535,6 +623,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     delete req.body.taskDescription;
     delete req.body.inspectionComments;
     delete req.body.beforePhotos;
+    delete req.body.afterPhotos;
     delete req.body.workProgress;
 
     Object.assign(job, req.body);
@@ -565,6 +654,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       status: updatedJob.status,
       workProgress: updatedJob.workProgress,
       beforePhotos: updatedJob.beforePhotos,
+      afterPhotos: updatedJob.afterPhotos,
       assignedTechnician: updatedJob.assignedTechnicians?.[0]?.name
     });
     emitToRole('admin', 'job:progress_updated', {
@@ -573,6 +663,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       status: updatedJob.status,
       workProgress: updatedJob.workProgress,
       beforePhotos: updatedJob.beforePhotos,
+      afterPhotos: updatedJob.afterPhotos,
       assignedTechnician: updatedJob.assignedTechnicians?.[0]?.name
     });
     emitToRole('admin', 'job:status_updated', {
@@ -843,7 +934,13 @@ router.post('/:id/upload-photo', async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: 'Photo URL or base64 is required' });
     }
 
-    const job = await Job.findById(req.params.id);
+    const isMongoId = /^[0-9a-fA-F]{24}$/.test(req.params.id as string);
+    const job = await Job.findOne({
+      $or: [
+        ...(isMongoId ? [{ _id: req.params.id }] : []),
+        { jobCode: req.params.id },
+      ],
+    });
     if (!job) {
       return res.status(404).json({ success: false, message: 'Job not found' });
     }
@@ -858,12 +955,25 @@ router.post('/:id/upload-photo', async (req: Request, res: Response) => {
     if (type === 'BEFORE') {
       if (!job.beforePhotos) job.beforePhotos = [];
       job.beforePhotos.push(photoObj);
+      if (job.workProgress) {
+        if (!job.workProgress.beforeWorkPhotos) job.workProgress.beforeWorkPhotos = [];
+        job.workProgress.beforeWorkPhotos.push(photoObj);
+      }
+      (job as any).markModified('beforePhotos');
+      (job as any).markModified('workProgress');
     } else if (type === 'AFTER') {
       if (!job.afterPhotos) job.afterPhotos = [];
       job.afterPhotos.push(photoObj);
+      if (job.workProgress) {
+        if (!(job.workProgress as any).afterWorkPhotos) (job.workProgress as any).afterWorkPhotos = [];
+        (job.workProgress as any).afterWorkPhotos.push(photoObj);
+      }
+      (job as any).markModified('afterPhotos');
+      (job as any).markModified('workProgress');
     } else {
       if (!job.proofImages) job.proofImages = [];
       job.proofImages.push(photoObj);
+      (job as any).markModified('proofImages');
     }
 
     await job.save();
@@ -889,6 +999,14 @@ router.post('/:id/complete', async (req: Request, res: Response) => {
     });
     if (!job) {
       return res.status(404).json({ success: false, message: `Job ${req.params.id} not found` });
+    }
+
+    if (req.body.afterPhotos && Array.isArray(req.body.afterPhotos) && req.body.afterPhotos.length > 0) {
+      job.afterPhotos = req.body.afterPhotos;
+      (job as any).markModified('afterPhotos');
+    }
+    if (req.body.completionNotes && job.workProgress) {
+      job.workProgress.inspectionComments = req.body.completionNotes;
     }
 
     job.status = 'WAITING_ADMIN_APPROVAL';

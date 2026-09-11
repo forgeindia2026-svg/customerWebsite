@@ -462,16 +462,50 @@ export default function Reports() {
     (a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime()
   );
 
-  const seenCodes = new Set();
+  const dedupPhotos = (list) => {
+    const seen = new Set();
+    return (list || []).filter(p => {
+      const u = typeof p === 'string' ? p : (p?.url || p?.imageUrl || '');
+      if (!u || seen.has(u)) return false;
+      seen.add(u);
+      return true;
+    });
+  };
+
   const allReportsList = [];
 
   for (const rep of combinedRaw) {
     const cleanCode = (rep.jobCode || '').replace(/^#/, '').trim().toUpperCase();
     if (cleanCode && cleanCode !== 'DAILY WORK LOG') {
-      if (seenCodes.has(cleanCode)) continue;
-      seenCodes.add(cleanCode);
+      const existing = allReportsList.find(r => (r.jobCode || '').replace(/^#/, '').trim().toUpperCase() === cleanCode);
+      if (existing) {
+        // Merge photos so BEFORE and AFTER photos from both sources are permanently preserved!
+        existing.beforePhotos = dedupPhotos([...(existing.beforePhotos || []), ...(rep.beforePhotos || [])]);
+        existing.afterPhotos = dedupPhotos([...(existing.afterPhotos || []), ...(rep.afterPhotos || [])]);
+
+        // Preserve actual technician name instead of fallback 'Field Technician' or 'Unassigned'
+        if ((!existing.technician || existing.technician === 'Field Technician' || existing.technician === 'Unassigned') && rep.technician && rep.technician !== 'Field Technician' && rep.technician !== 'Unassigned') {
+          existing.technician = rep.technician;
+        }
+
+        // Preserve detailed notes instead of generic single-word notes like 'Today'
+        if ((!existing.notes || existing.notes === 'Today' || existing.notes === 'Work order completed on site.') && rep.notes && rep.notes !== 'Today') {
+          existing.notes = rep.notes;
+        }
+
+        // Preserve voice notes
+        if (!existing.voiceNoteUrl && rep.voiceNoteUrl) {
+          existing.voiceNoteUrl = rep.voiceNoteUrl;
+          existing.hasVoiceNote = true;
+        }
+        continue;
+      }
     }
-    allReportsList.push(rep);
+    allReportsList.push({
+      ...rep,
+      beforePhotos: dedupPhotos(rep.beforePhotos || []),
+      afterPhotos: dedupPhotos(rep.afterPhotos || [])
+    });
   }
 
   const uniqueTechNames = Array.from(new Set(allReportsList.map(r => r.technician).filter(Boolean)));

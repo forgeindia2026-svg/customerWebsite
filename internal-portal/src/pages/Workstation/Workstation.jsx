@@ -70,8 +70,22 @@ export default function Workstation() {
         console.error('Error fetching live attendance', err);
       }
     };
+    const fetchLiveLocations = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/jobs/live-locations`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.locations && Object.keys(data.locations).length > 0) {
+            setLiveLocations(data.locations);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching live locations', err);
+      }
+    };
     fetchLiveReports();
     fetchLiveAttendance();
+    fetchLiveLocations();
 
     socket.emit('join_role', 'admin');
     const handleLocation = (data) => {
@@ -81,6 +95,7 @@ export default function Workstation() {
           lat: data.lat,
           lng: data.lng,
           jobCode: data.jobCode,
+          technicianName: data.technicianName,
           updatedAt: data.updatedAt,
         }
       }));
@@ -916,7 +931,7 @@ export default function Workstation() {
               <Marker key={id} position={[loc.lat, loc.lng]}>
                 <Popup>
                   <div className="text-xs">
-                    <p className="font-bold text-sm mb-1">{allTechnicians.find(t => t.id === id || t.name === id)?.name || id}</p>
+                    <p className="font-bold text-sm mb-1">{allTechnicians.find(t => t.id === id || t.name?.toLowerCase() === id?.toLowerCase())?.name || loc.technicianName || id}</p>
                     <p><strong>Job:</strong> {loc.jobCode}</p>
                     <p className="text-slate-500 text-[10px]">Updated: {new Date(loc.updatedAt).toLocaleTimeString()}</p>
                   </div>

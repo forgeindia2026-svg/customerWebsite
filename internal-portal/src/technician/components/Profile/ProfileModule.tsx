@@ -95,23 +95,29 @@ export const ProfileModule: React.FC<ProfileModuleProps> = ({
       )}
 
       {/* Profile Header Card */}
-      <div className="bg-white border border-zinc-200 rounded-2xl p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="flex items-center space-x-4">
+      <div className="bg-white border border-zinc-200 rounded-2xl p-4 sm:p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6">
+        <div className="flex items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
           
           {/* Avatar with Camera Badge */}
-          <div className="relative group shrink-0">
-            <div className="w-18 h-18 rounded-full overflow-hidden border-2 border-zinc-900 bg-zinc-100 flex items-center justify-center relative">
+          <div className="relative group shrink-0 w-16 h-16 sm:w-20 sm:h-20">
+            <div 
+              className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 border-zinc-900 bg-zinc-100 flex items-center justify-center relative shadow-sm"
+            >
               <img
                 src={currentAvatar}
                 alt={profile.name}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover rounded-full aspect-square block"
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=2874F0&color=fff&size=150`;
+                }}
               />
 
               {/* Uploading Overlay */}
               {isUploadingPhoto && (
                 <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-white">
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mb-1" />
-                  <span className="text-[9px] font-bold">Uploading</span>
+                  <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin mb-1" />
+                  <span className="text-[8px] sm:text-[9px] font-bold">Uploading</span>
                 </div>
               )}
             </div>
@@ -121,28 +127,35 @@ export const ProfileModule: React.FC<ProfileModuleProps> = ({
               type="button"
               onClick={() => setPhotoModalOpen(true)}
               disabled={isUploadingPhoto}
-              className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center shadow-md border-2 border-white cursor-pointer active:scale-90 transition-transform"
+              className="absolute -bottom-0.5 -right-0.5 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center shadow-md border-2 border-white cursor-pointer active:scale-90 transition-transform"
               title="Change Profile Photo"
             >
-              <Camera className="w-3.5 h-3.5" />
+              <Camera className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
             </button>
           </div>
 
-          <div>
-            <div className="flex items-center space-x-2">
-              <h2 className="text-lg font-bold text-zinc-900">{profile.name}</h2>
-              <span className="text-xs font-mono font-bold bg-zinc-100 text-zinc-800 px-2 py-0.5 rounded">
+          <div className="min-w-0 flex-1">
+            {/* Name and Tech Badge */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+              <h2 className="text-base sm:text-lg font-black text-zinc-900 leading-tight truncate">
+                {profile.name}
+              </h2>
+              <span className="text-[10px] sm:text-xs font-mono font-bold bg-zinc-100 text-zinc-700 px-2 py-0.5 rounded-md w-fit whitespace-nowrap">
                 {profile.badgeNumber}
               </span>
             </div>
-            <p className="text-xs text-zinc-500 font-medium">{profile.role}</p>
-            <div className="flex items-center space-x-3 text-xs text-zinc-400 mt-1">
-              <span className="flex items-center space-x-1">
-                <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                <span className="font-bold text-zinc-800">{profile.rating} Rating</span>
+
+            <p className="text-xs text-zinc-500 font-medium mt-0.5">{profile.role}</p>
+
+            {/* Stats Chips (Neat Pills that never wrap awkwardly) */}
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-2">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200/70 text-[11px] font-bold text-amber-800 whitespace-nowrap">
+                <Star className="w-3 h-3 fill-amber-400 text-amber-400 shrink-0" />
+                <span>{profile.rating} Rating</span>
               </span>
-              <span>•</span>
-              <span>{profile.completedJobsCount} Work Orders Completed</span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 border border-blue-200/70 text-[11px] font-bold text-blue-800 whitespace-nowrap">
+                <span>{profile.completedJobsCount} Work Orders Completed</span>
+              </span>
             </div>
 
             {/* Quick Upload Link */}
@@ -165,7 +178,7 @@ export const ProfileModule: React.FC<ProfileModuleProps> = ({
             localStorage.removeItem('tech_user');
             window.location.href = '/login';
           }}
-          className="w-full sm:w-auto flex items-center justify-center space-x-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer shadow-xs"
+          className="w-full md:w-auto flex items-center justify-center space-x-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer shadow-xs shrink-0"
         >
           <LogOut className="w-4 h-4" />
           <span>Log Out Account</span>

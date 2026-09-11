@@ -106,23 +106,30 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
   };
 
   const handleCreateReport = () => {
-    const activeJob = jobs.find(j => j.status === 'IN_PROGRESS' || j.status === 'ACCEPTED');
+    // Only open workflow if there is an active job currently in-progress or accepted
+    const activeJob = jobs.find(j => 
+      j.status === 'IN_PROGRESS' || 
+      j.status === 'ACCEPTED'
+    );
     if (activeJob) {
       onOpenWorkflow(activeJob);
       return;
     }
 
-    const nonCompletedJob = jobs.find(j => j.status !== 'COMPLETED' && j.status !== 'VERIFIED');
+    const nonCompletedJob = jobs.find(j => 
+      j.status !== 'COMPLETED' && 
+      j.status !== 'VERIFIED' && 
+      j.status !== 'WAITING_ADMIN_APPROVAL' && 
+      j.status !== 'APPROVED' &&
+      j.status !== 'CANCELLED'
+    );
     if (nonCompletedJob) {
       onOpenWorkflow(nonCompletedJob);
       return;
     }
 
-    if (jobs[0]) {
-      onOpenWorkflow(jobs[0]);
-    } else {
-      setShowGeneralReportModal(true);
-    }
+    // All jobs are completed -> Open General Daily Log Modal to record daily work
+    setShowGeneralReportModal(true);
   };
 
   const [dbReports, setDbReports] = useState<any[]>([]);

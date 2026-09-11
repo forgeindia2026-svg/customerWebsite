@@ -537,11 +537,6 @@ export function App() {
         />
 
         <main className="flex-1 px-3.5 py-4 sm:px-6 lg:px-8 lg:py-8 pb-24 lg:pb-10 max-w-7xl w-full mx-auto space-y-4">
-          {/* Daily Attendance Shift Check-In / Check-Out Tracker */}
-          <div className="hidden md:block">
-            <AttendanceCard />
-          </div>
-
           {/* Module Title Banner */}
           <div className="hidden md:flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 pb-5">
             <div>

@@ -366,7 +366,7 @@ export const AttendanceCard: React.FC = () => {
   const hasPunchedToday = punches.length > 0 || Boolean(attendance?.checkInTimestamp);
 
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl px-3.5 sm:px-4 py-3 shadow-[0_2px_10px_rgb(0,0,0,0.03)] mb-5">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl px-3.5 sm:px-4 py-3 shadow-[0_2px_10px_rgb(0,0,0,0.03)]">
       <div className="flex items-center justify-between gap-2.5">
         
         {/* Left Side: Icon + Title + Status Badge */}

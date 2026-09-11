@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle2, ShieldCheck, Filter, ArrowUpRight, Zap, Award } from 'lucide-react';
 import { getApiUrl } from '../../../utils/config';
+import { AttendanceCard } from './AttendanceCard';
 
 interface PunchSession {
   _id?: string;
@@ -71,6 +72,9 @@ export const AttendanceLogModule: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Punch In / Punch Out Card */}
+      <AttendanceCard />
+
       {/* Header Title & Filter */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-5 shadow-[0_2px_12px_rgb(0,0,0,0.03)]">
         <div>

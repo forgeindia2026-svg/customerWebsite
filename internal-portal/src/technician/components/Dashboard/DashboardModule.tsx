@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 
 import { formatDate } from '../../services/dateUtils';
+import { AttendanceCard } from '../Attendance/AttendanceCard';
 
 interface DashboardModuleProps {
   jobs: Job[];
@@ -103,7 +104,10 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
   };
 
   return (
-    <div className="space-y-6 text-zinc-900 font-sans">
+    <div className="space-y-4 sm:space-y-6 text-zinc-900 font-sans">
+      {/* 📍 Live Attendance Punch In / Punch Out Card */}
+      <AttendanceCard />
+
       {/* 🚀 Command Center Hero Header - Fresh Light Mint / Sage Pastel Card */}
       <div className="bg-gradient-to-br from-emerald-50/90 via-teal-50/50 to-slate-50 rounded-2xl p-5 sm:p-6 shadow-[0_4px_20px_rgba(16,185,129,0.08)] border border-emerald-200/80 relative overflow-hidden">
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">

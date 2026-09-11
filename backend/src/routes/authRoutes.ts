@@ -209,6 +209,40 @@ router.delete('/technician/:id', async (req: Request, res: Response) => {
   }
 });
 
+// UPDATE Technician Details (Name, Phone, Email, Role, Password)
+router.put('/technician/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name, phone, email, role, password, specialization } = req.body;
+    
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Technician not found' });
+    }
+
+    if (name) user.name = name.trim();
+    if (phone) user.phone = phone.trim();
+    if (email) user.email = email.trim().toLowerCase();
+    if (password) user.passwordHash = password;
+    
+    const targetRole = role || specialization;
+    if (targetRole) {
+      if (targetRole.toUpperCase() === 'HR') {
+        user.role = 'HR' as any;
+        user.specialties = ['HR'];
+      } else {
+        user.role = 'TECHNICIAN';
+        user.specialties = [targetRole];
+      }
+    }
+
+    await user.save();
+    res.json({ success: true, message: 'Technician updated successfully', data: user });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // DEACTIVATE Technician
 router.put('/technician/:id/deactivate', async (req: Request, res: Response) => {
   try {

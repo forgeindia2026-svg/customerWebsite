@@ -551,6 +551,7 @@ export const JobsApiService = {
     taskDescription: string;
     inspectionComments: string;
     beforePhotos: any[];
+    afterPhotos?: any[];
     technicianId: string;
     technicianName: string;
     voiceNoteUrl?: string;
@@ -565,6 +566,7 @@ export const JobsApiService = {
         taskDescription: progressData.taskDescription,
         inspectionComments: progressData.inspectionComments,
         beforePhotos: progressData.beforePhotos,
+        afterPhotos: progressData.afterPhotos || [],
         technicianId: progressData.technicianId,
         technicianName: progressData.technicianName,
         assignedTechnician: progressData.technicianName,
@@ -574,6 +576,7 @@ export const JobsApiService = {
           taskDescription: progressData.taskDescription,
           inspectionComments: progressData.inspectionComments,
           beforeWorkPhotos: progressData.beforePhotos,
+          afterWorkPhotos: progressData.afterPhotos || [],
           updatedBy: progressData.technicianId,
           updatedAt: new Date()
         }
