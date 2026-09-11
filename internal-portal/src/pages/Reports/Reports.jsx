@@ -44,6 +44,35 @@ const calculateLiveHours = (checkInStr, dateStr) => {
   }
 };
 
+export const getReportDisplayDate = (report) => {
+  if (!report) return '';
+  const raw = report.date || report.createdAt || report.updatedAt;
+  if (!raw) return 'Recently';
+  try {
+    const d = new Date(raw);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+  } catch (e) {}
+  return String(raw);
+};
+
+export const getReportDisplayTime = (report) => {
+  if (!report) return '';
+  if (report.time) return report.time;
+  if (report.checkInTime) return report.checkInTime;
+  const rawTimeSource = report.createdAt || report.updatedAt;
+  if (rawTimeSource) {
+    try {
+      const d = new Date(rawTimeSource);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+      }
+    } catch (e) {}
+  }
+  return '09:30 AM';
+};
+
 // ─── Report Action Dropdown Menu ────────────────────────────────────────────
 function ReportActionMenu({ report, onView, onPhotos, onPDF, onVerify, onDelete }) {
   const [open, setOpen] = React.useState(false);
@@ -417,7 +446,10 @@ export default function Reports() {
         afterPhotos: order.afterPhotos || [],
         voiceNoteUrl: order.voiceNoteUrl || order.dailyReports?.[0]?.voiceNoteUrl || order.dailyReport?.voiceNoteUrl || '',
         hasVoiceNote: Boolean(order.hasVoiceNote || order.voiceNoteUrl || order.dailyReports?.[0]?.hasVoiceNote || order.dailyReport?.hasVoiceNote),
-        updatedAt: order.updatedAt || new Date().toISOString(),
+        date: order.dailyReports?.[0]?.date || (order.createdAt ? order.createdAt.split('T')[0] : (order.date || '')),
+        createdAt: order.createdAt || order.dailyReports?.[0]?.createdAt || order.date,
+        time: order.dailyReports?.[0]?.checkInTime || order.dailyReports?.[0]?.time || (order.createdAt ? new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : ''),
+        updatedAt: order.dailyReports?.[0]?.date || order.createdAt || order.date || order.updatedAt,
         hoursWorked: order.dailyReports?.[0]?.hoursWorked || 8
       };
     });
@@ -429,6 +461,10 @@ export default function Reports() {
 
       // Filter out pure Check-In/Attendance logs so only actual work reports are displayed here
       if (gr.activityType === 'Check-In' || (gr.workDescription && gr.workDescription.includes('Punched in'))) return false;
+
+      // Filter out empty draft/test logs that have no valid jobCode and no real customer name
+      if (!gr.jobCode && (!gr.customerName || !gr.customerName.trim())) return false;
+
       return true;
     })
     .map((gr) => {
@@ -451,16 +487,20 @@ export default function Reports() {
         afterPhotos: gr.afterPhotos || [],
         voiceNoteUrl: gr.voiceNoteUrl || '',
         hasVoiceNote: Boolean(gr.hasVoiceNote || (gr.voiceNoteUrl && gr.voiceNoteUrl.length > 0)),
-        date: gr.date || (gr.updatedAt ? gr.updatedAt.split('T')[0] : new Date().toISOString().split('T')[0]),
-        updatedAt: gr.updatedAt || gr.createdAt || gr.date || new Date().toISOString(),
+        date: gr.date || (gr.createdAt ? gr.createdAt.split('T')[0] : (gr.updatedAt ? gr.updatedAt.split('T')[0] : '')),
+        createdAt: gr.createdAt || gr.date,
+        time: gr.checkInTime || (gr.createdAt ? new Date(gr.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : ''),
+        updatedAt: gr.date || gr.createdAt || gr.updatedAt,
         hoursWorked: gr.hoursWorked !== undefined && gr.hoursWorked !== null ? Number(gr.hoursWorked) : 8
       };
     });
 
-  // Combine reports and strictly avoid any duplicate entries by jobCode
-  const combinedRaw = [...generalReportsFormatted, ...orderReportsList].sort(
-    (a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime()
-  );
+  // Combine reports: start with orderReportsList so verified customer & address data are primary
+  const combinedRaw = [...orderReportsList, ...generalReportsFormatted].sort((a, b) => {
+    const timeA = new Date(a.date || a.createdAt || a.updatedAt || 0).getTime();
+    const timeB = new Date(b.date || b.createdAt || b.updatedAt || 0).getTime();
+    return timeB - timeA;
+  });
 
   const dedupPhotos = (list) => {
     const seen = new Set();
@@ -498,6 +538,29 @@ export default function Reports() {
           existing.voiceNoteUrl = rep.voiceNoteUrl;
           existing.hasVoiceNote = true;
         }
+
+        // Preserve verified shipping address over generic fallbacks like 'Local' or 'Chennai'
+        const isGenericAddress = !existing.address || existing.address === 'Local' || existing.address === 'Chennai' || existing.address === 'Site Location' || existing.address.length < 15;
+        if (isGenericAddress && rep.address && rep.address !== 'Local' && rep.address !== 'Chennai' && rep.address !== 'Site Location') {
+          existing.address = rep.address;
+        }
+
+        // Preserve true customer name over generic fallback 'Customer'
+        const isGenericCust = !existing.customer || existing.customer === 'Customer' || existing.customer === 'Customer Site';
+        if (isGenericCust && rep.customer && rep.customer !== 'Customer' && rep.customer !== 'Customer Site') {
+          existing.customer = rep.customer;
+        }
+
+        // Preserve original report date & time!
+        if ((!existing.date || existing.date === 'Today') && rep.date && rep.date !== 'Today') {
+          existing.date = rep.date;
+        }
+        if (!existing.createdAt && rep.createdAt) {
+          existing.createdAt = rep.createdAt;
+        }
+        if (!existing.time && rep.time) {
+          existing.time = rep.time;
+        }
         continue;
       }
     }
@@ -512,7 +575,7 @@ export default function Reports() {
 
   const filteredFieldReports = allReportsList.filter(report => {
     if (filterDate) {
-      const repDate = (report.updatedAt || report.date || '').split('T')[0];
+      const repDate = (report.date || (report.createdAt ? report.createdAt.split('T')[0] : '') || (report.updatedAt ? report.updatedAt.split('T')[0] : ''));
       if (repDate !== filterDate) return false;
     }
     if (filterTech !== 'ALL' && report.technician !== filterTech) return false;
@@ -1803,9 +1866,7 @@ export default function Reports() {
                           <p className="text-xs text-slate-600 dark:text-slate-300">Customer: <strong className="text-slate-900 dark:text-white">{report.customer}</strong></p>
                           <p className="text-xs text-slate-500 truncate max-w-[200px]">Location: {report.address || 'Chennai, Tamil Nadu'}</p>
                           <span className="text-[10px] text-slate-400 font-mono block pt-1">
-                            {report.updatedAt 
-                              ? new Date(report.updatedAt).toLocaleString('en-IN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true }) 
-                              : 'Pending'}
+                            {getReportDisplayDate(report)} • {getReportDisplayTime(report)}
                           </span>
                         </div>
 
@@ -1852,10 +1913,10 @@ export default function Reports() {
                           {/* 📅 Date & Time Column */}
                           <td className="py-4 px-3 align-middle">
                             <div className="font-bold text-slate-900 dark:text-white text-xs whitespace-nowrap">
-                              {new Date(report.updatedAt || report.date || Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              {getReportDisplayDate(report)}
                             </div>
                             <div className="text-[10px] text-slate-400 font-mono mt-0.5 whitespace-nowrap">
-                              {report.time || (report.updatedAt ? new Date(report.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : '03:45 PM')}
+                              {getReportDisplayTime(report)}
                             </div>
                           </td>
 
@@ -2376,7 +2437,7 @@ export default function Reports() {
                   <span className="text-slate-400 text-sm">📅</span>
                   <div>
                     <span className="text-[10px] text-slate-400 font-semibold block">Date & Time</span>
-                    <span className="font-bold text-slate-900 dark:text-white text-xs">{adminQuickDetailReport.updatedAt?.split('T')[0] || '2026-08-06'} 03:45 PM</span>
+                    <span className="font-bold text-slate-900 dark:text-white text-xs">{getReportDisplayDate(adminQuickDetailReport)} {getReportDisplayTime(adminQuickDetailReport)}</span>
                   </div>
                 </div>
 
@@ -2638,9 +2699,7 @@ export default function Reports() {
                 <div className="flex items-center justify-between">
                   <span className="text-slate-500 font-medium">Submitted On</span>
                   <span className="font-mono font-bold text-slate-900 dark:text-white">
-                    {adminFullReportModal.updatedAt 
-                      ? new Date(adminFullReportModal.updatedAt).toLocaleString('en-IN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true }) 
-                      : 'Pending'}
+                    {getReportDisplayDate(adminFullReportModal)} {getReportDisplayTime(adminFullReportModal)}
                   </span>
                 </div>
               </div>
