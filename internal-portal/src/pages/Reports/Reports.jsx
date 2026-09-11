@@ -194,6 +194,7 @@ export default function Reports() {
   const [adminQuickDetailReport, setAdminQuickDetailReport] = useState(null);
   const [adminFullReportModal, setAdminFullReportModal] = useState(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [isLoadingReports, setIsLoadingReports] = useState(true);
   const [generalReports, setGeneralReports] = useState([]);
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [filterDate, setFilterDate] = useState('');
@@ -229,7 +230,7 @@ export default function Reports() {
   };
 
   useEffect(() => {
-    const fetchGeneralReports = async () => {
+    const fetchGeneralReports = async (isInitial = false) => {
       try {
         const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/reports?t=${Date.now()}`);
         if (res.ok) {
@@ -238,6 +239,10 @@ export default function Reports() {
         }
       } catch (err) {
         console.error('Failed to fetch general reports', err);
+      } finally {
+        if (isInitial) {
+          setIsLoadingReports(false);
+        }
       }
     };
     const fetchAttendance = async () => {
@@ -255,12 +260,12 @@ export default function Reports() {
     };
     
     // Initial fetch
-    fetchGeneralReports();
+    fetchGeneralReports(true);
     fetchAttendance();
 
     // Poll every 5 seconds to show new reports immediately
     const interval = setInterval(() => {
-      fetchGeneralReports();
+      fetchGeneralReports(false);
       fetchAttendance();
     }, 5000);
 
@@ -491,7 +496,8 @@ export default function Reports() {
         createdAt: gr.createdAt || gr.date,
         time: gr.checkInTime || (gr.createdAt ? new Date(gr.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : ''),
         updatedAt: gr.date || gr.createdAt || gr.updatedAt,
-        hoursWorked: gr.hoursWorked !== undefined && gr.hoursWorked !== null ? Number(gr.hoursWorked) : 8
+        hoursWorked: gr.hoursWorked !== undefined && gr.hoursWorked !== null ? Number(gr.hoursWorked) : 8,
+        isFromTechnicianReport: true
       };
     });
 
@@ -551,15 +557,12 @@ export default function Reports() {
           existing.customer = rep.customer;
         }
 
-        // Preserve original report date & time!
-        if ((!existing.date || existing.date === 'Today') && rep.date && rep.date !== 'Today') {
-          existing.date = rep.date;
-        }
-        if (!existing.createdAt && rep.createdAt) {
-          existing.createdAt = rep.createdAt;
-        }
-        if (!existing.time && rep.time) {
-          existing.time = rep.time;
+        // Authentic technician report submission date ALWAYS takes precedence over customer shopping cart order date!
+        if (rep.isFromTechnicianReport || (!existing.isFromTechnicianReport && rep.date)) {
+          if (rep.date) existing.date = rep.date;
+          if (rep.createdAt) existing.createdAt = rep.createdAt;
+          if (rep.time) existing.time = rep.time;
+          existing.isFromTechnicianReport = true;
         }
         continue;
       }
@@ -570,6 +573,13 @@ export default function Reports() {
       afterPhotos: dedupPhotos(rep.afterPhotos || [])
     });
   }
+
+  // Sort allReportsList so newest submitted reports are consistently at the top
+  allReportsList.sort((a, b) => {
+    const timeA = new Date(a.date || a.createdAt || a.updatedAt || 0).getTime();
+    const timeB = new Date(b.date || b.createdAt || b.updatedAt || 0).getTime();
+    return timeB - timeA;
+  });
 
   const uniqueTechNames = Array.from(new Set(allReportsList.map(r => r.technician).filter(Boolean)));
 
@@ -1837,7 +1847,14 @@ export default function Reports() {
 
             {/* 📱 Mobile Card View (Screenshot 1) - Matching Technician Mobile Flow */}
             <div className="block md:hidden space-y-3">
-              {filteredFieldReports.length === 0 ? (
+              {isLoadingReports ? (
+                <div className="p-8 text-center text-slate-400 text-xs bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+                  <div className="flex flex-col items-center justify-center space-y-2">
+                    <div className="w-6 h-6 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+                    <span className="font-semibold text-slate-600 dark:text-slate-300">Loading authentic reports...</span>
+                  </div>
+                </div>
+              ) : filteredFieldReports.length === 0 ? (
                 <div className="p-6 text-center text-slate-400 text-xs bg-slate-50 rounded-2xl border border-slate-200">
                   No field service reports found for selected filters.
                 </div>
@@ -1897,7 +1914,16 @@ export default function Reports() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
-                  {filteredFieldReports.length === 0 ? (
+                  {isLoadingReports ? (
+                    <tr>
+                      <td colSpan={8} className="py-16 text-center text-slate-400 text-sm">
+                        <div className="flex flex-col items-center justify-center space-y-3">
+                          <div className="w-8 h-8 border-3 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+                          <span className="font-bold text-slate-600 dark:text-slate-300">Loading authentic field reports...</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : filteredFieldReports.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="py-12 text-center text-slate-400 text-sm">
                         No field service reports found for the selected date / filters.
