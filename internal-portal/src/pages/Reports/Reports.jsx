@@ -191,6 +191,7 @@ export default function Reports() {
     showToast('Transaction added successfully!');
   };
   const [selectedPhotoModal, setSelectedPhotoModal] = useState(null);
+  const [selectedAttendancePhoto, setSelectedAttendancePhoto] = useState(null);
   const [adminQuickDetailReport, setAdminQuickDetailReport] = useState(null);
   const [adminFullReportModal, setAdminFullReportModal] = useState(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -648,6 +649,8 @@ export default function Reports() {
       date: recDate,
       technicianId: rec.technicianId,
       technician: rec.technicianName || 'Field Technician',
+      punchInPhoto: rec.punchInPhoto || rec.punches?.[0]?.punchInPhoto || rec.photo || '',
+      punchOutPhoto: rec.punchOutPhoto || rec.punches?.[rec.punches?.length - 1]?.punchOutPhoto || '',
       checkInTime: formattedCheckIn,
       checkOutTime: formattedCheckOut,
       totalHours: Number(rec.totalHours) || 0,
@@ -1695,6 +1698,7 @@ export default function Reports() {
                   <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-bold uppercase tracking-wider text-[11px]">
                     <th className="py-3 px-3">Date</th>
                     <th className="py-3 px-3">Technician</th>
+                    <th className="py-3 px-3 text-center">Punch-In Photo</th>
                     <th className="py-3 px-3 text-center">Check-In</th>
                     <th className="py-3 px-3 text-center">Check-Out</th>
                     <th className="py-3 px-3 text-center">Hours</th>
@@ -1721,6 +1725,34 @@ export default function Reports() {
                           </td>
                           <td className="py-3.5 px-3 align-middle font-bold text-slate-900 dark:text-white">
                             <div>{att.technician}</div>
+                          </td>
+                          <td className="py-2 px-3 align-middle text-center">
+                            {att.punchInPhoto ? (
+                              <div className="inline-flex flex-col items-center justify-center group relative">
+                                <img
+                                  src={att.punchInPhoto}
+                                  alt={`Selfie - ${att.technician}`}
+                                  onClick={() => setSelectedAttendancePhoto(att)}
+                                  className="w-11 h-11 rounded-xl object-cover border-2 border-emerald-500/70 shadow-xs cursor-pointer group-hover:scale-110 group-hover:shadow-md group-hover:border-emerald-500 transition-all"
+                                  title="Click to view full Punch-In Photo"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                    if (e.currentTarget.nextSibling) e.currentTarget.nextSibling.style.display = 'flex';
+                                  }}
+                                />
+                                <div style={{ display: 'none' }} className="w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 items-center justify-center text-[9px] font-bold text-slate-400">
+                                  No Img
+                                </div>
+                                <span 
+                                  className="text-[10px] text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer mt-0.5" 
+                                  onClick={() => setSelectedAttendancePhoto(att)}
+                                >
+                                  View
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-[11px] text-slate-400 font-medium">No Photo</span>
+                            )}
                           </td>
                           <td className="py-3.5 px-3 align-middle text-center font-mono text-emerald-600 font-bold bg-emerald-50/30 dark:bg-emerald-950/20 rounded-lg">
                             {att.checkInTime || '09:00 AM'}
@@ -2236,6 +2268,77 @@ export default function Reports() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Attendance Punch-In Selfie Photo Preview Modal */}
+      {selectedAttendancePhoto && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-sm">
+                  📸
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-900 dark:text-white text-sm">Punch-In Verification Photo</h3>
+                  <p className="text-[11px] text-slate-500 font-medium">{selectedAttendancePhoto.technician} • {selectedAttendancePhoto.date}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedAttendancePhoto(null)}
+                className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center font-bold text-xs cursor-pointer transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Photo Display */}
+            <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-950 flex items-center justify-center shadow-inner max-h-[380px]">
+              <img
+                src={selectedAttendancePhoto.punchInPhoto}
+                alt={selectedAttendancePhoto.technician}
+                className="w-full h-auto max-h-[380px] object-contain"
+              />
+            </div>
+
+            {/* Metadata Footer */}
+            <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3 text-xs space-y-1.5 border border-slate-100 dark:border-slate-800">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Punch-In Time:</span>
+                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">{selectedAttendancePhoto.checkInTime}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Duty Status:</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">{selectedAttendancePhoto.status}</span>
+              </div>
+              <div className="flex justify-between items-start pt-1 border-t border-slate-200/50 dark:border-slate-700/50">
+                <span className="text-slate-500 font-medium shrink-0">Location:</span>
+                <span className="text-right text-slate-700 dark:text-slate-300 font-medium truncate max-w-[220px]">
+                  {selectedAttendancePhoto.location}
+                </span>
+              </div>
+              {selectedAttendancePhoto.latitude && selectedAttendancePhoto.longitude && (
+                <div className="text-right pt-0.5">
+                  <a
+                    href={`https://www.google.com/maps?q=${selectedAttendancePhoto.latitude},${selectedAttendancePhoto.longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] font-bold text-blue-600 hover:text-blue-700 underline"
+                  >
+                    📍 Open Google Maps Location
+                  </a>
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => setSelectedAttendancePhoto(null)}
+              className="w-full py-2.5 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer"
+            >
+              Close
+            </button>
           </div>
         </div>
       )}
