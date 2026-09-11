@@ -815,8 +815,8 @@ export default function Reports() {
       doc.text(`Generated electronically by SK Technology Portal on ${new Date().toLocaleString('en-IN')}`, 14, 285);
 
       // Site Evidence Photos Section
-      const beforePhotos = report?.beforePhotos || [];
-      const afterPhotos = report?.afterPhotos || [];
+      const beforePhotos = report?.beforePhotos || report?.beforeWorkPhotos || [];
+      const afterPhotos = report?.afterPhotos || report?.afterWorkPhotos || [];
 
       if (beforePhotos.length > 0 || afterPhotos.length > 0) {
         doc.addPage();
@@ -828,67 +828,161 @@ export default function Reports() {
         doc.setFontSize(14);
         doc.text('SITE EVIDENCE PHOTOS', 14, 16);
         
-        doc.setTextColor(30, 41, 59);
-        let photoYPos = 35;
-        
+        let photoYPos = 36;
+        const baseUrl = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
+
+        // Robust base64 loader with CORS fallback and backend proxy
+        const loadImageAsBase64 = async (p) => {
+          if (!p) return null;
+          let rawUrl = '';
+          if (typeof p === 'string') {
+            rawUrl = p.trim();
+          } else if (typeof p === 'object' && p !== null) {
+            rawUrl = p.url || p.imageUrl || p.photoUrl || p.secure_url || p.src || '';
+          }
+          if (!rawUrl || typeof rawUrl !== 'string') return null;
+
+          if (rawUrl.startsWith('data:image')) {
+            return rawUrl;
+          }
+
+          let targetUrl = rawUrl;
+          if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://') && !targetUrl.startsWith('data:') && !targetUrl.startsWith('blob:')) {
+            targetUrl = `${baseUrl}${targetUrl.startsWith('/') ? '' : '/'}${targetUrl}`;
+          }
+
+          const imageToDataUrl = (img) => {
+            try {
+              const canvas = document.createElement('canvas');
+              let w = img.naturalWidth || img.width || 800;
+              let h = img.naturalHeight || img.height || 600;
+              const maxDim = 1200;
+              if (w > maxDim || h > maxDim) {
+                if (w > h) {
+                  h = Math.round((h * maxDim) / w);
+                  w = maxDim;
+                } else {
+                  w = Math.round((w * maxDim) / h);
+                  h = maxDim;
+                }
+              }
+              canvas.width = w;
+              canvas.height = h;
+              const ctx = canvas.getContext('2d');
+              if (!ctx) return null;
+              ctx.fillStyle = '#FFFFFF';
+              ctx.fillRect(0, 0, w, h);
+              ctx.drawImage(img, 0, 0, w, h);
+              return canvas.toDataURL('image/jpeg', 0.85);
+            } catch {
+              return null;
+            }
+          };
+
+          const tryImageElement = (url) => new Promise((resolve) => {
+            const img = new Image();
+            img.crossOrigin = 'Anonymous';
+            img.onload = () => resolve(imageToDataUrl(img));
+            img.onerror = () => resolve(null);
+            img.src = url;
+          });
+
+          const tryFetch = async (url) => {
+            try {
+              const res = await fetch(url);
+              if (!res.ok) return null;
+              const blob = await res.blob();
+              return await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = () => resolve(null);
+                reader.readAsDataURL(blob);
+              });
+            } catch {
+              return null;
+            }
+          };
+
+          // 1. Try direct fetch
+          let data = await tryFetch(targetUrl);
+          if (data && typeof data === 'string' && data.startsWith('data:image')) return data;
+
+          // 2. Try direct Image tag
+          data = await tryImageElement(targetUrl);
+          if (data && typeof data === 'string' && data.startsWith('data:image')) return data;
+
+          // 3. Fallback: Proxy through backend (bypasses AWS S3 & cross-origin CORS limitations)
+          if (targetUrl.startsWith('http://') || targetUrl.startsWith('https://')) {
+            const proxyUrl = `${baseUrl}/api/upload/proxy-image?url=${encodeURIComponent(targetUrl)}`;
+            data = await tryFetch(proxyUrl);
+            if (data && typeof data === 'string' && data.startsWith('data:image')) return data;
+
+            data = await tryImageElement(proxyUrl);
+            if (data && typeof data === 'string' && data.startsWith('data:image')) return data;
+          }
+
+          return null;
+        };
+
         const processPhotos = async (photos, title) => {
            if (!photos || photos.length === 0) return;
+           
+           if (photoYPos + 30 > 280) {
+              doc.addPage();
+              photoYPos = 25;
+           }
+
            doc.setFontSize(11);
            doc.setFont('helvetica', 'bold');
+           doc.setTextColor(30, 41, 59);
            doc.text(title, 14, photoYPos);
-           photoYPos += 10;
+           photoYPos += 8;
            
            let xPos = 14;
+           let renderedCount = 0;
            
            for (let i = 0; i < photos.length; i++) {
-              let p = photos[i];
-              let imgSrc = typeof p === 'string' ? p : (p.url || p);
-              if (imgSrc && typeof imgSrc === 'string' && !imgSrc.startsWith('http') && !imgSrc.startsWith('data:') && !imgSrc.startsWith('blob:')) {
-                const baseUrl = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
-                imgSrc = `${baseUrl}${imgSrc.startsWith('/') ? '' : '/'}${imgSrc}`;
-              }
+              const p = photos[i];
+              const imgData = await loadImageAsBase64(p);
               
-              if (imgSrc) {
+              if (imgData) {
+                 if (photoYPos + 62 > 280) {
+                     doc.addPage();
+                     photoYPos = 25;
+                     xPos = 14;
+                 }
+                 
                  try {
-                    let imgData;
-                    if (imgSrc.startsWith('data:')) {
-                        imgData = imgSrc;
-                    } else {
-                        const res = await fetch(imgSrc + (imgSrc.includes('?') ? '&' : '?') + 'cb=' + new Date().getTime());
-                        const blob = await res.blob();
-                        imgData = await new Promise((resolve, reject) => {
-                            const reader = new FileReader();
-                            reader.onloadend = () => resolve(reader.result);
-                            reader.onerror = reject;
-                            reader.readAsDataURL(blob);
-                        });
-                    }
+                    doc.setDrawColor(226, 232, 240);
+                    doc.setFillColor(248, 250, 252);
+                    doc.rect(xPos, photoYPos, 85, 62, 'FD');
+                    doc.addImage(imgData, 'JPEG', xPos + 1, photoYPos + 1, 83, 60);
+                    renderedCount++;
                     
-                    if (photoYPos + 60 > 280) {
-                        doc.addPage();
-                        photoYPos = 20;
-                        xPos = 14;
-                    }
-                    
-                    // The base64 data will include the data:image/xxx;base64 prefix which jsPDF can handle
-                    doc.addImage(imgData, 'JPEG', xPos, photoYPos, 80, 60);
-                    xPos += 90;
+                    xPos += 95;
                     if (xPos > 150) {
                         xPos = 14;
-                        photoYPos += 70;
+                        photoYPos += 68;
                     }
-                 } catch (e) {
-                    console.error("Failed to load image for PDF", e);
+                 } catch (imgErr) {
+                    console.error("jsPDF addImage error:", imgErr);
                  }
               }
            }
+           
            if (xPos !== 14) {
-               photoYPos += 70;
+               photoYPos += 68;
+           } else if (renderedCount === 0) {
+               doc.setFontSize(9);
+               doc.setFont('helvetica', 'normal');
+               doc.setTextColor(148, 163, 184);
+               doc.text('Photos attached to job are being synchronized.', 18, photoYPos);
+               photoYPos += 14;
            }
         };
 
         await processPhotos(beforePhotos, 'BEFORE INSTALLATION');
-        photoYPos += 10;
+        photoYPos += 6;
         await processPhotos(afterPhotos, 'AFTER INSTALLATION');
       }
 
