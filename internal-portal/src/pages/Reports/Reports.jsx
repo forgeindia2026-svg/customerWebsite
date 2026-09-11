@@ -786,50 +786,28 @@ export default function Reports() {
 
       doc.setFillColor(255, 255, 255);
       doc.setDrawColor(226, 232, 240);
-      doc.rect(14, 107, 182, 35, 'S');
+      doc.rect(14, 107, 182, 65, 'S');
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(51, 65, 85);
       const splitNotes = doc.splitTextToSize(report?.notes || 'Technician site service report submitted successfully following standard installation & testing protocols.', 174);
       doc.text(splitNotes, 18, 116);
 
-      // Section 3: Audit Checklist
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(30, 41, 59);
-      doc.text('QUALITY & SAFETY AUDIT CHECKLIST', 14, 154);
-
-      const checklist = [
-        '[X] Camera Mounting, Viewing Angle & Lens Focus Verified',
-        '[X] Cable Routing, Conduit Sealing & Connector Insulation Passed',
-        '[X] Power Supply, SMPS Adaptors & Battery Backup Tested',
-        '[X] NVR / DVR Network IP Config & Remote Live Feed Configured',
-        '[X] Client Orientation & Mobile App Live View Demo Completed'
-      ];
-
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'normal');
-      let yPos = 162;
-      checklist.forEach(item => {
-        doc.text(item, 18, yPos);
-        yPos += 7;
-      });
-
       // Signatures Box
       doc.setLineWidth(0.5);
       doc.setDrawColor(203, 213, 225);
-      doc.line(14, 230, 196, 230);
+      doc.line(14, 220, 196, 220);
 
       doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
-      doc.text('Technician Signature', 20, 245);
-      doc.text('Admin Authorization Stamp', 135, 245);
+      doc.text('Technician Signature', 20, 235);
+      doc.text('Admin Authorization Stamp', 135, 235);
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
-      doc.text(report?.technician || 'Field Service Engineer', 20, 251);
-      doc.text('SK Technology Management', 135, 251);
-      doc.text(isApproved ? 'VERIFIED & APPROVED' : 'SUBMITTED - PENDING AUDIT', 135, 256);
+      doc.text(report?.technician || 'Field Service Engineer', 20, 241);
+      doc.text('SK Technology Management', 135, 241);
+      doc.text(isApproved ? 'VERIFIED & APPROVED' : 'SUBMITTED - PENDING AUDIT', 135, 246);
 
       // Footer line
       doc.setFontSize(7);
