@@ -39,7 +39,7 @@ app.use('/images', express.static(path.join(__dirname, '../public/images')));
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', version: '2.6.0', message: 'CCTV eCommerce Backend API & Socket Server is running', timestamp: new Date() });
+  res.json({ status: 'OK', version: '2.6.1', message: 'CCTV eCommerce Backend API & Socket Server is running', timestamp: new Date() });
 });
 
 import attendanceRoutes from './routes/attendanceRoutes';
