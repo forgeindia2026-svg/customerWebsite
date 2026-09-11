@@ -349,20 +349,20 @@ const dashboardSlice = createSlice({
       const orderId = typeof action.payload === 'string' ? action.payload : action.payload?.id;
       const order = state.orders.find(o => o.id === orderId || o.orderNumber === orderId || (o.jobCode && o.jobCode === orderId));
       if (order) {
-        order.status = 'Completed';
-        order.rawJobStatus = 'COMPLETED';
+        order.status = 'Approved';
+        order.rawJobStatus = 'APPROVED';
       }
       const project = state.projects.find(p => p.id === orderId || p.jobCode === orderId);
       if (project) {
-        project.status = 'Completed';
+        project.status = 'Approved';
       }
       try {
         const cached = JSON.parse(localStorage.getItem('sk_admin_dashboard_cache') || '{}');
         if (cached && cached.orders) {
           const cachedOrd = cached.orders.find(o => o.id === orderId || o.orderNumber === orderId);
           if (cachedOrd) {
-            cachedOrd.status = 'Completed';
-            cachedOrd.rawJobStatus = 'COMPLETED';
+            cachedOrd.status = 'Approved';
+            cachedOrd.rawJobStatus = 'APPROVED';
           }
           localStorage.setItem('sk_admin_dashboard_cache', JSON.stringify(cached));
         }

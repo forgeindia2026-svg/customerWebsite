@@ -168,10 +168,11 @@ router.get('/', async (req: Request, res: Response) => {
         location: job.customer?.address || '',
         submissionDate: job.scheduledDate || (job.createdAt ? new Date(job.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Today'),
         status: (() => {
+          if (job.status === 'APPROVED') return 'Approved';
+          if (job.status === 'COMPLETED') return 'Completed';
+          if (job.status === 'WAITING_ADMIN_APPROVAL') return 'Completed';
           if (job.status === 'PENDING') return (job.assignedTechnicians && job.assignedTechnicians.length > 0) ? 'In Progress' : 'Pending';
           if (job.status === 'ASSIGNED' || job.status === 'IN_PROGRESS') return 'In Progress';
-          if (job.status === 'WAITING_ADMIN_APPROVAL') return 'WAITING_ADMIN_APPROVAL';
-          if (job.status === 'COMPLETED') return 'Completed';
           return 'Pending';
         })(),
         details: job.scopeOfWork?.join(', ') || job.title,
@@ -192,7 +193,7 @@ router.get('/', async (req: Request, res: Response) => {
           customer: order.customerName,
           location: order.shippingAddress || '',
           submissionDate: order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Today',
-          status: order.orderStatus === 'DELIVERED' ? 'Approved' : 'Pending',
+          status: (order.orderStatus === 'DELIVERED' || order.orderStatus === 'SHIPPED') ? 'Approved' : 'Pending',
           details: order.items?.map((item: any) => item.title).join(', ') || 'CCTV Installation',
           devicesCount: order.items?.length || 1,
           dailyLogs: []
@@ -204,14 +205,12 @@ router.get('/', async (req: Request, res: Response) => {
     const mappedOrders = (liveOrders || []).map((order: any) => {
       const job = jobByCode.get(order.orderNumber);
       let dashboardStatus = 'Pending';
-      if (order.orderStatus === 'DELIVERED' || job?.status === 'COMPLETED') {
+      if (job?.status === 'APPROVED' || order.orderStatus === 'DELIVERED' || order.orderStatus === 'SHIPPED') {
+        dashboardStatus = 'Approved';
+      } else if (job?.status === 'COMPLETED' || job?.status === 'WAITING_ADMIN_APPROVAL') {
         dashboardStatus = 'Completed';
-      } else if (job?.status === 'WAITING_ADMIN_APPROVAL') {
-        dashboardStatus = 'WAITING_ADMIN_APPROVAL';
       } else if (job?.status === 'IN_PROGRESS' || job?.status === 'ASSIGNED') {
         dashboardStatus = 'In Progress';
-      } else if (order.orderStatus === 'SHIPPED') {
-        dashboardStatus = 'Completed';
       } else if (order.orderStatus === 'CANCELLED' || job?.status === 'CANCELLED') {
         dashboardStatus = 'Cancelled';
       } else if (job?.status === 'PENDING') {

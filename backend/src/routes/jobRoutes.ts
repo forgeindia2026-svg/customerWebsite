@@ -945,17 +945,17 @@ router.post('/:id/admin-approve', async (req: Request, res: Response) => {
       if (dashboardData && Array.isArray(dashboardData.orders)) {
         const orderInDash = dashboardData.orders.find((o: any) => o.id === req.params.id || o.orderNumber === req.params.id);
         if (orderInDash) {
-          orderInDash.status = 'Completed';
+          orderInDash.status = 'Approved';
           await dashboardData.save();
           clearDashboardCache();
-          return res.json({ success: true, message: 'Order marked as completed in dashboard.', order: orderInDash });
+          return res.json({ success: true, message: 'Order approved in dashboard.', order: orderInDash });
         }
       }
       return res.status(404).json({ success: false, message: `Job or Order ${req.params.id} not found` });
     }
 
     if (job) {
-      job.status = 'COMPLETED';
+      job.status = 'APPROVED';
       await job.save();
     }
 
@@ -975,7 +975,7 @@ router.post('/:id/admin-approve', async (req: Request, res: Response) => {
         const targetId = job?.jobCode || order?.orderNumber || req.params.id;
         const ordInDash = dashboardData.orders.find((o: any) => o.id === targetId || o.orderNumber === targetId);
         if (ordInDash) {
-          ordInDash.status = 'Completed';
+          ordInDash.status = 'Approved';
           await dashboardData.save();
         }
       }

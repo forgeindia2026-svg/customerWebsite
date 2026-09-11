@@ -97,11 +97,11 @@ export default function Orders() {
 
   const getDisplayStatus = (ord) => {
     if (!ord) return 'Pending';
-    if (['Completed', 'Approved', 'COMPLETED', 'DELIVERED'].includes(ord.status) || ord.rawJobStatus === 'COMPLETED') {
-      return 'Completed';
+    if (ord.status === 'Approved' || ord.status === 'APPROVED' || ord.rawJobStatus === 'APPROVED') {
+      return 'Approved';
     }
-    if (ord.status === 'WAITING_ADMIN_APPROVAL' || ord.status === 'Pending Approval' || ord.rawJobStatus === 'WAITING_ADMIN_APPROVAL') {
-      return 'Pending Approval';
+    if (ord.status === 'Completed' || ord.status === 'COMPLETED' || ord.status === 'WAITING_ADMIN_APPROVAL' || ord.status === 'Pending Approval' || ord.rawJobStatus === 'COMPLETED' || ord.rawJobStatus === 'WAITING_ADMIN_APPROVAL') {
+      return 'Completed';
     }
     if (ord.status === 'Rework') {
       return 'Rework';
@@ -115,7 +115,7 @@ export default function Orders() {
   const handleApproveCompletion = async (orderId) => {
     setActiveStatusDropdown(null);
     dispatch(approveOrderCompletion(orderId));
-    toast.success(`Order ${orderId} approved! Status updated to Completed.`);
+    toast.success(`Order ${orderId} approved successfully!`);
     try {
       await dispatch(adminApproveJob(orderId)).unwrap();
     } catch (err) {
@@ -155,10 +155,12 @@ export default function Orders() {
 
   const getStatusBadge = (status) => {
     switch (status) {
-      case 'Completed':
       case 'Approved':
+      case 'APPROVED':
+        return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50 font-bold';
+      case 'Completed':
       case 'COMPLETED':
-        return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50';
+        return 'bg-blue-50 text-blue-700 dark:bg-blue-950/20 dark:text-blue-300 border border-blue-200 dark:border-blue-800/50 font-bold';
       case 'Pending Approval':
       case 'WAITING_ADMIN_APPROVAL':
         return 'bg-amber-50 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300 border border-amber-300 dark:border-amber-700/60 font-bold';
@@ -166,7 +168,7 @@ export default function Orders() {
         return 'bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-300 border border-red-200 dark:border-red-800/50';
       case 'In Progress':
       case 'IN_PROGRESS':
-        return 'bg-blue-50 text-blue-700 dark:bg-blue-955/20 dark:text-blue-300 border border-blue-100 dark:border-blue-900/40';
+        return 'bg-indigo-50 text-indigo-700 dark:bg-indigo-955/20 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900/40';
       case 'Pending':
       case 'ASSIGNMENT_PENDING_ACCEPTANCE':
       case 'WAITING_FOR_TECH':
@@ -375,7 +377,7 @@ export default function Orders() {
             <span className="text-xs text-slate-400 font-semibold flex items-center gap-1 flex-shrink-0">
               Status:
             </span>
-            {['All', 'Pending', 'In Progress', 'Approved', 'Completed'].map(status => (
+            {['All', 'Pending', 'In Progress', 'Completed', 'Approved'].map(status => (
               <button
                 key={status}
                 onClick={() => setStatusFilter(status)}
@@ -453,7 +455,7 @@ export default function Orders() {
 
                       {/* Interactive Status Badge Dropdown */}
                       <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                        {(ord.status === 'WAITING_ADMIN_APPROVAL' || ord.status === 'Pending Approval' || getDisplayStatus(ord) === 'Pending Approval') && (
+                        {(getDisplayStatus(ord) === 'Completed' || ord.status === 'WAITING_ADMIN_APPROVAL' || ord.status === 'Pending Approval') && (
                           <button
                             type="button"
                             onClick={(e) => {
@@ -610,7 +612,7 @@ export default function Orders() {
                         <td className="py-4 px-4 align-middle text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-2">
                             {/* Quick Approve Button if Waiting Approval */}
-                            {(ord.status === 'WAITING_ADMIN_APPROVAL' || ord.status === 'Pending Approval' || getDisplayStatus(ord) === 'Pending Approval') && (
+                            {(getDisplayStatus(ord) === 'Completed' || ord.status === 'WAITING_ADMIN_APPROVAL' || ord.status === 'Pending Approval') && (
                               <button
                                 type="button"
                                 onClick={(e) => {
