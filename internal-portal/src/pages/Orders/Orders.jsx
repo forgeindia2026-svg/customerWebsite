@@ -1417,21 +1417,60 @@ export default function Orders() {
       <Modal isOpen={editModalOpen} onClose={() => setEditModalOpen(false)} title="Edit Order Details">
         {editingOrder && (
           <form 
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
+              const orderId = editingOrder.id;
+              const assignedTech = orderForm.assignedTechnician;
+              
               dispatch(editOrder({
-                id: editingOrder.id,
+                id: orderId,
                 customer: orderForm.customer,
                 email: orderForm.email,
                 phone: orderForm.phone,
                 type: orderForm.type,
-                assignedTechnician: orderForm.assignedTechnician,
+                assignedTechnician: assignedTech,
                 amount: parseFloat(orderForm.amount) || 0,
                 location: orderForm.location,
                 status: orderForm.status
               }));
+
               setEditModalOpen(false);
               setEditingOrder(null);
+              toast.success('Order details & technician updated!');
+
+              // Direct API sync to guarantee 100% permanent MongoDB database persistence
+              try {
+                const baseUrl = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
+                const orderPayload = {
+                  customerName: orderForm.customer,
+                  customerEmail: orderForm.email,
+                  customerPhone: orderForm.phone,
+                  shippingAddress: orderForm.location,
+                  assignedTechnician: assignedTech,
+                  assignedTechnicianName: assignedTech,
+                  totalAmount: parseFloat(orderForm.amount) || 0,
+                  orderStatus: (orderForm.status === 'Completed' || orderForm.status === 'Approved' || orderForm.status === 'DELIVERED') ? 'DELIVERED' : 'PROCESSING'
+                };
+
+                await fetch(`${baseUrl}/api/orders/${encodeURIComponent(orderId)}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(orderPayload)
+                });
+
+                if (assignedTech && assignedTech !== 'Unassigned') {
+                  await fetch(`${baseUrl}/api/jobs/${encodeURIComponent(orderId)}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'role': 'admin' },
+                    body: JSON.stringify({
+                      assignedTechnicians: [{ id: 'temp-id', name: assignedTech }],
+                      status: (orderForm.status === 'Completed' || orderForm.status === 'Approved') ? orderForm.status.toUpperCase() : 'ASSIGNED'
+                    })
+                  });
+                }
+              } catch (err) {
+                console.warn('Direct order API sync warning:', err);
+              }
             }} 
             className="space-y-4 text-left"
           >

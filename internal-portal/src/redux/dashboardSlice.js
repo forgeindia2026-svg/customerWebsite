@@ -425,6 +425,7 @@ const dashboardSlice = createSlice({
       const order = state.orders.find(o => o.id === orderId);
       if (order) {
         order.assignedTechnician = technicianName;
+        order.assignedTechnicianName = technicianName;
         order.status = 'In Progress';
 
         // Also update the associated project status to Approved and assign technician to prevent sync reverting
@@ -433,6 +434,12 @@ const dashboardSlice = createSlice({
           associatedProject.status = 'Approved';
           associatedProject.technician = technicianName;
           associatedProject.assignedTech = technicianName;
+        }
+
+        const sr = state.serviceRequests?.find(s => s.id === orderId || s.orderNumber === orderId);
+        if (sr) {
+          sr.assignedTech = technicianName;
+          sr.technician = technicianName;
         }
 
         // Check if there is an associated project or create a new one
@@ -781,6 +788,7 @@ const dashboardSlice = createSlice({
         order.customer = customer;
         order.type = type;
         order.assignedTechnician = assignedTechnician;
+        order.assignedTechnicianName = assignedTechnician;
         order.amount = amount;
         order.status = status;
       }
@@ -791,7 +799,14 @@ const dashboardSlice = createSlice({
         if (type) project.name = type;
         if (assignedTechnician !== undefined) {
           project.technician = assignedTechnician;
+          project.assignedTech = assignedTechnician;
         }
+      }
+
+      const sr = state.serviceRequests?.find(s => s.id === id || s.orderNumber === id);
+      if (sr && assignedTechnician !== undefined) {
+        sr.assignedTech = assignedTechnician;
+        sr.technician = assignedTechnician;
       }
     },
     editCustomer: (state, action) => {

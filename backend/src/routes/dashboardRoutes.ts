@@ -236,9 +236,38 @@ router.get('/', async (req: Request, res: Response) => {
       const startedAt = job?.workProgress?.startedAt || job?.startDate || '';
       const updatedAt = job?.workProgress?.updatedAt || job?.updatedAt || order.updatedAt || '';
 
-      const techName = (job?.assignedTechnicians && job.assignedTechnicians.length > 0)
-        ? job.assignedTechnicians.map((t: any) => t.name).join(', ')
-        : (order.assignedTechnicianName || (job as any)?.technicianName || 'Unassigned');
+      let techName = 'Unassigned';
+      if (job?.assignedTechnicians && job.assignedTechnicians.length > 0 && job.assignedTechnicians[0].name && job.assignedTechnicians[0].name !== 'Unassigned') {
+        techName = job.assignedTechnicians.map((t: any) => t.name).join(', ');
+      } else if (order.assignedTechnician && order.assignedTechnician !== 'Unassigned') {
+        techName = order.assignedTechnician;
+      } else if (order.assignedTechnicianName && order.assignedTechnicianName !== 'Unassigned') {
+        techName = order.assignedTechnicianName;
+      } else if (existingDashOrder?.assignedTechnician && existingDashOrder.assignedTechnician !== 'Unassigned') {
+        techName = existingDashOrder.assignedTechnician;
+      } else if (existingDashOrder?.assignedTechnicianName && existingDashOrder.assignedTechnicianName !== 'Unassigned') {
+        techName = existingDashOrder.assignedTechnicianName;
+      }
+
+      // Proactively heal MongoDB Job and Order documents if techName is assigned
+      if (techName !== 'Unassigned') {
+        if (job && (!job.assignedTechnicians || job.assignedTechnicians.length === 0)) {
+          Job.updateOne({ _id: job._id }, {
+            $set: {
+              status: (job.status === 'PENDING' || job.status === 'WAITING_FOR_TECH') ? 'ASSIGNED' : job.status,
+              assignedTechnicians: [{ id: 'temp-id', name: techName }]
+            }
+          }).exec().catch(() => {});
+        }
+        if (!order.assignedTechnician || order.assignedTechnician === 'Unassigned') {
+          Order.updateOne({ _id: order._id }, {
+            $set: {
+              assignedTechnician: techName,
+              assignedTechnicianName: techName
+            }
+          }).exec().catch(() => {});
+        }
+      }
 
       return {
         id: order.orderNumber,
@@ -541,8 +570,23 @@ router.put('/', async (req: Request, res: Response) => {
             }
 
             // Sync assigned technician
-            const isAssigned = o.assignedTechnician && o.assignedTechnician !== 'Unassigned';
-            associatedJob.assignedTechnicians = isAssigned ? [{ id: 'temp-id', name: o.assignedTechnician }] : [];
+            const techName = o.assignedTechnician || o.assignedTechnicianName;
+            const isAssigned = techName && techName !== 'Unassigned';
+            
+            let techUser: any = null;
+            if (isAssigned) {
+              techUser = await User.findOne({ name: new RegExp(`^${techName}$`, 'i'), role: 'TECHNICIAN' });
+            }
+            const techId = techUser ? techUser._id.toString() : 'temp-id';
+
+            if (isAssigned) {
+              associatedJob.assignedTechnicians = [{ id: techId, name: techName, phone: techUser?.phone || '' }];
+              if (associatedJob.status === 'PENDING' || associatedJob.status === 'WAITING_FOR_TECH') {
+                associatedJob.status = 'ASSIGNED';
+              }
+            } else if (o.assignedTechnician === 'Unassigned') {
+              associatedJob.assignedTechnicians = [];
+            }
 
             // Sync customer details
             if (associatedJob.customer) {
@@ -562,7 +606,11 @@ router.put('/', async (req: Request, res: Response) => {
               customerEmail: emailQuery,
               customerPhone: o.phone,
               shippingAddress: o.location,
-              totalAmount: o.amount
+              totalAmount: o.amount,
+              assignedTechnician: isAssigned ? techName : 'Unassigned',
+              assignedTechnicianName: isAssigned ? techName : 'Unassigned',
+              assignedTechnicianId: isAssigned ? techId : undefined,
+              orderStatus: dbStatus
             });
           } else {
             // Create a job if the order has been approved or is pending approval and is NOT Delivery Only
@@ -706,9 +754,13 @@ router.put('/', async (req: Request, res: Response) => {
             fieldNotes: pr.dailyLogs?.[0]?.report || ''
           });
         } else {
+          const preservedTechs = pr.technician !== 'Unassigned'
+            ? [{ name: pr.technician, id: existingJob.assignedTechnicians?.[0]?.id || 'temp' }]
+            : (existingJob.assignedTechnicians && existingJob.assignedTechnicians.length > 0 ? existingJob.assignedTechnicians : []);
+
           await Job.updateOne({ jobCode: pr.id }, {
             status: dbStatus,
-            assignedTechnicians: pr.technician !== 'Unassigned' ? [{ name: pr.technician, id: existingJob.assignedTechnicians?.[0]?.id || 'temp' }] : [],
+            assignedTechnicians: preservedTechs,
             fieldNotes: pr.dailyLogs?.[0]?.report || ''
           });
         }
@@ -736,10 +788,8 @@ router.put('/', async (req: Request, res: Response) => {
           const techName = sr.assignedTech || sr.technician;
           if (techName && techName !== 'Unassigned') {
             associatedJob.assignedTechnicians = [{ id: 'temp-id', name: techName }];
-          } else if (techName === 'Unassigned') {
-            associatedJob.assignedTechnicians = [];
+            await associatedJob.save();
           }
-          await associatedJob.save();
         }
 
         const associatedOrder = await Order.findOne({ orderNumber: targetId });

@@ -20,6 +20,9 @@ export interface IOrder extends Document {
   totalAmount: number;
   paymentStatus: 'PENDING' | 'PAID' | 'FAILED';
   orderStatus: 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
+  assignedTechnician?: string;
+  assignedTechnicianName?: string;
+  assignedTechnicianId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -53,6 +56,9 @@ const OrderSchema: Schema = new Schema(
       enum: ['PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'],
       default: 'PROCESSING',
     },
+    assignedTechnician: { type: String, default: 'Unassigned' },
+    assignedTechnicianName: { type: String, default: 'Unassigned' },
+    assignedTechnicianId: { type: String },
   },
   { timestamps: true }
 );

@@ -176,14 +176,61 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
-// PUT update order status
-router.put('/:id', async (req: Request, res: Response) => {
+// PUT update order status / technician assignment / details
+router.put('/:id', async (req: Request, res: Response): Promise<any> => {
   try {
-    const updatedOrder = await Order.findByIdAndUpdate(req.params.id, req.body, {
+    const rawId = Array.isArray(req.params.id) ? req.params.id[0] : (req.params.id as string);
+    const isMongoId = /^[0-9a-fA-F]{24}$/.test(rawId);
+    const query = isMongoId ? { $or: [{ _id: rawId }, { orderNumber: rawId }] } : { orderNumber: rawId };
+
+    const updateFields: any = { ...req.body };
+    const techName = req.body.assignedTechnician || req.body.assignedTechnicianName;
+    if (techName) {
+      updateFields.assignedTechnician = techName;
+      updateFields.assignedTechnicianName = techName;
+    }
+
+    const updatedOrder = await Order.findOneAndUpdate(query, { $set: updateFields }, {
       new: true,
     });
     if (!updatedOrder) {
       return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    // Sync with corresponding Job in MongoDB
+    if (techName && techName !== 'Unassigned') {
+      const techUser = await User.findOne({ name: new RegExp(`^${techName}$`, 'i'), role: 'TECHNICIAN' });
+      const techId = techUser ? techUser._id.toString() : (req.body.assignedTechnicianId || 'temp-id');
+
+      const existingJob = await Job.findOne({ jobCode: updatedOrder.orderNumber });
+      if (existingJob) {
+        existingJob.assignedTechnicians = [{ id: techId, name: techName, phone: techUser?.phone || '' }];
+        if (existingJob.status === 'PENDING' || existingJob.status === 'WAITING_FOR_TECH') {
+          existingJob.status = 'ASSIGNED';
+        }
+        await existingJob.save();
+      } else {
+        await Job.create({
+          jobCode: updatedOrder.orderNumber,
+          title: updatedOrder.items?.[0]?.title || 'CCTV Installation',
+          category: 'CCTV Installation',
+          status: 'ASSIGNED',
+          priority: 'MEDIUM',
+          scheduledDate: new Date().toISOString().split('T')[0],
+          customer: {
+            name: updatedOrder.customerName,
+            phone: updatedOrder.customerPhone || '0000000000',
+            email: updatedOrder.customerEmail || '',
+            address: updatedOrder.shippingAddress || '',
+          },
+          assignedTechnicians: [{ id: techId, name: techName, phone: techUser?.phone || '' }]
+        });
+      }
+    } else if (techName === 'Unassigned') {
+      await Job.updateOne(
+        { jobCode: updatedOrder.orderNumber },
+        { $set: { assignedTechnicians: [] } }
+      );
     }
 
     if (updatedOrder.customerEmail) {
@@ -198,6 +245,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       orderId: updatedOrder._id,
       orderNumber: updatedOrder.orderNumber,
       status: updatedOrder.orderStatus,
+      assignedTechnician: updatedOrder.assignedTechnician,
     });
 
     clearDashboardCache();
