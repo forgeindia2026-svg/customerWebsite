@@ -484,14 +484,6 @@ export default function Orders() {
                             <div className="absolute right-0 mt-1 w-48 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl z-30 py-1 text-left">
                               <button
                                 type="button"
-                                onClick={() => handleApproveCompletion(ord.id)}
-                                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 cursor-pointer"
-                              >
-                                <FiCheck size={14} />
-                                <span>Approve Completion</span>
-                              </button>
-                              <button
-                                type="button"
                                 onClick={() => handleSendForRework(ord.id)}
                                 className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/20 cursor-pointer"
                               >
@@ -648,15 +640,6 @@ export default function Orders() {
                                   <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
                                     Order Actions
                                   </div>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => handleApproveCompletion(ord.id)}
-                                    className="w-full flex items-center gap-2 px-3 py-2 text-left text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 font-bold transition-colors cursor-pointer"
-                                  >
-                                    <FiCheck className="w-3.5 h-3.5" />
-                                    <span>Approve Completion</span>
-                                  </button>
 
                                   <button
                                     type="button"
