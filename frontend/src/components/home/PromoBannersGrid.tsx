@@ -33,21 +33,21 @@ export default function PromoBannersGrid() {
             </div>
           </div>
 
-          {/* Banner 2: AMC Contract */}
+          {/* Banner 2: 1-Year Installation Warranty */}
           <div className="relative bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-100 rounded-2xl p-6 sm:p-8 flex flex-col justify-between overflow-hidden shadow-sm hover:shadow-md transition-shadow group">
             <div className="relative z-10 max-w-[65%] space-y-3">
               <h3 className="text-xl sm:text-2xl font-extrabold text-gray-900 leading-tight">
-                Annual Maintenance Contract (AMC)
+                1-Year Installation Warranty
               </h3>
               <p className="text-xs sm:text-sm text-emerald-800 font-medium">
-                Upto 20% Off <br />
-                Free Service Visits
+                100% Guaranteed Setup <br />
+                Certified Expert Support
               </p>
               <Link
                 to="/services"
                 className="inline-flex items-center gap-2 text-xs font-extrabold text-emerald-700 hover:text-emerald-900 pt-2 group-hover:translate-x-1 transition-transform"
               >
-                <span>EXPLORE AMC</span>
+                <span>EXPLORE SERVICE</span>
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>

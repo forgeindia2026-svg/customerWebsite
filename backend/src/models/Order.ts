@@ -14,6 +14,8 @@ export interface IOrder extends Document {
   customerEmail: string;
   customerPhone: string;
   shippingAddress: string;
+  customerQuery?: string;
+  siteImages?: string[];
   items: IOrderItem[];
   totalAmount: number;
   paymentStatus: 'PENDING' | 'PAID' | 'FAILED';
@@ -29,6 +31,8 @@ const OrderSchema: Schema = new Schema(
     customerEmail: { type: String, required: true },
     customerPhone: { type: String, required: true },
     shippingAddress: { type: String, required: true },
+    customerQuery: { type: String },
+    siteImages: [{ type: String }],
     items: [
       {
         productId: { type: String, required: true },

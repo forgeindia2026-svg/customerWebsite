@@ -925,26 +925,70 @@ router.post('/:id/complete', async (req: Request, res: Response) => {
 router.post('/:id/admin-approve', async (req: Request, res: Response) => {
   try {
     const isMongoId = /^[0-9a-fA-F]{24}$/.test(req.params.id as string);
-    const job = await Job.findOne({
+    let job = await Job.findOne({
       $or: [
         ...(isMongoId ? [{ _id: req.params.id }] : []),
         { jobCode: req.params.id },
       ],
     });
-    if (!job) {
-      return res.status(404).json({ success: false, message: `Job ${req.params.id} not found` });
+
+    const Order = require('../models/Order').default;
+    const order = await Order.findOne({
+      $or: [
+        ...(isMongoId ? [{ _id: req.params.id }] : []),
+        { orderNumber: req.params.id },
+      ],
+    });
+
+    if (!job && !order) {
+      let dashboardData = await Dashboard.findOne();
+      if (dashboardData && Array.isArray(dashboardData.orders)) {
+        const orderInDash = dashboardData.orders.find((o: any) => o.id === req.params.id || o.orderNumber === req.params.id);
+        if (orderInDash) {
+          orderInDash.status = 'Completed';
+          await dashboardData.save();
+          clearDashboardCache();
+          return res.json({ success: true, message: 'Order marked as completed in dashboard.', order: orderInDash });
+        }
+      }
+      return res.status(404).json({ success: false, message: `Job or Order ${req.params.id} not found` });
     }
 
-    job.status = 'COMPLETED';
-    await job.save();
+    if (job) {
+      job.status = 'COMPLETED';
+      await job.save();
+    }
+
+    if (order) {
+      order.orderStatus = 'DELIVERED';
+      await order.save();
+    } else if (job) {
+      try {
+        await Order.updateOne({ orderNumber: job.jobCode }, { orderStatus: 'DELIVERED' });
+      } catch (e) {}
+    }
+
+    // Also update Dashboard model orders array if present
+    try {
+      let dashboardData = await Dashboard.findOne();
+      if (dashboardData && Array.isArray(dashboardData.orders)) {
+        const targetId = job?.jobCode || order?.orderNumber || req.params.id;
+        const ordInDash = dashboardData.orders.find((o: any) => o.id === targetId || o.orderNumber === targetId);
+        if (ordInDash) {
+          ordInDash.status = 'Completed';
+          await dashboardData.save();
+        }
+      }
+    } catch (e) {}
 
     // Free the assigned technicians
     const User = require('../models/User').default;
-    for (const tech of (job.assignedTechnicians || [])) {
-      const isMongoId = /^[0-9a-fA-F]{24}$/.test(tech.id || '');
+    const assignedTechs = (job?.assignedTechnicians || []);
+    for (const tech of assignedTechs) {
+      const isTechMongoId = /^[0-9a-fA-F]{24}$/.test(tech.id || '');
       const technician = await User.findOne({
         $or: [
-          ...(isMongoId ? [{ _id: tech.id }] : []),
+          ...(isTechMongoId ? [{ _id: tech.id }] : []),
           { name: tech.name || tech.id }
         ]
       });
@@ -955,16 +999,102 @@ router.post('/:id/admin-approve', async (req: Request, res: Response) => {
       }
     }
 
-    // Process the waiting queue now that technicians are available
-    const { processWaitingQueue } = require('../services/queueService');
-    processWaitingQueue();
+    if (order?.assignedTechnician) {
+      const technician = await User.findOne({ name: order.assignedTechnician });
+      if (technician) {
+        technician.isAvailable = true;
+        technician.currentJobId = null;
+        await technician.save();
+      }
+    }
 
+    // Process the waiting queue now that technicians are available
+    try {
+      const { processWaitingQueue } = require('../services/queueService');
+      processWaitingQueue();
+    } catch (e) {}
+
+    clearDashboardCache();
+
+    const code = job?.jobCode || order?.orderNumber || req.params.id;
     emitToRole('admin', 'job:approved', {
-      jobId: job._id,
-      jobCode: job.jobCode
+      jobId: job?._id,
+      jobCode: code
+    });
+    emitToRole('admin', 'order:status_updated', {
+      orderCode: code,
+      status: 'DELIVERED'
     });
 
-    res.json({ success: true, message: 'Job approved and technicians freed.', job });
+    res.json({ success: true, message: 'Job approved and technicians freed.', job, order });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/jobs/:id/rework - Admin sends job back for rework
+router.post('/:id/rework', async (req: Request, res: Response) => {
+  try {
+    const isMongoId = /^[0-9a-fA-F]{24}$/.test(req.params.id as string);
+    let job = await Job.findOne({
+      $or: [
+        ...(isMongoId ? [{ _id: req.params.id }] : []),
+        { jobCode: req.params.id },
+      ],
+    });
+
+    const Order = require('../models/Order').default;
+    const order = await Order.findOne({
+      $or: [
+        ...(isMongoId ? [{ _id: req.params.id }] : []),
+        { orderNumber: req.params.id },
+      ],
+    });
+
+    if (!job && !order) {
+      let dashboardData = await Dashboard.findOne();
+      if (dashboardData && Array.isArray(dashboardData.orders)) {
+        const orderInDash = dashboardData.orders.find((o: any) => o.id === req.params.id || o.orderNumber === req.params.id);
+        if (orderInDash) {
+          orderInDash.status = 'Rework';
+          await dashboardData.save();
+          clearDashboardCache();
+          return res.json({ success: true, message: 'Order sent back for rework.', order: orderInDash });
+        }
+      }
+      return res.status(404).json({ success: false, message: `Job or Order ${req.params.id} not found` });
+    }
+
+    if (job) {
+      job.status = 'IN_PROGRESS';
+      job.fieldNotes = req.body.reason ? `[REWORK REQUESTED by Admin]: ${req.body.reason}` : '[REWORK REQUESTED by Admin]';
+      await job.save();
+    }
+
+    if (order) {
+      order.orderStatus = 'PROCESSING';
+      await order.save();
+    }
+
+    try {
+      let dashboardData = await Dashboard.findOne();
+      if (dashboardData && Array.isArray(dashboardData.orders)) {
+        const targetId = job?.jobCode || order?.orderNumber || req.params.id;
+        const ordInDash = dashboardData.orders.find((o: any) => o.id === targetId || o.orderNumber === targetId);
+        if (ordInDash) {
+          ordInDash.status = 'Rework';
+          await dashboardData.save();
+        }
+      }
+    } catch (e) {}
+
+    clearDashboardCache();
+
+    const code = job?.jobCode || order?.orderNumber || req.params.id;
+    emitToRole('admin', 'job:status_updated', { jobId: job?._id, status: 'IN_PROGRESS' });
+    emitToRole('admin', 'order:status_updated', { orderCode: code, status: 'PROCESSING' });
+
+    res.json({ success: true, message: 'Job sent back for rework.', job, order });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

@@ -46,7 +46,7 @@ export const fetchDashboardData = createAsyncThunk(
   async (_, { dispatch }) => {
     dispatch(dashboardSlice.actions.setLoading(true));
     try {
-      const res = await fetch(`${getApiUrl()}/api/dashboard`);
+      const res = await fetch(`${getApiUrl()}/api/dashboard?refresh=true`);
       const data = await res.json();
       if (data.success && data.data) {
         dispatch(setDashboardData(data.data));
@@ -62,6 +62,8 @@ export const fetchDashboardData = createAsyncThunk(
 export const adminApproveJob = createAsyncThunk(
   'dashboard/adminApproveJob',
   async (jobId, { dispatch }) => {
+    // Optimistically update UI immediately so status flips to Completed without waiting
+    dispatch(dashboardSlice.actions.approveOrderCompletion(jobId));
     try {
       const res = await fetch(`${getApiUrl()}/api/jobs/${jobId}/admin-approve`, {
         method: 'POST',
@@ -71,12 +73,34 @@ export const adminApproveJob = createAsyncThunk(
       });
       const data = await res.json();
       if (data.success) {
-        // Refresh dashboard data to see updated statuses and queues
+        // Refresh dashboard data with refresh=true to update queues and metrics
         dispatch(fetchDashboardData());
       }
       return data;
     } catch (err) {
       console.warn('Admin approve job error:', err);
+      return { success: false, message: err.message };
+    }
+  }
+);
+
+export const adminReworkJob = createAsyncThunk(
+  'dashboard/adminReworkJob',
+  async ({ jobId, reason }, { dispatch }) => {
+    dispatch(dashboardSlice.actions.reworkOrder({ jobId, reason }));
+    try {
+      const res = await fetch(`${getApiUrl()}/api/jobs/${jobId}/rework`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: reason || 'Admin requested adjustments.' })
+      });
+      const data = await res.json();
+      if (data.success) {
+        dispatch(fetchDashboardData());
+      }
+      return data;
+    } catch (err) {
+      console.warn('Admin rework job error:', err);
       return { success: false, message: err.message };
     }
   }
@@ -319,6 +343,57 @@ const dashboardSlice = createSlice({
         if (associatedProject) {
           associatedProject.status = 'Approved';
         }
+      }
+    },
+    approveOrderCompletion: (state, action) => {
+      const orderId = typeof action.payload === 'string' ? action.payload : action.payload?.id;
+      const order = state.orders.find(o => o.id === orderId || o.orderNumber === orderId || (o.jobCode && o.jobCode === orderId));
+      if (order) {
+        order.status = 'Completed';
+        order.rawJobStatus = 'COMPLETED';
+      }
+      const project = state.projects.find(p => p.id === orderId || p.jobCode === orderId);
+      if (project) {
+        project.status = 'Completed';
+      }
+      try {
+        const cached = JSON.parse(localStorage.getItem('sk_admin_dashboard_cache') || '{}');
+        if (cached && cached.orders) {
+          const cachedOrd = cached.orders.find(o => o.id === orderId || o.orderNumber === orderId);
+          if (cachedOrd) {
+            cachedOrd.status = 'Completed';
+            cachedOrd.rawJobStatus = 'COMPLETED';
+          }
+          localStorage.setItem('sk_admin_dashboard_cache', JSON.stringify(cached));
+        }
+      } catch (e) {}
+    },
+    reworkOrder: (state, action) => {
+      const orderId = typeof action.payload === 'string' ? action.payload : (action.payload?.jobId || action.payload?.id);
+      const order = state.orders.find(o => o.id === orderId || o.orderNumber === orderId || (o.jobCode && o.jobCode === orderId));
+      if (order) {
+        order.status = 'Rework';
+        order.rawJobStatus = 'IN_PROGRESS';
+      }
+      const project = state.projects.find(p => p.id === orderId || p.jobCode === orderId);
+      if (project) {
+        project.status = 'Rework';
+      }
+    },
+    setOrderStatus: (state, action) => {
+      const { id, status } = action.payload;
+      const order = state.orders.find(o => o.id === id || o.orderNumber === id || (o.jobCode && o.jobCode === id));
+      if (order) {
+        order.status = status;
+        if (status === 'Completed') {
+          order.rawJobStatus = 'COMPLETED';
+        } else if (status === 'In Progress' || status === 'Rework') {
+          order.rawJobStatus = 'IN_PROGRESS';
+        }
+      }
+      const project = state.projects.find(p => p.id === id || p.jobCode === id);
+      if (project) {
+        project.status = status;
       }
     },
     assignTechnicianToOrder: (state, action) => {
@@ -830,6 +905,9 @@ export const {
   setDarkMode,
   addOrder,
   approveOrder,
+  approveOrderCompletion,
+  reworkOrder,
+  setOrderStatus,
   addTechnician,
   updateTechnicianStatus,
   approveProject,

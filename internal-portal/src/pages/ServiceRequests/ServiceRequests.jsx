@@ -127,13 +127,20 @@ export default function ServiceRequests() {
 
   // Filter service requests
   const filteredRequests = serviceRequests.filter(req => {
-    const matchesSearch = req.customer.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          req.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          req.id.toLowerCase().includes(searchTerm.toLowerCase());
+    const cust = (req.customer || req.clientName || '').toLowerCase();
+    const type = (req.type || '').toLowerCase();
+    const id = (req.id || '').toLowerCase();
+    const contact = (req.contact || '').toLowerCase();
+    const matchesSearch = cust.includes(searchTerm.toLowerCase()) || 
+                          type.includes(searchTerm.toLowerCase()) ||
+                          id.includes(searchTerm.toLowerCase()) ||
+                          contact.includes(searchTerm.toLowerCase());
     
     const matchesPriority = priorityFilter === 'All Priorities' || req.priority === priorityFilter;
     const matchesStatus = statusFilter === 'All Status' || req.status === statusFilter;
-    const matchesType = typeFilter === 'All Types' || req.type.toLowerCase().includes(typeFilter.toLowerCase());
+    const matchesType = typeFilter === 'All Types' || 
+                        (typeFilter.toLowerCase() === 'camera' && (type.includes('camera') || type.includes('installation'))) ||
+                        type.includes(typeFilter.toLowerCase());
 
     return matchesSearch && matchesPriority && matchesStatus && matchesType;
   });
@@ -572,12 +579,37 @@ export default function ServiceRequests() {
                 <span className="font-medium text-slate-800 dark:text-slate-100">{viewingReq.assignedTech || viewingReq.technician || 'Unassigned'}</span>
               </div>
             </div>
+            {viewingReq.location && (
+              <div>
+                <span className="block text-xs font-semibold text-slate-500 mb-1">Site Address</span>
+                <span className="text-xs text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl block border border-slate-100 dark:border-slate-700/50 font-medium">
+                  {viewingReq.location}
+                </span>
+              </div>
+            )}
             <div>
-              <span className="block text-xs font-semibold text-slate-500 mb-1">Description</span>
+              <span className="block text-xs font-semibold text-slate-500 mb-1">Description / Customer Query</span>
               <span className="text-sm text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl block border border-slate-100 dark:border-slate-700/50">
                 {viewingReq.description || `Service request filed for troubleshoot. Contact client at ${viewingReq.contact}.`}
               </span>
             </div>
+            {viewingReq.siteImages && viewingReq.siteImages.length > 0 && (
+              <div>
+                <span className="block text-xs font-semibold text-slate-500 mb-1.5">
+                  Uploaded Site Photos ({viewingReq.siteImages.length})
+                </span>
+                <div className="grid grid-cols-3 gap-2">
+                  {viewingReq.siteImages.map((img, idx) => (
+                    <a key={idx} href={img} target="_blank" rel="noreferrer" className="block relative aspect-video rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 group">
+                      <img src={img} alt={`Site photo ${idx + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                      <span className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold">
+                        View Full
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
             <div>
                <span className="block text-xs font-semibold text-slate-500 mb-1">Status</span>
                <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${getStatusBadge(viewingReq.status)}`}>{viewingReq.status}</span>

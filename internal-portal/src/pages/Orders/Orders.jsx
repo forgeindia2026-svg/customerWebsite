@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useSearchParams } from 'react-router-dom';
-import { FiSearch, FiSliders, FiCheckCircle, FiInfo, FiTrash2, FiPlusCircle, FiEye, FiGrid, FiList, FiPlus, FiUser, FiCalendar, FiDollarSign, FiChevronDown, FiCheck, FiEdit, FiShoppingBag, FiClock } from 'react-icons/fi';
-import { approveOrder, addOrder, assignTechnicianToOrder, editOrder, adminApproveJob, fetchDashboardData } from '../../redux/dashboardSlice';
+import { FiSearch, FiSliders, FiCheckCircle, FiInfo, FiTrash2, FiPlusCircle, FiEye, FiGrid, FiList, FiPlus, FiUser, FiCalendar, FiDollarSign, FiChevronDown, FiCheck, FiEdit, FiShoppingBag, FiClock, FiRefreshCw } from 'react-icons/fi';
+import { toast } from 'react-hot-toast';
+import { approveOrder, approveOrderCompletion, reworkOrder, setOrderStatus, addOrder, assignTechnicianToOrder, editOrder, adminApproveJob, adminReworkJob, fetchDashboardData } from '../../redux/dashboardSlice';
 import { socket } from '../../socket';
 import Modal from '../../components/Modal';
 
@@ -95,13 +96,48 @@ export default function Orders() {
   }, [orders]);
 
   const getDisplayStatus = (ord) => {
-    if (['Completed', 'Approved', 'COMPLETED', 'WAITING_ADMIN_APPROVAL', 'Pending Approval', 'PENDING_APPROVAL'].includes(ord.status)) {
+    if (!ord) return 'Pending';
+    if (['Completed', 'Approved', 'COMPLETED', 'DELIVERED'].includes(ord.status) || ord.rawJobStatus === 'COMPLETED') {
       return 'Completed';
+    }
+    if (ord.status === 'WAITING_ADMIN_APPROVAL' || ord.status === 'Pending Approval' || ord.rawJobStatus === 'WAITING_ADMIN_APPROVAL') {
+      return 'Pending Approval';
+    }
+    if (ord.status === 'Rework') {
+      return 'Rework';
     }
     if (!ord.assignedTechnician || ord.assignedTechnician === 'Unassigned') {
       return 'Pending';
     }
     return 'In Progress';
+  };
+
+  const handleApproveCompletion = async (orderId) => {
+    setActiveStatusDropdown(null);
+    dispatch(approveOrderCompletion(orderId));
+    toast.success(`Order ${orderId} approved! Status updated to Completed.`);
+    try {
+      await dispatch(adminApproveJob(orderId)).unwrap();
+    } catch (err) {
+      console.warn('Approval error:', err);
+    }
+  };
+
+  const handleSendForRework = async (orderId) => {
+    setActiveStatusDropdown(null);
+    dispatch(reworkOrder({ jobId: orderId, reason: 'Admin requested review/rework' }));
+    toast('Sent back for rework', { icon: '🔄' });
+    try {
+      await dispatch(adminReworkJob({ jobId: orderId, reason: 'Admin requested review/rework' })).unwrap();
+    } catch (err) {
+      console.warn('Rework error:', err);
+    }
+  };
+
+  const handleSetOrderStatus = (orderId, newStatus) => {
+    setActiveStatusDropdown(null);
+    dispatch(setOrderStatus({ id: orderId, status: newStatus }));
+    toast.success(`Order ${orderId} marked as ${newStatus}`);
   };
 
   // Filter logic
@@ -122,19 +158,20 @@ export default function Orders() {
       case 'Completed':
       case 'Approved':
       case 'COMPLETED':
-        return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-900/40';
+        return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50';
+      case 'Pending Approval':
+      case 'WAITING_ADMIN_APPROVAL':
+        return 'bg-amber-50 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300 border border-amber-300 dark:border-amber-700/60 font-bold';
+      case 'Rework':
+        return 'bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-300 border border-red-200 dark:border-red-800/50';
       case 'In Progress':
       case 'IN_PROGRESS':
         return 'bg-blue-50 text-blue-700 dark:bg-blue-955/20 dark:text-blue-300 border border-blue-100 dark:border-blue-900/40';
-      case 'Pending Approval':
       case 'Pending':
-      case 'WAITING_ADMIN_APPROVAL':
       case 'ASSIGNMENT_PENDING_ACCEPTANCE':
       case 'WAITING_FOR_TECH':
-      case 'CANCELLED':
-        return 'bg-amber-50 text-amber-700 dark:bg-amber-955/20 dark:text-amber-300 border border-amber-100 dark:border-amber-900/40';
       default:
-        return 'bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-700';
+        return 'bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700';
     }
   };
 
@@ -415,32 +452,58 @@ export default function Orders() {
                       </span>
 
                       {/* Interactive Status Badge Dropdown */}
-                      <div className="relative" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          onClick={() => setActiveStatusDropdown(isOpenDropdown ? null : ord.id)}
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${getStatusBadge(ord.status)}`}
-                        >
-                          <span>{ord.status}</span>
-                          <FiChevronDown size={12} />
-                        </button>
+                      <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                        {(ord.status === 'WAITING_ADMIN_APPROVAL' || ord.status === 'Pending Approval' || getDisplayStatus(ord) === 'Pending Approval') && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleApproveCompletion(ord.id);
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all cursor-pointer"
+                            title="Click to approve job completion and free technician"
+                          >
+                            <FiCheck size={12} />
+                            <span>Approve</span>
+                          </button>
+                        )}
 
-                        {isOpenDropdown && (
-                          <div className="absolute right-0 mt-1 w-44 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl z-30 py-1 text-left">
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => setActiveStatusDropdown(isOpenDropdown ? null : ord.id)}
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${getStatusBadge(getDisplayStatus(ord))}`}
+                          >
+                            <span>{getDisplayStatus(ord)}</span>
+                            <FiChevronDown size={12} />
+                          </button>
 
-                            {ord.status === 'WAITING_ADMIN_APPROVAL' && (
+                          {isOpenDropdown && (
+                            <div className="absolute right-0 mt-1 w-48 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl z-30 py-1 text-left">
                               <button
                                 type="button"
-                                onClick={() => {
-                                  dispatch(adminApproveJob(ord.id));
-                                  setActiveStatusDropdown(null);
-                                }}
-                                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
+                                onClick={() => handleApproveCompletion(ord.id)}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 cursor-pointer"
                               >
                                 <FiCheck size={14} />
                                 <span>Approve Completion</span>
                               </button>
-                            )}
+                              <button
+                                type="button"
+                                onClick={() => handleSendForRework(ord.id)}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/20 cursor-pointer"
+                              >
+                                <FiRefreshCw size={13} />
+                                <span>Send for Rework</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSetOrderStatus(ord.id, 'In Progress')}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/20 cursor-pointer"
+                              >
+                                <FiClock size={13} />
+                                <span>Set In Progress</span>
+                              </button>
                             <button
                               type="button"
                               onClick={() => {
@@ -467,6 +530,7 @@ export default function Orders() {
                         )}
                       </div>
                     </div>
+                  </div>
 
                     {/* Customer & Order Details */}
                     <div className="space-y-1.5 text-xs">
@@ -544,76 +608,108 @@ export default function Orders() {
                         </td>
                         <td className="py-4 px-4 align-middle font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">₹{(ord.amount || 0).toLocaleString('en-IN')}</td>
                         <td className="py-4 px-4 align-middle text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                          <div className="relative inline-block text-right">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setActiveStatusDropdown(isOpenDropdown ? null : ord.id);
-                              }}
-                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap transition-all shadow-xs cursor-pointer ${getStatusBadge(getDisplayStatus(ord))} hover:opacity-90`}
-                            >
-                              <span>{getDisplayStatus(ord)}</span>
-                              <FiChevronDown className="w-3.5 h-3.5 text-current opacity-70" />
-                            </button>
-
-                            {isOpenDropdown && (
-                              <div 
-                                className="absolute right-0 mt-1.5 w-44 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl z-30 py-1 font-semibold text-xs animate-in fade-in zoom-in-95 duration-100 text-left"
-                                onClick={(e) => e.stopPropagation()}
+                          <div className="flex items-center justify-end gap-2">
+                            {/* Quick Approve Button if Waiting Approval */}
+                            {(ord.status === 'WAITING_ADMIN_APPROVAL' || ord.status === 'Pending Approval' || getDisplayStatus(ord) === 'Pending Approval') && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleApproveCompletion(ord.id);
+                                }}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all cursor-pointer"
+                                title="Click to approve job completion and free technician"
                               >
-                                <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
-                                  Order Actions
-                                </div>
+                                <FiCheck size={13} />
+                                <span>Approve</span>
+                              </button>
+                            )}
 
-                                {ord.status === 'WAITING_ADMIN_APPROVAL' && (
+                            <div className="relative inline-block text-right">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveStatusDropdown(isOpenDropdown ? null : ord.id);
+                                }}
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap transition-all shadow-xs cursor-pointer ${getStatusBadge(getDisplayStatus(ord))} hover:opacity-90`}
+                              >
+                                <span>{getDisplayStatus(ord)}</span>
+                                <FiChevronDown className="w-3.5 h-3.5 text-current opacity-70" />
+                              </button>
+
+                              {isOpenDropdown && (
+                                <div 
+                                  className="absolute right-0 mt-1.5 w-48 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl z-30 py-1 font-semibold text-xs animate-in fade-in zoom-in-95 duration-100 text-left"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
+                                    Order Actions
+                                  </div>
+
                                   <button
                                     type="button"
-                                    onClick={() => {
-                                      dispatch(adminApproveJob(ord.id));
-                                      setActiveStatusDropdown(null);
-                                    }}
+                                    onClick={() => handleApproveCompletion(ord.id)}
                                     className="w-full flex items-center gap-2 px-3 py-2 text-left text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 font-bold transition-colors cursor-pointer"
                                   >
                                     <FiCheck className="w-3.5 h-3.5" />
                                     <span>Approve Completion</span>
                                   </button>
-                                )}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setEditingOrder(ord);
-                                    setOrderForm({
-                                      customer: ord.customer,
-                                      email: ord.email || '',
-                                      phone: ord.phone || '',
-                                      type: ord.type,
-                                      assignedTechnician: ord.assignedTechnician,
-                                      amount: ord.amount,
-                                      location: ord.location || 'Chennai Area',
-                                      status: ord.status
-                                    });
-                                    setEditModalOpen(true);
-                                    setActiveStatusDropdown(null);
-                                  }}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-left text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/20 font-bold transition-colors cursor-pointer"
-                                >
-                                  <FiEdit className="w-3.5 h-3.5" />
-                                  <span>Edit Order</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedOrder(ord);
-                                    setActiveStatusDropdown(null);
-                                  }}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-left text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold transition-colors border-t border-slate-100 dark:border-slate-800 cursor-pointer"
-                                >
-                                  <FiEye className="w-3.5 h-3.5 text-blue-500" />
-                                  <span>View Details</span>
-                                </button>
-                              </div>
-                            )}
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSendForRework(ord.id)}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-left text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/20 font-bold transition-colors cursor-pointer"
+                                  >
+                                    <FiRefreshCw className="w-3.5 h-3.5" />
+                                    <span>Send for Rework</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSetOrderStatus(ord.id, 'In Progress')}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-left text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/20 font-bold transition-colors cursor-pointer"
+                                  >
+                                    <FiClock className="w-3.5 h-3.5" />
+                                    <span>Set In Progress</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingOrder(ord);
+                                      setOrderForm({
+                                        customer: ord.customer,
+                                        email: ord.email || '',
+                                        phone: ord.phone || '',
+                                        type: ord.type,
+                                        assignedTechnician: ord.assignedTechnician,
+                                        amount: ord.amount,
+                                        location: ord.location || 'Chennai Area',
+                                        status: ord.status
+                                      });
+                                      setEditModalOpen(true);
+                                      setActiveStatusDropdown(null);
+                                    }}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-left text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/20 font-bold transition-colors cursor-pointer"
+                                  >
+                                    <FiEdit className="w-3.5 h-3.5" />
+                                    <span>Edit Order</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedOrder(ord);
+                                      setActiveStatusDropdown(null);
+                                    }}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-left text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold transition-colors border-t border-slate-100 dark:border-slate-800 cursor-pointer"
+                                  >
+                                    <FiEye className="w-3.5 h-3.5 text-blue-500" />
+                                    <span>View Details</span>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </td>
                       </tr>
@@ -1260,10 +1356,49 @@ export default function Orders() {
               )}
             </div>
 
-            <div className="pt-4 flex justify-end">
+            {/* Admin Verification & Approval Actions Section */}
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700 text-left space-y-3 mt-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <FiCheckCircle className="text-emerald-500" /> Admin Completion Sign-Off
+                </span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${getStatusBadge(getDisplayStatus(selectedOrder))}`}>
+                  {getDisplayStatus(selectedOrder)}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Verify that technician has finished all on-site work and uploaded evidence photos before officially approving completion.
+              </p>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleApproveCompletion(selectedOrder.id);
+                    setSelectedOrder(prev => ({ ...prev, status: 'Completed', rawJobStatus: 'COMPLETED' }));
+                  }}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer"
+                >
+                  <FiCheck size={14} />
+                  <span>Approve Job Completion</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleSendForRework(selectedOrder.id);
+                    setSelectedOrder(prev => ({ ...prev, status: 'Rework', rawJobStatus: 'IN_PROGRESS' }));
+                  }}
+                  className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300 font-semibold text-xs rounded-xl border border-amber-200 dark:border-amber-800/60 transition-all cursor-pointer"
+                >
+                  <FiRefreshCw size={13} />
+                  <span>Send for Rework</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="pt-3 flex justify-end">
               <button 
                 onClick={() => setSelectedOrder(null)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-805 dark:text-slate-200 text-xs font-semibold rounded-xl transition-colors"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
               >
                 Close details
               </button>

@@ -44,6 +44,8 @@ export interface IJob extends Document {
     city?: string;
     postalCode?: string;
   };
+  customerQuery?: string;
+  siteImages?: string[];
   scopeOfWork?: string[];
   equipmentList?: Array<{ name: string; serialNumber?: string; status?: string }>;
   notes?: string[];
@@ -157,6 +159,8 @@ const JobSchema: Schema = new Schema(
       city: { type: String, default: 'Local' },
       postalCode: { type: String, default: '600001' },
     },
+    customerQuery: { type: String, default: '' },
+    siteImages: [{ type: String }],
     scopeOfWork: [{ type: String }],
     equipmentList: [
       {

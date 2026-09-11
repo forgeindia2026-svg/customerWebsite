@@ -4,6 +4,7 @@ import Job from '../models/Job';
 import User from '../models/User';
 import Dashboard from '../models/Dashboard';
 import { emitToUser, emitToRole, broadcastEvent } from '../socket';
+import { clearDashboardCache } from './dashboardRoutes';
 
 const router = Router();
 
@@ -80,6 +81,9 @@ router.post('/', async (req: Request, res: Response) => {
             city: req.body.city || req.body.customerCity || req.body.state || 'Local',
             postalCode: req.body.postalCode || req.body.zipcode || req.body.customerPostalCode || '600001'
           },
+          customerQuery: req.body.customerQuery || '',
+          siteImages: req.body.siteImages || [],
+          fieldNotes: req.body.customerQuery ? `Customer Query: ${req.body.customerQuery}` : '',
           assignedTechnicians: [{
             id: assignedTech._id.toString(),
             name: assignedTech.name,
@@ -122,6 +126,9 @@ router.post('/', async (req: Request, res: Response) => {
             city: req.body.city || req.body.customerCity || req.body.state || 'Local',
             postalCode: req.body.postalCode || req.body.zipcode || req.body.customerPostalCode || '600001'
           },
+          customerQuery: req.body.customerQuery || '',
+          siteImages: req.body.siteImages || [],
+          fieldNotes: req.body.customerQuery ? `Customer Query: ${req.body.customerQuery}` : '',
           assignedTechnicians: []
         });
 
@@ -161,6 +168,8 @@ router.post('/', async (req: Request, res: Response) => {
       });
     }
 
+    clearDashboardCache();
+
     res.status(201).json({ success: true, data: savedOrder });
   } catch (error: any) {
     res.status(400).json({ success: false, message: error.message });
@@ -190,6 +199,8 @@ router.put('/:id', async (req: Request, res: Response) => {
       orderNumber: updatedOrder.orderNumber,
       status: updatedOrder.orderStatus,
     });
+
+    clearDashboardCache();
 
     res.json({ success: true, data: updatedOrder });
   } catch (error: any) {

@@ -170,7 +170,7 @@ router.get('/', async (req: Request, res: Response) => {
         status: (() => {
           if (job.status === 'PENDING') return (job.assignedTechnicians && job.assignedTechnicians.length > 0) ? 'In Progress' : 'Pending';
           if (job.status === 'ASSIGNED' || job.status === 'IN_PROGRESS') return 'In Progress';
-          if (job.status === 'WAITING_ADMIN_APPROVAL') return 'Completed';
+          if (job.status === 'WAITING_ADMIN_APPROVAL') return 'WAITING_ADMIN_APPROVAL';
           if (job.status === 'COMPLETED') return 'Completed';
           return 'Pending';
         })(),
@@ -204,23 +204,20 @@ router.get('/', async (req: Request, res: Response) => {
     const mappedOrders = (liveOrders || []).map((order: any) => {
       const job = jobByCode.get(order.orderNumber);
       let dashboardStatus = 'Pending';
-      if (order.orderStatus === 'DELIVERED') {
+      if (order.orderStatus === 'DELIVERED' || job?.status === 'COMPLETED') {
         dashboardStatus = 'Completed';
-      } else if (order.orderStatus === 'PROCESSING') {
-        dashboardStatus = job ? 'In Progress' : 'Pending Approval';
+      } else if (job?.status === 'WAITING_ADMIN_APPROVAL') {
+        dashboardStatus = 'WAITING_ADMIN_APPROVAL';
+      } else if (job?.status === 'IN_PROGRESS' || job?.status === 'ASSIGNED') {
+        dashboardStatus = 'In Progress';
       } else if (order.orderStatus === 'SHIPPED') {
         dashboardStatus = 'Completed';
-      } else if (order.orderStatus === 'CANCELLED') {
+      } else if (order.orderStatus === 'CANCELLED' || job?.status === 'CANCELLED') {
         dashboardStatus = 'Cancelled';
-      }
-      if (job) {
-        if (job.status === 'COMPLETED') {
-          dashboardStatus = 'Completed';
-        } else if (job.status === 'IN_PROGRESS' || job.status === 'ASSIGNED') {
-          dashboardStatus = 'In Progress';
-        } else if (job.status === 'PENDING') {
-          dashboardStatus = (job.assignedTechnicians && job.assignedTechnicians.length > 0) ? 'In Progress' : 'Pending Approval';
-        }
+      } else if (job?.status === 'PENDING') {
+        dashboardStatus = (job.assignedTechnicians && job.assignedTechnicians.length > 0) ? 'In Progress' : 'Pending';
+      } else if (order.orderStatus === 'PROCESSING') {
+        dashboardStatus = (job?.assignedTechnicians && job.assignedTechnicians.length > 0) ? 'In Progress' : 'Pending';
       }
 
       const beforePhotosList = (job?.beforePhotos && job.beforePhotos.length > 0)
@@ -241,6 +238,8 @@ router.get('/', async (req: Request, res: Response) => {
         location: order.shippingAddress || '',
         assignedTechnician: (job?.assignedTechnicians && job.assignedTechnicians.length > 0) ? job.assignedTechnicians.map((t: any) => t.name).join(', ') : 'Unassigned',
         status: dashboardStatus,
+        rawJobStatus: job?.status || 'PENDING',
+        rawJobId: job?._id?.toString(),
         date: order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Today',
         amount: order.totalAmount,
         createdAt: order.createdAt,
@@ -374,6 +373,67 @@ router.get('/', async (req: Request, res: Response) => {
       messages: q.messages || []
     }));
 
+    // Map live Service Requests from liveOrders (services / installations) & liveJobs + existing serviceRequests
+    const existingServiceReqs = Array.isArray(dashboardData.serviceRequests) ? dashboardData.serviceRequests : [];
+    const serviceOrderMap = new Map<string, any>();
+
+    (liveOrders || []).forEach((order: any) => {
+      const isServiceType = order.serviceType === 'DELIVERY_INSTALLATION';
+      const hasServiceItem = (order.items || []).some((item: any) => 
+        item.productId?.toLowerCase().includes('service') ||
+        item.title?.toLowerCase().includes('installation') ||
+        item.title?.toLowerCase().includes('service') ||
+        item.title?.toLowerCase().includes('repair') ||
+        item.title?.toLowerCase().includes('amc')
+      );
+      if (isServiceType || hasServiceItem) {
+        serviceOrderMap.set(order.orderNumber, order);
+      }
+    });
+
+    const mappedLiveServiceRequests = Array.from(serviceOrderMap.values()).map((order: any) => {
+      const job = jobByCode.get(order.orderNumber);
+      
+      let reqStatus = 'Open';
+      if (order.orderStatus === 'DELIVERED' || job?.status === 'COMPLETED') {
+        reqStatus = 'Resolved';
+      } else if (order.orderStatus === 'CANCELLED' || job?.status === 'CANCELLED') {
+        reqStatus = 'Cancelled';
+      } else if (job?.assignedTechnicians && job.assignedTechnicians.length > 0 && job.assignedTechnicians[0].name !== 'Unassigned') {
+        reqStatus = job.status === 'IN_PROGRESS' ? 'In Progress' : 'Assigned';
+      }
+
+      const assignedTechName = (job?.assignedTechnicians && job.assignedTechnicians.length > 0)
+        ? job.assignedTechnicians.map((t: any) => t.name).join(', ')
+        : 'Unassigned';
+
+      const existingReq = existingServiceReqs.find((r: any) => r.id === order.orderNumber || r.orderNumber === order.orderNumber);
+      const title = order.items?.map((item: any) => item.title).join(', ') || 'CCTV Camera Installation';
+
+      return {
+        id: order.orderNumber,
+        customer: existingReq?.customer || existingReq?.clientName || order.customerName || 'Customer',
+        clientName: existingReq?.clientName || order.customerName || 'Customer',
+        contact: existingReq?.contact || order.customerPhone || '',
+        type: existingReq?.type || title,
+        priority: existingReq?.priority || (order.customerQuery ? 'High' : 'Medium'),
+        status: existingReq?.status || reqStatus,
+        assignedTech: existingReq?.assignedTech || assignedTechName,
+        technician: existingReq?.technician || assignedTechName,
+        date: order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : (existingReq?.date || 'Today'),
+        location: order.shippingAddress || '',
+        description: order.customerQuery ? `Customer Query: ${order.customerQuery}` : (existingReq?.description || `Service request booked for ${title}. Contact client at ${order.customerPhone}.`),
+        siteImages: order.siteImages || job?.siteImages || [],
+        orderNumber: order.orderNumber,
+        createdAt: order.createdAt
+      };
+    });
+
+    // Merge baseline non-order service requests (such as REQ-8604)
+    const liveIds = new Set(mappedLiveServiceRequests.map(s => s.id));
+    const nonOrderServiceReqs = existingServiceReqs.filter((r: any) => !liveIds.has(r.id) && !liveIds.has(r.orderNumber));
+    const mappedServiceRequests = [...mappedLiveServiceRequests, ...nonOrderServiceReqs];
+
     console.log('Mapping completed, preparing response...');
     // Merge baseline and dynamic live collections
     const mergedData = {
@@ -384,7 +444,8 @@ router.get('/', async (req: Request, res: Response) => {
       customers: mappedCustomers,
       projects: mappedProjects,
       payments: mappedPayments,
-      queries: mappedQueries
+      queries: mappedQueries,
+      serviceRequests: mappedServiceRequests
     };
 
     cachedDashboardState = mergedData;
@@ -636,6 +697,49 @@ router.put('/', async (req: Request, res: Response) => {
         }
       }
     }
+
+    // 5. Sync serviceRequests back to live Jobs and Orders
+    if (req.body.serviceRequests && Array.isArray(req.body.serviceRequests)) {
+      for (const sr of req.body.serviceRequests) {
+        const targetId = sr.id || sr.orderNumber;
+        if (!targetId) continue;
+
+        const associatedJob = await Job.findOne({ jobCode: targetId });
+        if (associatedJob) {
+          if (sr.status === 'Resolved' || sr.status === 'Closed') {
+            associatedJob.status = 'COMPLETED';
+          } else if (sr.status === 'In Progress') {
+            associatedJob.status = 'IN_PROGRESS';
+          } else if (sr.status === 'Assigned') {
+            associatedJob.status = 'ASSIGNED';
+          } else if (sr.status === 'Cancelled') {
+            associatedJob.status = 'CANCELLED';
+          }
+
+          const techName = sr.assignedTech || sr.technician;
+          if (techName && techName !== 'Unassigned') {
+            associatedJob.assignedTechnicians = [{ id: 'temp-id', name: techName }];
+          } else if (techName === 'Unassigned') {
+            associatedJob.assignedTechnicians = [];
+          }
+          await associatedJob.save();
+        }
+
+        const associatedOrder = await Order.findOne({ orderNumber: targetId });
+        if (associatedOrder) {
+          if (sr.status === 'Resolved' || sr.status === 'Closed') {
+            associatedOrder.orderStatus = 'DELIVERED';
+          } else if (sr.status === 'In Progress' || sr.status === 'Assigned') {
+            associatedOrder.orderStatus = 'PROCESSING';
+          } else if (sr.status === 'Cancelled') {
+            associatedOrder.orderStatus = 'CANCELLED';
+          }
+          await associatedOrder.save();
+        }
+      }
+    }
+
+    clearDashboardCache();
 
     res.json({ success: true, data: saved });
   } catch (error: any) {
