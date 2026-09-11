@@ -13,7 +13,8 @@ import {
   AlertCircle,
   Play,
   Upload,
-  ExternalLink
+  ExternalLink,
+  Award
 } from 'lucide-react';
 
 import { formatDate, calculateJobDaysStats } from '../services/dateUtils';
@@ -222,6 +223,24 @@ export const JobDetailDrawer = ({
                   </div>
                 )}
               </div>
+
+              {/* Technician Earning Payout Card (Strictly Earning Only) */}
+              {(Boolean(job.technicianEarning && job.technicianEarning > 0) || (job.status === 'COMPLETED' && Boolean(job.technicianEarning))) && (
+                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200/90 flex items-center justify-between">
+                  <div className="flex items-center space-x-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold">
+                      <Award className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-emerald-900 block">Your Approved Payout Earning</span>
+                      <span className="text-[10px] text-emerald-700">Credited to your technician leadership balance</span>
+                    </div>
+                  </div>
+                  <span className="text-base font-black text-emerald-800 font-mono">
+                    ₹{Number(job.technicianEarning).toLocaleString('en-IN')}
+                  </span>
+                </div>
+              )}
 
 
 

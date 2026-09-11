@@ -13,6 +13,7 @@ export interface IUser extends Document {
   specialties?: string[];
   rating?: number;
   completedJobsCount?: number;
+  totalEarnings?: number;
   isActive?: boolean;
   isAvailable?: boolean;
   currentJobId?: string;
@@ -34,6 +35,7 @@ const UserSchema: Schema = new Schema(
     specialties: [{ type: String }],
     rating: { type: Number, default: 5.0 },
     completedJobsCount: { type: Number, default: 0 },
+    totalEarnings: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
     isAvailable: { type: Boolean, default: true },
     currentJobId: { type: String, default: null },

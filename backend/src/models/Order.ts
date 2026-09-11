@@ -23,6 +23,14 @@ export interface IOrder extends Document {
   assignedTechnician?: string;
   assignedTechnicianName?: string;
   assignedTechnicianId?: string;
+  financials?: {
+    totalValue?: number;
+    companyProfit?: number;
+    technicianEarning?: number;
+    approvedAt?: Date;
+    approvedBy?: string;
+  };
+  technicianEarning?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -59,6 +67,14 @@ const OrderSchema: Schema = new Schema(
     assignedTechnician: { type: String, default: 'Unassigned' },
     assignedTechnicianName: { type: String, default: 'Unassigned' },
     assignedTechnicianId: { type: String },
+    financials: {
+      totalValue: { type: Number, default: 0 },
+      companyProfit: { type: Number, default: 0 },
+      technicianEarning: { type: Number, default: 0 },
+      approvedAt: { type: Date },
+      approvedBy: { type: String }
+    },
+    technicianEarning: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

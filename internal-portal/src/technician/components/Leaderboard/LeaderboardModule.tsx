@@ -31,6 +31,7 @@ interface LeaderboardTechnician {
   completedJobs: number;
   totalJobs: number;
   rating: number;
+  earnings: number;
   onTimeRate: number; // percentage
   firstTimeFixRate: number; // percentage
   points: number;
@@ -115,7 +116,12 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
           }];
         }
 
-        const currentTechCompletedCount = jobs.filter(j => j.status === 'COMPLETED' || j.status === 'APPROVED').length;
+        const currentTechCompletedJobs = jobs.filter(j => j.status === 'COMPLETED' || j.status === 'APPROVED');
+        const currentTechCompletedCount = currentTechCompletedJobs.length;
+        const currentTechJobsEarnings = currentTechCompletedJobs.reduce((sum, j) => {
+          const earningVal = Number((j as any).technicianEarning || (j as any).financials?.technicianEarning || 0);
+          return sum + earningVal;
+        }, 0);
 
         // Map live technicians to LeaderboardTechnician objects using real database values
         const mappedList: LeaderboardTechnician[] = liveTechs.map((bt: any, idx: number) => {
@@ -127,6 +133,11 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
           let completedCount = Number(bt.completedJobs) || 0;
           if (isCurrent && currentTechCompletedCount > completedCount) {
             completedCount = currentTechCompletedCount;
+          }
+
+          let techEarnings = Number(bt.totalEarnings) || Number(bt.earnings) || 0;
+          if (isCurrent && currentTechJobsEarnings > techEarnings) {
+            techEarnings = currentTechJobsEarnings;
           }
 
           const totalJobsCount = Math.max(completedCount, Number(bt.totalJobs) || completedCount);
@@ -171,6 +182,7 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
             completedJobs: completedCount,
             totalJobs: totalJobsCount,
             rating: ratingVal,
+            earnings: techEarnings,
             onTimeRate: onTimeVal,
             firstTimeFixRate: fixRateVal,
             points: pointsVal,
@@ -192,6 +204,7 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
             completedJobs: cJobs,
             totalJobs: Math.max(cJobs, jobs.length),
             rating: currentTechProfile?.rating || 5.0,
+            earnings: currentTechJobsEarnings,
             onTimeRate: 98,
             firstTimeFixRate: 95,
             points: (cJobs * 250) + 500 + (Math.max(cJobs, jobs.length) * 40),
@@ -216,10 +229,12 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
     const multiplier = timeframe === 'WEEK' ? 0.35 : timeframe === 'ALL_TIME' ? 3.2 : 1.0;
 
     let list = techniciansList.map(tech => {
+      const calculatedEarnings = Math.round(tech.earnings * multiplier);
       const calculatedPoints = Math.round(tech.points * multiplier);
       const isCurrent = tech.name.toLowerCase() === currentUserName.toLowerCase();
       return {
         ...tech,
+        earnings: calculatedEarnings,
         points: calculatedPoints,
         completedJobs: Math.round(tech.completedJobs * multiplier),
         isCurrentUser: isCurrent
@@ -241,8 +256,13 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
       );
     }
 
-    // Sort descending by points
-    list.sort((a, b) => b.points - a.points);
+    // Sort descending primarily by EARNINGS (Highest earner is Rank #1)
+    list.sort((a, b) => {
+      if (b.earnings !== a.earnings) {
+        return b.earnings - a.earnings;
+      }
+      return b.points - a.points;
+    });
 
     // Assign rank
     return list.map((tech, idx) => ({
@@ -365,6 +385,13 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
                 <span className="text-base sm:text-lg font-black text-blue-700 font-mono">#{myStanding.rank}</span>
               </div>
 
+              <div className="bg-white/90 border border-emerald-200/90 px-3.5 py-2 rounded-xl text-center shadow-2xs">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">YOUR EARNINGS</span>
+                <span className="text-base sm:text-lg font-black text-emerald-700 font-mono">
+                  ₹{myStanding.earnings.toLocaleString('en-IN')}
+                </span>
+              </div>
+
               <div className="bg-white/90 border border-amber-200/80 px-3.5 py-2 rounded-xl text-center shadow-2xs">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">FIELD XP</span>
                 <span className="text-base sm:text-lg font-black text-amber-600 font-mono flex items-center justify-center space-x-1">
@@ -422,8 +449,8 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
 
             <div className="mt-4 w-full grid grid-cols-2 gap-2 bg-slate-100/80 p-2.5 rounded-2xl text-xs font-mono">
               <div>
-                <span className="text-[10px] text-slate-400 block">POINTS</span>
-                <span className="font-black text-slate-800">{top2.points.toLocaleString()}</span>
+                <span className="text-[10px] text-slate-400 block">TOTAL EARNINGS</span>
+                <span className="font-black text-emerald-700">₹{top2.earnings.toLocaleString('en-IN')}</span>
               </div>
               <div>
                 <span className="text-[10px] text-slate-400 block">JOBS</span>
@@ -472,12 +499,12 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
 
             <div className="mt-4 w-full grid grid-cols-2 gap-2 bg-amber-100/60 border border-amber-200/70 p-3 rounded-2xl text-xs font-mono">
               <div>
-                <span className="text-[10px] text-amber-800/80 font-bold block">FIELD SCORE</span>
-                <span className="font-black text-lg text-amber-900">{top1.points.toLocaleString()}</span>
+                <span className="text-[10px] text-amber-800/80 font-bold block">TOTAL EARNINGS</span>
+                <span className="font-black text-lg text-emerald-800">₹{top1.earnings.toLocaleString('en-IN')}</span>
               </div>
               <div>
                 <span className="text-[10px] text-amber-800/80 font-bold block">COMPLETED</span>
-                <span className="font-black text-lg text-emerald-800">{top1.completedJobs} Orders</span>
+                <span className="font-black text-lg text-slate-800">{top1.completedJobs} Orders</span>
               </div>
             </div>
 
@@ -526,8 +553,8 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
 
             <div className="mt-4 w-full grid grid-cols-2 gap-2 bg-slate-100/80 p-2.5 rounded-2xl text-xs font-mono">
               <div>
-                <span className="text-[10px] text-slate-400 block">POINTS</span>
-                <span className="font-black text-slate-800">{top3.points.toLocaleString()}</span>
+                <span className="text-[10px] text-slate-400 block">TOTAL EARNINGS</span>
+                <span className="font-black text-emerald-700">₹{top3.earnings.toLocaleString('en-IN')}</span>
               </div>
               <div>
                 <span className="text-[10px] text-slate-400 block">JOBS</span>
@@ -592,7 +619,7 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
                 <th className="py-3 px-3 text-center">Completed</th>
                 <th className="py-3 px-3 text-center">Rating</th>
                 <th className="py-3 px-3 text-center">On-Time SLA</th>
-                <th className="py-3 px-3 text-right">Points (XP)</th>
+                <th className="py-3 px-3 text-right text-emerald-700 font-bold">Total Earnings</th>
                 <th className="py-3 px-3 text-center">Recognition</th>
               </tr>
             </thead>
@@ -683,9 +710,9 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
                         {tech.onTimeRate}%
                       </td>
 
-                      {/* Points */}
-                      <td className="py-3.5 px-3 text-right font-mono font-black text-slate-900 text-sm">
-                        {tech.points.toLocaleString()}
+                      {/* Total Earnings */}
+                      <td className="py-3.5 px-3 text-right font-mono font-black text-emerald-700 text-sm">
+                        ₹{tech.earnings.toLocaleString('en-IN')}
                       </td>
 
                       {/* Badges */}

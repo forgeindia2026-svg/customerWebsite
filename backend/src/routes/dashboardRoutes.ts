@@ -211,10 +211,12 @@ router.get('/', async (req: Request, res: Response) => {
       const job = jobByCode.get(order.orderNumber);
       const existingDashOrder = Array.isArray(dashboardData.orders) ? dashboardData.orders.find((o: any) => o.id === order.orderNumber || o.orderNumber === order.orderNumber) : null;
       let dashboardStatus = 'Pending';
-      if (job?.status === 'APPROVED' || order.orderStatus === 'DELIVERED' || order.orderStatus === 'SHIPPED' || order.status === 'Approved' || existingDashOrder?.status === 'Approved') {
+      if (job?.status === 'APPROVED' || existingDashOrder?.status === 'Approved') {
         dashboardStatus = 'Approved';
       } else if (job?.status === 'COMPLETED' || job?.status === 'WAITING_ADMIN_APPROVAL') {
         dashboardStatus = 'Completed';
+      } else if (order.orderStatus === 'DELIVERED' || order.orderStatus === 'SHIPPED') {
+        dashboardStatus = job ? 'Completed' : 'Approved';
       } else if (job?.status === 'IN_PROGRESS' || job?.status === 'ASSIGNED') {
         dashboardStatus = 'In Progress';
       } else if (order.orderStatus === 'CANCELLED' || job?.status === 'CANCELLED') {
@@ -299,7 +301,9 @@ router.get('/', async (req: Request, res: Response) => {
         fieldNotes: taskDesc,
         inspectionComments: inspectionNotes,
         startedAt,
-        updatedAt
+        updatedAt,
+        financials: job?.financials || order.financials || null,
+        technicianEarning: job?.technicianEarning || order.technicianEarning || 0
       };
     });
 
@@ -318,6 +322,8 @@ router.get('/', async (req: Request, res: Response) => {
         currentProject: activeJob ? activeJob.title : 'None',
         rating: tech.rating || 5.0,
         specialization: effectiveRole,
+        totalEarnings: tech.totalEarnings || 0,
+        completedJobsCount: tech.completedJobsCount || 0,
         password: tech.passwordHash || '',
         avatar: tech.avatar || tech.avatarUrl || '',
         avatarUrl: tech.avatar || tech.avatarUrl || ''

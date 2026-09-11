@@ -96,6 +96,14 @@ export interface IJob extends Document {
   };
   rejectedTechnicianIds?: string[];
   customerConfirmed?: boolean;
+  financials?: {
+    totalValue?: number;
+    companyProfit?: number;
+    technicianEarning?: number;
+    approvedAt?: Date;
+    approvedBy?: string;
+  };
+  technicianEarning?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -222,7 +230,15 @@ const JobSchema: Schema = new Schema(
       startedAt: { type: Date },
       updatedAt: { type: Date },
       updatedBy: { type: String }
-    }
+    },
+    financials: {
+      totalValue: { type: Number, default: 0 },
+      companyProfit: { type: Number, default: 0 },
+      technicianEarning: { type: Number, default: 0 },
+      approvedAt: { type: Date },
+      approvedBy: { type: String }
+    },
+    technicianEarning: { type: Number, default: 0 }
   },
   { timestamps: true }
 );

@@ -798,265 +798,396 @@ export default function Reports() {
       const doc = new jsPDF();
       const isApproved = localStorage.getItem(`report_approved_${report?.jobCode}`) === 'true' || report?.status === 'Approved' || report?.status === 'COMPLETED';
 
-      // Header Banner - Slate Charcoal
-      doc.setFillColor(51, 65, 85); 
-      doc.rect(0, 0, 210, 38, 'F');
-
-      doc.setTextColor(255, 255, 255);
+      // ─── 1. Header (Clean White Letterhead - No Dark Color Banner) ───
+      doc.setTextColor(15, 23, 42); // slate-900
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(18);
-      doc.text('SK TECHNOLOGY', 14, 16);
+      doc.setFontSize(16);
+      doc.text('SK TECHNOLOGY', 14, 15);
 
-      doc.setFontSize(9);
+      doc.setFontSize(8.5);
       doc.setFont('helvetica', 'normal');
-      doc.text('CCTV Solutions & Security Systems', 14, 23);
-      doc.text('Official Field Service & Installation Audit Report', 14, 29);
+      doc.setTextColor(71, 85, 105); // slate-600
+      doc.text('CCTV Solutions & Security Systems', 14, 21);
+      doc.setTextColor(100, 116, 139); // slate-500
+      doc.text('Official Field Service & Installation Audit Report', 14, 26);
 
+      // Right-aligned Job Code, Date & Status
+      doc.setTextColor(15, 23, 42);
       doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
-      doc.text(`JOB CODE: ${report?.jobCode || 'SK-ORD-42431'}`, 135, 16);
+      doc.text(`JOB CODE: ${report?.jobCode || 'SK-ORD-42431'}`, 130, 15);
+
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Date: ${new Date().toLocaleDateString('en-IN')}`, 135, 23);
-      doc.text(`Status: ${isApproved ? 'VERIFIED & APPROVED' : 'SUBMITTED'}`, 135, 29);
+      doc.setTextColor(71, 85, 105);
+      const repDateStr = `${getReportDisplayDate(report)}${getReportDisplayTime(report) ? ` • ${getReportDisplayTime(report)}` : ''}`;
+      doc.text(`Date: ${repDateStr}`, 130, 21);
 
-      // Section 1: Specifications Box
+      if (isApproved) {
+        doc.setTextColor(5, 150, 105); // emerald-600
+        doc.setFont('helvetica', 'bold');
+        doc.text('Status: VERIFIED & APPROVED', 130, 26);
+      } else {
+        doc.setTextColor(217, 119, 6); // amber-600
+        doc.setFont('helvetica', 'bold');
+        doc.text('Status: SUBMITTED - UNDER REVIEW', 130, 26);
+      }
+
+      // Elegant Divider Line
+      doc.setDrawColor(203, 213, 225); // slate-300
+      doc.setLineWidth(0.5);
+      doc.line(14, 30, 196, 30);
+
+      // ─── 2. Service & Customer Details Box ───
       doc.setFillColor(248, 250, 252);
-      doc.rect(14, 46, 182, 45, 'F');
+      doc.rect(14, 34, 182, 32, 'F');
       doc.setDrawColor(226, 232, 240);
-      doc.rect(14, 46, 182, 45, 'S');
+      doc.rect(14, 34, 182, 32, 'S');
 
-      doc.setTextColor(30, 41, 59);
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
-      doc.text('SERVICE & CUSTOMER DETAILS', 20, 55);
-
+      doc.setTextColor(15, 23, 42);
       doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
-      doc.text('Technician:', 20, 64);
+      doc.text('SERVICE & CUSTOMER DETAILS', 18, 41);
+
+      doc.setFontSize(8);
+      // Column 1 (Left)
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(71, 85, 105);
+      doc.text('Technician:', 18, 49);
       doc.setFont('helvetica', 'normal');
-      doc.text(report?.technician || 'Technician Engineer', 60, 64);
+      doc.setTextColor(15, 23, 42);
+      doc.text(String(report?.technician || 'Field Service Engineer'), 44, 49);
 
       doc.setFont('helvetica', 'bold');
-      doc.text('Customer Name:', 20, 71);
+      doc.setTextColor(71, 85, 105);
+      doc.text('Customer:', 18, 57);
       doc.setFont('helvetica', 'normal');
-      doc.text(report?.customer || 'Customer Client', 60, 71);
+      doc.setTextColor(15, 23, 42);
+      doc.text(String(report?.customer || 'Customer Client'), 44, 57);
+
+      // Column 2 (Right)
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(71, 85, 105);
+      doc.text('Service:', 108, 49);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(15, 23, 42);
+      const titleLines = doc.splitTextToSize(String(report?.title || 'CCTV Installation & Service'), 80);
+      doc.text(titleLines[0] || '', 126, 49);
 
       doc.setFont('helvetica', 'bold');
-      doc.text('Service Category:', 20, 78);
+      doc.setTextColor(71, 85, 105);
+      doc.text('Location:', 108, 57);
       doc.setFont('helvetica', 'normal');
-      doc.text(report?.title || 'CCTV Installation & Service', 60, 78);
+      doc.setTextColor(15, 23, 42);
+      const addrLines = doc.splitTextToSize(String(report?.address || 'Site Location, Chennai'), 68);
+      doc.text(addrLines.slice(0, 1), 126, 57);
 
+      // ─── 3. Technician Field Narrative & Notes ───
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
-      doc.text('Site Location:', 20, 85);
-      doc.setFont('helvetica', 'normal');
-      doc.text(report?.address || 'Chennai Area, Tamil Nadu', 60, 85);
-
-      // Section 2: Field Narrative
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
-      doc.text('TECHNICIAN FIELD NARRATIVE & COMMENTS', 14, 103);
+      doc.text('TECHNICIAN FIELD NARRATIVE & SITE COMMENTS', 14, 73);
 
       doc.setFillColor(255, 255, 255);
       doc.setDrawColor(226, 232, 240);
-      doc.rect(14, 107, 182, 65, 'S');
-      doc.setFontSize(9);
+      doc.rect(14, 76, 182, 34, 'S');
+
+      doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(51, 65, 85);
-      const splitNotes = doc.splitTextToSize(report?.notes || 'Technician site service report submitted successfully following standard installation & testing protocols.', 174);
-      doc.text(splitNotes, 18, 116);
+      const splitNotes = doc.splitTextToSize(
+        report?.notes || 'Technician site service report submitted successfully following standard installation & testing protocols.',
+        174
+      );
+      doc.text(splitNotes.slice(0, 5), 18, 83);
 
-      // Signatures Box
-      doc.setLineWidth(0.5);
-      doc.setDrawColor(203, 213, 225);
-      doc.line(14, 220, 196, 220);
-
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Technician Signature', 20, 235);
-      doc.text('Admin Authorization Stamp', 135, 235);
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.text(report?.technician || 'Field Service Engineer', 20, 241);
-      doc.text('SK Technology Management', 135, 241);
-      doc.text(isApproved ? 'VERIFIED & APPROVED' : 'SUBMITTED - PENDING AUDIT', 135, 246);
-
-      // Footer line
-      doc.setFontSize(7);
-      doc.setTextColor(148, 163, 184);
-      doc.text(`Generated electronically by SK Technology Portal on ${new Date().toLocaleString('en-IN')}`, 14, 285);
-
-      // Site Evidence Photos Section
+      // ─── 4. Site Evidence Photos Handling ───
       const beforePhotos = report?.beforePhotos || report?.beforeWorkPhotos || [];
       const afterPhotos = report?.afterPhotos || report?.afterWorkPhotos || [];
+      const allPhotos = [...afterPhotos, ...beforePhotos].filter(Boolean);
 
-      if (beforePhotos.length > 0 || afterPhotos.length > 0) {
-        doc.addPage();
-        
-        doc.setFillColor(51, 65, 85); 
-        doc.rect(0, 0, 210, 25, 'F');
-        doc.setTextColor(255, 255, 255);
+      const baseUrl = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
+
+      // Robust base64 loader
+      const loadImageAsBase64 = async (p) => {
+        if (!p) return null;
+        let rawUrl = '';
+        if (typeof p === 'string') {
+          rawUrl = p.trim();
+        } else if (typeof p === 'object' && p !== null) {
+          rawUrl = p.url || p.imageUrl || p.photoUrl || p.secure_url || p.src || '';
+        }
+        if (!rawUrl || typeof rawUrl !== 'string') return null;
+        if (rawUrl.startsWith('data:image')) return rawUrl;
+
+        let targetUrl = rawUrl;
+        if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://') && !targetUrl.startsWith('data:') && !targetUrl.startsWith('blob:')) {
+          targetUrl = `${baseUrl}${targetUrl.startsWith('/') ? '' : '/'}${targetUrl}`;
+        }
+
+        const imageToDataUrl = (img) => {
+          try {
+            const canvas = document.createElement('canvas');
+            let w = img.naturalWidth || img.width || 800;
+            let h = img.naturalHeight || img.height || 600;
+            const maxDim = 800;
+            if (w > maxDim || h > maxDim) {
+              if (w > h) {
+                h = Math.round((h * maxDim) / w);
+                w = maxDim;
+              } else {
+                w = Math.round((w * maxDim) / h);
+                h = maxDim;
+              }
+            }
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return null;
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, w, h);
+            ctx.drawImage(img, 0, 0, w, h);
+            return canvas.toDataURL('image/jpeg', 0.85);
+          } catch {
+            return null;
+          }
+        };
+
+        const tryImageElement = (url) => new Promise((resolve) => {
+          const img = new Image();
+          img.crossOrigin = 'Anonymous';
+          img.onload = () => resolve(imageToDataUrl(img));
+          img.onerror = () => resolve(null);
+          img.src = url;
+        });
+
+        const tryFetch = async (url) => {
+          try {
+            const res = await fetch(url);
+            if (!res.ok) return null;
+            const blob = await res.blob();
+            return await new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result);
+              reader.onerror = () => resolve(null);
+              reader.readAsDataURL(blob);
+            });
+          } catch {
+            return null;
+          }
+        };
+
+        let data = await tryFetch(targetUrl);
+        if (data && typeof data === 'string' && data.startsWith('data:image')) return data;
+
+        data = await tryImageElement(targetUrl);
+        if (data && typeof data === 'string' && data.startsWith('data:image')) return data;
+
+        if (targetUrl.startsWith('http://') || targetUrl.startsWith('https://')) {
+          const proxyUrl = `${baseUrl}/api/upload/proxy-image?url=${encodeURIComponent(targetUrl)}`;
+          data = await tryFetch(proxyUrl);
+          if (data && typeof data === 'string' && data.startsWith('data:image')) return data;
+
+          data = await tryImageElement(proxyUrl);
+          if (data && typeof data === 'string' && data.startsWith('data:image')) return data;
+        }
+
+        return null;
+      };
+
+      if (allPhotos.length <= 2) {
+        // ─── CASE A: <= 2 Photos (Fits 100% on Single Page 1) ───
+        doc.setTextColor(15, 23, 42);
+        doc.setFontSize(9);
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(14);
-        doc.text('SITE EVIDENCE PHOTOS', 14, 16);
-        
-        let photoYPos = 36;
-        const baseUrl = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
+        doc.text(`SITE EVIDENCE PHOTOS (${allPhotos.length} Uploaded)`, 14, 118);
 
-        // Robust base64 loader with CORS fallback and backend proxy
-        const loadImageAsBase64 = async (p) => {
-          if (!p) return null;
-          let rawUrl = '';
-          if (typeof p === 'string') {
-            rawUrl = p.trim();
-          } else if (typeof p === 'object' && p !== null) {
-            rawUrl = p.url || p.imageUrl || p.photoUrl || p.secure_url || p.src || '';
-          }
-          if (!rawUrl || typeof rawUrl !== 'string') return null;
+        const photoBoxY = 122;
+        const pWidth = allPhotos.length === 1 ? 95 : 88;
+        const pHeight = 64;
+        const gap = 6;
 
-          if (rawUrl.startsWith('data:image')) {
-            return rawUrl;
-          }
+        if (allPhotos.length > 0) {
+          let curX = 14;
+          for (let i = 0; i < allPhotos.length; i++) {
+            const imgData = await loadImageAsBase64(allPhotos[i]);
+            doc.setDrawColor(226, 232, 240);
+            doc.setFillColor(248, 250, 252);
+            doc.rect(curX, photoBoxY, pWidth, pHeight, 'FD');
 
-          let targetUrl = rawUrl;
-          if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://') && !targetUrl.startsWith('data:') && !targetUrl.startsWith('blob:')) {
-            targetUrl = `${baseUrl}${targetUrl.startsWith('/') ? '' : '/'}${targetUrl}`;
-          }
-
-          const imageToDataUrl = (img) => {
-            try {
-              const canvas = document.createElement('canvas');
-              let w = img.naturalWidth || img.width || 800;
-              let h = img.naturalHeight || img.height || 600;
-              const maxDim = 1200;
-              if (w > maxDim || h > maxDim) {
-                if (w > h) {
-                  h = Math.round((h * maxDim) / w);
-                  w = maxDim;
-                } else {
-                  w = Math.round((w * maxDim) / h);
-                  h = maxDim;
-                }
+            if (imgData) {
+              try {
+                doc.addImage(imgData, 'JPEG', curX + 0.5, photoBoxY + 0.5, pWidth - 1, pHeight - 1);
+              } catch (imgErr) {
+                console.warn('jsPDF addImage error:', imgErr);
               }
-              canvas.width = w;
-              canvas.height = h;
-              const ctx = canvas.getContext('2d');
-              if (!ctx) return null;
-              ctx.fillStyle = '#FFFFFF';
-              ctx.fillRect(0, 0, w, h);
-              ctx.drawImage(img, 0, 0, w, h);
-              return canvas.toDataURL('image/jpeg', 0.85);
-            } catch {
-              return null;
+            } else {
+              doc.setFontSize(7.5);
+              doc.setFont('helvetica', 'normal');
+              doc.setTextColor(148, 163, 184);
+              doc.text(`Photo ${i + 1}`, curX + (pWidth / 2) - 6, photoBoxY + (pHeight / 2));
             }
-          };
+            curX += pWidth + gap;
+          }
+        } else {
+          doc.setDrawColor(226, 232, 240);
+          doc.setFillColor(248, 250, 252);
+          doc.rect(14, photoBoxY, 182, 22, 'FD');
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'italic');
+          doc.setTextColor(148, 163, 184);
+          doc.text('No site photos attached to this report.', 20, photoBoxY + 13);
+        }
 
-          const tryImageElement = (url) => new Promise((resolve) => {
-            const img = new Image();
-            img.crossOrigin = 'Anonymous';
-            img.onload = () => resolve(imageToDataUrl(img));
-            img.onerror = () => resolve(null);
-            img.src = url;
-          });
+        // Signatures at bottom of Page 1
+        doc.setLineWidth(0.5);
+        doc.setDrawColor(203, 213, 225);
+        doc.line(14, 218, 196, 218);
 
-          const tryFetch = async (url) => {
-            try {
-              const res = await fetch(url);
-              if (!res.ok) return null;
-              const blob = await res.blob();
-              return await new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result);
-                reader.onerror = () => resolve(null);
-                reader.readAsDataURL(blob);
-              });
-            } catch {
-              return null;
+        doc.setFontSize(8.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(15, 23, 42);
+        doc.text('Technician Sign-off', 20, 227);
+        doc.text('Admin Verification Stamp', 130, 227);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(71, 85, 105);
+        doc.text(String(report?.technician || 'Field Service Engineer'), 20, 233);
+        doc.text('SK Technology Security Systems', 130, 233);
+
+        doc.setFont('helvetica', 'bold');
+        if (isApproved) {
+          doc.setTextColor(5, 150, 105);
+          doc.text('VERIFIED & APPROVED', 130, 239);
+        } else {
+          doc.setTextColor(217, 119, 6);
+          doc.text('SUBMITTED - PENDING AUDIT', 130, 239);
+        }
+
+        // Footer
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+        doc.setTextColor(148, 163, 184);
+        doc.text(`Official SK Technology Field Service Audit Report • Generated on ${new Date().toLocaleString('en-IN')}`, 14, 275);
+
+      } else {
+        // ─── CASE B: > 2 Photos (Page 1 Executive Summary + Extra Pages for All Photos) ───
+        // On Page 1, place an Evidence Notice Box
+        doc.setFillColor(248, 250, 252);
+        doc.rect(14, 118, 182, 28, 'F');
+        doc.setDrawColor(226, 232, 240);
+        doc.rect(14, 118, 182, 28, 'S');
+
+        doc.setTextColor(15, 23, 42);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`SITE EVIDENCE SUMMARY (${allPhotos.length} Photos Captured)`, 18, 126);
+
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(71, 85, 105);
+        doc.text(`The field technician has attached ${allPhotos.length} site inspection and installation evidence photos.`, 18, 133);
+        doc.text('Full-resolution photographic proof is presented in the Evidence Annexure on the following page(s).', 18, 139);
+
+        // Signatures on Page 1
+        doc.setLineWidth(0.5);
+        doc.setDrawColor(203, 213, 225);
+        doc.line(14, 175, 196, 175);
+
+        doc.setFontSize(8.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(15, 23, 42);
+        doc.text('Technician Sign-off', 20, 186);
+        doc.text('Admin Verification Stamp', 130, 186);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(71, 85, 105);
+        doc.text(String(report?.technician || 'Field Service Engineer'), 20, 193);
+        doc.text('SK Technology Security Systems', 130, 193);
+
+        doc.setFont('helvetica', 'bold');
+        if (isApproved) {
+          doc.setTextColor(5, 150, 105);
+          doc.text('VERIFIED & APPROVED', 130, 200);
+        } else {
+          doc.setTextColor(217, 119, 6);
+          doc.text('SUBMITTED - PENDING AUDIT', 130, 200);
+        }
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+        doc.setTextColor(148, 163, 184);
+        doc.text(`Official SK Technology Field Service Audit Report • Page 1 of ${Math.ceil(allPhotos.length / 4) + 1}`, 14, 275);
+
+        // Render Subsequent Pages for All Photos (4 photos per page in 2x2 grid)
+        const totalPhotoPages = Math.ceil(allPhotos.length / 4);
+        for (let pIndex = 0; pIndex < totalPhotoPages; pIndex++) {
+          doc.addPage();
+          const pageNum = pIndex + 2;
+          const totalPages = totalPhotoPages + 1;
+
+          // Clean White Header on Photo Pages (NO dark banner!)
+          doc.setTextColor(15, 23, 42);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(14);
+          doc.text('SK TECHNOLOGY • SITE EVIDENCE PHOTOS', 14, 15);
+
+          doc.setFontSize(8.5);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(71, 85, 105);
+          doc.text(`Job Code: ${report?.jobCode || ''} • Work Verification Evidence`, 14, 21);
+
+          doc.setTextColor(100, 116, 139);
+          doc.text(`Page ${pageNum} of ${totalPages}`, 170, 21);
+
+          doc.setDrawColor(203, 213, 225);
+          doc.setLineWidth(0.5);
+          doc.line(14, 25, 196, 25);
+
+          const photosOnThisPage = allPhotos.slice(pIndex * 4, (pIndex + 1) * 4);
+          for (let i = 0; i < photosOnThisPage.length; i++) {
+            const col = i % 2;
+            const row = Math.floor(i / 2);
+            const x = col === 0 ? 14 : 108;
+            const y = 32 + (row * 105);
+            const w = 88;
+            const h = 80;
+
+            const photoItem = photosOnThisPage[i];
+            const imgData = await loadImageAsBase64(photoItem);
+
+            doc.setDrawColor(226, 232, 240);
+            doc.setFillColor(248, 250, 252);
+            doc.rect(x, y, w, h, 'FD');
+
+            if (imgData) {
+              try {
+                doc.addImage(imgData, 'JPEG', x + 0.5, y + 0.5, w - 1, h - 1);
+              } catch (imgErr) {
+                console.warn('jsPDF addImage error:', imgErr);
+              }
+            } else {
+              doc.setFontSize(8);
+              doc.setFont('helvetica', 'normal');
+              doc.setTextColor(148, 163, 184);
+              doc.text(`Photo ${pIndex * 4 + i + 1}`, x + 35, y + 40);
             }
-          };
 
-          // 1. Try direct fetch
-          let data = await tryFetch(targetUrl);
-          if (data && typeof data === 'string' && data.startsWith('data:image')) return data;
-
-          // 2. Try direct Image tag
-          data = await tryImageElement(targetUrl);
-          if (data && typeof data === 'string' && data.startsWith('data:image')) return data;
-
-          // 3. Fallback: Proxy through backend (bypasses AWS S3 & cross-origin CORS limitations)
-          if (targetUrl.startsWith('http://') || targetUrl.startsWith('https://')) {
-            const proxyUrl = `${baseUrl}/api/upload/proxy-image?url=${encodeURIComponent(targetUrl)}`;
-            data = await tryFetch(proxyUrl);
-            if (data && typeof data === 'string' && data.startsWith('data:image')) return data;
-
-            data = await tryImageElement(proxyUrl);
-            if (data && typeof data === 'string' && data.startsWith('data:image')) return data;
+            // Photo caption
+            doc.setFontSize(7.5);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(51, 65, 85);
+            doc.text(`Evidence #${pIndex * 4 + i + 1}: Site Proof`, x, y + h + 5);
           }
 
-          return null;
-        };
-
-        const processPhotos = async (photos, title) => {
-           if (!photos || photos.length === 0) return;
-           
-           if (photoYPos + 30 > 280) {
-              doc.addPage();
-              photoYPos = 25;
-           }
-
-           doc.setFontSize(11);
-           doc.setFont('helvetica', 'bold');
-           doc.setTextColor(30, 41, 59);
-           doc.text(title, 14, photoYPos);
-           photoYPos += 8;
-           
-           let xPos = 14;
-           let renderedCount = 0;
-           
-           for (let i = 0; i < photos.length; i++) {
-              const p = photos[i];
-              const imgData = await loadImageAsBase64(p);
-              
-              if (imgData) {
-                 if (photoYPos + 62 > 280) {
-                     doc.addPage();
-                     photoYPos = 25;
-                     xPos = 14;
-                 }
-                 
-                 try {
-                    doc.setDrawColor(226, 232, 240);
-                    doc.setFillColor(248, 250, 252);
-                    doc.rect(xPos, photoYPos, 85, 62, 'FD');
-                    doc.addImage(imgData, 'JPEG', xPos + 1, photoYPos + 1, 83, 60);
-                    renderedCount++;
-                    
-                    xPos += 95;
-                    if (xPos > 150) {
-                        xPos = 14;
-                        photoYPos += 68;
-                    }
-                 } catch (imgErr) {
-                    console.error("jsPDF addImage error:", imgErr);
-                 }
-              }
-           }
-           
-           if (xPos !== 14) {
-               photoYPos += 68;
-           } else if (renderedCount === 0) {
-               doc.setFontSize(9);
-               doc.setFont('helvetica', 'normal');
-               doc.setTextColor(148, 163, 184);
-               doc.text('Photos attached to job are being synchronized.', 18, photoYPos);
-               photoYPos += 14;
-           }
-        };
-
-        await processPhotos(beforePhotos, 'BEFORE INSTALLATION');
-        photoYPos += 6;
-        await processPhotos(afterPhotos, 'AFTER INSTALLATION');
+          // Footer on Photo Page
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(7);
+          doc.setTextColor(148, 163, 184);
+          doc.text(`SK Technology Field Service Audit Proof • Page ${pageNum} of ${totalPages}`, 14, 285);
+        }
       }
 
       // Trigger automatic PDF file download!
@@ -1071,25 +1202,30 @@ export default function Reports() {
     try {
       const doc = new jsPDF();
 
-      // Header Banner - Slate Charcoal
-      doc.setFillColor(51, 65, 85); 
-      doc.rect(0, 0, 210, 38, 'F');
-
-      doc.setTextColor(255, 255, 255);
+      // Header - Clean Executive White Letterhead
+      doc.setTextColor(15, 23, 42);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(16);
-      doc.text('SK TECHNOLOGY', 14, 16);
+      doc.text('SK TECHNOLOGY', 14, 15);
 
-      doc.setFontSize(9);
+      doc.setFontSize(8.5);
       doc.setFont('helvetica', 'normal');
-      doc.text('CCTV Solutions & Security Systems', 14, 23);
-      doc.text('ALL FIELD SERVICE REPORTS SUMMARY LOG', 14, 29);
+      doc.setTextColor(71, 85, 105);
+      doc.text('CCTV Solutions & Security Systems', 14, 21);
+      doc.setTextColor(100, 116, 139);
+      doc.text('ALL FIELD SERVICE REPORTS SUMMARY LOG', 14, 26);
 
-      doc.setFontSize(9);
-      doc.text(`Generated: ${new Date().toLocaleDateString('en-IN')}`, 140, 20);
-      doc.text(`Total Records: ${allReportsList.length}`, 140, 26);
+      doc.setFontSize(8.5);
+      doc.setTextColor(71, 85, 105);
+      doc.text(`Generated: ${new Date().toLocaleDateString('en-IN')}`, 135, 20);
+      doc.text(`Total Records: ${allReportsList.length}`, 135, 26);
 
-      let y = 48;
+      // Divider Line
+      doc.setDrawColor(203, 213, 225);
+      doc.setLineWidth(0.5);
+      doc.line(14, 30, 196, 30);
+
+      let y = 38;
       allReportsList.forEach((rep, idx) => {
         if (y > 250) {
           doc.addPage();

@@ -61,15 +61,18 @@ export const fetchDashboardData = createAsyncThunk(
 
 export const adminApproveJob = createAsyncThunk(
   'dashboard/adminApproveJob',
-  async (jobId, { dispatch }) => {
-    // Optimistically update UI immediately so status flips to Completed without waiting
-    dispatch(dashboardSlice.actions.approveOrderCompletion(jobId));
+  async (payload, { dispatch }) => {
+    const jobId = typeof payload === 'object' ? (payload.jobId || payload.id) : payload;
+    const body = typeof payload === 'object' ? payload : {};
+    // Optimistically update UI immediately so status flips to Approved without waiting
+    dispatch(dashboardSlice.actions.approveOrderCompletion(payload));
     try {
-      const res = await fetch(`${getApiUrl()}/api/jobs/${jobId}/admin-approve`, {
+      const res = await fetch(`${getApiUrl()}/api/jobs/${encodeURIComponent(jobId)}/admin-approve`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify(body)
       });
       const data = await res.json();
       if (data.success) {
@@ -359,7 +362,12 @@ const dashboardSlice = createSlice({
       }
     },
     approveOrderCompletion: (state, action) => {
-      const orderId = typeof action.payload === 'string' ? action.payload : action.payload?.id;
+      const orderId = typeof action.payload === 'string' ? action.payload : (action.payload?.jobId || action.payload?.id);
+      const financials = typeof action.payload === 'object' ? {
+        totalValue: Number(action.payload.totalValue) || 0,
+        companyProfit: Number(action.payload.companyProfit) || 0,
+        technicianEarning: Number(action.payload.technicianEarning) || 0
+      } : null;
       if (orderId) {
         try {
           const list = JSON.parse(localStorage.getItem('sk_approved_orders') || '[]');
@@ -374,10 +382,18 @@ const dashboardSlice = createSlice({
         order.status = 'Approved';
         order.rawJobStatus = 'APPROVED';
         order.orderStatus = 'DELIVERED';
+        if (financials) {
+          order.financials = financials;
+          order.technicianEarning = financials.technicianEarning;
+        }
       }
       const project = state.projects.find(p => p.id === orderId || p.jobCode === orderId);
       if (project) {
         project.status = 'Approved';
+        if (financials) {
+          project.financials = financials;
+          project.technicianEarning = financials.technicianEarning;
+        }
       }
       try {
         const cached = JSON.parse(localStorage.getItem('sk_admin_dashboard_cache') || '{}');

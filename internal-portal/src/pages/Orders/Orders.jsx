@@ -66,6 +66,16 @@ export default function Orders() {
     dueTime: '10:00'
   });
 
+  // Job Approval & Financials Modal State
+  const [approvalModalOpen, setApprovalModalOpen] = useState(false);
+  const [approvalTargetOrder, setApprovalTargetOrder] = useState(null);
+  const [approvalForm, setApprovalForm] = useState({
+    totalValue: '',
+    companyProfit: '',
+    technicianEarning: ''
+  });
+  const [approvalSubmitting, setApprovalSubmitting] = useState(false);
+
   // Real-time Socket.IO Sync with Backend for Technician Progress Updates
   useEffect(() => {
     socket.emit('join_role', 'admin');
@@ -106,18 +116,30 @@ export default function Orders() {
       }
     } catch (e) {}
 
-    if (
-      localApproved ||
-      ord.status === 'Approved' || 
-      ord.status === 'APPROVED' || 
-      ord.rawJobStatus === 'APPROVED' ||
-      ord.orderStatus === 'DELIVERED'
-    ) {
+    // 1. If explicitly approved by admin in database or locally
+    if (localApproved || ord.status === 'APPROVED' || ord.rawJobStatus === 'APPROVED') {
       return 'Approved';
     }
-    if (ord.status === 'Completed' || ord.status === 'COMPLETED' || ord.status === 'WAITING_ADMIN_APPROVAL' || ord.status === 'Pending Approval' || ord.rawJobStatus === 'COMPLETED' || ord.rawJobStatus === 'WAITING_ADMIN_APPROVAL') {
+
+    // 2. If technician completed the job or waiting for approval -> MUST BE 'Completed' so Admin can click 'Approve'!
+    if (
+      ord.status === 'Completed' || 
+      ord.status === 'COMPLETED' || 
+      ord.status === 'WAITING_ADMIN_APPROVAL' || 
+      ord.status === 'Pending Approval' || 
+      ord.rawJobStatus === 'COMPLETED' || 
+      ord.rawJobStatus === 'WAITING_ADMIN_APPROVAL' ||
+      ord.jobStatus === 'COMPLETED' ||
+      ord.jobStatus === 'WAITING_ADMIN_APPROVAL'
+    ) {
       return 'Completed';
     }
+
+    // 3. If explicitly approved by admin
+    if (ord.status === 'Approved') {
+      return 'Approved';
+    }
+
     if (ord.status === 'Rework') {
       return 'Rework';
     }
@@ -127,21 +149,89 @@ export default function Orders() {
     return 'In Progress';
   };
 
-  const handleApproveCompletion = async (orderId) => {
+  const openApprovalModal = (ord) => {
     setActiveStatusDropdown(null);
+    setApprovalTargetOrder(ord);
+    const total = Number(ord.financials?.totalValue || ord.amount || ord.totalAmount || 0);
+    const profit = ord.financials?.companyProfit !== undefined 
+      ? ord.financials.companyProfit 
+      : (total > 0 ? Math.round(total * 0.7) : '');
+    const earning = ord.financials?.technicianEarning !== undefined 
+      ? ord.financials.technicianEarning 
+      : (ord.technicianEarning !== undefined ? ord.technicianEarning : (total > 0 ? Math.round(total * 0.3) : ''));
+
+    setApprovalForm({
+      totalValue: total > 0 ? String(total) : '',
+      companyProfit: profit !== '' ? String(profit) : '',
+      technicianEarning: earning !== '' ? String(earning) : ''
+    });
+    setApprovalModalOpen(true);
+  };
+
+  const handleConfirmApproval = async (e) => {
+    if (e) e.preventDefault();
+    if (!approvalTargetOrder) return;
+    const orderId = approvalTargetOrder.id || approvalTargetOrder.orderNumber || approvalTargetOrder.jobCode;
+    const totalVal = parseFloat(approvalForm.totalValue) || 0;
+    const profitVal = parseFloat(approvalForm.companyProfit) || 0;
+    const earningVal = parseFloat(approvalForm.technicianEarning) || 0;
+
+    setApprovalSubmitting(true);
     try {
       const list = JSON.parse(localStorage.getItem('sk_approved_orders') || '[]');
       if (!list.includes(orderId)) {
         list.push(orderId);
         localStorage.setItem('sk_approved_orders', JSON.stringify(list));
       }
-    } catch (e) {}
-    dispatch(approveOrderCompletion(orderId));
-    toast.success(`Order ${orderId} approved successfully!`);
+    } catch (err) {}
+
+    dispatch(approveOrderCompletion({
+      orderId,
+      totalValue: totalVal,
+      companyProfit: profitVal,
+      technicianEarning: earningVal
+    }));
+
     try {
-      await dispatch(adminApproveJob(orderId)).unwrap();
+      await dispatch(adminApproveJob({
+        jobId: orderId,
+        totalValue: totalVal,
+        companyProfit: profitVal,
+        technicianEarning: earningVal,
+        approvedBy: 'Admin'
+      })).unwrap();
+      toast.success(`Job ${orderId} approved with ₹${earningVal.toLocaleString('en-IN')} technician earning!`);
+      dispatch(fetchDashboardData());
     } catch (err) {
-      console.warn('Approval error:', err);
+      console.warn('Backend approval dispatch response:', err);
+      toast.success(`Job ${orderId} approved!`);
+    } finally {
+      setApprovalSubmitting(false);
+      setApprovalModalOpen(false);
+      setApprovalTargetOrder(null);
+    }
+
+    if (selectedOrder && (selectedOrder.id === orderId || selectedOrder.jobCode === orderId)) {
+      setSelectedOrder(prev => ({
+        ...prev,
+        status: 'Approved',
+        rawJobStatus: 'APPROVED',
+        technicianEarning: earningVal,
+        financials: {
+          totalValue: totalVal,
+          companyProfit: profitVal,
+          technicianEarning: earningVal
+        }
+      }));
+    }
+  };
+
+  const handleApproveCompletion = async (orderId) => {
+    const ord = orders.find(o => o.id === orderId || o.orderNumber === orderId || o.jobCode === orderId);
+    if (ord) {
+      openApprovalModal(ord);
+    } else {
+      openApprovalModal({ id: orderId });
     }
   };
 
@@ -622,7 +712,14 @@ export default function Orders() {
                             )}
                           </div>
                         </td>
-                        <td className="py-4 px-4 align-middle font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">₹{(ord.amount || 0).toLocaleString('en-IN')}</td>
+                        <td className="py-4 px-4 align-middle font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">
+                          <div>₹{(ord.amount || 0).toLocaleString('en-IN')}</div>
+                          {ord.financials?.technicianEarning > 0 && (
+                            <div className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                              Tech: ₹{Number(ord.financials.technicianEarning).toLocaleString('en-IN')}
+                            </div>
+                          )}
+                        </td>
                         <td className="py-4 px-4 align-middle text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-2">
                             {/* Quick Approve Button if Waiting Approval */}
@@ -631,10 +728,10 @@ export default function Orders() {
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleApproveCompletion(ord.id);
+                                  openApprovalModal(ord);
                                 }}
                                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all cursor-pointer"
-                                title="Click to approve job completion and free technician"
+                                title="Click to approve job completion and allocate financials"
                               >
                                 <FiCheck size={13} />
                                 <span>Approve</span>
@@ -1404,14 +1501,11 @@ export default function Orders() {
               <div className="flex flex-wrap gap-2 pt-1">
                 <button
                   type="button"
-                  onClick={() => {
-                    handleApproveCompletion(selectedOrder.id);
-                    setSelectedOrder(prev => ({ ...prev, status: 'Completed', rawJobStatus: 'COMPLETED' }));
-                  }}
+                  onClick={() => openApprovalModal(selectedOrder)}
                   className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer"
                 >
                   <FiCheck size={14} />
-                  <span>Approve Job Completion</span>
+                  <span>{getDisplayStatus(selectedOrder) === 'Approved' ? 'Update Financial Approval' : 'Approve Job Completion'}</span>
                 </button>
                 <button
                   type="button"
@@ -1425,6 +1519,30 @@ export default function Orders() {
                   <span>Send for Rework</span>
                 </button>
               </div>
+
+              {/* Show Approved Financials breakdown for Admin */}
+              {(selectedOrder.financials || selectedOrder.technicianEarning > 0) && (
+                <div className="mt-3 p-3 bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800/60 rounded-xl grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <span className="text-[10px] text-slate-400 uppercase font-bold block">Total Job Value</span>
+                    <span className="text-xs font-black font-mono text-slate-900 dark:text-white">
+                      ₹{Number(selectedOrder.financials?.totalValue || selectedOrder.amount || 0).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 uppercase font-bold block">Company Profit</span>
+                    <span className="text-xs font-black font-mono text-blue-600 dark:text-blue-400">
+                      ₹{Number(selectedOrder.financials?.companyProfit || 0).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 uppercase font-bold block">Tech Earning</span>
+                    <span className="text-xs font-black font-mono text-emerald-600 dark:text-emerald-400">
+                      ₹{Number(selectedOrder.financials?.technicianEarning || selectedOrder.technicianEarning || 0).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="pt-3 flex justify-end">
@@ -1740,6 +1858,115 @@ export default function Orders() {
                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition-colors flex items-center gap-2"
               >
                 <FiCheck /> Approve & Save Scope
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* Job Approval & Financial Allocation Modal */}
+      <Modal isOpen={approvalModalOpen} onClose={() => !approvalSubmitting && setApprovalModalOpen(false)} title="Job Completion Approval & Financials">
+        {approvalTargetOrder && (
+          <form onSubmit={handleConfirmApproval} className="space-y-4">
+            {/* Header Info */}
+            <div className="p-3 bg-blue-50/70 dark:bg-blue-950/20 border border-blue-200/60 dark:border-blue-900/40 rounded-xl space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-800 dark:text-white">Order: {approvalTargetOrder.id}</span>
+                <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400">{approvalTargetOrder.customer}</span>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Assigned Technician: <strong className="text-slate-700 dark:text-slate-300">{approvalTargetOrder.assignedTechnician || 'Staff'}</strong>
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {/* 1. Total Value */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  1. Total Value (₹) *
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  step="any"
+                  value={approvalForm.totalValue}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const num = parseFloat(val) || 0;
+                    setApprovalForm({
+                      totalValue: val,
+                      companyProfit: num > 0 ? String(Math.round(num * 0.7)) : '',
+                      technicianEarning: num > 0 ? String(Math.round(num * 0.3)) : ''
+                    });
+                  }}
+                  placeholder="Total order or job amount"
+                  className="w-full text-xs font-mono font-bold p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+                />
+              </div>
+
+              {/* 2. Company Profit */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  2. Company Profit (₹) *
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  step="any"
+                  value={approvalForm.companyProfit}
+                  onChange={(e) => setApprovalForm({ ...approvalForm, companyProfit: e.target.value })}
+                  placeholder="Company profit portion"
+                  className="w-full text-xs font-mono font-bold p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+                />
+              </div>
+
+              {/* 3. Technician Earning */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  3. Technician Earning (₹) *
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  step="any"
+                  value={approvalForm.technicianEarning}
+                  onChange={(e) => setApprovalForm({ ...approvalForm, technicianEarning: e.target.value })}
+                  placeholder="Technician earning payout"
+                  className="w-full text-xs font-mono font-bold p-2.5 border border-emerald-300 dark:border-emerald-700/60 bg-emerald-50/30 dark:bg-emerald-950/20 rounded-xl focus:outline-none focus:border-emerald-600 text-emerald-800 dark:text-emerald-300"
+                />
+              </div>
+            </div>
+
+            {/* Confidentiality Alert */}
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-800/40 rounded-xl text-[11px] text-amber-900 dark:text-amber-300 space-y-1">
+              <p className="font-bold flex items-center gap-1.5">
+                🔒 Strict Confidentiality Notice:
+              </p>
+              <p>
+                Only the <strong>Technician Earning (₹)</strong> is visible to the technician and used to calculate the <strong>Leaderboard Rank</strong>. Total Value and Company Profit are strictly confidential to Admins.
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="pt-2 flex justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={approvalSubmitting}
+                onClick={() => setApprovalModalOpen(false)}
+                className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-500 text-xs font-semibold rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={approvalSubmitting}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-2 cursor-pointer shadow-xs"
+              >
+                <FiCheck />
+                <span>{approvalSubmitting ? 'Approving...' : 'Confirm & Approve Job'}</span>
               </button>
             </div>
           </form>

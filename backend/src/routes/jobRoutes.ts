@@ -319,13 +319,27 @@ router.get('/', async (req: Request, res: Response) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    res.json({ success: true, count: jobs.length, data: jobs });
+    // Sanitize for technicians: strictly hide companyProfit and totalValue, only expose technicianEarning
+    const requesterRole = (req.headers['role'] as string) || (req.headers['user-role'] as string) || '';
+    const isTechRequest = Boolean(technicianId || technicianName || requesterRole.toUpperCase() === 'TECHNICIAN');
+    const sanitizedJobs = jobs.map((j: any) => {
+      if (isTechRequest && j.financials) {
+        return {
+          ...j,
+          financials: {
+            technicianEarning: j.financials.technicianEarning || j.technicianEarning || 0,
+            approvedAt: j.financials.approvedAt
+          }
+        };
+      }
+      return j;
+    });
+
+    res.json({ success: true, count: sanitizedJobs.length, data: sanitizedJobs });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
-
-
 
 // GET single job by ID or jobCode
 router.get('/:id', async (req: Request, res: Response) => {
@@ -344,6 +358,17 @@ router.get('/:id', async (req: Request, res: Response) => {
     if (!job) {
       return res.status(404).json({ success: false, message: 'Job not found' });
     }
+
+    const requesterRole = (req.headers['role'] as string) || (req.headers['user-role'] as string) || '';
+    if (requesterRole.toUpperCase() === 'TECHNICIAN' && (job as any).financials) {
+      const sanitized = job.toObject();
+      sanitized.financials = {
+        technicianEarning: sanitized.financials?.technicianEarning || sanitized.technicianEarning || 0,
+        approvedAt: sanitized.financials?.approvedAt
+      };
+      return res.json({ success: true, data: sanitized });
+    }
+
     res.json({ success: true, data: job });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -1091,21 +1116,38 @@ router.post('/:id/admin-approve', async (req: Request, res: Response) => {
 
     const targetCode = job?.jobCode || order?.orderNumber || req.params.id;
 
+    const { totalValue, companyProfit, technicianEarning, approvedBy } = req.body || {};
+    const parsedTotal = Number(totalValue) || (order?.totalAmount || 0);
+    const parsedProfit = Number(companyProfit) || 0;
+    const parsedEarning = Number(technicianEarning) || 0;
+
+    const financialData = {
+      totalValue: parsedTotal,
+      companyProfit: parsedProfit,
+      technicianEarning: parsedEarning,
+      approvedAt: new Date(),
+      approvedBy: approvedBy || 'Admin'
+    };
+
     if (job) {
       job.status = 'APPROVED';
+      job.financials = financialData;
+      job.technicianEarning = parsedEarning;
       await job.save();
-      await Job.updateOne({ _id: job._id }, { $set: { status: 'APPROVED' } });
+      await Job.updateOne({ _id: job._id }, { $set: { status: 'APPROVED', financials: financialData, technicianEarning: parsedEarning } });
     }
 
     if (targetCode) {
-      await Job.updateOne({ jobCode: targetCode }, { $set: { status: 'APPROVED' } });
-      await Order.updateOne({ orderNumber: targetCode }, { $set: { orderStatus: 'DELIVERED' } });
+      await Job.updateOne({ jobCode: targetCode }, { $set: { status: 'APPROVED', financials: financialData, technicianEarning: parsedEarning } });
+      await Order.updateOne({ orderNumber: targetCode }, { $set: { orderStatus: 'DELIVERED', financials: financialData, technicianEarning: parsedEarning } });
     }
 
     if (order) {
       order.orderStatus = 'DELIVERED';
+      order.financials = financialData;
+      order.technicianEarning = parsedEarning;
       await order.save();
-      await Order.updateOne({ _id: order._id }, { $set: { orderStatus: 'DELIVERED' } });
+      await Order.updateOne({ _id: order._id }, { $set: { orderStatus: 'DELIVERED', financials: financialData, technicianEarning: parsedEarning } });
     }
 
     // Also update Dashboard model orders array if present
@@ -1115,12 +1157,14 @@ router.post('/:id/admin-approve', async (req: Request, res: Response) => {
         const ordInDash = dashboardData.orders.find((o: any) => o.id === targetCode || o.orderNumber === targetCode);
         if (ordInDash) {
           ordInDash.status = 'Approved';
+          ordInDash.financials = financialData;
+          ordInDash.technicianEarning = parsedEarning;
           await dashboardData.save();
         }
       }
     } catch (e) {}
 
-    // Free the assigned technicians
+    // Free the assigned technicians and credit their earnings
     const User = require('../models/User').default;
     const assignedTechs = (job?.assignedTechnicians || []);
     for (const tech of assignedTechs) {
@@ -1134,6 +1178,10 @@ router.post('/:id/admin-approve', async (req: Request, res: Response) => {
       if (technician) {
         technician.isAvailable = true;
         technician.currentJobId = null;
+        if (parsedEarning > 0) {
+          technician.totalEarnings = (technician.totalEarnings || 0) + parsedEarning;
+        }
+        technician.completedJobsCount = (technician.completedJobsCount || 0) + 1;
         await technician.save();
       }
     }
@@ -1143,6 +1191,9 @@ router.post('/:id/admin-approve', async (req: Request, res: Response) => {
       if (technician) {
         technician.isAvailable = true;
         technician.currentJobId = null;
+        if (parsedEarning > 0 && (!assignedTechs || assignedTechs.length === 0)) {
+          technician.totalEarnings = (technician.totalEarnings || 0) + parsedEarning;
+        }
         await technician.save();
       }
     }

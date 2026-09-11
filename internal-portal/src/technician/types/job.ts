@@ -127,6 +127,7 @@ export interface Job {
   afterPhotos: JobPhoto[];
   activities: JobActivity[];
   completionSummary?: CompletionSummary;
+  technicianEarning?: number;
   createdAt: string;
   updatedAt: string;
 }
