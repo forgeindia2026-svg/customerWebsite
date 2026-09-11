@@ -540,33 +540,33 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
       </div>
 
       {/* FULL RANKINGS DIRECTORY TABLE */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+      <div className="bg-white border border-slate-200/90 rounded-2xl p-3 sm:p-6 shadow-xs space-y-3 sm:space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 border-b border-slate-100 pb-3 sm:pb-4">
           <div>
-            <h2 className="text-lg font-extrabold text-slate-900 flex items-center space-x-2">
-              <Trophy className="w-5 h-5 text-amber-500" />
+            <h2 className="text-base sm:text-lg font-extrabold text-slate-900 flex items-center space-x-1.5 sm:space-x-2">
+              <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
               <span>Complete Workforce Standings</span>
             </h2>
-            <p className="text-xs text-slate-500">Live updated scores across all completed work orders</p>
+            <p className="text-[11px] sm:text-xs text-slate-500">Live updated scores across all completed work orders</p>
           </div>
 
           {/* Search & Specialty Filter */}
-          <div className="flex items-center flex-wrap gap-2.5">
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+          <div className="flex items-center flex-wrap gap-2 sm:gap-2.5">
+            <div className="relative flex-1 sm:flex-initial">
+              <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 absolute left-2.5 sm:left-3 top-2 sm:top-2.5" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search technician..."
-                className="pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 w-48 sm:w-56"
+                className="pl-8 sm:pl-9 pr-2.5 sm:pr-3 py-1 sm:py-1.5 text-[11px] sm:text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 w-full sm:w-56"
               />
             </div>
 
             <select
               value={divisionFilter}
               onChange={(e) => setDivisionFilter(e.target.value)}
-              className="py-1.5 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-700 font-medium cursor-pointer"
+              className="py-1 sm:py-1.5 px-2.5 sm:px-3 text-[11px] sm:text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-700 font-medium cursor-pointer"
             >
               <option value="ALL">All Specializations</option>
               <option value="CCTV">CCTV Surveillance</option>
@@ -577,22 +577,22 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
           </div>
         </div>
 
-        {/* Table / List */}
-        <div className="overflow-x-auto">
+        {/* Table / List - 100% width on mobile without scrolling */}
+        <div className="overflow-x-hidden sm:overflow-x-auto w-full">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="border-b border-slate-100 text-slate-400 uppercase text-[10px] tracking-wider font-mono">
-                <th className="py-3 px-3">Rank</th>
-                <th className="py-3 px-3">Technician</th>
-                <th className="py-3 px-3">Specialization</th>
-                <th className="py-3 px-3 text-center">Completed</th>
-                <th className="py-3 px-3 text-right text-emerald-700 font-bold">Total Earnings</th>
+              <tr className="border-b border-slate-100 text-slate-400 uppercase text-[9px] sm:text-[10px] tracking-wider font-mono">
+                <th className="py-2 px-1 sm:py-3 sm:px-3 w-7 sm:w-auto text-center sm:text-left">Rank</th>
+                <th className="py-2 px-1.5 sm:py-3 sm:px-3">Technician</th>
+                <th className="hidden sm:table-cell py-3 px-3">Specialization</th>
+                <th className="py-2 px-1 sm:py-3 sm:px-3 text-center w-12 sm:w-auto">Jobs</th>
+                <th className="py-2 px-1.5 sm:py-3 sm:px-3 text-right text-emerald-700 font-bold whitespace-nowrap">Total Earnings</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {rankedTechnicians.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-10 text-center text-slate-400 font-medium">
+                  <td colSpan={5} className="py-8 text-center text-slate-400 font-medium text-xs">
                     No technicians matched your search query.
                   </td>
                 </tr>
@@ -608,22 +608,22 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
                       }`}
                     >
                       {/* Rank */}
-                      <td className="py-3.5 px-3">
-                        <div className="flex items-center space-x-1.5">
+                      <td className="py-2 px-1 sm:py-3.5 sm:px-3 text-center sm:text-left">
+                        <div className="flex items-center justify-center sm:justify-start">
                           {tech.rank === 1 ? (
-                            <span className="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center font-black text-xs shadow-2xs">
+                            <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-amber-500 text-white flex items-center justify-center font-black text-[10px] sm:text-xs shadow-2xs">
                               1
                             </span>
                           ) : tech.rank === 2 ? (
-                            <span className="w-6 h-6 rounded-full bg-slate-400 text-white flex items-center justify-center font-black text-xs shadow-2xs">
+                            <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-slate-400 text-white flex items-center justify-center font-black text-[10px] sm:text-xs shadow-2xs">
                               2
                             </span>
                           ) : tech.rank === 3 ? (
-                            <span className="w-6 h-6 rounded-full bg-amber-700 text-white flex items-center justify-center font-black text-xs shadow-2xs">
+                            <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-amber-700 text-white flex items-center justify-center font-black text-[10px] sm:text-xs shadow-2xs">
                               3
                             </span>
                           ) : (
-                            <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-mono font-bold text-xs">
+                            <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-mono font-bold text-[10px] sm:text-xs">
                               {tech.rank}
                             </span>
                           )}
@@ -631,39 +631,40 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
                       </td>
 
                       {/* Technician Profile Info */}
-                      <td className="py-3.5 px-3">
-                        <div className="flex items-center space-x-3">
+                      <td className="py-2 px-1.5 sm:py-3.5 sm:px-3">
+                        <div className="flex items-center space-x-2 sm:space-x-3">
                           <img 
                             src={tech.avatar} 
                             alt={tech.name} 
-                            className="w-9 h-9 rounded-xl object-cover border border-slate-200 shrink-0" 
+                            className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl object-cover border border-slate-200 shrink-0" 
                           />
-                          <div>
-                            <div className="flex items-center space-x-1.5">
-                              <span className="font-extrabold text-slate-900 text-xs">{tech.name}</span>
+                          <div className="min-w-0">
+                            <div className="flex items-center space-x-1 sm:space-x-1.5">
+                              <span className="font-extrabold text-slate-900 text-[11px] sm:text-xs truncate max-w-[85px] sm:max-w-none">{tech.name}</span>
                               {tech.isCurrentUser && (
-                                <span className="px-1.5 py-0.2 rounded bg-blue-600 text-white text-[9px] font-bold">
+                                <span className="px-1 py-0.2 rounded bg-blue-600 text-white text-[8px] sm:text-[9px] font-bold shrink-0">
                                   YOU
                                 </span>
                               )}
                             </div>
-                            <span className="text-[10px] text-slate-400 font-mono block">{tech.badgeNumber}</span>
+                            <span className="text-[9px] sm:text-[10px] text-slate-400 font-mono block truncate">{tech.badgeNumber}</span>
+                            <span className="sm:hidden text-[8.5px] text-slate-500 font-medium block truncate max-w-[85px]">{tech.specialization}</span>
                           </div>
                         </div>
                       </td>
 
-                      {/* Specialization */}
-                      <td className="py-3.5 px-3 text-slate-600 font-medium">
+                      {/* Specialization (Desktop/Tablet) */}
+                      <td className="hidden sm:table-cell py-3.5 px-3 text-slate-600 font-medium">
                         {tech.specialization}
                       </td>
 
                       {/* Completed Jobs */}
-                      <td className="py-3.5 px-3 text-center font-mono font-bold text-slate-800">
+                      <td className="py-2 px-1 sm:py-3.5 sm:px-3 text-center font-mono font-bold text-slate-800 text-[11px] sm:text-xs">
                         {tech.completedJobs}
                       </td>
 
                       {/* Total Earnings */}
-                      <td className="py-3.5 px-3 text-right font-mono font-black text-emerald-700 text-sm">
+                      <td className="py-2 px-1.5 sm:py-3.5 sm:px-3 text-right font-mono font-black text-emerald-700 text-xs sm:text-sm whitespace-nowrap">
                         ₹{tech.earnings.toLocaleString('en-IN')}
                       </td>
                     </tr>
