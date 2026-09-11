@@ -954,26 +954,30 @@ router.post('/:id/admin-approve', async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: `Job or Order ${req.params.id} not found` });
     }
 
+    const targetCode = job?.jobCode || order?.orderNumber || req.params.id;
+
     if (job) {
       job.status = 'APPROVED';
       await job.save();
+      await Job.updateOne({ _id: job._id }, { $set: { status: 'APPROVED' } });
+    }
+
+    if (targetCode) {
+      await Job.updateOne({ jobCode: targetCode }, { $set: { status: 'APPROVED' } });
+      await Order.updateOne({ orderNumber: targetCode }, { $set: { orderStatus: 'DELIVERED' } });
     }
 
     if (order) {
       order.orderStatus = 'DELIVERED';
       await order.save();
-    } else if (job) {
-      try {
-        await Order.updateOne({ orderNumber: job.jobCode }, { orderStatus: 'DELIVERED' });
-      } catch (e) {}
+      await Order.updateOne({ _id: order._id }, { $set: { orderStatus: 'DELIVERED' } });
     }
 
     // Also update Dashboard model orders array if present
     try {
       let dashboardData = await Dashboard.findOne();
       if (dashboardData && Array.isArray(dashboardData.orders)) {
-        const targetId = job?.jobCode || order?.orderNumber || req.params.id;
-        const ordInDash = dashboardData.orders.find((o: any) => o.id === targetId || o.orderNumber === targetId);
+        const ordInDash = dashboardData.orders.find((o: any) => o.id === targetCode || o.orderNumber === targetCode);
         if (ordInDash) {
           ordInDash.status = 'Approved';
           await dashboardData.save();

@@ -240,14 +240,27 @@ const dashboardSlice = createSlice({
     setDashboardData: (state, action) => {
       const payload = action.payload || {};
       const rawOrders = Array.isArray(payload.orders) ? payload.orders : (state.orders || []);
-      const normalizedOrders = rawOrders.map(o => ({
-        ...o,
-        id: o.id || o.orderNumber || o._id,
-        customer: o.customer || o.customerName || 'Customer Client',
-        amount: parseFloat(o.amount || o.totalAmount) || 0,
-        status: o.status || (o.orderStatus === 'DELIVERED' ? 'Completed' : o.orderStatus === 'PROCESSING' ? 'In Progress' : o.orderStatus) || 'Pending',
-        date: o.date || (o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Today')
-      }));
+      let storedApproved = [];
+      try {
+        storedApproved = JSON.parse(localStorage.getItem('sk_approved_orders') || '[]');
+      } catch (e) {}
+
+      const normalizedOrders = rawOrders.map(o => {
+        const id = o.id || o.orderNumber || o._id;
+        const isApproved = storedApproved.includes(id) || o.status === 'Approved' || o.status === 'APPROVED' || o.rawJobStatus === 'APPROVED' || o.orderStatus === 'DELIVERED';
+        const fallbackStatus = isApproved 
+          ? 'Approved' 
+          : (o.orderStatus === 'DELIVERED' ? 'Approved' : o.orderStatus === 'PROCESSING' ? 'In Progress' : o.orderStatus) || 'Pending';
+
+        return {
+          ...o,
+          id,
+          customer: o.customer || o.customerName || 'Customer Client',
+          amount: parseFloat(o.amount || o.totalAmount) || 0,
+          status: isApproved ? 'Approved' : (o.status || fallbackStatus),
+          date: o.date || (o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Today')
+        };
+      });
 
       return {
         ...state,
@@ -347,10 +360,20 @@ const dashboardSlice = createSlice({
     },
     approveOrderCompletion: (state, action) => {
       const orderId = typeof action.payload === 'string' ? action.payload : action.payload?.id;
+      if (orderId) {
+        try {
+          const list = JSON.parse(localStorage.getItem('sk_approved_orders') || '[]');
+          if (!list.includes(orderId)) {
+            list.push(orderId);
+            localStorage.setItem('sk_approved_orders', JSON.stringify(list));
+          }
+        } catch (e) {}
+      }
       const order = state.orders.find(o => o.id === orderId || o.orderNumber === orderId || (o.jobCode && o.jobCode === orderId));
       if (order) {
         order.status = 'Approved';
         order.rawJobStatus = 'APPROVED';
+        order.orderStatus = 'DELIVERED';
       }
       const project = state.projects.find(p => p.id === orderId || p.jobCode === orderId);
       if (project) {
@@ -363,6 +386,7 @@ const dashboardSlice = createSlice({
           if (cachedOrd) {
             cachedOrd.status = 'Approved';
             cachedOrd.rawJobStatus = 'APPROVED';
+            cachedOrd.orderStatus = 'DELIVERED';
           }
           localStorage.setItem('sk_admin_dashboard_cache', JSON.stringify(cached));
         }

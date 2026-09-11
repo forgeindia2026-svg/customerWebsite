@@ -22,12 +22,20 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd /var/www/cctv-project
-            git pull origin main
-            cd backend
-            npm install
-            npm run build
-            pm2 restart cctv-backend
+            for dir in /var/www/cctv-project $HOME/CCTVWebsite; do
+              if [ -d "$dir" ]; then
+                echo "Updating repository in $dir..."
+                cd "$dir"
+                git fetch origin main
+                git reset --hard origin/main
+                if [ -d "$dir/backend" ]; then
+                  cd "$dir/backend"
+                  npm install
+                  npm run build
+                fi
+              fi
+            done
+            pm2 restart all || pm2 restart cctv-backend || pm2 restart backend
             # Ensure Nginx allows up to 50MB uploads
             sudo sed -i '/client_max_body_size/d' /etc/nginx/nginx.conf
             sudo sed -i '/http {/a \    client_max_body_size 50M;' /etc/nginx/nginx.conf

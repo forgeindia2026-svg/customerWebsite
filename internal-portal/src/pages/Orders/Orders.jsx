@@ -97,7 +97,21 @@ export default function Orders() {
 
   const getDisplayStatus = (ord) => {
     if (!ord) return 'Pending';
-    if (ord.status === 'Approved' || ord.status === 'APPROVED' || ord.rawJobStatus === 'APPROVED') {
+    let localApproved = false;
+    try {
+      const stored = JSON.parse(localStorage.getItem('sk_approved_orders') || '[]');
+      if (stored.includes(ord.id) || stored.includes(ord.orderNumber) || stored.includes(ord.jobCode)) {
+        localApproved = true;
+      }
+    } catch (e) {}
+
+    if (
+      localApproved ||
+      ord.status === 'Approved' || 
+      ord.status === 'APPROVED' || 
+      ord.rawJobStatus === 'APPROVED' ||
+      ord.orderStatus === 'DELIVERED'
+    ) {
       return 'Approved';
     }
     if (ord.status === 'Completed' || ord.status === 'COMPLETED' || ord.status === 'WAITING_ADMIN_APPROVAL' || ord.status === 'Pending Approval' || ord.rawJobStatus === 'COMPLETED' || ord.rawJobStatus === 'WAITING_ADMIN_APPROVAL') {
@@ -114,6 +128,13 @@ export default function Orders() {
 
   const handleApproveCompletion = async (orderId) => {
     setActiveStatusDropdown(null);
+    try {
+      const list = JSON.parse(localStorage.getItem('sk_approved_orders') || '[]');
+      if (!list.includes(orderId)) {
+        list.push(orderId);
+        localStorage.setItem('sk_approved_orders', JSON.stringify(list));
+      }
+    } catch (e) {}
     dispatch(approveOrderCompletion(orderId));
     toast.success(`Order ${orderId} approved successfully!`);
     try {

@@ -204,8 +204,9 @@ router.get('/', async (req: Request, res: Response) => {
     // Map live Orders
     const mappedOrders = (liveOrders || []).map((order: any) => {
       const job = jobByCode.get(order.orderNumber);
+      const existingDashOrder = Array.isArray(dashboardData.orders) ? dashboardData.orders.find((o: any) => o.id === order.orderNumber || o.orderNumber === order.orderNumber) : null;
       let dashboardStatus = 'Pending';
-      if (job?.status === 'APPROVED' || order.orderStatus === 'DELIVERED' || order.orderStatus === 'SHIPPED') {
+      if (job?.status === 'APPROVED' || order.orderStatus === 'DELIVERED' || order.orderStatus === 'SHIPPED' || order.status === 'Approved' || existingDashOrder?.status === 'Approved') {
         dashboardStatus = 'Approved';
       } else if (job?.status === 'COMPLETED' || job?.status === 'WAITING_ADMIN_APPROVAL') {
         dashboardStatus = 'Completed';
