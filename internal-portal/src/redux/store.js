@@ -31,13 +31,24 @@ const dashboardSyncMiddleware = store => next => action => {
 
     if (action.type === 'dashboard/assignTechnicianToOrder') {
       const { orderId, technicianName } = action.payload;
-      orderToAssign = nextState.orders.find(o => o.id === orderId);
+      const cleanId = String(orderId || '').replace(/^#/, '').trim().toLowerCase();
+      orderToAssign = nextState.orders.find(o => {
+        const oId = String(o.id || '').replace(/^#/, '').trim().toLowerCase();
+        const oNum = String(o.orderNumber || '').replace(/^#/, '').trim().toLowerCase();
+        return oId === cleanId || oNum === cleanId;
+      });
     } else if (action.type === 'dashboard/editOrder') {
       const updatedOrder = action.payload;
-      const prevOrder = prevState.orders.find(o => o.id === updatedOrder.id);
-      const wasUnassigned = !prevOrder || prevOrder.assignedTechnician === 'Unassigned' || !prevOrder.assignedTechnician;
-      const isNowAssigned = updatedOrder.assignedTechnician && updatedOrder.assignedTechnician !== 'Unassigned';
-      if (wasUnassigned && isNowAssigned) {
+      const cleanId = String(updatedOrder.id || '').replace(/^#/, '').trim().toLowerCase();
+      const prevOrder = prevState.orders.find(o => {
+        const oId = String(o.id || '').replace(/^#/, '').trim().toLowerCase();
+        const oNum = String(o.orderNumber || '').replace(/^#/, '').trim().toLowerCase();
+        return oId === cleanId || oNum === cleanId;
+      });
+      const isTechChanged = updatedOrder.assignedTechnician && 
+        updatedOrder.assignedTechnician !== 'Unassigned' && 
+        (!prevOrder || prevOrder.assignedTechnician !== updatedOrder.assignedTechnician);
+      if (isTechChanged) {
         orderToAssign = updatedOrder;
       }
     }
@@ -65,36 +76,20 @@ const dashboardSyncMiddleware = store => next => action => {
         ];
       }
 
-      // POST new job to backend
-      fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/jobs`, {
-        method: 'POST',
+      // Sync job assignment to backend
+      const rawOrderId = orderToAssign.id || orderToAssign.orderNumber;
+      const cleanOrderId = String(rawOrderId || '').replace(/^#/, '').trim();
+      fetch(`${getApiUrl()}/api/jobs/${encodeURIComponent(cleanOrderId)}`, {
+        method: 'PUT',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'role': 'admin'
         },
         body: JSON.stringify({
-          title: orderToAssign.type || 'Field Service Request',
-          category: orderToAssign.type || 'General Service',
-          status: 'PENDING',
-          priority: 'MEDIUM',
-          scheduledDate: new Date().toISOString().split('T')[0],
-          assignedTechnician: {
-            id: techId,
-            name: orderToAssign.assignedTechnician
-          },
-          customer: {
-            name: orderToAssign.customer,
-            phone: orderToAssign.phone || '+91 99999 99999',
-            email: orderToAssign.email || 'customer@sktechnology.in',
-            address: orderToAssign.location || '',
-            city: orderToAssign.city || '',
-            postalCode: orderToAssign.postalCode || ''
-          },
-          scopeOfWork
+          assignedTechnicians: [{ id: techId, name: orderToAssign.assignedTechnician }],
+          status: 'ASSIGNED'
         })
-      })
-      .then(res => res.json())
-      .then(data => console.log('Successfully created live technician job:', data))
-      .catch(err => console.error('Failed to create technician job:', err));
+      }).catch(() => {});
     }
   }
   return result;

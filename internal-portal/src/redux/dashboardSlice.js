@@ -422,25 +422,54 @@ const dashboardSlice = createSlice({
     },
     assignTechnicianToOrder: (state, action) => {
       const { orderId, technicianName } = action.payload;
-      const order = state.orders.find(o => o.id === orderId);
+      const cleanId = String(orderId || '').replace(/^#/, '').trim().toLowerCase();
+      const order = state.orders.find(o => {
+        const oId = String(o.id || '').replace(/^#/, '').trim().toLowerCase();
+        const oNum = String(o.orderNumber || '').replace(/^#/, '').trim().toLowerCase();
+        return oId === cleanId || oNum === cleanId;
+      });
       if (order) {
         order.assignedTechnician = technicianName;
         order.assignedTechnicianName = technicianName;
         order.status = 'In Progress';
 
         // Also update the associated project status to Approved and assign technician to prevent sync reverting
-        const associatedProject = state.projects.find(p => p.id === order.id || p.customer?.toLowerCase() === order.customer?.toLowerCase());
+        const associatedProject = state.projects.find(p => {
+          const pId = String(p.id || '').replace(/^#/, '').trim().toLowerCase();
+          return pId === cleanId || p.customer?.toLowerCase() === order.customer?.toLowerCase();
+        });
         if (associatedProject) {
           associatedProject.status = 'Approved';
           associatedProject.technician = technicianName;
           associatedProject.assignedTech = technicianName;
         }
 
-        const sr = state.serviceRequests?.find(s => s.id === orderId || s.orderNumber === orderId);
+        const sr = state.serviceRequests?.find(s => {
+          const sId = String(s.id || '').replace(/^#/, '').trim().toLowerCase();
+          const sNum = String(s.orderNumber || '').replace(/^#/, '').trim().toLowerCase();
+          return sId === cleanId || sNum === cleanId;
+        });
         if (sr) {
           sr.assignedTech = technicianName;
           sr.technician = technicianName;
         }
+
+        try {
+          const cached = JSON.parse(localStorage.getItem('sk_admin_dashboard_cache') || '{}');
+          if (cached && cached.orders) {
+            const cachedOrd = cached.orders.find(o => {
+              const oId = String(o.id || '').replace(/^#/, '').trim().toLowerCase();
+              const oNum = String(o.orderNumber || '').replace(/^#/, '').trim().toLowerCase();
+              return oId === cleanId || oNum === cleanId;
+            });
+            if (cachedOrd) {
+              cachedOrd.assignedTechnician = technicianName;
+              cachedOrd.assignedTechnicianName = technicianName;
+              cachedOrd.status = 'In Progress';
+            }
+            localStorage.setItem('sk_admin_dashboard_cache', JSON.stringify(cached));
+          }
+        } catch (e) {}
 
         // Check if there is an associated project or create a new one
         const projectExists = state.projects.some(p => p.id === `PRJ-${orderId.slice(-4)}` || p.customer?.toLowerCase() === order.customer?.toLowerCase());
@@ -782,20 +811,34 @@ const dashboardSlice = createSlice({
       }
     },
     editOrder: (state, action) => {
-      const { id, customer, type, assignedTechnician, amount, status } = action.payload;
-      const order = state.orders.find(o => o.id === id);
+      const { id, customer, email, phone, location, type, assignedTechnician, amount, status } = action.payload;
+      const cleanId = String(id || '').replace(/^#/, '').trim().toLowerCase();
+      const order = state.orders.find(o => {
+        const oId = String(o.id || '').replace(/^#/, '').trim().toLowerCase();
+        const oNum = String(o.orderNumber || '').replace(/^#/, '').trim().toLowerCase();
+        const oMongo = String(o._id || '').trim().toLowerCase();
+        return oId === cleanId || oNum === cleanId || (oMongo && oMongo === cleanId);
+      });
       if (order) {
-        order.customer = customer;
-        order.type = type;
-        order.assignedTechnician = assignedTechnician;
-        order.assignedTechnicianName = assignedTechnician;
-        order.amount = amount;
-        order.status = status;
+        if (customer !== undefined) order.customer = customer;
+        if (email !== undefined) order.email = email;
+        if (phone !== undefined) order.phone = phone;
+        if (location !== undefined) order.location = location;
+        if (type !== undefined) order.type = type;
+        if (assignedTechnician !== undefined) {
+          order.assignedTechnician = assignedTechnician;
+          order.assignedTechnicianName = assignedTechnician;
+        }
+        if (amount !== undefined) order.amount = amount;
+        if (status !== undefined) order.status = status;
       }
       
-      const project = state.projects?.find(p => p.id === id);
+      const project = state.projects?.find(p => {
+        const pId = String(p.id || '').replace(/^#/, '').trim().toLowerCase();
+        return pId === cleanId;
+      });
       if (project) {
-        project.customer = customer;
+        if (customer !== undefined) project.customer = customer;
         if (type) project.name = type;
         if (assignedTechnician !== undefined) {
           project.technician = assignedTechnician;
@@ -803,11 +846,35 @@ const dashboardSlice = createSlice({
         }
       }
 
-      const sr = state.serviceRequests?.find(s => s.id === id || s.orderNumber === id);
+      const sr = state.serviceRequests?.find(s => {
+        const sId = String(s.id || '').replace(/^#/, '').trim().toLowerCase();
+        const sNum = String(s.orderNumber || '').replace(/^#/, '').trim().toLowerCase();
+        return sId === cleanId || sNum === cleanId;
+      });
       if (sr && assignedTechnician !== undefined) {
         sr.assignedTech = assignedTechnician;
         sr.technician = assignedTechnician;
       }
+
+      try {
+        const cached = JSON.parse(localStorage.getItem('sk_admin_dashboard_cache') || '{}');
+        if (cached && cached.orders) {
+          const cachedOrd = cached.orders.find(o => {
+            const oId = String(o.id || '').replace(/^#/, '').trim().toLowerCase();
+            const oNum = String(o.orderNumber || '').replace(/^#/, '').trim().toLowerCase();
+            return oId === cleanId || oNum === cleanId;
+          });
+          if (cachedOrd) {
+            if (customer !== undefined) cachedOrd.customer = customer;
+            if (assignedTechnician !== undefined) {
+              cachedOrd.assignedTechnician = assignedTechnician;
+              cachedOrd.assignedTechnicianName = assignedTechnician;
+            }
+            if (status !== undefined) cachedOrd.status = status;
+          }
+          localStorage.setItem('sk_admin_dashboard_cache', JSON.stringify(cached));
+        }
+      } catch (e) {}
     },
     editCustomer: (state, action) => {
       const { id, name, email, phone, location } = action.payload;

@@ -327,10 +327,20 @@ router.get('/', async (req: Request, res: Response) => {
 
 
 
-// GET single job by ID
+// GET single job by ID or jobCode
 router.get('/:id', async (req: Request, res: Response) => {
   try {
-    const job = await Job.findById(req.params.id);
+    const rawId = req.params.id as string;
+    const cleanCode = rawId.replace(/^#/, '').trim();
+    const isMongoId = /^[0-9a-fA-F]{24}$/.test(cleanCode);
+    const job = await Job.findOne({
+      $or: [
+        ...(isMongoId ? [{ _id: cleanCode }] : []),
+        { jobCode: rawId },
+        { jobCode: cleanCode },
+        { jobCode: `#${cleanCode}` }
+      ]
+    });
     if (!job) {
       return res.status(404).json({ success: false, message: 'Job not found' });
     }
@@ -376,11 +386,15 @@ router.post('/', async (req: Request, res: Response) => {
 // PUT update job status / details
 router.put('/:id', async (req: Request, res: Response) => {
   try {
-    const isMongoId = /^[0-9a-fA-F]{24}$/.test(req.params.id as string);
+    const rawId = req.params.id as string;
+    const cleanCode = rawId.replace(/^#/, '').trim();
+    const isMongoId = /^[0-9a-fA-F]{24}$/.test(cleanCode);
     const job = await Job.findOne({
       $or: [
-        ...(isMongoId ? [{ _id: req.params.id }] : []),
-        { jobCode: req.params.id },
+        ...(isMongoId ? [{ _id: cleanCode }] : []),
+        { jobCode: rawId },
+        { jobCode: cleanCode },
+        { jobCode: `#${cleanCode}` }
       ],
     });
     if (!job) {
@@ -631,14 +645,17 @@ router.put('/:id', async (req: Request, res: Response) => {
 
     // Synchronize corresponding Order
     try {
+      const techToAssign = job.assignedTechnicians?.[0]?.name || req.body.assignedTechnician || req.body.assignedTechnicianName;
+      const orderUpdateFields: any = {
+        orderStatus: job.status === 'COMPLETED' ? 'DELIVERED' : 'PROCESSING',
+      };
+      if (techToAssign) {
+        orderUpdateFields.assignedTechnician = techToAssign;
+        orderUpdateFields.assignedTechnicianName = techToAssign;
+      }
       await Order.updateOne(
-        { orderNumber: job.jobCode },
-        {
-          $set: {
-            orderStatus: job.status === 'COMPLETED' ? 'DELIVERED' : 'PROCESSING',
-            assignedTechnicianName: job.assignedTechnicians?.[0]?.name || req.body.assignedTechnician,
-          }
-        }
+        { $or: [{ orderNumber: job.jobCode }, { orderNumber: cleanCode }, { orderNumber: `#${cleanCode}` }] },
+        { $set: orderUpdateFields }
       );
     } catch (orderSyncErr) {
       console.warn('Order sync warning:', orderSyncErr);

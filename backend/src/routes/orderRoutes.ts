@@ -180,8 +180,11 @@ router.post('/', async (req: Request, res: Response) => {
 router.put('/:id', async (req: Request, res: Response): Promise<any> => {
   try {
     const rawId = Array.isArray(req.params.id) ? req.params.id[0] : (req.params.id as string);
-    const isMongoId = /^[0-9a-fA-F]{24}$/.test(rawId);
-    const query = isMongoId ? { $or: [{ _id: rawId }, { orderNumber: rawId }] } : { orderNumber: rawId };
+    const cleanId = rawId.replace(/^#/, '').trim();
+    const isMongoId = /^[0-9a-fA-F]{24}$/.test(cleanId);
+    const query = isMongoId 
+      ? { $or: [{ _id: cleanId }, { orderNumber: cleanId }, { orderNumber: rawId }, { orderNumber: `#${cleanId}` }] } 
+      : { $or: [{ orderNumber: cleanId }, { orderNumber: rawId }, { orderNumber: `#${cleanId}` }, { orderNumber: new RegExp(cleanId + '$', 'i') }] };
 
     const updateFields: any = { ...req.body };
     const techName = req.body.assignedTechnician || req.body.assignedTechnicianName;
@@ -202,12 +205,20 @@ router.put('/:id', async (req: Request, res: Response): Promise<any> => {
       const techUser = await User.findOne({ name: new RegExp(`^${techName}$`, 'i'), role: 'TECHNICIAN' });
       const techId = techUser ? techUser._id.toString() : (req.body.assignedTechnicianId || 'temp-id');
 
-      const existingJob = await Job.findOne({ jobCode: updatedOrder.orderNumber });
+      const existingJob = await Job.findOne({
+        $or: [
+          { jobCode: updatedOrder.orderNumber },
+          { jobCode: `#${updatedOrder.orderNumber}` },
+          { jobCode: cleanId },
+          { jobCode: rawId }
+        ]
+      });
       if (existingJob) {
         existingJob.assignedTechnicians = [{ id: techId, name: techName, phone: techUser?.phone || '' }];
         if (existingJob.status === 'PENDING' || existingJob.status === 'WAITING_FOR_TECH') {
           existingJob.status = 'ASSIGNED';
         }
+        existingJob.updatedAt = new Date();
         await existingJob.save();
       } else {
         await Job.create({
@@ -228,8 +239,15 @@ router.put('/:id', async (req: Request, res: Response): Promise<any> => {
       }
     } else if (techName === 'Unassigned') {
       await Job.updateOne(
-        { jobCode: updatedOrder.orderNumber },
-        { $set: { assignedTechnicians: [] } }
+        {
+          $or: [
+            { jobCode: updatedOrder.orderNumber },
+            { jobCode: `#${updatedOrder.orderNumber}` },
+            { jobCode: cleanId },
+            { jobCode: rawId }
+          ]
+        },
+        { $set: { assignedTechnicians: [], status: 'WAITING_FOR_TECH', updatedAt: new Date() } }
       );
     }
 

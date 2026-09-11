@@ -236,22 +236,31 @@ router.get('/', async (req: Request, res: Response) => {
       const startedAt = job?.workProgress?.startedAt || job?.startDate || '';
       const updatedAt = job?.workProgress?.updatedAt || job?.updatedAt || order.updatedAt || '';
 
+      const orderTech = (order.assignedTechnician && order.assignedTechnician !== 'Unassigned') 
+        ? order.assignedTechnician 
+        : ((order.assignedTechnicianName && order.assignedTechnicianName !== 'Unassigned') ? order.assignedTechnicianName : '');
+
+      const jobTech = (job?.assignedTechnicians && job.assignedTechnicians.length > 0 && job.assignedTechnicians[0].name && job.assignedTechnicians[0].name !== 'Unassigned')
+        ? job.assignedTechnicians.map((t: any) => t.name).join(', ')
+        : '';
+
+      const dashTech = (existingDashOrder?.assignedTechnician && existingDashOrder.assignedTechnician !== 'Unassigned')
+        ? existingDashOrder.assignedTechnician
+        : ((existingDashOrder?.assignedTechnicianName && existingDashOrder.assignedTechnicianName !== 'Unassigned') ? existingDashOrder.assignedTechnicianName : '');
+
       let techName = 'Unassigned';
-      if (job?.assignedTechnicians && job.assignedTechnicians.length > 0 && job.assignedTechnicians[0].name && job.assignedTechnicians[0].name !== 'Unassigned') {
-        techName = job.assignedTechnicians.map((t: any) => t.name).join(', ');
-      } else if (order.assignedTechnician && order.assignedTechnician !== 'Unassigned') {
-        techName = order.assignedTechnician;
-      } else if (order.assignedTechnicianName && order.assignedTechnicianName !== 'Unassigned') {
-        techName = order.assignedTechnicianName;
-      } else if (existingDashOrder?.assignedTechnician && existingDashOrder.assignedTechnician !== 'Unassigned') {
-        techName = existingDashOrder.assignedTechnician;
-      } else if (existingDashOrder?.assignedTechnicianName && existingDashOrder.assignedTechnicianName !== 'Unassigned') {
-        techName = existingDashOrder.assignedTechnicianName;
+      if (orderTech && jobTech) {
+        // Pick the one with the more recent updatedAt timestamp
+        const orderTime = order.updatedAt ? new Date(order.updatedAt).getTime() : 0;
+        const jobTime = job?.updatedAt ? new Date(job.updatedAt).getTime() : 0;
+        techName = (orderTime >= jobTime) ? orderTech : jobTech;
+      } else {
+        techName = orderTech || jobTech || dashTech || 'Unassigned';
       }
 
-      // Proactively heal MongoDB Job and Order documents if techName is assigned
+      // Proactively heal MongoDB Job and Order documents to match the winning techName
       if (techName !== 'Unassigned') {
-        if (job && (!job.assignedTechnicians || job.assignedTechnicians.length === 0)) {
+        if (job && (!job.assignedTechnicians || job.assignedTechnicians.length === 0 || job.assignedTechnicians[0]?.name !== techName)) {
           Job.updateOne({ _id: job._id }, {
             $set: {
               status: (job.status === 'PENDING' || job.status === 'WAITING_FOR_TECH') ? 'ASSIGNED' : job.status,
@@ -259,7 +268,7 @@ router.get('/', async (req: Request, res: Response) => {
             }
           }).exec().catch(() => {});
         }
-        if (!order.assignedTechnician || order.assignedTechnician === 'Unassigned') {
+        if (!order.assignedTechnician || order.assignedTechnician !== techName) {
           Order.updateOne({ _id: order._id }, {
             $set: {
               assignedTechnician: techName,
@@ -533,7 +542,16 @@ router.put('/', async (req: Request, res: Response) => {
             orderStatus: dbStatus
           });
         } else {
-          await Order.updateOne({ orderNumber: o.id }, { orderStatus: dbStatus });
+          const techName = o.assignedTechnician || o.assignedTechnicianName;
+          const updateFields: any = { orderStatus: dbStatus };
+          if (techName && techName !== 'Unassigned') {
+            updateFields.assignedTechnician = techName;
+            updateFields.assignedTechnicianName = techName;
+          }
+          await Order.updateOne(
+            { $or: [{ orderNumber: o.id }, { orderNumber: String(o.id).replace(/^#/, '') }] },
+            { $set: updateFields }
+          );
         }
 
         // Keep associated Job status in sync to prevent dashboard interval reverting
@@ -601,7 +619,7 @@ router.put('/', async (req: Request, res: Response) => {
 
             // Also update the Order in MongoDB if it exists
             console.log(`Updating Order for ${o.id}`);
-            await Order.updateOne({ orderNumber: o.id }, {
+            await Order.updateOne({ $or: [{ orderNumber: o.id }, { orderNumber: String(o.id).replace(/^#/, '') }] }, {
               customerName: o.customer,
               customerEmail: emailQuery,
               customerPhone: o.phone,

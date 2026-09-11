@@ -6,6 +6,7 @@ import { toast } from 'react-hot-toast';
 import { approveOrder, approveOrderCompletion, reworkOrder, setOrderStatus, addOrder, assignTechnicianToOrder, editOrder, adminApproveJob, adminReworkJob, fetchDashboardData } from '../../redux/dashboardSlice';
 import { socket } from '../../socket';
 import Modal from '../../components/Modal';
+import { getApiUrl } from '../../utils/config';
 
 export default function Orders() {
   const dispatch = useDispatch();
@@ -1265,15 +1266,40 @@ export default function Orders() {
                             <span className="block text-[10px] text-slate-450 font-semibold">{techInfo?.specialization || 'Service Technician'}</span>
                           </div>
                           <button
-                            onClick={() => {
+                            onClick={async () => {
+                              const cleanId = String(selectedOrder.id).replace(/^#/, '').trim();
                               dispatch(assignTechnicianToOrder({ orderId: selectedOrder.id, technicianName: techName }));
                               setSelectedOrder(prev => ({
                                 ...prev,
                                 assignedTechnician: techName,
                                 status: 'In Progress'
                               }));
+                              toast.success(`Assigned to ${techName}`);
+                              try {
+                                const baseUrl = getApiUrl();
+                                await fetch(`${baseUrl}/api/orders/${encodeURIComponent(cleanId)}`, {
+                                  method: 'PUT',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    assignedTechnician: techName,
+                                    assignedTechnicianName: techName,
+                                    orderStatus: 'PROCESSING'
+                                  })
+                                });
+                                await fetch(`${baseUrl}/api/jobs/${encodeURIComponent(cleanId)}`, {
+                                  method: 'PUT',
+                                  headers: { 'Content-Type': 'application/json', 'role': 'admin' },
+                                  body: JSON.stringify({
+                                    assignedTechnicians: [{ id: 'temp-id', name: techName }],
+                                    status: 'ASSIGNED'
+                                  })
+                                });
+                                dispatch(fetchDashboardData());
+                              } catch (err) {
+                                console.warn('Assign technician error:', err);
+                              }
                             }}
-                            className="px-3 py-1.5 bg-primary hover:bg-primary-dark text-white text-[10px] font-bold rounded-lg transition-colors"
+                            className="px-3 py-1.5 bg-primary hover:bg-primary-dark text-white text-[10px] font-bold rounded-lg transition-colors cursor-pointer"
                           >
                             Assign & Approve Project
                           </button>
@@ -1420,6 +1446,7 @@ export default function Orders() {
             onSubmit={async (e) => {
               e.preventDefault();
               const orderId = editingOrder.id;
+              const cleanId = String(orderId || '').replace(/^#/, '').trim();
               const assignedTech = orderForm.assignedTechnician;
               
               dispatch(editOrder({
@@ -1440,7 +1467,7 @@ export default function Orders() {
 
               // Direct API sync to guarantee 100% permanent MongoDB database persistence
               try {
-                const baseUrl = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
+                const baseUrl = getApiUrl();
                 const orderPayload = {
                   customerName: orderForm.customer,
                   customerEmail: orderForm.email,
@@ -1452,14 +1479,14 @@ export default function Orders() {
                   orderStatus: (orderForm.status === 'Completed' || orderForm.status === 'Approved' || orderForm.status === 'DELIVERED') ? 'DELIVERED' : 'PROCESSING'
                 };
 
-                await fetch(`${baseUrl}/api/orders/${encodeURIComponent(orderId)}`, {
+                await fetch(`${baseUrl}/api/orders/${encodeURIComponent(cleanId)}`, {
                   method: 'PUT',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify(orderPayload)
                 });
 
                 if (assignedTech && assignedTech !== 'Unassigned') {
-                  await fetch(`${baseUrl}/api/jobs/${encodeURIComponent(orderId)}`, {
+                  await fetch(`${baseUrl}/api/jobs/${encodeURIComponent(cleanId)}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json', 'role': 'admin' },
                     body: JSON.stringify({
@@ -1467,7 +1494,19 @@ export default function Orders() {
                       status: (orderForm.status === 'Completed' || orderForm.status === 'Approved') ? orderForm.status.toUpperCase() : 'ASSIGNED'
                     })
                   });
+                } else if (assignedTech === 'Unassigned') {
+                  await fetch(`${baseUrl}/api/jobs/${encodeURIComponent(cleanId)}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'role': 'admin' },
+                    body: JSON.stringify({
+                      assignedTechnicians: [],
+                      status: 'WAITING_FOR_TECH'
+                    })
+                  });
                 }
+
+                // Immediately re-fetch fresh state from backend
+                dispatch(fetchDashboardData());
               } catch (err) {
                 console.warn('Direct order API sync warning:', err);
               }
