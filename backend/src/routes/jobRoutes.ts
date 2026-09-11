@@ -13,10 +13,16 @@ const router = Router();
 // 📡 Active Broadcast Endpoint (for 20-second Radar popup on incoming jobs)
 router.get('/active-broadcast', async (_req: Request, res: Response) => {
   try {
-    // Find the most recent job created within the last 5 minutes
+    // Find the most recent job created within the last 5 minutes that is waiting for dispatch
     const cutoff = new Date(Date.now() - 5 * 60 * 1000);
     const recentJob = await Job.findOne({
-      createdAt: { $gte: cutoff }
+      createdAt: { $gte: cutoff },
+      $or: [
+        { status: 'WAITING_FOR_TECH' },
+        { isAutoDispatch: true },
+        { assignedTechnicians: { $size: 0 } },
+        { assignedTechnicians: { $exists: false } }
+      ]
     }).sort({ createdAt: -1 });
 
     if (!recentJob) {
@@ -25,15 +31,19 @@ router.get('/active-broadcast', async (_req: Request, res: Response) => {
 
     const order = await Order.findOne({ orderNumber: recentJob.jobCode });
 
+    const totalAmt = (typeof order?.totalAmount === 'number' && !isNaN(order.totalAmount)) 
+      ? order.totalAmount 
+      : ((typeof (recentJob as any).amount === 'number') ? (recentJob as any).amount : 0);
+
     res.json({
       activeBroadcast: true,
       job: {
         jobCode: recentJob.jobCode,
         title: recentJob.title,
         customerName: recentJob.customer?.name || 'Customer',
-        location: recentJob.customer?.address || 'Chennai Site',
+        location: recentJob.customer?.address || 'Site Address',
         itemsCount: recentJob.equipmentList?.length || 1,
-        amount: order?.totalAmount || 12500,
+        amount: totalAmt,
         createdAt: recentJob.createdAt
       }
     });
@@ -91,6 +101,17 @@ router.post('/auto-dispatch-complete', async (req: Request, res: Response) => {
     const job = await Job.findOne({ jobCode });
     if (!job) {
       return res.status(404).json({ success: false, message: 'Job not found' });
+    }
+
+    // If job was already assigned to a technician by Admin, preserve that technician!
+    if (job.assignedTechnicians && job.assignedTechnicians.length > 0 && job.status !== 'WAITING_FOR_TECH') {
+      const alreadyAssigned = job.assignedTechnicians[0].name;
+      return res.json({
+        success: true,
+        jobCode,
+        assignedTechnicianName: alreadyAssigned,
+        message: `Job is already assigned to ${alreadyAssigned}`
+      });
     }
 
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());

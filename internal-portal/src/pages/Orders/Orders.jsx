@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useSearchParams } from 'react-router-dom';
 import { FiSearch, FiSliders, FiCheckCircle, FiInfo, FiTrash2, FiPlusCircle, FiEye, FiGrid, FiList, FiPlus, FiUser, FiCalendar, FiDollarSign, FiChevronDown, FiCheck, FiEdit, FiShoppingBag, FiClock, FiRefreshCw } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
-import { approveOrder, approveOrderCompletion, reworkOrder, setOrderStatus, addOrder, assignTechnicianToOrder, editOrder, adminApproveJob, adminReworkJob, fetchDashboardData } from '../../redux/dashboardSlice';
+import { approveOrder, approveOrderCompletion, reworkOrder, setOrderStatus, addOrder, assignTechnicianToOrder, editOrder, adminApproveJob, adminReworkJob, fetchDashboardData, createOrderAPI } from '../../redux/dashboardSlice';
 import { socket } from '../../socket';
 import Modal from '../../components/Modal';
 import { getApiUrl } from '../../utils/config';
@@ -327,7 +327,7 @@ export default function Orders() {
 
   const handleCreateOrder = (e) => {
     e.preventDefault();
-    dispatch(addOrder({
+    const orderPayload = {
       customer: orderForm.customer,
       email: orderForm.email,
       phone: orderForm.phone,
@@ -336,7 +336,29 @@ export default function Orders() {
       subTechnicians: orderForm.subTechnicians,
       amount: parseFloat(orderForm.amount) || 0,
       location: orderForm.location
+    };
+    
+    // Optimistically update UI
+    dispatch(addOrder(orderPayload));
+
+    // Persist to Production Backend (AWS EC2 / MongoDB)
+    dispatch(createOrderAPI({
+      customerName: orderForm.customer,
+      customerEmail: orderForm.email || `${orderForm.customer.toLowerCase().replace(/\s+/g, '')}@example.com`,
+      customerPhone: orderForm.phone || '+91 99999 99999',
+      shippingAddress: orderForm.location || 'Site Address',
+      totalAmount: parseFloat(orderForm.amount) || 0,
+      serviceType: orderForm.type || 'Cameras Installation',
+      items: [{
+        productId: 'SRV-01',
+        title: orderForm.type || 'Cameras Installation',
+        price: parseFloat(orderForm.amount) || 0,
+        quantity: 1,
+        image: ''
+      }],
+      assignedTechnician: orderForm.assignedTechnician !== 'Unassigned' ? orderForm.assignedTechnician : undefined
     }));
+
     setOrderForm({ 
       customer: '', 
       email: '', 
@@ -352,7 +374,7 @@ export default function Orders() {
 
   const handleCreateTask = (e) => {
     e.preventDefault();
-    dispatch(addOrder({
+    const taskPayload = {
       customer: taskForm.taskName,
       email: 'internal@cctv.com',
       phone: taskForm.phone || '-',
@@ -362,11 +384,33 @@ export default function Orders() {
       amount: 0,
       location: taskForm.address || 'On-Site',
       date: `${taskForm.dueDate} ${taskForm.dueTime}`
+    };
+
+    // Optimistically update UI
+    dispatch(addOrder(taskPayload));
+
+    // Persist to Production Backend (AWS EC2 / MongoDB)
+    dispatch(createOrderAPI({
+      customerName: taskForm.taskName,
+      customerEmail: 'internal@cctv.com',
+      customerPhone: taskForm.phone || '+91 99999 99999',
+      shippingAddress: taskForm.address || 'On-Site',
+      totalAmount: 0,
+      serviceType: taskForm.description ? `Internal Task: ${taskForm.description}` : 'Internal Task',
+      items: [{
+        productId: 'TSK-01',
+        title: taskForm.description ? `Internal Task: ${taskForm.description}` : 'Internal Task',
+        price: 0,
+        quantity: 1,
+        image: ''
+      }],
+      assignedTechnician: taskForm.assignedTechnician !== 'Unassigned' ? taskForm.assignedTechnician : undefined
     }));
+
     setTaskForm({ 
       taskName: '', 
       description: '', 
-      phone: '',
+      phone: '', 
       address: '',
       assignedTechnician: 'Unassigned', 
       subTechnicians: [],

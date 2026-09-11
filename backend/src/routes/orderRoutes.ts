@@ -53,13 +53,43 @@ router.post('/', async (req: Request, res: Response) => {
         !busyTechNames.has(t.name.toLowerCase().trim())
       );
 
-      let assignedTech = freeTechs.length > 0 ? freeTechs[0] : null;
+      let assignedTech: any = null;
+      const requestedTech = (req.body.assignedTechnician || req.body.assignedTechnicianName || '').toString().trim();
+      if (requestedTech && requestedTech.toLowerCase() !== 'unassigned') {
+        const reqLower = requestedTech.toLowerCase();
+        assignedTech = allTechs.find((t: any) => 
+          t.name.toLowerCase().trim() === reqLower || 
+          t._id.toString() === requestedTech
+        ) || null;
+        
+        if (!assignedTech) {
+          const mongoose = require('mongoose');
+          assignedTech = {
+            _id: new mongoose.Types.ObjectId(),
+            name: requestedTech,
+            phone: '',
+            isAvailable: true,
+            save: async () => {}
+          };
+        }
+      }
+
+      // Only auto-assign from freeTechs if admin did NOT specify a technician
+      if (!assignedTech && (!requestedTech || requestedTech.toLowerCase() === 'unassigned')) {
+        assignedTech = freeTechs.length > 0 ? freeTechs[0] : null;
+      }
 
       if (assignedTech) {
-        // Mark tech as unavailable
-        assignedTech.isAvailable = false;
-        assignedTech.currentJobId = orderNumber;
-        await assignedTech.save();
+        newOrder.assignedTechnician = assignedTech.name;
+        newOrder.assignedTechnicianName = assignedTech.name;
+        newOrder.assignedTechnicianId = assignedTech._id.toString();
+
+        // Mark tech as unavailable if real User model
+        if (typeof assignedTech.save === 'function') {
+          assignedTech.isAvailable = false;
+          assignedTech.currentJobId = orderNumber;
+          await assignedTech.save();
+        }
 
         // 2. Create the Job mapped to this order, assigned to the tech
         const newJob = await Job.create({

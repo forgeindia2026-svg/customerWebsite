@@ -169,7 +169,7 @@ export function App() {
         body: JSON.stringify({ jobCode: job.jobCode })
       });
       const data = await res.json();
-      const assignedTech = data.assignedTechnicianName || 'Dinesh';
+      const assignedTech = data.assignedTechnicianName || 'Technician';
 
       setResultJob(job);
       setResultAssignedTech(assignedTech);
@@ -180,7 +180,7 @@ export function App() {
     } catch (err) {
       console.warn('Auto-dispatch complete fallback:', err);
       setResultJob(job);
-      setResultAssignedTech('Dinesh');
+      setResultAssignedTech('Technician');
       setIsResultOpen(true);
     }
   };
