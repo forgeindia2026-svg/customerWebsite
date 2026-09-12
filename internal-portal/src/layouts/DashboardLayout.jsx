@@ -67,7 +67,7 @@ export default function DashboardLayout() {
   const toggleMobileSidebar = () => setMobileSidebarOpen(!mobileSidebarOpen);
 
   return (
-    <div className="min-h-screen flex bg-[#f5f7fa] dark:bg-slate-950 transition-colors">
+    <div className="min-h-screen flex bg-[#F4F7FC] dark:bg-slate-950 transition-colors">
       {/* Desktop Sidebar */}
       <div className={`hidden md:block flex-shrink-0 transition-all duration-300 ${sidebarOpen ? 'w-60' : 'w-16'}`}>
         <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />

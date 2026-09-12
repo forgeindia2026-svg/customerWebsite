@@ -404,94 +404,90 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       
-      {/* 4 KPI Cards Grid (2 on top, 2 on bottom on Mobile) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-6">
+      {/* 4 KPI Cards Grid (Matching Image 1 Clean White Card Aesthetic) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         
         {/* Total Revenue */}
         <div 
           onClick={() => navigate('/admin/payments')}
-          className="bg-blue-100/90 border-blue-200/60 dark:bg-blue-900/30 dark:border-blue-800 p-3.5 sm:p-5 rounded-2xl border shadow-2xs flex items-center gap-2.5 sm:gap-4 transition-all duration-200 cursor-pointer hover:shadow-md hover:scale-[1.01] active:scale-[0.99] select-none group"
+          className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-4 sm:p-5 rounded-2xl shadow-xs flex flex-col justify-between transition-all duration-200 cursor-pointer hover:shadow-md hover:border-slate-200 dark:hover:border-slate-700 select-none group"
           title="Click to view Payments & Revenue"
         >
-          <div className="w-10 h-10 sm:w-14 sm:h-14 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-md shadow-blue-600/10 shrink-0 group-hover:scale-105 transition-transform">
-            <FiDollarSign className="w-4 h-4 sm:w-6 sm:h-6" />
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Total Revenue</span>
+            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform">
+              <FiDollarSign className="w-4 h-4" />
+            </div>
           </div>
-          <div className="min-w-0">
-            <p className="text-[10px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 truncate">Total Revenue</p>
-            <h3 className="text-sm sm:text-lg font-bold text-slate-850 dark:text-slate-50 mt-0.5 truncate">₹{totalRevenue.toLocaleString('en-IN')}</h3>
-            <span className={`text-[9px] sm:text-xs font-semibold flex items-center gap-0.5 mt-1 ${revenueChangePercent >= 0 ? 'text-emerald-600' : 'text-rose-600 dark:text-rose-400'}`}>
-              {revenueChangePercent >= 0 ? (
-                <FiArrowUpRight className="shrink-0" />
-              ) : (
-                <FiArrowDownRight className="shrink-0" />
-              )}
-              <span className="truncate">
-                {Math.abs(revenueChangePercent).toFixed(1)}% <span className="hidden sm:inline text-slate-450 dark:text-slate-400 font-medium">from last month</span>
-              </span>
-            </span>
+          <div className="mt-3">
+            <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">₹{totalRevenue.toLocaleString('en-IN')}</h3>
+            <div className="flex items-center gap-1 mt-1 text-[11px] font-bold text-emerald-600">
+              {revenueChangePercent >= 0 ? <FiArrowUpRight className="shrink-0" /> : <FiArrowDownRight className="shrink-0" />}
+              <span>{Math.abs(revenueChangePercent).toFixed(1)}% <span className="text-slate-400 font-normal">from last month</span></span>
+            </div>
           </div>
         </div>
 
         {/* Today Orders */}
         <div 
           onClick={() => navigate('/admin/orders')}
-          className="bg-emerald-100/90 border-emerald-200/60 dark:bg-emerald-900/30 dark:border-emerald-800 p-3.5 sm:p-5 rounded-2xl border shadow-2xs flex items-center gap-2.5 sm:gap-4 transition-all duration-200 cursor-pointer hover:shadow-md hover:scale-[1.01] active:scale-[0.99] select-none group"
+          className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-4 sm:p-5 rounded-2xl shadow-xs flex flex-col justify-between transition-all duration-200 cursor-pointer hover:shadow-md hover:border-slate-200 dark:hover:border-slate-700 select-none group"
           title="Click to view Today Orders"
         >
-          <div className="w-10 h-10 sm:w-14 sm:h-14 bg-emerald-600 rounded-full flex items-center justify-center text-white shadow-md shadow-emerald-600/10 shrink-0 group-hover:scale-105 transition-transform">
-            <FiShoppingCart className="w-4 h-4 sm:w-6 sm:h-6" />
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Today Orders</span>
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform">
+              <FiShoppingCart className="w-4 h-4" />
+            </div>
           </div>
-          <div className="min-w-0">
-            <p className="text-[10px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 truncate">Today Orders</p>
-            <h3 className="text-sm sm:text-lg font-bold text-slate-850 dark:text-slate-50 mt-0.5 truncate">{todayOrders}</h3>
-            <span className="text-[9px] sm:text-xs text-emerald-600 font-semibold flex items-center gap-0.5 mt-1">
+          <div className="mt-3">
+            <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">{todayOrders}</h3>
+            <div className="flex items-center gap-1 mt-1 text-[11px] font-bold text-emerald-600">
               <FiArrowUpRight className="shrink-0" />
-              <span className="truncate">
-                +{lastHourOrders} new <span className="hidden sm:inline text-slate-450 dark:text-slate-400 font-medium">in last hour</span>
-              </span>
-            </span>
+              <span>+{lastHourOrders} new <span className="text-slate-400 font-normal">in last hour</span></span>
+            </div>
           </div>
         </div>
 
         {/* Active Orders */}
         <div 
           onClick={() => navigate('/admin/orders?status=In Progress')}
-          className="bg-amber-100/95 border-amber-200/60 dark:bg-amber-900/30 dark:border-amber-800 p-3.5 sm:p-5 rounded-2xl border shadow-2xs flex items-center gap-2.5 sm:gap-4 transition-all duration-200 cursor-pointer hover:shadow-md hover:scale-[1.01] active:scale-[0.99] select-none group"
+          className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-4 sm:p-5 rounded-2xl shadow-xs flex flex-col justify-between transition-all duration-200 cursor-pointer hover:shadow-md hover:border-slate-200 dark:hover:border-slate-700 select-none group"
           title="Click to view Active Orders In Progress"
         >
-          <div className="w-10 h-10 sm:w-14 sm:h-14 bg-amber-500 rounded-full flex items-center justify-center text-white shadow-md shadow-amber-500/10 shrink-0 group-hover:scale-105 transition-transform">
-            <FiClock className="w-4 h-4 sm:w-6 sm:h-6" />
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Active Orders</span>
+            <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform">
+              <FiClock className="w-4 h-4" />
+            </div>
           </div>
-          <div className="min-w-0">
-            <p className="text-[10px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 truncate">Active Orders</p>
-            <h3 className="text-sm sm:text-lg font-bold text-slate-850 dark:text-slate-50 mt-0.5 truncate">{activeOrders}</h3>
-            <span className="text-[9px] sm:text-xs text-emerald-600 font-semibold flex items-center gap-0.5 mt-1">
+          <div className="mt-3">
+            <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">{activeOrders}</h3>
+            <div className="flex items-center gap-1 mt-1 text-[11px] font-bold text-amber-600">
               <FiActivity className="shrink-0" />
-              <span className="truncate">
-                Running <span className="hidden sm:inline text-slate-450 dark:text-slate-400 font-medium">installations</span>
-              </span>
-            </span>
+              <span>Running installations</span>
+            </div>
           </div>
         </div>
 
         {/* Finished Orders */}
         <div 
           onClick={() => navigate('/admin/orders?status=Completed')}
-          className="bg-purple-100/90 border-purple-200/60 dark:bg-purple-900/30 dark:border-purple-800 p-3.5 sm:p-5 rounded-2xl border shadow-2xs flex items-center gap-2.5 sm:gap-4 transition-all duration-200 cursor-pointer hover:shadow-md hover:scale-[1.01] active:scale-[0.99] select-none group"
+          className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-4 sm:p-5 rounded-2xl shadow-xs flex flex-col justify-between transition-all duration-200 cursor-pointer hover:shadow-md hover:border-slate-200 dark:hover:border-slate-700 select-none group"
           title="Click to view Finished & Completed Orders"
         >
-          <div className="w-10 h-10 sm:w-14 sm:h-14 bg-purple-600 rounded-full flex items-center justify-center text-white shadow-md shadow-purple-600/10 shrink-0 group-hover:scale-105 transition-transform">
-            <FiCheckCircle className="w-4 h-4 sm:w-6 sm:h-6" />
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Finished Orders</span>
+            <div className="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform">
+              <FiCheckCircle className="w-4 h-4" />
+            </div>
           </div>
-          <div className="min-w-0">
-            <p className="text-[10px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 truncate">Finished Orders</p>
-            <h3 className="text-sm sm:text-lg font-bold text-slate-850 dark:text-slate-50 mt-0.5 truncate">{finishedOrders}</h3>
-            <span className="text-[9px] sm:text-xs text-emerald-600 font-semibold flex items-center gap-0.5 mt-1">
+          <div className="mt-3">
+            <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">{finishedOrders}</h3>
+            <div className="flex items-center gap-1 mt-1 text-[11px] font-bold text-purple-600">
               <FiCheck className="shrink-0" />
-              <span className="truncate">
-                {completionRate}% <span className="hidden sm:inline text-slate-450 dark:text-slate-400 font-medium">completion rate</span>
-              </span>
-            </span>
+              <span>{completionRate}% <span className="text-slate-400 font-normal">completion rate</span></span>
+            </div>
           </div>
         </div>
       </div>

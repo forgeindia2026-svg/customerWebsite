@@ -63,50 +63,51 @@ export default function Header({ toggleMobileSidebar }) {
           </div>
         </div>
 
-        {/* Desktop View Page Title */}
-        <div className="hidden md:block">
-          <h2 className="ty-page-title">{getPageTitle()}</h2>
-          <p className="ty-muted mt-0.5">Welcome back, {settings.contactPerson || 'Admin'}!</p>
+      {/* Desktop View Page Title */}
+      <div className="hidden md:flex flex-col">
+        <h2 className="text-base font-black tracking-tight text-slate-900 dark:text-white uppercase font-sans">
+          {getPageTitle()} ADMIN DASHBOARD
+        </h2>
+        <div className="flex items-center gap-1.5 text-[11px] text-blue-600 dark:text-blue-400 font-semibold mt-0.5 bg-blue-50/80 dark:bg-blue-950/40 px-2 py-0.5 rounded-md w-fit">
+          <span>📍 Salem (Head Office)</span>
         </div>
       </div>
-
-      {/* Center: Search Bar (Dashboard Only) */}
-      {location.pathname === '/' && (
-        <div className="hidden md:flex items-center flex-1 max-w-md mx-8">
-          <div className="relative w-full">
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
-              <FiSearch size={16} />
-            </span>
-            <input
-              type="text"
-              placeholder="Search transactions, service logs, products..."
-              className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-primary dark:focus:border-primary transition-all"
-            />
-          </div>
-        </div>
-      )}
+      </div>
 
       {/* Right section: Quick actions, notifications, dark/light, admin profile */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5">
+        {/* Date Filter Pill */}
+        <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold shadow-2xs cursor-pointer hover:bg-slate-50 transition-colors">
+          <span>📅 This Month ▾</span>
+        </div>
 
-        {/* Dark/Light mode toggle */}
+        {/* Search button */}
+        <button 
+          className="p-2 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-2xs cursor-pointer"
+          title="Search"
+        >
+          <FiSearch size={15} />
+        </button>
+
+        {/* Dark/Light mode pill toggle */}
         <button
           onClick={() => dispatch(toggleDarkMode())}
-          className="p-2 rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 transition-colors"
+          className="px-3 py-1.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-2xs cursor-pointer"
           title="Toggle Dark/Light Mode"
         >
-          {darkMode ? <FiSun size={18} /> : <FiMoon size={18} />}
+          {darkMode ? <FiSun size={14} className="text-amber-500" /> : <FiMoon size={14} className="text-blue-600" />}
+          <span>{darkMode ? 'Light' : 'Dark'}</span>
         </button>
 
         {/* Notification center */}
         <div className="relative" ref={notifRef}>
           <button
             onClick={() => setShowNotifications(!showNotifications)}
-            className="relative p-2 rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 transition-colors"
+            className="relative p-2 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-2xs cursor-pointer"
           >
-            <FiBell size={18} />
+            <FiBell size={16} />
             {unreadNotifications.length > 0 && (
-              <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white ring-2 ring-white dark:ring-slate-900">
+              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-purple-600 text-[9px] font-black text-white shadow-xs">
                 {unreadNotifications.length}
               </span>
             )}
