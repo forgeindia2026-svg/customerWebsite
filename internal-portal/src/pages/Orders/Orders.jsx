@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useSearchParams } from 'react-router-dom';
-import { FiSearch, FiSliders, FiCheckCircle, FiInfo, FiTrash2, FiPlusCircle, FiEye, FiGrid, FiList, FiPlus, FiUser, FiCalendar, FiDollarSign, FiChevronDown, FiCheck, FiEdit, FiShoppingBag, FiClock, FiRefreshCw } from 'react-icons/fi';
+import { FiSearch, FiSliders, FiCheckCircle, FiInfo, FiTrash2, FiPlusCircle, FiEye, FiGrid, FiList, FiPlus, FiUser, FiCalendar, FiDollarSign, FiChevronDown, FiCheck, FiEdit, FiShoppingBag, FiClock, FiRefreshCw, FiVideo, FiShield, FiTool, FiCpu, FiPackage, FiAlertCircle } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { approveOrder, approveOrderCompletion, reworkOrder, setOrderStatus, addOrder, assignTechnicianToOrder, editOrder, adminApproveJob, adminReworkJob, fetchDashboardData, createOrderAPI } from '../../redux/dashboardSlice';
 import { socket } from '../../socket';
@@ -305,24 +305,83 @@ export default function Orders() {
     switch (status) {
       case 'Approved':
       case 'APPROVED':
-        return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50 font-bold';
+        return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 font-bold shadow-2xs';
       case 'Completed':
       case 'COMPLETED':
-        return 'bg-blue-50 text-blue-700 dark:bg-blue-950/20 dark:text-blue-300 border border-blue-200 dark:border-blue-800/50 font-bold';
+        return 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-300 dark:border-blue-800 font-bold shadow-2xs';
       case 'Pending Approval':
       case 'WAITING_ADMIN_APPROVAL':
-        return 'bg-amber-50 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300 border border-amber-300 dark:border-amber-700/60 font-bold';
+        return 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-300 dark:border-amber-700 font-bold shadow-2xs';
       case 'Rework':
-        return 'bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-300 border border-red-200 dark:border-red-800/50';
+        return 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300 border border-red-300 dark:border-red-800 font-bold shadow-2xs';
       case 'In Progress':
       case 'IN_PROGRESS':
-        return 'bg-indigo-50 text-indigo-700 dark:bg-indigo-955/20 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900/40';
+        return 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800 font-bold shadow-2xs';
       case 'Pending':
       case 'ASSIGNMENT_PENDING_ACCEPTANCE':
       case 'WAITING_FOR_TECH':
       default:
-        return 'bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700';
+        return 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-300 dark:border-rose-800 font-bold shadow-2xs';
     }
+  };
+
+  const getAvatarColor = (name) => {
+    const colors = [
+      'bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-blue-500/20',
+      'bg-gradient-to-tr from-emerald-600 to-teal-600 text-white shadow-emerald-500/20',
+      'bg-gradient-to-tr from-purple-600 to-pink-600 text-white shadow-purple-500/20',
+      'bg-gradient-to-tr from-amber-500 to-orange-600 text-white shadow-amber-500/20',
+      'bg-gradient-to-tr from-cyan-600 to-blue-600 text-white shadow-cyan-500/20',
+      'bg-gradient-to-tr from-rose-600 to-red-600 text-white shadow-rose-500/20',
+    ];
+    const code = (name || 'C').charCodeAt(0);
+    return colors[code % colors.length];
+  };
+
+  const getOrderTypeBadge = (type) => {
+    const rawType = (type || '').trim();
+    const t = rawType.toLowerCase();
+
+    // Clean up if it's a long product title (e.g. 100+ char ecommerce camera title)
+    let displayLabel = rawType;
+    if (displayLabel.length > 25) {
+      if (t.includes('camera') || t.includes('1080p') || t.includes('dvr') || t.includes('nvr') || t.includes('bullet') || t.includes('dome')) {
+        displayLabel = 'CCTV Camera Order';
+      } else {
+        displayLabel = displayLabel.slice(0, 22) + '...';
+      }
+    }
+
+    if (t.includes('amc') || t.includes('maintenance')) {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60 font-bold text-xs shadow-2xs max-w-[170px]" title={rawType}>
+          <FiShield size={12} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+          <span className="truncate">{displayLabel}</span>
+        </span>
+      );
+    }
+    if (t.includes('repair') || t.includes('service')) {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/60 font-bold text-xs shadow-2xs max-w-[170px]" title={rawType}>
+          <FiTool size={12} className="text-amber-600 dark:text-amber-400 shrink-0" />
+          <span className="truncate">{displayLabel}</span>
+        </span>
+      );
+    }
+    if (t.includes('upgrade') || t.includes('dvr') || t.includes('network') || t.includes('product') || t.includes('cctv camera order')) {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200/80 dark:border-purple-800/60 font-bold text-xs shadow-2xs max-w-[170px]" title={rawType}>
+          <FiCpu size={12} className="text-purple-600 dark:text-purple-400 shrink-0" />
+          <span className="truncate">{displayLabel}</span>
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border border-sky-200/80 dark:border-sky-800/60 font-bold text-xs shadow-2xs max-w-[170px]" title={rawType}>
+        <FiVideo size={12} className="text-sky-600 dark:text-sky-400 shrink-0" />
+        <span className="truncate">{displayLabel}</span>
+      </span>
+    );
   };
 
   const handleCreateOrder = (e) => {
@@ -446,102 +505,78 @@ export default function Orders() {
   return (
     <div className="space-y-6">
       
-      {/* 📊 Orders KPI Summary Cards Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* 📊 Orders KPI Summary Cards Row (Clean, Simple & Minimalist) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* 1. Total Orders */}
         <div 
           onClick={() => setStatusFilter('All')}
-          className={`p-4 rounded-2xl bg-white dark:bg-slate-900 border transition-all cursor-pointer ${
-            statusFilter === 'All'
-              ? 'border-blue-500 shadow-md ring-2 ring-blue-500/20'
-              : 'border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 shadow-sm'
+          className={`p-4 sm:p-5 rounded-2xl bg-[#E5EFFF] border border-[#CCE1FC] dark:bg-blue-900/30 dark:border-blue-800 transition-all cursor-pointer shadow-xs hover:shadow-md hover:scale-[1.01] active:scale-[0.99] select-none flex items-center justify-between ${
+            statusFilter === 'All' ? 'ring-2 ring-blue-500 shadow-md' : ''
           }`}
         >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total Orders</span>
-            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-              <FiShoppingBag size={20} />
-            </div>
+          <div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Total Orders</span>
+            <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono mt-1">
+              {totalOrdersCount}
+            </h3>
           </div>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl font-black text-slate-900 dark:text-white font-mono">{totalOrdersCount}</span>
-            <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-full">
-              All Orders
-            </span>
+          <div className="w-12 h-12 rounded-full bg-[#1D68FE] text-white flex items-center justify-center shadow-md shadow-blue-600/25 shrink-0">
+            <FiShoppingBag size={22} />
           </div>
-          <p className="mt-1 text-[11px] text-slate-400">CCTV & Service Orders</p>
         </div>
 
         {/* 2. Pending Orders */}
         <div 
           onClick={() => setStatusFilter('Pending')}
-          className={`p-4 rounded-2xl bg-white dark:bg-slate-900 border transition-all cursor-pointer ${
-            statusFilter === 'Pending' || statusFilter === 'Pending Approval'
-              ? 'border-amber-500 shadow-md ring-2 ring-amber-500/20'
-              : 'border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 shadow-sm'
+          className={`p-4 sm:p-5 rounded-2xl bg-[#FEF5D2] border border-[#FDE68A] dark:bg-amber-900/30 dark:border-amber-800 transition-all cursor-pointer shadow-xs hover:shadow-md hover:scale-[1.01] active:scale-[0.99] select-none flex items-center justify-between ${
+            statusFilter === 'Pending' || statusFilter === 'Pending Approval' ? 'ring-2 ring-amber-500 shadow-md' : ''
           }`}
         >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Pending</span>
-            <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-              <FiClock size={20} />
-            </div>
+          <div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Pending</span>
+            <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono mt-1">
+              {pendingOrdersCount}
+            </h3>
           </div>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl font-black text-slate-900 dark:text-white font-mono">{pendingOrdersCount}</span>
-            <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full">
-              Action Needed
-            </span>
+          <div className="w-12 h-12 rounded-full bg-[#E58A00] text-white flex items-center justify-center shadow-md shadow-amber-500/25 shrink-0">
+            <FiClock size={22} />
           </div>
-          <p className="mt-1 text-[11px] text-slate-400">Needs Approval / Technician</p>
         </div>
 
         {/* 3. In Progress */}
         <div 
           onClick={() => setStatusFilter('In Progress')}
-          className={`p-4 rounded-2xl bg-white dark:bg-slate-900 border transition-all cursor-pointer ${
-            statusFilter === 'In Progress'
-              ? 'border-purple-500 shadow-md ring-2 ring-purple-500/20'
-              : 'border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 shadow-sm'
+          className={`p-4 sm:p-5 rounded-2xl bg-[#F3EAFF] border border-[#EAD9FF] dark:bg-purple-900/30 dark:border-purple-800 transition-all cursor-pointer shadow-xs hover:shadow-md hover:scale-[1.01] active:scale-[0.99] select-none flex items-center justify-between ${
+            statusFilter === 'In Progress' ? 'ring-2 ring-purple-500 shadow-md' : ''
           }`}
         >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">In Progress</span>
-            <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center">
-              <FiSliders size={20} />
-            </div>
+          <div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">In Progress</span>
+            <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono mt-1">
+              {inProgressOrdersCount}
+            </h3>
           </div>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl font-black text-slate-900 dark:text-white font-mono">{inProgressOrdersCount}</span>
-            <span className="text-[11px] font-semibold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/40 px-2 py-0.5 rounded-full">
-              On-Site Jobs
-            </span>
+          <div className="w-12 h-12 rounded-full bg-[#8B2BE2] text-white flex items-center justify-center shadow-md shadow-purple-600/25 shrink-0">
+            <FiSliders size={22} />
           </div>
-          <p className="mt-1 text-[11px] text-slate-400">Active Field Installations</p>
         </div>
 
         {/* 4. Completed Revenue */}
         <div 
           onClick={() => setStatusFilter('Completed')}
-          className={`p-4 rounded-2xl bg-white dark:bg-slate-900 border transition-all cursor-pointer ${
-            statusFilter === 'Completed' || statusFilter === 'Approved'
-              ? 'border-emerald-500 shadow-md ring-2 ring-emerald-500/20'
-              : 'border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 shadow-sm'
+          className={`p-4 sm:p-5 rounded-2xl bg-[#D6F5E3] border border-[#BBECD0] dark:bg-emerald-900/30 dark:border-emerald-800 transition-all cursor-pointer shadow-xs hover:shadow-md hover:scale-[1.01] active:scale-[0.99] select-none flex items-center justify-between ${
+            statusFilter === 'Completed' || statusFilter === 'Approved' ? 'ring-2 ring-emerald-500 shadow-md' : ''
           }`}
         >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Completed & Billing</span>
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-              <FiCheckCircle size={20} />
-            </div>
+          <div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Completed Revenue</span>
+            <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono mt-1">
+              ₹{totalRevenue.toLocaleString('en-IN')}
+            </h3>
           </div>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-xl font-black text-slate-900 dark:text-white font-mono">₹{totalRevenue.toLocaleString('en-IN')}</span>
-            <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full">
-              {completedOrdersCount} Finished
-            </span>
+          <div className="w-12 h-12 rounded-full bg-[#069655] text-white flex items-center justify-center shadow-md shadow-emerald-600/25 shrink-0">
+            <FiCheckCircle size={22} />
           </div>
-          <p className="mt-1 text-[11px] text-slate-400">Total Billing Value</p>
         </div>
       </div>
 
@@ -756,14 +791,14 @@ export default function Orders() {
             ) : (
               <table className="w-full text-left border-collapse table-auto">
                 <thead>
-                  <tr className="bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-200/80 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider text-[11px]">
-                    <th className="py-3.5 px-4 whitespace-nowrap w-28">Order ID</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap w-28">Created Date</th>
-                    <th className="py-3.5 px-4 min-w-[180px] max-w-[220px]">Customer Details</th>
-                    <th className="py-3.5 px-4 min-w-[220px]">Order Type</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap w-36">Assigned Staff</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap w-28">Amount</th>
-                    <th className="py-3.5 px-4 text-right whitespace-nowrap w-40">Status & Actions</th>
+                  <tr className="bg-gradient-to-r from-slate-100 via-blue-50/50 to-slate-100 dark:from-slate-800/80 dark:via-slate-800/60 dark:to-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold uppercase tracking-wider text-[11px]">
+                    <th className="py-3.5 px-4 whitespace-nowrap w-32">Order ID</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap w-32">Created Date</th>
+                    <th className="py-3.5 px-4 min-w-[200px] max-w-[250px]">Customer Details</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap w-48">Order Type</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap w-40">Assigned Staff</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap w-32">Amount</th>
+                    <th className="py-3.5 px-4 text-right whitespace-nowrap w-44">Status & Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-800 dark:text-slate-200 text-xs">
@@ -773,46 +808,88 @@ export default function Orders() {
                       <tr 
                         key={ord.id} 
                         onClick={() => setSelectedOrder(ord)}
-                        className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors cursor-pointer group"
+                        className="hover:bg-blue-50/40 dark:hover:bg-slate-800/60 transition-colors cursor-pointer group"
                       >
-                        <td className="py-4 px-4 align-middle font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">{ord.id}</td>
+                        {/* 1. Colorful Order ID */}
                         <td className="py-4 px-4 align-middle whitespace-nowrap">
-                          <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300 font-medium">
-                            <FiCalendar size={13} className="text-slate-400 shrink-0" />
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-mono font-black text-xs bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/60 shadow-2xs group-hover:scale-105 group-hover:border-indigo-400 transition-all">
+                            #{ord.id.replace(/^#/, '')}
+                          </span>
+                        </td>
+
+                        {/* 2. Colorful Created Date */}
+                        <td className="py-4 px-4 align-middle whitespace-nowrap">
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-50/80 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/50 text-xs font-semibold">
+                            <FiCalendar size={13} className="text-purple-500 shrink-0" />
                             <span>{formatOrderDate(ord)}</span>
                           </div>
                         </td>
-                        <td className="py-4 px-4 align-middle max-w-[220px]">
-                          <div className="font-bold text-slate-900 dark:text-slate-100 text-xs group-hover:text-primary transition-colors truncate" title={ord.customer}>{ord.customer}</div>
-                          <div className="text-[11px] text-slate-400 font-medium mt-0.5 font-sans truncate" title={`${ord.phone || ''} | ${ord.email || ''}`}>{ord.phone} | {ord.email}</div>
-                        </td>
-                        <td className="py-4 px-4 align-middle max-w-[300px]">
-                          <div className="font-semibold text-slate-700 dark:text-slate-200 line-clamp-1 group-hover:text-slate-900 dark:group-hover:text-white transition-colors" title={ord.type}>
-                            {ord.type}
+
+                        {/* 3. Colorful Customer Details with Avatar */}
+                        <td className="py-4 px-4 align-middle max-w-[250px]">
+                          <div className="flex items-center gap-2.5">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 shadow-xs ${getAvatarColor(ord.customer)}`}>
+                              {(ord.customer || 'C').charAt(0).toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-bold text-slate-900 dark:text-slate-100 text-xs sm:text-sm group-hover:text-blue-600 transition-colors truncate" title={ord.customer}>
+                                {ord.customer}
+                              </div>
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5 truncate flex items-center gap-1" title={`${ord.phone || ''} • ${ord.email || ''}`}>
+                                <span>📞 {ord.phone || 'No phone'}</span>
+                              </div>
+                            </div>
                           </div>
                         </td>
+
+                        {/* 4. Colorful Order Type Badge */}
+                        <td className="py-4 px-4 align-middle whitespace-nowrap w-48">
+                          {getOrderTypeBadge(ord.type)}
+                        </td>
+
+                        {/* 5. Colorful Assigned Staff */}
                         <td className="py-4 px-4 align-middle font-semibold whitespace-nowrap">
                           <div className="flex flex-col gap-1">
-                            <span className={`inline-flex w-fit items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs ${
-                              ord.assignedTechnician && ord.assignedTechnician !== 'Unassigned'
-                                ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300 font-bold'
-                                : 'text-slate-500 dark:text-slate-400 font-normal'
-                            }`}>
-                              {ord.assignedTechnician || 'Unassigned'}
-                            </span>
+                            {ord.assignedTechnician && ord.assignedTechnician !== 'Unassigned' ? (
+                              <span className="inline-flex w-fit items-center gap-1.5 px-3 py-1 rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200/80 dark:border-blue-800/60 font-bold text-xs shadow-2xs">
+                                <FiUser size={12} className="text-blue-600 dark:text-blue-400" />
+                                <span>{ord.assignedTechnician}</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex w-fit items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/60 font-bold text-xs">
+                                <FiAlertCircle size={12} className="text-amber-500" />
+                                <span>Unassigned</span>
+                              </span>
+                            )}
                             {ord.subTechnicians?.length > 0 && (
-                              <span className="text-[9px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 w-fit px-1.5 py-0.5 rounded-md">+{ord.subTechnicians.length} Sub-Tech</span>
+                              <span className="text-[10px] font-bold text-purple-600 bg-purple-50 dark:bg-purple-950/40 border border-purple-200/60 dark:border-purple-800/50 w-fit px-2 py-0.5 rounded-md">
+                                +{ord.subTechnicians.length} Sub-Tech
+                              </span>
                             )}
                           </div>
                         </td>
-                        <td className="py-4 px-4 align-middle font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">
-                          <div>₹{(ord.amount || 0).toLocaleString('en-IN')}</div>
-                          {ord.financials?.technicianEarning > 0 && (
-                            <div className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                              Tech: ₹{Number(ord.financials.technicianEarning).toLocaleString('en-IN')}
+
+                        {/* 6. Colorful Amount */}
+                        <td className="py-4 px-4 align-middle whitespace-nowrap">
+                          {parseFloat(ord.amount || ord.totalAmount || 0) > 0 ? (
+                            <div className="inline-flex flex-col">
+                              <span className="inline-flex items-center px-3 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-mono font-black text-xs sm:text-sm border border-emerald-200/80 dark:border-emerald-800/60 shadow-2xs">
+                                ₹{(parseFloat(ord.amount || ord.totalAmount) || 0).toLocaleString('en-IN')}
+                              </span>
+                              {ord.financials?.technicianEarning > 0 && (
+                                <span className="text-[10px] font-bold text-teal-600 dark:text-teal-400 mt-1">
+                                  Tech: ₹{Number(ord.financials.technicianEarning).toLocaleString('en-IN')}
+                                </span>
+                              )}
                             </div>
+                          ) : (
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-mono font-bold text-xs border border-slate-200/70 dark:border-slate-700">
+                              ₹0 (Pending)
+                            </span>
                           )}
                         </td>
+
+                        {/* 7. Colorful Status & Actions */}
                         <td className="py-4 px-4 align-middle text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-2">
                             {/* Quick Approve Button if Waiting Approval */}
@@ -823,7 +900,7 @@ export default function Orders() {
                                   e.stopPropagation();
                                   openApprovalModal(ord);
                                 }}
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all cursor-pointer"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm hover:shadow transition-all cursor-pointer"
                                 title="Click to approve job completion and allocate financials"
                               >
                                 <FiCheck size={13} />
@@ -838,10 +915,17 @@ export default function Orders() {
                                   e.stopPropagation();
                                   setActiveStatusDropdown(isOpenDropdown ? null : ord.id);
                                 }}
-                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap transition-all shadow-xs cursor-pointer ${getStatusBadge(getDisplayStatus(ord))} hover:opacity-90`}
+                                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all shadow-xs cursor-pointer ${getStatusBadge(getDisplayStatus(ord))} hover:opacity-90`}
                               >
+                                <span className={`w-2 h-2 rounded-full ${
+                                  getDisplayStatus(ord) === 'Completed' || getDisplayStatus(ord) === 'Approved'
+                                    ? 'bg-emerald-500'
+                                    : getDisplayStatus(ord) === 'In Progress'
+                                    ? 'bg-blue-500 animate-pulse'
+                                    : 'bg-amber-500'
+                                }`} />
                                 <span>{getDisplayStatus(ord)}</span>
-                                <FiChevronDown className="w-3.5 h-3.5 text-current opacity-70" />
+                                <FiChevronDown className="w-3.5 h-3.5 opacity-70" />
                               </button>
 
                               {isOpenDropdown && (
