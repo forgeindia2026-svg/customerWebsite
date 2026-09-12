@@ -35,10 +35,20 @@ export default function Header({ toggleMobileSidebar }) {
   // Determine page title
   const getPageTitle = () => {
     const path = location.pathname;
-    if (path === '/') return 'Dashboard';
-    const segment = path.split('/')[1];
+    if (path === '/' || path === '/admin' || path === '/admin/dashboard') return 'Admin';
+    const parts = path.replace(/^\//, '').split('/');
+    const segment = parts[0] === 'admin' ? parts[1] || 'Admin' : parts[0];
     return segment.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   };
+
+  const user = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('internal_user') || '{}');
+    } catch {
+      return {};
+    }
+  })();
+  const adminName = user?.name || (settings?.contactPerson && settings.contactPerson !== 'Ramesh Kumar' ? settings.contactPerson : 'SARAN KUMAR');
 
   const handleMarkAllRead = () => {
     dispatch(markAllNotificationsAsRead());
@@ -63,14 +73,14 @@ export default function Header({ toggleMobileSidebar }) {
           </div>
         </div>
 
-      {/* Desktop View Page Title */}
+      {/* Desktop View Page Title (Matching Image 2 clean style) */}
       <div className="hidden md:flex flex-col">
-        <h2 className="text-base font-black tracking-tight text-slate-900 dark:text-white uppercase font-sans">
-          {getPageTitle()} ADMIN DASHBOARD
+        <h2 className="text-xl font-bold tracking-tight text-slate-850 dark:text-white">
+          {getPageTitle()}
         </h2>
-        <div className="flex items-center gap-1.5 text-[11px] text-blue-600 dark:text-blue-400 font-semibold mt-0.5 bg-blue-50/80 dark:bg-blue-950/40 px-2 py-0.5 rounded-md w-fit">
-          <span>📍 Salem (Head Office)</span>
-        </div>
+        <p className="text-xs sm:text-sm font-medium text-slate-400 dark:text-slate-400 mt-0.5">
+          Welcome back, {adminName}!
+        </p>
       </div>
       </div>
 
@@ -184,14 +194,14 @@ export default function Header({ toggleMobileSidebar }) {
               />
               <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
             </div>
-            <span className="hidden sm:inline-block text-xs font-semibold text-slate-800 dark:text-slate-200 pr-1">{settings.contactPerson || 'Admin'}</span>
+            <span className="hidden sm:inline-block text-xs font-semibold text-slate-800 dark:text-slate-200 pr-1">{adminName}</span>
           </button>
 
           {/* Profile Dropdown */}
           {showProfileMenu && (
             <div className="absolute right-0 mt-2 w-48 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
               <div className="p-3 border-b border-slate-100 dark:border-slate-800">
-                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">{settings.contactPerson || 'Admin'}</p>
+                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">{adminName}</p>
                 <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium truncate">{settings.email}</p>
               </div>
               <div className="p-1.5 space-y-0.5">
