@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { addPayment } from '../../redux/dashboardSlice';
 import jsPDF from 'jspdf';
+import LeaderboardModule from '../../technician/components/Leaderboard/LeaderboardModule';
 import { 
   FiDownload, FiBarChart2, FiTrendingUp, FiCheckCircle, 
   FiUsers, FiStar, FiClock, FiSettings, FiGrid, FiActivity,
   FiEye, FiTrash2, FiFileText, FiMoreVertical, FiShield, FiShieldOff,
-  FiUserX, FiZap
+  FiUserX, FiZap, FiAward
 } from 'react-icons/fi';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -175,7 +177,26 @@ export default function Reports() {
   const settings = useSelector(state => state.dashboard?.settings) || {};
   const dispatch = useDispatch();
 
-  const [activeTab, setActiveTab] = useState('Attendance'); // 'Attendance', 'Field Reports', 'Overview', 'Technicians'
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(() => {
+    if (tabParam === 'leaderboard' || tabParam === 'Leaderboard') return 'Leaderboard';
+    if (tabParam === 'field-reports' || tabParam === 'Field Reports') return 'Field Reports';
+    if (tabParam === 'daybook' || tabParam === 'Daybook') return 'Daybook';
+    return 'Attendance';
+  });
+
+  useEffect(() => {
+    if (tabParam === 'leaderboard' || tabParam === 'Leaderboard') {
+      setActiveTab('Leaderboard');
+    } else if (tabParam === 'field-reports' || tabParam === 'Field Reports') {
+      setActiveTab('Field Reports');
+    } else if (tabParam === 'daybook' || tabParam === 'Daybook') {
+      setActiveTab('Daybook');
+    } else if (tabParam === 'attendance' || tabParam === 'Attendance') {
+      setActiveTab('Attendance');
+    }
+  }, [tabParam]);
   const [showAddTransaction, setShowAddTransaction] = useState(false);
   const [transactionForm, setTransactionForm] = useState({ date: new Date().toISOString().split('T')[0], customerName: '', type: 'Sales Invoices', invoiceNo: '', amount: '', moneyIn: '', moneyOut: '', balanceAmount: '', createdBy: '' });
   const handleAddTransaction = (e) => {
@@ -1600,10 +1621,14 @@ export default function Reports() {
               { id: 'Attendance', icon: '🕒', label: 'Attendance' },
               { id: 'Field Reports', icon: '📸', label: 'Field Reports' },
               { id: 'Daybook', icon: '📓', label: 'Daybook' },
+              { id: 'Leaderboard', icon: '🏆', label: 'Leadership Board' },
             ].map(tab => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setSearchParams({ tab: tab.id.toLowerCase().replace(/\s+/g, '-') });
+                }}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer min-w-0 ${
                   activeTab === tab.id
                     ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-md scale-[1.02]'
@@ -2558,6 +2583,13 @@ export default function Reports() {
             </div>
 
           </div>
+        </div>
+      )}
+
+      {/* Tab Contents: Leadership Board */}
+      {activeTab === 'Leaderboard' && (
+        <div className="pt-2">
+          <LeaderboardModule />
         </div>
       )}
 

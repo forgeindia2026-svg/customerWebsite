@@ -1208,13 +1208,21 @@ router.post('/:id/admin-approve', async (req: Request, res: Response) => {
     }
 
     if (order?.assignedTechnician) {
-      const technician = await User.findOne({ name: order.assignedTechnician });
+      const isTechMongoId = /^[0-9a-fA-F]{24}$/.test(order.assignedTechnicianId || order.assignedTechnician || '');
+      const techNameQuery = (order.assignedTechnician || order.assignedTechnicianName || '').trim();
+      const technician = await User.findOne({
+        $or: [
+          ...(isTechMongoId ? [{ _id: order.assignedTechnicianId || order.assignedTechnician }] : []),
+          ...(techNameQuery ? [{ name: new RegExp('^' + techNameQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') }] : [])
+        ]
+      });
       if (technician) {
         technician.isAvailable = true;
         technician.currentJobId = null;
         if (parsedEarning > 0 && (!assignedTechs || assignedTechs.length === 0)) {
           technician.totalEarnings = (technician.totalEarnings || 0) + parsedEarning;
         }
+        technician.completedJobsCount = (technician.completedJobsCount || 0) + 1;
         await technician.save();
       }
     }

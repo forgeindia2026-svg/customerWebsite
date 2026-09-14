@@ -65,44 +65,69 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
         const baseUrl = getApiUrl();
         let liveTechs: any[] = [];
 
-        // 1. Fetch live analytics performance data from backend MongoDB
+        let allOrders: any[] = [];
+        let allJobs: any[] = [];
+
+        // 1. Fetch live dashboard data (to get all orders with technician earnings, technicians, and jobs)
+        try {
+          const dashRes = await fetch(`${baseUrl}/api/dashboard?refresh=true`);
+          if (dashRes.ok) {
+            const dashJson = await dashRes.json();
+            if (dashJson.success && dashJson.data) {
+              if (Array.isArray(dashJson.data.orders)) {
+                allOrders = dashJson.data.orders;
+              }
+              if (Array.isArray(dashJson.data.jobs)) {
+                allJobs = dashJson.data.jobs;
+              }
+              if (Array.isArray(dashJson.data.technicians) && dashJson.data.technicians.length > 0) {
+                liveTechs = dashJson.data.technicians;
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Dashboard technicians fetch error:', e);
+        }
+
+        // 2. Fetch live analytics performance data from backend MongoDB to supplement
         try {
           const res = await fetch(`${baseUrl}/api/dashboard/analytics`);
           if (res.ok) {
             const json = await res.json();
             if (json.success && Array.isArray(json.data?.techPerformance) && json.data.techPerformance.length > 0) {
-              liveTechs = json.data.techPerformance;
+              if (liveTechs.length === 0) {
+                liveTechs = json.data.techPerformance;
+              } else {
+                liveTechs = liveTechs.map((lt: any) => {
+                  const perf = json.data.techPerformance.find((tp: any) => 
+                    tp.id === lt.id || tp.name?.toLowerCase().trim() === lt.name?.toLowerCase().trim()
+                  );
+                  return perf ? { ...lt, ...perf, totalEarnings: Math.max(Number(lt.totalEarnings || 0), Number(perf.totalEarnings || 0)) } : lt;
+                });
+              }
             }
           }
         } catch (e) {
           console.warn('Analytics fetch error:', e);
         }
 
-        // 2. Fallback to main dashboard technicians if techPerformance not ready
-        if (liveTechs.length === 0) {
-          try {
-            const dashRes = await fetch(`${baseUrl}/api/dashboard`);
-            if (dashRes.ok) {
-              const dashJson = await dashRes.json();
-              if (dashJson.success && Array.isArray(dashJson.data?.technicians)) {
-                liveTechs = dashJson.data.technicians.map((t: any) => ({
-                  id: t.id || t._id,
-                  name: t.name,
-                  badgeNumber: t.badgeNumber || `SK-TECH-${t.id?.slice(-4)?.toUpperCase() || '01'}`,
-                  avatar: t.avatar || t.avatarUrl || '',
-                  specialization: t.specialization || 'CCTV & Field Service',
-                  completedJobs: 0,
-                  totalJobs: 0,
-                  rating: t.rating || 5.0
-                }));
+        // 3. Merge local cached orders if available (catches immediate admin approvals)
+        try {
+          const cached = JSON.parse(localStorage.getItem('sk_admin_dashboard_cache') || '{}');
+          if (Array.isArray(cached?.orders)) {
+            cached.orders.forEach((co: any) => {
+              const existing = allOrders.find((o: any) => o.id === co.id || o.orderNumber === co.orderNumber);
+              if (!existing) {
+                allOrders.push(co);
+              } else if (co.financials?.technicianEarning && !existing.financials?.technicianEarning) {
+                existing.financials = co.financials;
+                existing.technicianEarning = co.technicianEarning;
               }
-            }
-          } catch (e) {
-            console.warn('Dashboard technicians fetch error:', e);
+            });
           }
-        }
+        } catch (e) {}
 
-        // 3. If no backend technicians found, fallback to logged-in technician only (NO fake mock technicians)
+        // 4. If no backend technicians found, fallback to logged-in technician only
         if (liveTechs.length === 0) {
           liveTechs = [{
             id: currentTechProfile?.id || 'TECH-CURRENT',
@@ -123,32 +148,81 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
           return sum + earningVal;
         }, 0);
 
-        // Map live technicians to LeaderboardTechnician objects using real database values
+        // Map live technicians to LeaderboardTechnician objects using real database values & order earnings
         const mappedList: LeaderboardTechnician[] = liveTechs.map((bt: any, idx: number) => {
           const techName = bt.name || `Technician ${idx + 1}`;
-          const isCurrent = techName.toLowerCase().trim() === currentUserName.toLowerCase().trim() ||
-                            currentUserName.toLowerCase().includes(techName.toLowerCase()) ||
-                            techName.toLowerCase().includes(currentUserName.toLowerCase());
+          const techNameLower = techName.toLowerCase().trim();
+          const isCurrent = techNameLower === currentUserName.toLowerCase().trim() ||
+                            currentUserName.toLowerCase().includes(techNameLower) ||
+                            techNameLower.includes(currentUserName.toLowerCase());
 
-          let completedCount = Number(bt.completedJobs) || 0;
-          if (isCurrent && currentTechCompletedCount > completedCount) {
-            completedCount = currentTechCompletedCount;
-          }
+          // 1. Calculate earnings from all assigned orders
+          const techOrders = allOrders.filter((o: any) => {
+            const assigned = (o.assignedTechnician || o.assignedTechnicianName || o.technician || '').toLowerCase().trim();
+            const assignedId = (o.assignedTechnicianId || '').toString();
+            const matchesId = bt.id && assignedId === bt.id.toString();
+            const matchesName = assigned && (assigned === techNameLower || assigned.includes(techNameLower) || techNameLower.includes(assigned));
+            return matchesId || matchesName;
+          });
 
-          let techEarnings = Number(bt.totalEarnings) || Number(bt.earnings) || 0;
+          const techOrdersEarnings = techOrders.reduce((sum: number, o: any) => {
+            const val = Number(o.financials?.technicianEarning ?? o.technicianEarning ?? 0);
+            return sum + (isNaN(val) ? 0 : val);
+          }, 0);
+
+          // 2. Calculate earnings from all assigned jobs
+          const techJobs = allJobs.filter((j: any) => {
+            return (j.assignedTechnicians || []).some((at: any) => {
+              const atId = (at.id || '').toString();
+              const atName = (at.name || '').toLowerCase().trim();
+              return (bt.id && atId === bt.id.toString()) || (atName && (atName === techNameLower || atName.includes(techNameLower) || techNameLower.includes(atName)));
+            });
+          });
+
+          const techJobsEarnings = techJobs.reduce((sum: number, j: any) => {
+            const val = Number(j.financials?.technicianEarning ?? j.technicianEarning ?? 0);
+            return sum + (isNaN(val) ? 0 : val);
+          }, 0);
+
+          let techEarnings = Math.max(
+            Number(bt.totalEarnings) || 0,
+            Number(bt.earnings) || 0,
+            techOrdersEarnings + techJobsEarnings
+          );
+
           if (isCurrent && currentTechJobsEarnings > techEarnings) {
             techEarnings = currentTechJobsEarnings;
           }
 
-          const totalJobsCount = Math.max(completedCount, Number(bt.totalJobs) || completedCount);
+          const completedOrdersCount = techOrders.filter((o: any) => 
+            o.orderStatus === 'DELIVERED' || o.orderStatus === 'SHIPPED' || o.status === 'Approved' || o.status === 'Completed'
+          ).length;
+          const completedJobsCount = techJobs.filter((j: any) => 
+            j.status === 'COMPLETED' || j.status === 'APPROVED'
+          ).length;
+
+          let completedCount = Math.max(
+            Number(bt.completedJobs) || 0,
+            Number(bt.completedJobsCount) || 0,
+            completedOrdersCount + completedJobsCount
+          );
+          if (isCurrent && currentTechCompletedCount > completedCount) {
+            completedCount = currentTechCompletedCount;
+          }
+
+          const totalJobsCount = Math.max(
+            completedCount, 
+            Number(bt.totalJobs) || 0, 
+            techOrders.length + techJobs.length
+          );
           const ratingVal = Number(bt.rating) || 5.0;
           
           // Realistic SLA & Fix rates based on completed jobs
           const onTimeVal = completedCount > 0 ? Math.min(100, 92 + (completedCount % 8)) : 100;
           const fixRateVal = completedCount > 0 ? Math.min(100, 90 + (completedCount % 9)) : 100;
           
-          // Real points formula based on actual completed jobs and ratings
-          const pointsVal = (completedCount * 250) + Math.round(ratingVal * 100) + (totalJobsCount * 40);
+          // Real points formula based on actual completed jobs, ratings and earnings
+          const pointsVal = (completedCount * 250) + Math.round(ratingVal * 100) + (totalJobsCount * 40) + Math.round(techEarnings * 0.5);
 
           // Performance badges based on real achievements
           const badgesList: string[] = [];
@@ -747,3 +821,5 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
     </div>
   );
 };
+
+export default LeaderboardModule;

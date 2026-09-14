@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Camera,
   Search,
@@ -14,6 +14,7 @@ import {
   X,
   ShoppingBag,
   LogOut,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,11 +52,17 @@ const navItems = [
 ];
 
 export default function Header() {
+  const navigate = useNavigate();
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileProductsOpen, setMobileProductsOpen] = useState(false);
   const location = useLocation();
   const navRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [allProducts, setAllProducts] = useState<any[]>([]);
 
   const [userToken, setUserToken] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
@@ -92,18 +99,67 @@ export default function Header() {
   useEffect(() => {
     setActiveDropdown(null);
     setMobileProductsOpen(false);
+    setShowSearchDropdown(false);
   }, [location]);
 
-  // Click outside listener to close dropdowns
+  // Fetch live products for instant search suggestions
+  useEffect(() => {
+    fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/products`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.success && Array.isArray(data.data)) {
+          setAllProducts(data.data);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Click outside listener to close dropdowns and search suggestions
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (navRef.current && !navRef.current.contains(event.target as Node)) {
         setActiveDropdown(null);
       }
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSearchDropdown(false);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Filter top 5 instant search matches
+  const searchResults = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return [];
+    return allProducts
+      .filter((p) => {
+        const name = (p.name || p.title || "").toLowerCase();
+        const brand = (p.brand || "").toLowerCase();
+        const category = (p.category || "").toLowerCase();
+        const subCat = (p.subCategory || p.subcategory || "").toLowerCase();
+        return name.includes(q) || brand.includes(q) || category.includes(q) || subCat.includes(q);
+      })
+      .slice(0, 5);
+  }, [searchQuery, allProducts]);
+
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const q = searchQuery.trim();
+    if (q) {
+      navigate(`/products?search=${encodeURIComponent(q)}`);
+    } else {
+      navigate("/products");
+    }
+    setShowSearchDropdown(false);
+    setMobileMenuOpen(false);
+  };
+
+  const handleSelectProduct = (productId: string | number) => {
+    setShowSearchDropdown(false);
+    setSearchQuery("");
+    navigate(`/products/${productId}`);
+  };
 
   // Monitor Auth State
   useEffect(() => {
@@ -267,13 +323,100 @@ export default function Header() {
 
           {/* Right Actions: Search, Cart, User & CTA */}
           <div className="flex items-center gap-3 shrink-0">
-            <div className="hidden lg:flex relative w-56 items-center">
-              <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search cameras, NVRs..."
-                className="pl-9 pr-4 h-9 rounded-full bg-muted/60 border-muted-foreground/20 focus-visible:ring-red-500 text-xs"
-              />
+            {/* Search Bar with Live Instant Results */}
+            <div ref={searchRef} className="hidden lg:block relative w-60 xl:w-72">
+              <form onSubmit={handleSearchSubmit} className="relative flex items-center">
+                <Search className="absolute left-3 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setShowSearchDropdown(true);
+                  }}
+                  onFocus={() => {
+                    if (searchQuery.trim()) setShowSearchDropdown(true);
+                  }}
+                  placeholder="Search cameras, NVRs..."
+                  className="pl-9 pr-8 h-9 rounded-full bg-muted/60 border-muted-foreground/20 focus-visible:ring-red-500 text-xs w-full transition-all focus:bg-white dark:focus:bg-slate-900 focus:shadow-sm"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setShowSearchDropdown(false);
+                    }}
+                    className="absolute right-2.5 p-0.5 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </form>
+
+              {/* Instant Search Suggestions Dropdown */}
+              {showSearchDropdown && searchQuery.trim().length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+                  {searchResults.length > 0 ? (
+                    <div className="p-2 space-y-1">
+                      <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Matching Products
+                      </div>
+                      {searchResults.map((product) => {
+                        const img = product.imageUrl || product.image || (Array.isArray(product.photoUrls) ? product.photoUrls[0] : "") || "https://images.unsplash.com/photo-1557597774-9d273605dfa9";
+                        const price = product.offerPrice || product.price || 0;
+                        const prodId = product._id || product.id;
+                        return (
+                          <div
+                            key={prodId}
+                            onClick={() => handleSelectProduct(prodId)}
+                            className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors group"
+                          >
+                            <img
+                              src={img}
+                              alt={product.name || product.title}
+                              className="w-10 h-10 object-contain rounded-lg bg-white p-1 border border-slate-100 dark:border-slate-800 shrink-0"
+                              onError={(e: any) => { e.currentTarget.style.display = "none"; }}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate group-hover:text-red-500 transition-colors">
+                                {product.name || product.title}
+                              </p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-[10px] font-semibold text-slate-400 uppercase">
+                                  {product.brand || "SK-VISION"}
+                                </span>
+                                <span className="text-xs font-extrabold text-red-600">
+                                  ₹{Number(price).toLocaleString("en-IN")}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <button
+                        type="button"
+                        onClick={() => handleSearchSubmit()}
+                        className="w-full text-center py-2 px-3 mt-1 bg-red-50 dark:bg-red-950/40 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                      >
+                        <span>View all results for "{searchQuery}"</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="p-4 text-center">
+                      <p className="text-xs text-slate-500">No matching products found</p>
+                      <button
+                        type="button"
+                        onClick={() => handleSearchSubmit()}
+                        className="mt-2 text-xs font-bold text-red-600 hover:underline cursor-pointer"
+                      >
+                        Search catalog for "{searchQuery}" →
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             
             {/* Wishlist Button - Desktop only (hidden on mobile, moved inside mobile menu) */}
@@ -338,6 +481,18 @@ export default function Header() {
       {mobileMenuOpen && (
         <div className="md:hidden absolute left-0 right-0 bg-background/95 backdrop-blur-xl border-b border-border/40 shadow-xl z-[45] animate-in slide-in-from-top-4 duration-200">
           <nav className="flex flex-col p-4 px-6 space-y-3">
+            {/* Mobile Search Bar */}
+            <form onSubmit={handleSearchSubmit} className="relative pb-1">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search cameras, NVRs..."
+                className="pl-9 pr-4 h-9 rounded-xl bg-muted/60 border-muted-foreground/20 text-xs w-full focus-visible:ring-red-500"
+              />
+            </form>
+
             {/* Mobile View Quick Actions: Wishlist & Cart */}
             <div className="grid grid-cols-2 gap-3 pb-3 border-b border-gray-100/60 dark:border-gray-800">
               <Link 

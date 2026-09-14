@@ -367,8 +367,13 @@ export default function Products() {
     };
   }, []);
 
-  // Initialize filters from URL parameters if available
+  // Initialize filters and search query from URL parameters if available
   useEffect(() => {
+    const qParam = searchParams.get("search") || searchParams.get("q");
+    if (qParam !== null && qParam !== undefined) {
+      setSearchQuery(qParam);
+    }
+
     const categoryParam = searchParams.get("category");
     if (categoryParam) {
       const lower = categoryParam.toLowerCase();
@@ -412,6 +417,7 @@ export default function Products() {
     setMinRating(0);
     setInStockOnly(false);
     setSearchQuery("");
+    navigate("/products", { replace: true });
   };
 
   // Toggle Wishlist with persistence and toast
@@ -516,13 +522,18 @@ export default function Products() {
       if (inStockOnly && !product.inStock) {
         return false;
       }
-      // Search Query
+      // Search Query across name, brand, category, subcategory, resolution and specs
       if (searchQuery.trim() !== "") {
         const query = searchQuery.toLowerCase();
         const matchesName = product.name.toLowerCase().includes(query);
         const matchesBrand = product.brand.toLowerCase().includes(query);
         const matchesCategory = product.category.toLowerCase().includes(query);
-        if (!matchesName && !matchesBrand && !matchesCategory) return false;
+        const matchesSubCategory = (product.subCategory || "").toLowerCase().includes(query);
+        const matchesResolution = (product.resolution || "").toLowerCase().includes(query);
+        const matchesSpecs = (product.specs || []).some((s) => s.toLowerCase().includes(query));
+        if (!matchesName && !matchesBrand && !matchesCategory && !matchesSubCategory && !matchesResolution && !matchesSpecs) {
+          return false;
+        }
       }
       return true;
     }).sort((a, b) => {
@@ -559,6 +570,9 @@ export default function Products() {
     if (searchParams.get("filter") === "wishlist") {
       return "My Saved Wishlist Items ❤️";
     }
+    if (searchQuery.trim() !== "") {
+      return `Search Results for "${searchQuery.trim()}"`;
+    }
     if (selectedSubCategory !== "all") {
       const sub = categoryTree[0].subcategories?.find((s) => s.id === selectedSubCategory);
       if (sub) return `CCTV Cameras - ${sub.name}`;
@@ -568,7 +582,7 @@ export default function Products() {
       if (cat) return cat.name;
     }
     return "All Security Products";
-  }, [selectedCategory, selectedSubCategory]);
+  }, [searchParams, selectedCategory, selectedSubCategory, searchQuery]);
 
   // Render filters JSX for reusability on desktop and mobile drawer
   const renderFiltersContent = () => (
@@ -890,8 +904,11 @@ export default function Products() {
                   />
                   {searchQuery && (
                     <button
-                      onClick={() => setSearchQuery("")}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black"
+                      onClick={() => {
+                        setSearchQuery("");
+                        navigate("/products", { replace: true });
+                      }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black cursor-pointer"
                     >
                       <X className="h-3 w-3" />
                     </button>

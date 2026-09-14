@@ -41,20 +41,58 @@ router.get('/analytics', async (req: Request, res: Response) => {
 
     // Technician performance metrics
     const techPerformance = technicians.map(t => {
+      const tName = (t.name || '').toLowerCase().trim();
+      const tId = t._id.toString();
+
+      // Match jobs
       const techJobs = jobs.filter(j => j.assignedTechnicians?.some((at: any) => 
-        (at.id && at.id === t._id.toString()) || 
-        (at.name && at.name.toLowerCase() === t.name.toLowerCase())
+        (at.id && at.id.toString() === tId) || 
+        (at.name && at.name.toLowerCase().trim() === tName)
       ));
-      const completed = techJobs.filter(j => j.status === 'COMPLETED' || j.status === 'APPROVED').length;
+
+      // Match orders (like #SK-ORD-32213 where assignedTechnician is 'moorthy')
+      const techOrders = orders.filter(o => 
+        (o.assignedTechnicianId && o.assignedTechnicianId.toString() === tId) ||
+        (o.assignedTechnician && o.assignedTechnician.toLowerCase().trim() === tName) ||
+        (o.assignedTechnicianName && o.assignedTechnicianName.toLowerCase().trim() === tName)
+      );
+
+      const completedJobs = techJobs.filter(j => j.status === 'COMPLETED' || j.status === 'APPROVED').length;
+      const completedOrders = techOrders.filter(o => 
+        o.orderStatus === 'DELIVERED' || 
+        o.orderStatus === 'SHIPPED' || 
+        (o as any).status === 'Approved' || 
+        (o as any).status === 'Completed'
+      ).length;
+
+      const totalJobs = techJobs.length + techOrders.length;
+      const completed = completedJobs + completedOrders;
+
+      // Sum earnings from jobs and orders
+      const jobEarningsSum = techJobs.reduce((sum, j: any) => {
+        const val = Number(j.financials?.technicianEarning ?? j.technicianEarning ?? 0);
+        return sum + (isNaN(val) ? 0 : val);
+      }, 0);
+
+      const orderEarningsSum = techOrders.reduce((sum, o: any) => {
+        const val = Number(o.financials?.technicianEarning ?? o.technicianEarning ?? 0);
+        return sum + (isNaN(val) ? 0 : val);
+      }, 0);
+
+      const userDocEarnings = Number((t as any).totalEarnings) || 0;
+      const totalEarnings = Math.max(userDocEarnings, jobEarningsSum + orderEarningsSum);
+
       return {
-        id: t._id.toString(),
+        id: tId,
         name: t.name,
-        totalJobs: techJobs.length,
+        totalJobs,
         completedJobs: completed,
+        totalEarnings,
+        earnings: totalEarnings,
         rating: t.rating || 5.0,
         specialization: t.specialties?.join(', ') || 'CCTV & Surveillance',
         avatar: t.avatar || (t as any).avatarUrl || '',
-        badgeNumber: (t as any).badgeNumber || `SK-TECH-${t._id.toString().slice(-4).toUpperCase()}`
+        badgeNumber: (t as any).badgeNumber || `SK-TECH-${tId.slice(-4).toUpperCase()}`
       };
     });
 
@@ -309,11 +347,48 @@ router.get('/', async (req: Request, res: Response) => {
 
     // Map live Technicians
     const mappedTechnicians = liveTechnicians.map((tech: any) => {
-      const activeJob = liveJobs.find((j: any) => (j.assignedTechnicians && j.assignedTechnicians.some((t: any) => t.id === tech._id.toString())) && j.status !== 'COMPLETED' && j.status !== 'CANCELLED');
+      const tName = (tech.name || '').toLowerCase().trim();
+      const tId = tech._id.toString();
+
+      const activeJob = liveJobs.find((j: any) => 
+        (j.assignedTechnicians && j.assignedTechnicians.some((t: any) => 
+          (t.id && t.id.toString() === tId) || (t.name && t.name.toLowerCase().trim() === tName)
+        )) && j.status !== 'COMPLETED' && j.status !== 'CANCELLED'
+      );
+
+      const techJobs = (liveJobs || []).filter((j: any) => 
+        j.assignedTechnicians?.some((t: any) => 
+          (t.id && t.id.toString() === tId) || (t.name && t.name.toLowerCase().trim() === tName)
+        )
+      );
+
+      const techOrders = (liveOrders || []).filter((o: any) => 
+        (o.assignedTechnicianId && o.assignedTechnicianId.toString() === tId) ||
+        (o.assignedTechnician && o.assignedTechnician.toLowerCase().trim() === tName) ||
+        (o.assignedTechnicianName && o.assignedTechnicianName.toLowerCase().trim() === tName)
+      );
+
+      const completedJobs = techJobs.filter((j: any) => j.status === 'COMPLETED' || j.status === 'APPROVED').length;
+      const completedOrders = techOrders.filter((o: any) => 
+        o.orderStatus === 'DELIVERED' || o.orderStatus === 'SHIPPED' || o.status === 'Approved' || o.status === 'Completed'
+      ).length;
+
+      const jobEarningsSum = techJobs.reduce((sum: number, j: any) => {
+        const val = Number(j.financials?.technicianEarning ?? j.technicianEarning ?? 0);
+        return sum + (isNaN(val) ? 0 : val);
+      }, 0);
+
+      const orderEarningsSum = techOrders.reduce((sum: number, o: any) => {
+        const val = Number(o.financials?.technicianEarning ?? o.technicianEarning ?? 0);
+        return sum + (isNaN(val) ? 0 : val);
+      }, 0);
+
+      const totalEarnings = Math.max(Number(tech.totalEarnings || 0), jobEarningsSum + orderEarningsSum);
       const isHR = tech.role === 'HR' || tech.specialties?.includes('HR');
       const effectiveRole = isHR ? 'HR' : ((tech.specialties && tech.specialties[0]) || tech.role || 'Technician');
+
       return {
-        id: tech._id.toString(),
+        id: tId,
         name: tech.name,
         phone: tech.phone || '',
         email: tech.email,
@@ -322,8 +397,9 @@ router.get('/', async (req: Request, res: Response) => {
         currentProject: activeJob ? activeJob.title : 'None',
         rating: tech.rating || 5.0,
         specialization: effectiveRole,
-        totalEarnings: tech.totalEarnings || 0,
-        completedJobsCount: tech.completedJobsCount || 0,
+        totalEarnings,
+        earnings: totalEarnings,
+        completedJobsCount: Math.max(tech.completedJobsCount || 0, completedJobs + completedOrders),
         password: tech.passwordHash || '',
         avatar: tech.avatar || tech.avatarUrl || '',
         avatarUrl: tech.avatar || tech.avatarUrl || ''

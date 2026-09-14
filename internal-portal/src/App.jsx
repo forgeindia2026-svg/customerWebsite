@@ -90,6 +90,7 @@ export default function App() {
             <Route path="inventory" element={<Inventory />} />
             <Route path="payments" element={<Payments />} />
             <Route path="reports" element={<Reports />} />
+            <Route path="leaderboard" element={<Navigate to="/admin/reports?tab=leaderboard" replace />} />
             <Route path="customers" element={<Customers />} />
             <Route path="scanner" element={<Scanner />} />
             <Route path="workstation" element={<Workstation />} />
