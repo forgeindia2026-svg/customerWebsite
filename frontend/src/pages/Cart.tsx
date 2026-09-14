@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Trash2, ArrowRight, ShoppingBag, CheckCircle2, X, MapPin, Building, Navigation, Map } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -15,6 +15,7 @@ interface CartItem {
 }
 
 export default function Cart() {
+  const [searchParams] = useSearchParams();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState<any | null>(null);
@@ -130,7 +131,7 @@ export default function Cart() {
     const role = localStorage.getItem("user_role");
     
     if (!token || role !== "CUSTOMER") {
-      window.location.href = "/login?redirect=cart";
+      window.location.href = "/login?redirect=/cart?checkout=true";
       return;
     }
 
@@ -231,6 +232,19 @@ export default function Cart() {
       })
       .catch(err => console.warn("Could not load address on checkout open:", err));
   };
+
+  // Auto-open checkout modal if customer just logged in / registered via redirect
+  useEffect(() => {
+    const isCheckoutAuto = searchParams.get("checkout") === "true";
+    const token = localStorage.getItem("user_token");
+    const role = localStorage.getItem("user_role");
+    if (isCheckoutAuto && token && role === "CUSTOMER") {
+      const items = JSON.parse(localStorage.getItem("shopping_cart") || "[]");
+      if (items.length > 0) {
+        handleCheckoutClick();
+      }
+    }
+  }, [searchParams]);
 
   const loadRazorpayScript = () => {
     return new Promise((resolve) => {

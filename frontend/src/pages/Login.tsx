@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { 
   Lock, 
   Mail, 
@@ -78,6 +78,8 @@ function CctvSystemIllustration() {
 
 export default function Login() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectTarget = searchParams.get("redirect");
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -181,7 +183,17 @@ export default function Login() {
           window.location.href = "http://localhost:5175/";
         } else {
           window.dispatchEvent(new Event("storage"));
-          navigate("/dashboard");
+          if (redirectTarget) {
+            let dest = redirectTarget;
+            if (dest === "cart" || dest === "/cart") {
+              dest = "/cart?checkout=true";
+            } else if (!dest.startsWith("/")) {
+              dest = `/${dest}`;
+            }
+            navigate(dest);
+          } else {
+            navigate("/dashboard");
+          }
         }
       } else {
         setErrorMsg(data.message || "Invalid credentials");
