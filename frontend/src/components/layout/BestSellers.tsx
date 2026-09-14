@@ -33,8 +33,11 @@ export default function BestSellers() {
       .then(res => res.json())
       .then(data => {
         if (data.success && data.data) {
-          const bestSellers = data.data
-            .filter((p: any) => p.isBestSeller)
+          let rawList = data.data.filter((p: any) => p.isBestSeller);
+          if (rawList.length === 0) {
+            rawList = data.data.slice(0, 12);
+          }
+          const bestSellers = rawList
             .map((item: any) => {
               const rawMrp = Number(item.price) || 0;
               const rawOfferPrice = Number(item.offerPrice) || (item.originalPrice && item.originalPrice > item.price ? Number(item.price) : 0);
@@ -60,7 +63,7 @@ export default function BestSellers() {
                 originalPrice: finalOriginalPrice,
                 rating: item.rating || 4.5,
                 reviews: item.reviewsCount || Math.floor(Math.random() * 100) + 10,
-                image: item.image ? item.image.replace('https://65.0.45.64.sslip.io', import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io') : '',
+                image: item.image ? item.image.replace('https://65.0.45.64.sslip.io', import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io') : '/images/cctv_camera.png',
                 badge: badgeStr,
                 isNew: item.isNew,
                 specs: item.specs || []

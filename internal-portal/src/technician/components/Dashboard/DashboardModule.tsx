@@ -302,21 +302,26 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
           </div>
 
           {/* Main Title & Action Bar */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative z-10">
-            <div className="space-y-1">
-              <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2.5">
-                <span className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-500 text-white flex items-center justify-center shrink-0 shadow-xs shadow-emerald-500/30">
-                  <Zap className="w-4.5 h-4.5 fill-current" />
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 relative z-10">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start gap-2.5">
+                <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-500 text-white flex items-center justify-center shrink-0 shadow-xs shadow-emerald-500/30 mt-0.5">
+                  <Zap className="w-4 h-4 fill-current" />
                 </span>
-                <span>{activeJob.title}</span>
-              </h3>
+                <h3 
+                  className="text-sm sm:text-base font-bold text-slate-900 leading-snug line-clamp-2 sm:line-clamp-3 hover:line-clamp-none transition-all" 
+                  title={activeJob.title}
+                >
+                  {activeJob.title}
+                </h3>
+              </div>
             </div>
 
-            <div className="flex items-center flex-wrap gap-2.5 shrink-0">
+            <div className="flex items-center flex-wrap sm:flex-nowrap gap-2 shrink-0">
               <button
                 type="button"
                 onClick={() => onOpenWorkflow(activeJob)}
-                className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-800 text-white text-xs font-extrabold rounded-xl flex items-center justify-center space-x-2 shadow-md shadow-emerald-600/25 active:scale-95 transition-all cursor-pointer"
+                className="flex-1 sm:flex-initial px-4 py-2.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-800 text-white text-xs font-extrabold rounded-xl flex items-center justify-center space-x-2 shadow-md shadow-emerald-600/25 active:scale-95 transition-all cursor-pointer"
               >
                 <Play className="w-3.5 h-3.5 fill-current" />
                 <span>CONTINUE WORKFLOW</span>
@@ -325,7 +330,7 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
               <button
                 type="button"
                 onClick={() => onSelectJob(activeJob)}
-                className="px-4 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-700 hover:text-slate-900 text-xs font-bold rounded-xl flex items-center justify-center space-x-1.5 transition-all cursor-pointer shadow-2xs"
+                className="flex-1 sm:flex-initial px-3.5 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-700 hover:text-slate-900 text-xs font-bold rounded-xl flex items-center justify-center space-x-1.5 transition-all cursor-pointer shadow-2xs"
               >
                 <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
                 <span>View Details</span>

@@ -3,6 +3,7 @@ import CategoryCirclesBar from "@/components/home/CategoryCirclesBar";
 import ServicesOfferRow from "@/components/home/ServicesOfferRow";
 import FlashDealsSection from "@/components/home/FlashDealsSection";
 import BestSellers from "@/components/layout/BestSellers";
+import AllProductsSection from "@/components/home/AllProductsSection";
 import { WhyChooseUsSection, InstallationProcessSection } from "@/components/home/WhyChooseUsAndProcess";
 import IndustryLeadersBar from "@/components/home/IndustryLeadersBar";
 import CustomerTestimonials from "@/components/home/CustomerTestimonials";
@@ -27,7 +28,10 @@ export default function Home() {
       {/* 5. BEST SELLING PRODUCTS Carousel Slider */}
       <BestSellers />
 
-      {/* 6. WHY CHOOSE SK TECHNOLOGY? Section */}
+      {/* 6. ALL PRODUCTS Section (Complete 75+ Products Catalog with Filter Tabs & Search) */}
+      <AllProductsSection />
+
+      {/* 7. WHY CHOOSE SK TECHNOLOGY? Section */}
       <WhyChooseUsSection />
 
       {/* 7. TRUSTED BRANDS Marquee */}

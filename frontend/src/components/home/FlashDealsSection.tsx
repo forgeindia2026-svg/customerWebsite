@@ -91,18 +91,40 @@ export default function FlashDealsSection() {
       .then((res) => res.json())
       .then((data) => {
         if (data.success && Array.isArray(data.data)) {
-          const liveDeals = data.data.filter((item: any) => item.isFlashDeal === true);
-          const formatted = liveDeals.map((item: any) => ({
-            id: item.id || item._id,
-            brand: item.brand || 'SK BRAND',
-            name: item.title || item.name,
-            price: item.price,
-            originalPrice: item.originalPrice || Math.round(item.price * 1.25),
-            discount: item.badge || '-20%',
-            rating: item.rating || 4.5,
-            reviews: item.reviewsCount || 10,
-            image: item.image ? item.image.replace('https://65.0.45.64.sslip.io', import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io') : ''
-          }));
+          let liveDeals = data.data.filter((item: any) => item.isFlashDeal === true);
+          if (liveDeals.length === 0) {
+            // Pick products that have active discounts or offer prices
+            liveDeals = data.data
+              .filter((item: any) => (Number(item.discount) > 0) || (item.offerPrice && Number(item.offerPrice) < Number(item.price)))
+              .slice(0, 8);
+          }
+          if (liveDeals.length === 0) {
+            liveDeals = data.data.slice(0, 6);
+          }
+
+          const formatted = liveDeals.map((item: any) => {
+            const rawMrp = Number(item.price) || 0;
+            const rawOfferPrice = Number(item.offerPrice) || (item.originalPrice && item.originalPrice > item.price ? Number(item.price) : 0);
+            const actualMrp = (item.originalPrice && item.originalPrice > item.price) ? Number(item.originalPrice) : rawMrp;
+            const hasOffer = rawOfferPrice > 0 && rawOfferPrice < actualMrp;
+            const finalPrice = hasOffer ? rawOfferPrice : actualMrp;
+            const finalOriginalPrice = actualMrp;
+            const computedDiscount = hasOffer
+              ? Math.round(((finalOriginalPrice - finalPrice) / finalOriginalPrice) * 100)
+              : (Number(item.discount) > 0 ? Number(item.discount) : 20);
+
+            return {
+              id: item.id || item._id,
+              brand: item.brand || 'SK BRAND',
+              name: item.title || item.name,
+              price: finalPrice,
+              originalPrice: finalOriginalPrice,
+              discount: item.badge || `-${computedDiscount}%`,
+              rating: item.rating || 4.5,
+              reviews: item.reviewsCount || 15,
+              image: item.image ? item.image.replace('https://65.0.45.64.sslip.io', import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io') : '/images/cctv_camera.png'
+            };
+          });
           setDeals(formatted);
         }
       })
