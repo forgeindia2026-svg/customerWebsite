@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Heart, Star, ShoppingCart, ChevronRight, CheckCircle2, AlarmClock } from "lucide-react";
+import { Heart, Star, ShoppingCart, ChevronRight, CheckCircle2, AlarmClock, Minus, Plus } from "lucide-react";
 
 interface FlashDealProduct {
-  id: number;
+  id: number | string;
   brand: string;
   name: string;
   price: number;
@@ -74,9 +74,35 @@ const flashDealsProducts: FlashDealProduct[] = [
 
 export default function FlashDealsSection() {
   const navigate = useNavigate();
-  const [wishlist, setWishlist] = useState<number[]>([]);
+  const [wishlist, setWishlist] = useState<any[]>([]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [deals, setDeals] = useState<FlashDealProduct[]>([]);
+  const [cartMap, setCartMap] = useState<Record<string, number>>({});
+
+  const syncCartMap = () => {
+    try {
+      const cart = JSON.parse(localStorage.getItem("shopping_cart") || "[]");
+      const map: Record<string, number> = {};
+      cart.forEach((item: any) => {
+        if (item && (item.id !== undefined && item.id !== null)) {
+          map[String(item.id)] = Number(item.quantity) || 1;
+        }
+      });
+      setCartMap(map);
+    } catch {
+      setCartMap({});
+    }
+  };
+
+  useEffect(() => {
+    syncCartMap();
+    window.addEventListener("cart-updated", syncCartMap);
+    window.addEventListener("storage", syncCartMap);
+    return () => {
+      window.removeEventListener("cart-updated", syncCartMap);
+      window.removeEventListener("storage", syncCartMap);
+    };
+  }, []);
 
   // Real Ticking Countdown Timer State (02 Days, 12 Hrs, 45 Mins, 30 Secs)
   const [timeLeft, setTimeLeft] = useState({
@@ -153,38 +179,57 @@ export default function FlashDealsSection() {
     return () => clearInterval(timer);
   }, []);
 
-  const toggleWishlist = (id: number) => {
+  const toggleWishlist = (id: string | number) => {
+    const sId = String(id);
     setWishlist((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+      prev.includes(sId) ? prev.filter((i) => i !== sId) : [...prev, sId]
     );
   };
 
-  const handleAddToCart = (product: any) => {
-    const cart = JSON.parse(localStorage.getItem("shopping_cart") || "[]");
-    const existing = cart.find((item: any) => item.id === product.id);
-    if (existing) {
-      existing.quantity = (existing.quantity || 1) + 1;
-    } else {
-      cart.push({
-        id: product.id,
-        name: product.name,
-        brand: product.brand,
-        price: product.price,
-        originalPrice: product.originalPrice,
-        image: product.image,
-        category: 'cctv',
-        quantity: 1
-      });
-    }
-    localStorage.setItem("shopping_cart", JSON.stringify(cart));
-    window.dispatchEvent(new Event("cart-updated"));
+  const handleUpdateCartQty = (product: any, delta: number) => {
+    try {
+      const cart = JSON.parse(localStorage.getItem("shopping_cart") || "[]");
+      const pId = String(product.id);
+      const existingIdx = cart.findIndex((item: any) => String(item.id) === pId);
 
-    setToastMessage(`Added "${product.name}" to cart!`);
-    setTimeout(() => setToastMessage(null), 3000);
+      if (existingIdx > -1) {
+        const nextQty = (Number(cart[existingIdx].quantity) || 1) + delta;
+        if (nextQty <= 0) {
+          cart.splice(existingIdx, 1);
+          setToastMessage(`Removed from cart`);
+        } else {
+          cart[existingIdx].quantity = nextQty;
+          setToastMessage(`Updated cart quantity (${nextQty})`);
+        }
+      } else if (delta > 0) {
+        cart.push({
+          id: product.id,
+          name: product.name,
+          brand: product.brand,
+          price: product.price,
+          originalPrice: product.originalPrice,
+          image: product.image,
+          category: 'cctv',
+          quantity: 1
+        });
+        const shortName = product.name.length > 28 ? product.name.slice(0, 28) + "..." : product.name;
+        setToastMessage(`Added "${shortName}" to cart!`);
+      }
+
+      localStorage.setItem("shopping_cart", JSON.stringify(cart));
+      window.dispatchEvent(new Event("cart-updated"));
+      syncCartMap();
+      setTimeout(() => setToastMessage(null), 2500);
+    } catch (err) {
+      console.error("Cart update error:", err);
+    }
   };
 
   const handleBuyNow = (product: any) => {
-    handleAddToCart(product);
+    const pId = String(product.id);
+    if (!cartMap[pId]) {
+      handleUpdateCartQty(product, 1);
+    }
     navigate("/cart");
   };
 
@@ -198,9 +243,9 @@ export default function FlashDealsSection() {
     <section className="py-10 bg-white border-b border-gray-200">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-black text-white px-5 py-3 rounded-lg shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-          <span className="text-sm font-medium">{toastMessage}</span>
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-900/95 backdrop-blur-sm text-white px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2.5 animate-in fade-in slide-in-from-bottom-4 duration-300 max-w-xs sm:max-w-sm border border-white/10">
+          <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+          <span className="text-xs sm:text-sm font-medium truncate">{toastMessage}</span>
         </div>
       )}
 
@@ -298,7 +343,7 @@ export default function FlashDealsSection() {
                   >
                     <Heart
                       className={`h-4 w-4 ${
-                        wishlist.includes(product.id) ? "fill-red-500 text-red-500" : ""
+                        wishlist.includes(String(product.id)) ? "fill-red-500 text-red-500" : ""
                       }`}
                     />
                   </button>
@@ -343,16 +388,39 @@ export default function FlashDealsSection() {
                 </div>
               </div>
 
-              {/* Card Footer Action: Side-by-Side Add to Cart & Buy Now */}
+              {/* Card Footer Action: Add to Cart (or - 1 + stepper) & Buy Now */}
               <div className="p-3 sm:p-3.5 pt-0 flex items-center gap-1.5 sm:gap-2">
-                <button
-                  onClick={() => handleAddToCart(product)}
-                  className="flex-1 h-8 sm:h-9 px-1.5 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 text-gray-800 text-[10px] sm:text-xs font-bold flex items-center justify-center gap-1 transition-colors shadow-xs cursor-pointer min-w-0"
-                  title="Add to Cart"
-                >
-                  <ShoppingCart className="h-3.5 w-3.5 text-gray-700 shrink-0" />
-                  <span className="truncate">Add to Cart</span>
-                </button>
+                {cartMap[String(product.id)] ? (
+                  <div className="flex-1 flex items-center justify-between bg-red-50 border border-red-200 text-red-600 rounded-lg h-8 sm:h-9 px-1 font-extrabold select-none shadow-xs">
+                    <button
+                      onClick={() => handleUpdateCartQty(product, -1)}
+                      className="w-6 sm:w-7 h-6 sm:h-7 flex items-center justify-center rounded-md hover:bg-red-100 active:scale-90 transition-all text-red-600 cursor-pointer font-bold shrink-0"
+                      title="Decrease Quantity"
+                    >
+                      <Minus className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                    </button>
+                    <span className="px-1 font-black text-xs sm:text-sm font-mono tracking-tight text-red-700">
+                      {cartMap[String(product.id)]}
+                    </span>
+                    <button
+                      onClick={() => handleUpdateCartQty(product, 1)}
+                      className="w-6 sm:w-7 h-6 sm:h-7 flex items-center justify-center rounded-md hover:bg-red-100 active:scale-90 transition-all text-red-600 cursor-pointer font-bold shrink-0"
+                      title="Increase Quantity"
+                    >
+                      <Plus className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => handleUpdateCartQty(product, 1)}
+                    className="flex-1 h-8 sm:h-9 px-1.5 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 text-gray-800 text-[10px] sm:text-xs font-bold flex items-center justify-center gap-1 transition-colors shadow-xs cursor-pointer min-w-0"
+                    title="Add to Cart"
+                  >
+                    <ShoppingCart className="h-3.5 w-3.5 text-gray-700 shrink-0" />
+                    <span className="truncate">Add to Cart</span>
+                  </button>
+                )}
+
                 <button
                   onClick={() => handleBuyNow(product)}
                   className="flex-1 h-8 sm:h-9 px-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-[10px] sm:text-xs font-bold flex items-center justify-center gap-1 transition-all shadow-sm shadow-red-600/20 active:scale-95 cursor-pointer min-w-0"
