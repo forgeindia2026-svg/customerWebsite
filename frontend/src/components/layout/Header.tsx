@@ -302,7 +302,7 @@ export default function Header() {
 
             {/* User Profile or Login CTA */}
             {userToken ? (
-              <Link to="/dashboard" title={`Logged in as ${userName || "Customer"}`}>
+              <Link to="/dashboard?tab=profile" title={`Logged in as ${userName || "Customer"}`}>
                 <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-muted flex items-center justify-center font-bold text-xs bg-red-500/10 text-red-500 border border-red-500/20 cursor-pointer">
                   {(userName || "C").charAt(0).toUpperCase()}
                 </Button>

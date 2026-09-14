@@ -287,45 +287,17 @@ export default function BestSellers() {
                     className="flex-1 h-8 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 text-[11px] font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer"
                   >
                     <CheckSquare className="h-3 w-3 text-gray-500" />
-                    <span>Quick View</span>
+                    <span className="whitespace-nowrap">Quick View</span>
                   </button>
 
-                  {cartMap[String(product.id)] ? (
-                    <div className="flex items-center justify-between bg-red-600 text-white rounded-lg h-8 px-1 shadow-sm font-bold select-none shrink-0">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleUpdateCartQty(product, -1);
-                        }}
-                        className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/20 active:scale-90 transition-all text-white cursor-pointer"
-                        title="Decrease Quantity"
-                      >
-                        <Minus className="h-3 w-3" />
-                      </button>
-                      <span className="px-1.5 font-black text-xs font-mono tracking-tight text-white">
-                        {cartMap[String(product.id)]}
-                      </span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleUpdateCartQty(product, 1);
-                        }}
-                        className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/20 active:scale-90 transition-all text-white cursor-pointer"
-                        title="Increase Quantity"
-                      >
-                        <Plus className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => handleUpdateCartQty(product, 1)}
-                      className="h-8 px-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold text-xs flex items-center justify-center gap-1 transition-colors shrink-0 shadow-sm cursor-pointer"
-                      title="Add to Cart"
-                    >
-                      <ShoppingCart className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline text-[11px]">Add</span>
-                    </button>
-                  )}
+                  <button
+                    onClick={() => handleUpdateCartQty(product, 1)}
+                    className="h-8 px-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold text-xs flex items-center justify-center gap-1 transition-colors shrink-0 shadow-sm cursor-pointer"
+                    title="Add to Cart"
+                  >
+                    <ShoppingCart className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline text-[11px]">Add</span>
+                  </button>
                 </div>
               </div>
             ))}

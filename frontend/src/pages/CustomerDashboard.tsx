@@ -156,7 +156,7 @@ export default function CustomerDashboard() {
 
   // Tab State
   const [searchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<string>("Dashboard");
+  const [activeTab, setActiveTab] = useState<string>("Profile Settings");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Sync tab from URL query parameter (e.g. /dashboard?tab=orders or /dashboard?tab=profile)
@@ -174,8 +174,10 @@ export default function CustomerDashboard() {
       setActiveTab("Wishlist");
     } else if (tabParam === "products") {
       setActiveTab("My Products");
-    } else if (tabParam === "dashboard") {
-      setActiveTab("Dashboard");
+    } else if (tabParam === "addresses") {
+      setActiveTab("Addresses");
+    } else {
+      setActiveTab("Profile Settings");
     }
   }, [searchParams]);
 
@@ -615,7 +617,8 @@ export default function CustomerDashboard() {
   const displayProducts = purchasedProducts;
 
   const sidebarMenu = [
-    { name: "Dashboard", icon: HomeIcon, section: "main" },
+    { name: "Profile Settings", icon: User, section: "ACCOUNT" },
+    { name: "Addresses", icon: MapPin, section: "ACCOUNT" },
     { name: "My Orders", icon: ShoppingBag, section: "ORDER & PRODUCTS" },
     { name: "My Products", icon: Package, section: "ORDER & PRODUCTS" },
     { name: "Returns & Refunds", icon: RefreshCw, section: "ORDER & PRODUCTS" },
@@ -623,8 +626,6 @@ export default function CustomerDashboard() {
     { name: "My Installations", icon: ShieldCheck, section: "SERVICES" },
     { name: "AMC Plans", icon: Star, section: "SERVICES" },
     { name: "Service Requests", icon: Wrench, section: "SERVICES" },
-    { name: "Profile Settings", icon: Settings, section: "ACCOUNT" },
-    { name: "Addresses", icon: MapPin, section: "ACCOUNT" },
     { name: "Payment Methods", icon: CreditCard, section: "ACCOUNT" },
     { name: "Change Password", icon: Lock, section: "ACCOUNT" }
   ];
@@ -650,23 +651,8 @@ export default function CustomerDashboard() {
         {/* Navigation Items grouped by section */}
         <div className="flex-1 overflow-y-auto px-4 pb-6 space-y-4">
           
-          {/* Main Dashboard item */}
-          <div>
-            <button
-              onClick={() => { setActiveTab("Dashboard"); setIsMobileMenuOpen(false); }}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all text-left ${
-                activeTab === "Dashboard"
-                  ? "bg-red-50/70 text-red-500"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-850"
-              }`}
-            >
-              <HomeIcon className="w-4 h-4 shrink-0" />
-              <span>Dashboard</span>
-            </button>
-          </div>
-
           {/* Grouped menu sections */}
-          {["ORDER & PRODUCTS", "SERVICES", "ACCOUNT"].map(sectionName => (
+          {["ACCOUNT", "ORDER & PRODUCTS", "SERVICES"].map(sectionName => (
             <div key={sectionName} className="space-y-1">
               <span className="block px-3.5 text-[9px] font-black text-slate-405 tracking-wider uppercase mb-1.5 mt-2">
                 {sectionName}
@@ -749,394 +735,6 @@ export default function CustomerDashboard() {
           })}
         </div>
         
-        {activeTab === "Dashboard" && (
-          <div className="space-y-8 animate-in fade-in duration-200">
-            {/* Header row */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-extrabold text-slate-850 tracking-tight leading-none">
-                  Welcome back, {userName || "Ramesh"}! 👋
-                </h1>
-                <p className="text-xs text-slate-450 font-semibold mt-2.5">
-                  Here's what's happening with your account today.
-                </p>
-              </div>
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-100 rounded-xl text-xs font-bold text-slate-700 shadow-sm self-start sm:self-auto cursor-pointer hover:bg-slate-50 transition-all">
-                <Calendar className="w-4 h-4 text-slate-455" />
-                <span>May 20, 2025</span>
-                <ChevronRight className="w-3.5 h-3.5 text-slate-400 rotate-90" />
-              </div>
-            </div>
-
-            {/* Metrics cards grid */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-              
-              {/* Metric 1 */}
-              <div className="bg-white border border-slate-100 rounded-2xl p-3 sm:p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 hover:shadow-md transition-all">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-red-50/70 text-red-500 flex items-center justify-center shrink-0">
-                    <ShoppingBag className="w-5 h-5 sm:w-6 sm:h-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl sm:text-2xl font-black text-slate-800 leading-none">{totalOrdersCount}</h3>
-                    <span className="text-[9px] sm:text-[10px] text-slate-450 font-bold block uppercase tracking-wider mt-1 sm:mt-0.5">Total Orders</span>
-                  </div>
-                </div>
-                <button onClick={() => setActiveTab("My Orders")} className="text-red-500 hover:text-red-600 font-bold text-[9px] sm:text-[10px] uppercase tracking-wider flex items-center gap-0.5 self-start sm:self-auto">
-                  <span>View</span> <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                </button>
-              </div>
-
-              {/* Metric 2 */}
-              <div className="bg-white border border-slate-100 rounded-2xl p-3 sm:p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 hover:shadow-md transition-all">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                    <Truck className="w-5 h-5 sm:w-6 sm:h-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl sm:text-2xl font-black text-slate-800 leading-none">{inProgressCount}</h3>
-                    <span className="text-[9px] sm:text-[10px] text-slate-455 font-bold block uppercase tracking-wider mt-1 sm:mt-0.5">In Progress</span>
-                  </div>
-                </div>
-                <button onClick={() => setActiveTab("My Orders")} className="text-emerald-650 hover:text-emerald-700 font-bold text-[9px] sm:text-[10px] uppercase tracking-wider flex items-center gap-0.5 self-start sm:self-auto">
-                  <span>Track</span> <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                </button>
-              </div>
-
-              {/* Metric 3 */}
-              <div className="bg-white border border-slate-100 rounded-2xl p-3 sm:p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 hover:shadow-md transition-all">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-                    <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl sm:text-2xl font-black text-slate-800 leading-none">{completedCount}</h3>
-                    <span className="text-[9px] sm:text-[10px] text-slate-450 font-bold block uppercase tracking-wider mt-1 sm:mt-0.5">Completed Orders</span>
-                  </div>
-                </div>
-                <button onClick={() => setActiveTab("My Orders")} className="text-amber-605 hover:text-amber-700 font-bold text-[9px] sm:text-[10px] uppercase tracking-wider flex items-center gap-0.5 self-start sm:self-auto">
-                  <span>History</span> <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                </button>
-              </div>
-
-              {/* Metric 4 */}
-              <div className="bg-white border border-slate-100 rounded-2xl p-3 sm:p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 hover:shadow-md transition-all">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-                    <Star className="w-5 h-5 sm:w-6 sm:h-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl sm:text-2xl font-black text-slate-800 leading-none">1</h3>
-                    <span className="text-[9px] sm:text-[10px] text-slate-450 font-bold block uppercase tracking-wider mt-1 sm:mt-0.5">Active AMC Plan</span>
-                  </div>
-                </div>
-                <button onClick={() => setActiveTab("AMC Plans")} className="text-purple-650 hover:text-purple-700 font-bold text-[9px] sm:text-[10px] uppercase tracking-wider flex items-center gap-0.5 self-start sm:self-auto">
-                  <span>Details</span> <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                </button>
-              </div>
-
-            </div>
-
-            {/* Layout Row 1: Recent Orders & Installations + CCTV Promo Banner */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              
-              {/* Recent Orders card */}
-              <div className="lg:col-span-2 bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
-                <div className="flex items-center justify-between border-b border-slate-50 pb-4 mb-4">
-                  <h3 className="font-extrabold text-slate-800 text-sm tracking-tight">Recent Orders</h3>
-                  <button onClick={() => setActiveTab("My Orders")} className="text-xs font-bold text-red-500 hover:underline flex items-center gap-0.5">
-                    <span>View All Orders</span> <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                <div className="divide-y divide-slate-50 flex-grow">
-                  {displayOrders.slice(0, 4).map(order => (
-                    <div key={order.id} className="py-3 flex items-center justify-between hover:bg-slate-50/35 px-1 rounded-xl transition-all">
-                      <div className="flex items-center gap-3">
-                        <ProductThumb type={order.productType} />
-                        <div>
-                          <h4 className="font-extrabold text-xs text-slate-800">{order.id}</h4>
-                          <span className="text-[10px] text-slate-400 font-bold">{order.date}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-5 text-right">
-                        <div>
-                          <h4 className="font-extrabold text-xs text-slate-800">₹{order.price.toLocaleString("en-IN")}</h4>
-                          <span className="text-[10px] text-slate-400 font-bold">{order.itemsCount} {order.itemsCount === 1 ? "Item" : "Items"}</span>
-                        </div>
-                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${getStatusBadgeClass(order.status)}`}>
-                          {getDisplayStatus(order.status)}
-                        </span>
-                        <ChevronRight className="w-4 h-4 text-slate-350" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* My Installations + Security camera upgrade banner column */}
-              <div className="space-y-6">
-                
-                {/* My Installations */}
-                <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
-                  <div className="flex items-center justify-between border-b border-slate-50 pb-4 mb-4">
-                    <h3 className="font-extrabold text-slate-800 text-sm tracking-tight">My Installations</h3>
-                    <button onClick={() => setActiveTab("My Installations")} className="text-xs font-bold text-red-500 hover:underline flex items-center gap-0.5">
-                      <span>View All</span> <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  <div className="space-y-4">
-                    {displayInstallations.map(inst => (
-                      <div key={inst.id} className="flex items-center justify-between p-3 border border-slate-105 hover:border-slate-200 rounded-2xl transition-all bg-slate-50/20">
-                        <div className="flex items-center gap-3">
-                          {inst.type === "home" ? <HouseThumb /> : <ShopThumb />}
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-extrabold text-xs text-slate-850">{inst.name}</h4>
-                              <span className={`text-[8px] font-black px-2 py-0.5 rounded-full ${
-                                inst.status === "Completed"
-                                  ? "bg-emerald-50 text-emerald-700"
-                                  : "bg-amber-50 text-amber-700"
-                              }`}>
-                                {inst.status}
-                              </span>
-                            </div>
-                            <span className="text-[10px] text-slate-450 block font-semibold mt-1">
-                              {inst.camerasCount} Cameras, {inst.dvrCount} DVR
-                            </span>
-                            <span className="text-[9px] text-slate-400 font-bold mt-0.5 block">
-                              {inst.date}
-                            </span>
-                          </div>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-slate-350" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Upgrade Security Promo banner */}
-                <div className="bg-gradient-to-br from-[#0b0f19] to-[#1e293b] text-white rounded-2xl p-5 shadow-lg relative overflow-hidden flex items-center justify-between min-h-[120px]">
-                  <div className="z-10 text-left max-w-[60%]">
-                    <h3 className="font-black text-sm leading-tight text-white">Upgrade Your Security!</h3>
-                    <p className="text-[9px] text-slate-300 font-bold mt-2 leading-relaxed">
-                      Explore our latest AI-powered security cameras.
-                    </p>
-                    <Link to="/products">
-                      <button className="h-8 px-4 bg-white hover:bg-slate-50 text-slate-905 font-extrabold text-[10px] rounded-xl mt-4 transition-all shadow-sm">
-                        Shop Now
-                      </button>
-                    </Link>
-                  </div>
-                  {/* Decorative Security Camera mockup overlapping right */}
-                  <div className="absolute right-[-15px] bottom-[-10px] opacity-90 w-32 h-32 flex items-center justify-center shrink-0">
-                    <svg className="w-24 h-24 text-slate-350" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
-                      <rect x="2" y="5" width="14" height="10" rx="3" fill="currentColor" fillOpacity="0.08" />
-                      <circle cx="9" cy="10" r="3" />
-                      <line x1="16" y1="8" x2="22" y2="5" strokeLinecap="round" />
-                      <line x1="16" y1="12" x2="22" y2="15" strokeLinecap="round" />
-                      <path d="M7 18h4l-2 3z" fill="currentColor" />
-                    </svg>
-                  </div>
-                </div>
-
-              </div>
-
-            </div>
-
-            {/* Layout Row 2: Active AMC Plan & Quick Actions & Need Help */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              
-              {/* Active AMC Plan card */}
-              <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex flex-col justify-between text-left">
-                <div className="flex items-center justify-between border-b border-slate-50 pb-4 mb-4">
-                  <div className="flex items-center gap-2 text-emerald-650 font-bold text-xs">
-                    <ShieldCheck className="w-4 h-4" />
-                    <span>Active AMC Plan</span>
-                  </div>
-                  <button onClick={() => setActiveTab("AMC Plans")} className="text-xs font-bold text-red-500 hover:underline">
-                    View Plan →
-                  </button>
-                </div>
-
-                <div className="flex justify-between items-start gap-4">
-                  <div className="space-y-1">
-                    <h3 className="font-extrabold text-base text-slate-850">{amcPlan}</h3>
-                    <span className="text-[10px] text-emerald-600 font-bold block">Valid till {amcExpires}</span>
-                  </div>
-                  {/* Gold star ribbon seal inline SVG */}
-                  <div className="w-12 h-12 bg-amber-50 border border-amber-100 rounded-full flex items-center justify-center shrink-0">
-                    <svg className="w-7 h-7 text-amber-500" viewBox="0 0 24 24" fill="currentColor">
-                      <circle cx="12" cy="12" r="10" fillOpacity="0.1" stroke="currentColor" strokeWidth="1.5" />
-                      <polygon points="12,4 14.5,9.5 20.5,10 16,14 17.5,20 12,17 6.5,20 8,14 3.5,10 9.5,9.5" />
-                    </svg>
-                  </div>
-                </div>
-
-                <div className="mt-5 space-y-2 text-[11px] font-bold text-slate-600">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Quarterly Maintenance</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Priority Support</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Free Software Updates</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Unlimited Service Calls</span>
-                  </div>
-                </div>
-
-                <Button 
-                  onClick={() => setActiveTab("AMC Plans")}
-                  className="w-full h-9 bg-slate-50 hover:bg-slate-100 border border-slate-150 text-slate-700 font-bold rounded-xl mt-6 text-xs transition-all"
-                >
-                  Plan Details
-                </Button>
-              </div>
-
-              {/* Quick Actions card */}
-              <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
-                <div className="border-b border-slate-50 pb-4 mb-4 text-left">
-                  <h3 className="font-extrabold text-slate-800 text-sm tracking-tight">Quick Actions</h3>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  {/* Action 1 */}
-                  <button 
-                    onClick={() => setActiveTab("My Orders")}
-                    className="flex flex-col items-center justify-center p-3 border border-slate-50 hover:border-slate-100 rounded-2xl bg-slate-50/20 hover:bg-slate-50/50 transition-all text-center gap-2"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-red-50/70 text-red-500 flex items-center justify-center">
-                      <Truck className="w-4 h-4" />
-                    </div>
-                    <span className="text-[9px] font-black text-slate-655 leading-none">Track Order</span>
-                  </button>
-
-                  {/* Action 2 */}
-                  <button 
-                    onClick={() => setActiveTab("My Installations")}
-                    className="flex flex-col items-center justify-center p-3 border border-slate-50 hover:border-slate-100 rounded-2xl bg-slate-50/20 hover:bg-slate-50/50 transition-all text-center gap-2"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-red-50/70 text-red-500 flex items-center justify-center">
-                      <Calendar className="w-4 h-4" />
-                    </div>
-                    <span className="text-[9px] font-black text-slate-655 leading-none">Book Installation</span>
-                  </button>
-
-                  {/* Action 3 */}
-                  <button 
-                    onClick={() => setShowRequestModal(true)}
-                    className="flex flex-col items-center justify-center p-3 border border-slate-50 hover:border-slate-100 rounded-2xl bg-slate-50/20 hover:bg-slate-50/50 transition-all text-center gap-2"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-red-50/70 text-red-500 flex items-center justify-center">
-                      <Wrench className="w-4 h-4" />
-                    </div>
-                    <span className="text-[9px] font-black text-slate-655 leading-none">Request Service</span>
-                  </button>
-
-                  {/* Action 4 */}
-                  <button 
-                    onClick={() => setActiveTab("My Orders")}
-                    className="flex flex-col items-center justify-center p-3 border border-slate-55 hover:border-slate-100 rounded-2xl bg-slate-50/20 hover:bg-slate-50/50 transition-all text-center gap-2"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-red-50/70 text-red-500 flex items-center justify-center">
-                      <ShoppingBag className="w-4 h-4" />
-                    </div>
-                    <span className="text-[9px] font-black text-slate-655 leading-none">Buy Again</span>
-                  </button>
-
-                  {/* Action 5 */}
-                  <button 
-                    onClick={() => setActiveTab("My Orders")}
-                    className="flex flex-col items-center justify-center p-3 border border-slate-50 hover:border-slate-100 rounded-2xl bg-slate-50/20 hover:bg-slate-50/50 transition-all text-center gap-2"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-red-50/70 text-red-500 flex items-center justify-center">
-                      <Download className="w-4 h-4" />
-                    </div>
-                    <span className="text-[9px] font-black text-slate-655 leading-none">Download Invoice</span>
-                  </button>
-
-                  {/* Action 6 */}
-                  <button 
-                    onClick={() => alert("Invite link copied to clipboard!")}
-                    className="flex flex-col items-center justify-center p-3 border border-slate-50 hover:border-slate-100 rounded-2xl bg-slate-50/20 hover:bg-slate-50/50 transition-all text-center gap-2"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-red-50/70 text-red-500 flex items-center justify-center">
-                      <Gift className="w-4 h-4" />
-                    </div>
-                    <span className="text-[9px] font-black text-slate-655 leading-none">Refer & Earn</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Need Help? Card */}
-              <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex flex-col justify-between text-left">
-                <div className="flex items-center justify-between border-b border-slate-50 pb-4 mb-4">
-                  <h3 className="font-extrabold text-slate-800 text-sm tracking-tight">Need Help?</h3>
-                  <button onClick={() => setActiveTab("Service Requests")} className="text-xs font-bold text-red-500 hover:underline">
-                    View All →
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  {/* Contact 1 */}
-                  <a href="tel:+919876543210" className="flex items-center justify-between p-2.5 border border-slate-50 hover:border-slate-100 rounded-xl bg-slate-50/20 transition-all group">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-red-50/70 text-red-500 flex items-center justify-center">
-                        <Phone className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h4 className="font-extrabold text-xs text-slate-800">Call Us</h4>
-                        <span className="text-[10px] text-slate-450 font-bold block mt-0.5">+91 98765 43210</span>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-550 transition-colors" />
-                  </a>
-
-                  {/* Contact 2 */}
-                  <a href="https://wa.me/919876543210" target="_blank" rel="noreferrer" className="flex items-center justify-between p-2.5 border border-slate-50 hover:border-slate-100 rounded-xl bg-slate-50/20 transition-all group">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                        <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                          <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.6.95 3.167 1.485 4.774 1.486 5.279 0 9.574-4.287 9.577-9.552.001-2.546-1.043-4.936-2.91-6.803C16.166 2.418 13.785 1.385 11.24 1.385 5.961 1.385 1.668 5.673 1.665 10.952c-.001 1.705.452 3.37 1.309 4.866l-.995 3.637 3.673-.961zm11.233-6.52c-.27-.135-1.602-.79-1.85-.88-.25-.09-.432-.136-.614.137-.182.273-.706.88-.865 1.063-.16.183-.318.206-.588.07-2.316-1.157-3.83-2.288-5.362-4.908-.27-.46.27-.426.772-1.428.082-.164.041-.307-.02-.442-.063-.136-.614-1.477-.841-2.023-.222-.533-.487-.46-.614-.466-.118-.006-.254-.008-.39-.008s-.356.05-.543.254c-.187.204-.716.7-.716 1.704 0 1.004.73 1.977.83 2.113.1.136 1.436 2.193 3.48 3.074 1.116.48 1.987.767 2.662.98.677.213 1.293.183 1.782.11.545-.08 1.602-.655 1.826-1.286.223-.632.223-1.173.156-1.286-.067-.113-.247-.204-.517-.34z"/>
-                        </svg>
-                      </div>
-                      <div>
-                        <h4 className="font-extrabold text-xs text-slate-800">WhatsApp Support</h4>
-                        <span className="text-[10px] text-slate-450 font-bold block mt-0.5">Chat with our team</span>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-550 transition-colors" />
-                  </a>
-
-                  {/* Contact 3 */}
-                  <a href="mailto:support@sktechnology.com" className="flex items-center justify-between p-2.5 border border-slate-50 hover:border-slate-100 rounded-xl bg-slate-50/20 transition-all group">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-red-50/70 text-red-500 flex items-center justify-center">
-                        <Mail className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h4 className="font-extrabold text-xs text-slate-800">Email Support</h4>
-                        <span className="text-[10px] text-slate-450 font-bold block mt-0.5">support@sktechnology.com</span>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors" />
-                  </a>
-                </div>
-              </div>
-
-            </div>
-
-          </div>
-        )}
-
         {/* --- MY ORDERS TAB --- */}
         {activeTab === "My Orders" && (
           <div className="bg-white border border-slate-105 rounded-3xl p-6 shadow-sm text-left animate-in fade-in duration-200">
@@ -1306,7 +904,7 @@ export default function CustomerDashboard() {
         )}
 
         {/* --- OTHER SUB-TABS (Wishlist, Returns, Profile Settings, etc.) --- */}
-        {activeTab !== "Dashboard" && activeTab !== "My Orders" && activeTab !== "My Installations" && activeTab !== "Service Requests" && (
+        {activeTab !== "My Orders" && activeTab !== "My Installations" && activeTab !== "Service Requests" && (
           <div className="bg-white border border-slate-100 rounded-3xl p-8 shadow-sm text-left animate-in fade-in duration-200 space-y-6">
             <h3 className="font-extrabold text-slate-800 text-lg border-b border-slate-50 pb-3">{activeTab}</h3>
             

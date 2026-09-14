@@ -486,45 +486,17 @@ export default function AllProductsSection() {
                     className="flex-1 h-8 sm:h-9 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-[11px] sm:text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                   >
                     <CheckSquare className="h-3.5 w-3.5 text-gray-500" />
-                    <span>Quick View</span>
+                    <span className="whitespace-nowrap">Quick View</span>
                   </button>
 
-                  {cartMap[String(product.id)] ? (
-                    <div className="flex items-center justify-between bg-red-600 text-white rounded-xl h-8 sm:h-9 px-1 shadow-md shadow-red-600/20 font-bold select-none shrink-0">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleUpdateCartQty(product, -1);
-                        }}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/20 active:scale-90 transition-all text-white cursor-pointer"
-                        title="Decrease Quantity"
-                      >
-                        <Minus className="h-3.5 w-3.5" />
-                      </button>
-                      <span className="px-2 font-black text-xs sm:text-sm font-mono tracking-tight text-white">
-                        {cartMap[String(product.id)]}
-                      </span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleUpdateCartQty(product, 1);
-                        }}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/20 active:scale-90 transition-all text-white cursor-pointer"
-                        title="Increase Quantity"
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => handleUpdateCartQty(product, 1)}
-                      className="h-8 sm:h-9 px-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-red-600/20 active:scale-95 cursor-pointer shrink-0"
-                      title="Add to Cart"
-                    >
-                      <ShoppingCart className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline">Add</span>
-                    </button>
-                  )}
+                  <button
+                    onClick={() => handleUpdateCartQty(product, 1)}
+                    className="h-8 sm:h-9 px-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-red-600/20 active:scale-95 cursor-pointer shrink-0"
+                    title="Add to Cart"
+                  >
+                    <ShoppingCart className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Add</span>
+                  </button>
                 </div>
               </div>
             ))}

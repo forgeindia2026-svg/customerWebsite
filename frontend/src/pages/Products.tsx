@@ -1125,42 +1125,14 @@ export default function Products() {
 
                       {/* Card Footer Action: Side-by-Side Cart & Buy Now */}
                       <div className="pt-2 flex flex-row items-center gap-1.5 sm:gap-2">
-                        {cartMap[String(product.id)] ? (
-                          <div className="h-8 sm:h-9 flex-1 flex items-center justify-between bg-red-600 text-white rounded-lg sm:rounded-xl px-1.5 shadow-sm font-bold select-none shrink-0">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleUpdateCartQty(product, -1);
-                              }}
-                              className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded hover:bg-white/20 active:scale-90 transition-all text-white cursor-pointer"
-                              title="Decrease Quantity"
-                            >
-                              <Minus className="h-3.5 w-3.5" />
-                            </button>
-                            <span className="px-1 font-black text-xs sm:text-sm font-mono tracking-tight text-white">
-                              {cartMap[String(product.id)]}
-                            </span>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleUpdateCartQty(product, 1);
-                              }}
-                              className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded hover:bg-white/20 active:scale-90 transition-all text-white cursor-pointer"
-                              title="Increase Quantity"
-                            >
-                              <Plus className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => handleUpdateCartQty(product, 1)}
-                            className="h-8 w-8 sm:flex-1 sm:h-9 rounded-lg sm:rounded-xl bg-red-50 sm:bg-white border-0 sm:border border-slate-200 hover:bg-red-100 sm:hover:bg-slate-50 text-[#ff3b30] sm:text-slate-700 text-[10px] sm:text-xs font-extrabold flex items-center justify-center gap-1 transition-all shrink-0 cursor-pointer"
-                            title="Add to Cart"
-                          >
-                            <ShoppingCart className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
-                            <span className="hidden sm:inline">Add</span>
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handleUpdateCartQty(product, 1)}
+                          className="h-8 w-8 sm:flex-1 sm:h-9 rounded-lg sm:rounded-xl bg-red-50 sm:bg-white border-0 sm:border border-slate-200 hover:bg-red-100 sm:hover:bg-slate-50 text-[#ff3b30] sm:text-slate-700 text-[10px] sm:text-xs font-extrabold flex items-center justify-center gap-1 transition-all shrink-0 cursor-pointer"
+                          title="Add to Cart"
+                        >
+                          <ShoppingCart className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                          <span className="hidden sm:inline">Cart</span>
+                        </button>
                         <button
                           onClick={() => handleBuyNow(product)}
                           className="flex-1 h-8 sm:h-9 rounded-lg sm:rounded-xl bg-[#ff3b30] hover:bg-red-600 text-white text-[11px] sm:text-xs font-extrabold flex items-center justify-center gap-1 transition-all shadow-sm sm:hover:scale-[1.02] duration-200 cursor-pointer"
