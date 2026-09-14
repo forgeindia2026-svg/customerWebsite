@@ -66,6 +66,29 @@ export default function ProductDetail() {
   const [addedToast, setAddedToast] = useState(false);
   const [pincode, setPincode] = useState('');
   const [pincodeVerified, setPincodeVerified] = useState(false);
+  const [cartQty, setCartQty] = useState<number>(0);
+
+  const syncCartQty = () => {
+    if (!product) return;
+    try {
+      const cart = JSON.parse(localStorage.getItem("shopping_cart") || "[]");
+      const pId = String(product.id);
+      const found = cart.find((item: any) => String(item.id) === pId);
+      setCartQty(found ? Number(found.quantity) || 1 : 0);
+    } catch {
+      setCartQty(0);
+    }
+  };
+
+  useEffect(() => {
+    syncCartQty();
+    window.addEventListener("cart-updated", syncCartQty);
+    window.addEventListener("storage", syncCartQty);
+    return () => {
+      window.removeEventListener("cart-updated", syncCartQty);
+      window.removeEventListener("storage", syncCartQty);
+    };
+  }, [product]);
 
   // Zoom on Hover states
   const [zoomStyle, setZoomStyle] = useState<React.CSSProperties>({ display: 'none' });
@@ -218,56 +241,99 @@ export default function ProductDetail() {
 
   // Add to Cart
   const handleAddToCart = () => {
-    const cart = JSON.parse(localStorage.getItem("shopping_cart") || "[]");
-    const existing = cart.find((item: any) => item.id === product.id);
-    if (existing) {
-      existing.quantity += quantity;
-    } else {
-      cart.push({
-        id: product.id,
-        name: product.name,
-        brand: product.brand,
-        price: product.price,
-        originalPrice: product.originalPrice,
-        image: product.image,
-        category: product.category,
-        quantity: quantity
-      });
-    }
-    localStorage.setItem("shopping_cart", JSON.stringify(cart));
-    window.dispatchEvent(new Event("cart-updated"));
-    
-    // Add check addons
-    checkedAddons.forEach(addonId => {
-      const addon = accessories.find(a => a.id === addonId);
-      if (addon) {
-        const existAddon = cart.find((item: any) => item.id === addon.id);
-        if (existAddon) {
-          existAddon.quantity += 1;
-        } else {
-          cart.push({
-            id: addon.id,
-            name: addon.name,
-            brand: "SK SOLUTIONS",
-            price: addon.price,
-            originalPrice: addon.originalPrice,
-            image: addon.image,
-            category: "accessories",
-            quantity: 1
-          });
-        }
+    if (!product) return;
+    try {
+      const cart = JSON.parse(localStorage.getItem("shopping_cart") || "[]");
+      const pId = String(product.id);
+      const existing = cart.find((item: any) => String(item.id) === pId);
+      const addQty = quantity > 0 ? quantity : 1;
+      if (existing) {
+        existing.quantity = (Number(existing.quantity) || 1) + addQty;
+      } else {
+        cart.push({
+          id: product.id,
+          name: product.name,
+          brand: product.brand,
+          price: product.price,
+          originalPrice: product.originalPrice,
+          image: product.image,
+          category: product.category,
+          quantity: addQty
+        });
       }
-    });
-    localStorage.setItem("shopping_cart", JSON.stringify(cart));
-    window.dispatchEvent(new Event("cart-updated"));
+      
+      // Add check addons
+      checkedAddons.forEach(addonId => {
+        const addon = accessories.find(a => String(a.id) === String(addonId));
+        if (addon) {
+          const existAddon = cart.find((item: any) => String(item.id) === String(addon.id));
+          if (existAddon) {
+            existAddon.quantity = (Number(existAddon.quantity) || 1) + 1;
+          } else {
+            cart.push({
+              id: addon.id,
+              name: addon.name,
+              brand: "SK SOLUTIONS",
+              price: addon.price,
+              originalPrice: addon.originalPrice,
+              image: addon.image,
+              category: "accessories",
+              quantity: 1
+            });
+          }
+        }
+      });
+      localStorage.setItem("shopping_cart", JSON.stringify(cart));
+      window.dispatchEvent(new Event("cart-updated"));
+      syncCartQty();
 
-    setAddedToast(true);
-    setTimeout(() => setAddedToast(false), 3500);
+      setAddedToast(true);
+      setTimeout(() => setAddedToast(false), 3000);
+    } catch (e) {
+      console.error("Cart error:", e);
+    }
+  };
+
+  const handleUpdateCartQty = (delta: number) => {
+    if (!product) return;
+    try {
+      const cart = JSON.parse(localStorage.getItem("shopping_cart") || "[]");
+      const pId = String(product.id);
+      const existingIdx = cart.findIndex((item: any) => String(item.id) === pId);
+
+      if (existingIdx > -1) {
+        const nextQty = (Number(cart[existingIdx].quantity) || 1) + delta;
+        if (nextQty <= 0) {
+          cart.splice(existingIdx, 1);
+        } else {
+          cart[existingIdx].quantity = nextQty;
+        }
+      } else if (delta > 0) {
+        cart.push({
+          id: product.id,
+          name: product.name,
+          brand: product.brand,
+          price: product.price,
+          originalPrice: product.originalPrice,
+          image: product.image,
+          category: product.category,
+          quantity: 1
+        });
+      }
+
+      localStorage.setItem("shopping_cart", JSON.stringify(cart));
+      window.dispatchEvent(new Event("cart-updated"));
+      syncCartQty();
+    } catch (e) {
+      console.error("Cart update error:", e);
+    }
   };
 
   // Buy Now
   const handleBuyNow = () => {
-    handleAddToCart();
+    if (cartQty === 0) {
+      handleAddToCart();
+    }
     navigate("/cart");
   };
 
@@ -544,17 +610,39 @@ export default function ProductDetail() {
 
             {/* Action Buttons */}
             <div className="flex gap-3 pt-3 flex-wrap sm:flex-nowrap">
-              <button
-                onClick={handleAddToCart}
-                className="flex-1 h-12 rounded-xl bg-white border-2 border-blue-600 text-blue-600 hover:bg-blue-50 text-sm font-extrabold flex items-center justify-center gap-2 transition-all shadow-sm active:scale-[0.98]"
-              >
-                <ShoppingCart className="h-5 w-5" />
-                <span>Add to Cart</span>
-              </button>
+              {cartQty > 0 ? (
+                <div className="flex-1 h-12 rounded-xl bg-red-50 border border-red-200 text-red-600 flex items-center justify-between px-4 shadow-sm select-none font-bold">
+                  <button
+                    onClick={() => handleUpdateCartQty(-1)}
+                    className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-red-100 active:scale-90 transition-all text-red-600 cursor-pointer font-extrabold text-lg"
+                    title="Decrease Quantity"
+                  >
+                    <Minus className="h-5 w-5" />
+                  </button>
+                  <span className="font-extrabold text-lg font-mono tracking-tight text-red-700">
+                    {cartQty}
+                  </span>
+                  <button
+                    onClick={() => handleUpdateCartQty(1)}
+                    className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-red-100 active:scale-90 transition-all text-red-600 cursor-pointer font-extrabold text-lg"
+                    title="Increase Quantity"
+                  >
+                    <Plus className="h-5 w-5" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleAddToCart}
+                  className="flex-1 h-12 rounded-xl bg-white border-2 border-blue-600 text-blue-600 hover:bg-blue-50 text-sm font-extrabold flex items-center justify-center gap-2 transition-all shadow-sm active:scale-[0.98] cursor-pointer"
+                >
+                  <ShoppingCart className="h-5 w-5" />
+                  <span>Add to Cart</span>
+                </button>
+              )}
 
               <button
                 onClick={handleBuyNow}
-                className="flex-1 h-12 rounded-xl bg-[#ff9f00] hover:bg-[#e08b00] text-white text-sm font-extrabold flex items-center justify-center gap-2 transition-all shadow-sm active:scale-[0.98]"
+                className="flex-1 h-12 rounded-xl bg-[#ff3b30] hover:bg-red-600 text-white text-sm font-extrabold flex items-center justify-center gap-2 transition-all shadow-sm active:scale-[0.98] cursor-pointer"
               >
                 <span>Buy Now</span>
               </button>

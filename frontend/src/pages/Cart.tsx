@@ -638,20 +638,9 @@ export default function Cart() {
 
                   {/* INSTALLATION & DELIVERY ADDRESS */}
                   <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-3">
-                    <div className="flex items-center justify-between pb-1">
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
-                        <MapPin className="h-4 w-4 text-[#ff3b30]" />
-                        <span>INSTALLATION & DELIVERY ADDRESS</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleFetchLocation}
-                        disabled={fetchingLocation}
-                        className="text-[10px] font-black text-blue-500 hover:text-blue-600 flex items-center gap-1 bg-blue-50 dark:bg-blue-900/10 px-2.5 py-1 rounded-full cursor-pointer transition-colors"
-                      >
-                        <MapPin className="h-3 w-3" />
-                        <span>{fetchingLocation ? "Fetching..." : "Fetch Live Location"}</span>
-                      </button>
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider pb-1">
+                      <MapPin className="h-4 w-4 text-[#ff3b30]" />
+                      <span>INSTALLATION & DELIVERY ADDRESS</span>
                     </div>
 
                     {/* 1. Door No & 2. Street / Area */}
