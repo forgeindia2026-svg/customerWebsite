@@ -302,40 +302,11 @@ export default function Header() {
 
             {/* User Profile or Login CTA */}
             {userToken ? (
-              <div className="relative group py-2">
-                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-muted flex items-center justify-center font-bold text-xs bg-red-500/10 text-red-500 border border-red-500/20">
+              <Link to="/dashboard" title={`Logged in as ${userName || "Customer"}`}>
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-muted flex items-center justify-center font-bold text-xs bg-red-500/10 text-red-500 border border-red-500/20 cursor-pointer">
                   {(userName || "C").charAt(0).toUpperCase()}
                 </Button>
-                <div className="absolute right-0 top-full mt-1 w-40 rounded-xl bg-white border border-gray-200/90 shadow-xl p-1.5 hidden group-hover:block z-50 animate-in fade-in slide-in-from-top-1 duration-150">
-                  <div className="px-3 py-1.5 text-[10px] font-bold text-slate-500 border-b border-gray-100 mb-1 truncate">
-                    {userName || "Customer"}
-                  </div>
-                  <Link
-                    to="/dashboard?tab=profile"
-                    className="w-full block text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg transition-colors mb-0.5"
-                  >
-                    My Profile
-                  </Link>
-                  <Link
-                    to="/dashboard?tab=orders"
-                    className="w-full block text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg transition-colors mb-0.5"
-                  >
-                    My Orders
-                  </Link>
-                  <Link
-                    to="/dashboard"
-                    className="w-full block text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg transition-colors mb-0.5"
-                  >
-                    Customer Dashboard
-                  </Link>
-                  <button
-                    onClick={handleLogout}
-                    className="w-full text-left px-3 py-2 text-xs font-semibold text-red-650 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                  >
-                    Sign Out
-                  </button>
-                </div>
-              </div>
+              </Link>
             ) : (
               <Link to="/login" className="hidden sm:inline-flex">
                 <Button variant="outline" size="sm" className="rounded-full text-xs font-bold border-slate-300 hover:border-red-500 hover:text-red-500 transition-all">

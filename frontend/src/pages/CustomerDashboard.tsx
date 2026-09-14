@@ -185,6 +185,7 @@ export default function CustomerDashboard() {
   // Profile Settings form state
   const [profileName, setProfileName] = useState("");
   const [profilePhone, setProfilePhone] = useState("");
+  const [profileAddress, setProfileAddress] = useState("");
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMsg, setProfileMsg] = useState("");
 
@@ -218,12 +219,15 @@ export default function CustomerDashboard() {
     const email = localStorage.getItem("user_email") || "";
     const name = localStorage.getItem("user_name") || "";
     const phone = localStorage.getItem("user_phone") || "";
+    const address = localStorage.getItem("user_address") || "";
     
     setUserEmail(email);
     setUserName(name);
     setUserPhone(phone);
+    setUserAddress(address);
     setProfileName(name);
     setProfilePhone(phone);
+    setProfileAddress(address);
   }, [navigate]);
 
   // Fetch fresh profile from DB when email is available
@@ -237,15 +241,17 @@ export default function CustomerDashboard() {
           const u = data.data;
           const freshName = u.name || userEmail.split("@")[0];
           const freshPhone = u.phone || "";
-          const freshAddress = u.shippingAddress || u.address || "";
+          const freshAddress = u.address || u.shippingAddress || "";
           setUserName(freshName);
           setUserPhone(freshPhone);
           setProfileName(freshName);
           setProfilePhone(freshPhone);
+          setProfileAddress(freshAddress);
           if (freshAddress) setUserAddress(freshAddress);
           // Keep localStorage in sync
           localStorage.setItem("user_name", freshName);
           localStorage.setItem("user_phone", freshPhone);
+          if (freshAddress) localStorage.setItem("user_address", freshAddress);
         }
       } catch (err) {
         console.warn("Could not sync profile from DB:", err);
@@ -370,7 +376,7 @@ export default function CustomerDashboard() {
     window.location.href = "/";
   };
 
-  // Save profile name + phone to MongoDB
+  // Save profile name + phone + address to MongoDB
   const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setProfileSaving(true);
@@ -379,14 +385,23 @@ export default function CustomerDashboard() {
       const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/auth/profile`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: userEmail, name: profileName, phone: profilePhone })
+        body: JSON.stringify({
+          email: userEmail,
+          name: profileName,
+          phone: profilePhone,
+          address: profileAddress
+        })
       });
       const data = await res.json();
       if (data.success) {
+        const savedAddress = data.data?.address || profileAddress;
         setUserName(data.data.name);
         setUserPhone(data.data.phone || "");
+        setUserAddress(savedAddress);
+        setProfileAddress(savedAddress);
         localStorage.setItem("user_name", data.data.name);
         localStorage.setItem("user_phone", data.data.phone || "");
+        localStorage.setItem("user_address", savedAddress);
         window.dispatchEvent(new Event("storage"));
         setProfileMsg("✓ Profile updated successfully!");
       } else {
@@ -1269,6 +1284,17 @@ export default function CustomerDashboard() {
                     value={profilePhone} 
                     onChange={(e) => setProfilePhone(e.target.value)} 
                     className="h-10 rounded-xl" 
+                    placeholder="e.g. +91 98765 43210"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-455 mb-1.5">Address</label>
+                  <textarea 
+                    rows={3}
+                    value={profileAddress} 
+                    onChange={(e) => setProfileAddress(e.target.value)} 
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all resize-none shadow-2xs font-normal" 
+                    placeholder="Enter your house/door no, street, area, city, pincode..."
                   />
                 </div>
                 <Button 
