@@ -632,34 +632,10 @@ export default function CustomerDashboard() {
   return (
     <div className="min-h-screen bg-[#f8fafc] flex flex-col md:flex-row font-sans relative">
       
-      {/* --- MOBILE HEADER --- */}
-      <div className="md:hidden flex items-center justify-between bg-white border-b border-slate-100 p-4 sticky top-0 z-40">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white text-xs font-extrabold animate-pulse">
-            {userName?.charAt(0).toUpperCase() || "R"}
-          </div>
-          <span className="font-extrabold text-slate-800 tracking-tight">Customer Panel</span>
-        </div>
-        <button 
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
-          className="p-1.5 text-slate-500 hover:bg-slate-50 rounded-lg transition-colors"
-        >
-          {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
-      </div>
-
-      {/* Mobile Sidebar Overlay */}
-      {isMobileMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-slate-900/40 z-40 md:hidden backdrop-blur-sm" 
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
-
-      {/* --- SIDEBAR NAVIGATION --- */}
-      <aside className={`fixed md:static inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-100 flex flex-col shrink-0 text-left md:pt-6 transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}>
+      {/* --- SIDEBAR NAVIGATION (Desktop) --- */}
+      <aside className="hidden md:flex inset-y-0 left-0 z-30 w-64 bg-white border-r border-slate-100 flex-col shrink-0 text-left pt-6">
         {/* Sidebar Brand / Avatar Profile Summary */}
-        <div className="px-6 mb-6 mt-6 md:mt-0">
+        <div className="px-6 mb-6">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center text-white font-extrabold text-base animate-pulse">
               {userName?.charAt(0).toUpperCase() || "R"}
@@ -749,7 +725,29 @@ export default function CustomerDashboard() {
       </aside>
 
       {/* --- MAIN PANEL AREA --- */}
-      <main className="flex-1 overflow-y-auto p-8 text-left">
+      <main className="flex-1 overflow-y-auto p-4 sm:p-8 text-left">
+        
+        {/* Mobile Horizontal Navigation Tabs */}
+        <div className="md:hidden flex items-center gap-2 overflow-x-auto no-scrollbar pb-3 mb-5 -mx-4 px-4 border-b border-slate-200">
+          {sidebarMenu.map((item) => {
+            const Icon = item.icon;
+            const isSelected = activeTab === item.name;
+            return (
+              <button
+                key={item.name}
+                onClick={() => setActiveTab(item.name)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                  isSelected
+                    ? "bg-red-600 text-white shadow-sm shadow-red-600/25"
+                    : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{item.name}</span>
+              </button>
+            );
+          })}
+        </div>
         
         {activeTab === "Dashboard" && (
           <div className="space-y-8 animate-in fade-in duration-200">
