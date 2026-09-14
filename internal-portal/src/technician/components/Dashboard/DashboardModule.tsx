@@ -72,10 +72,12 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
 
   const totalAssignedVal = summaryStats ? summaryStats.totalAssigned : (jobs.length > 0 ? jobs.length : (isLoading ? null : 0));
   const inProgressVal = summaryStats ? summaryStats.inProgress : (inProgressJobs.length > 0 ? inProgressJobs.length : (isLoading ? null : 0));
+  const pendingVal = summaryStats ? (summaryStats.pending ?? pendingJobs.length) : (pendingJobs.length > 0 ? pendingJobs.length : 0);
   const completedVal = summaryStats ? summaryStats.completedToday : (completedJobs.length > 0 ? completedJobs.length : (isLoading ? null : 0));
   const totalCompletedVal = summaryStats?.totalCompleted !== undefined
     ? summaryStats.totalCompleted
     : (completedJobs.length > 0 ? completedJobs.length : (isLoading ? null : 0));
+  const completionRate = (totalAssignedVal && Number(totalAssignedVal) > 0) ? Math.round(((Number(completedVal) || 0) / Number(totalAssignedVal)) * 100) : 0;
   const hoursVal = summaryStats ? summaryStats.hoursLogged : totalHoursLogged;
   const fixRateVal = summaryStats ? summaryStats.firstTimeFix : (completedJobs.length > 0 ? 100.0 : (isLoading ? null : 0.0));
   const safetyVal = summaryStats ? summaryStats.safetyScore : (myAssignedJobs.length > 0 ? 100 : (isLoading ? null : 0));
@@ -156,79 +158,122 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
         </div>
       </div>
 
-      {/* Modern Clean 4 KPI Metric Cards with Contrast */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
-        {/* 1. Assigned Jobs */}
+      {/* 🚀 Vibrant 4-Card Hero Metric Grid (Matches Image 1 Exactly) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {/* 1. TOTAL ASSIGNED (Purple Card) */}
         <div 
           onClick={() => onNavigateTab?.('assigned_jobs', 'ALL')}
-          className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer flex items-center justify-between min-w-0 select-none group"
+          className="bg-[#8B5CF6] hover:bg-[#7C3AED] text-white rounded-3xl p-5 sm:p-6 shadow-md shadow-purple-500/20 hover:shadow-xl hover:shadow-purple-500/30 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer flex flex-col justify-between min-h-[145px] select-none group"
           title="Click to view all Assigned Jobs"
         >
-          <div className="min-w-0 pr-1">
-            <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1 truncate">ASSIGNED JOBS</span>
-            <p className="text-2xl sm:text-3xl font-black text-[#2874F0] leading-none">{totalAssignedVal ?? 0}</p>
-            <span className="text-[10px] sm:text-[11px] font-medium text-slate-500 mt-1.5 block truncate">
-              Scheduled Jobs
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] sm:text-xs font-black tracking-wider text-white/90 uppercase">
+              TOTAL ASSIGNED
+            </span>
+            <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center text-white shrink-0 group-hover:scale-110 transition-transform">
+              <Briefcase className="w-5 h-5" />
+            </div>
+          </div>
+
+          <div className="my-2 flex items-center gap-3">
+            <span className="text-3xl sm:text-4xl font-black text-white leading-none font-mono">
+              {totalAssignedVal ?? 0}
+            </span>
+            <span className="px-3 py-0.5 rounded-full bg-white/25 text-white text-xs font-bold tracking-wide">
+              Orders
             </span>
           </div>
-          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-blue-50 text-[#2874F0] border border-blue-100 flex items-center justify-center font-bold shrink-0 group-hover:scale-105 transition-transform">
-            <Briefcase className="w-4 h-4 sm:w-5 sm:h-5" />
-          </div>
+
+          <p className="text-xs font-medium text-white/85">
+            Assigned work orders
+          </p>
         </div>
 
-        {/* 2. In Progress */}
+        {/* 2. IN PROGRESS (Blue Card) */}
         <div 
           onClick={() => onNavigateTab?.('assigned_jobs', 'IN_PROGRESS')}
-          className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer flex items-center justify-between min-w-0 select-none group"
+          className="bg-[#0EA5E9] hover:bg-[#0284C7] text-white rounded-3xl p-5 sm:p-6 shadow-md shadow-sky-500/20 hover:shadow-xl hover:shadow-sky-500/30 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer flex flex-col justify-between min-h-[145px] select-none group"
           title="Click to view Active In Progress Jobs"
         >
-          <div className="min-w-0 pr-1">
-            <span className="text-[9px] sm:text-[10px] font-bold text-amber-600 uppercase tracking-wider block mb-1 truncate">IN PROGRESS</span>
-            <p className="text-2xl sm:text-3xl font-black text-amber-600 leading-none">{inProgressVal ?? 0}</p>
-            <span className="text-[10px] sm:text-[11px] font-semibold text-amber-600 mt-1.5 block truncate flex items-center gap-0.5">
-              <Zap className="w-3 h-3 fill-current shrink-0" /> Active On Site
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] sm:text-xs font-black tracking-wider text-white/90 uppercase">
+              IN PROGRESS
+            </span>
+            <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center text-white shrink-0 group-hover:scale-110 transition-transform">
+              <Play className="w-5 h-5 fill-current" />
+            </div>
+          </div>
+
+          <div className="my-2 flex items-center gap-3">
+            <span className="text-3xl sm:text-4xl font-black text-white leading-none font-mono">
+              {inProgressVal ?? 0}
+            </span>
+            <span className="px-3 py-0.5 rounded-full bg-white/25 text-white text-xs font-bold tracking-wide">
+              Active
             </span>
           </div>
-          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-amber-50 text-amber-600 border border-amber-100 flex items-center justify-center font-bold shrink-0 group-hover:scale-105 transition-transform">
-            <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
-          </div>
+
+          <p className="text-xs font-medium text-white/85">
+            Work in progress on site
+          </p>
         </div>
 
-        {/* 3. Completed Today */}
+        {/* 3. PENDING START (Orange Card) */}
+        <div 
+          onClick={() => onNavigateTab?.('assigned_jobs', 'PENDING')}
+          className="bg-[#F97316] hover:bg-[#EA580C] text-white rounded-3xl p-5 sm:p-6 shadow-md shadow-orange-500/20 hover:shadow-xl hover:shadow-orange-500/30 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer flex flex-col justify-between min-h-[145px] select-none group"
+          title="Click to view Pending Scheduled Jobs"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] sm:text-xs font-black tracking-wider text-white/90 uppercase">
+              PENDING START
+            </span>
+            <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center text-white shrink-0 group-hover:scale-110 transition-transform">
+              <Clock className="w-5 h-5" />
+            </div>
+          </div>
+
+          <div className="my-2 flex items-center gap-3">
+            <span className="text-3xl sm:text-4xl font-black text-white leading-none font-mono">
+              {pendingVal ?? 0}
+            </span>
+            <span className="px-3 py-0.5 rounded-full bg-white/25 text-white text-xs font-bold tracking-wide">
+              Scheduled
+            </span>
+          </div>
+
+          <p className="text-xs font-medium text-white/85">
+            Scheduled & awaiting start
+          </p>
+        </div>
+
+        {/* 4. COMPLETED (Green Card) */}
         <div 
           onClick={() => onNavigateTab?.('assigned_jobs', 'COMPLETED')}
-          className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer flex items-center justify-between min-w-0 select-none group"
-          title="Click to view Completed Today Jobs"
+          className="bg-[#10B981] hover:bg-[#059669] text-white rounded-3xl p-5 sm:p-6 shadow-md shadow-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/30 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer flex flex-col justify-between min-h-[145px] select-none group"
+          title="Click to view Completed Jobs"
         >
-          <div className="min-w-0 pr-1">
-            <span className="text-[9px] sm:text-[10px] font-bold text-emerald-600 uppercase tracking-wider block mb-1 truncate">COMPLETED TODAY</span>
-            <p className="text-2xl sm:text-3xl font-black text-emerald-600 leading-none">{completedVal ?? 0}</p>
-            <span className="text-[10px] sm:text-[11px] font-semibold text-emerald-600 mt-1.5 block truncate">QA Verified</span>
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] sm:text-xs font-black tracking-wider text-white/90 uppercase">
+              COMPLETED
+            </span>
+            <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center text-white shrink-0 group-hover:scale-110 transition-transform">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
           </div>
-          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center font-bold shrink-0 group-hover:scale-105 transition-transform">
-            <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
-          </div>
-        </div>
 
-        {/* 4. Total Completed */}
-        <div 
-          onClick={() => onNavigateTab?.('history')}
-          className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer flex items-center justify-between min-w-0 select-none group"
-          title="Click to view All-Time Work Order History"
-        >
-          <div className="min-w-0 pr-1">
-            <span className="text-[9px] sm:text-[10px] font-bold text-indigo-600 uppercase tracking-wider block mb-1 truncate">TOTAL COMPLETED</span>
-            <p className="text-2xl sm:text-3xl font-black text-indigo-600 leading-none">
-              {totalCompletedVal ?? 0}
-            </p>
-            <span className="text-[10px] sm:text-[11px] font-medium text-slate-500 mt-1.5 block truncate flex items-center gap-1">
-              <CheckCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-              <span>All-Time Work Orders</span>
+          <div className="my-2 flex items-center gap-3">
+            <span className="text-3xl sm:text-4xl font-black text-white leading-none font-mono">
+              {completedVal ?? 0}
+            </span>
+            <span className="px-3 py-0.5 rounded-full bg-white/25 text-white text-xs font-bold tracking-wide">
+              {completionRate}%
             </span>
           </div>
-          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center font-bold shrink-0 group-hover:scale-105 transition-transform">
-            <Award className="w-4 h-4 sm:w-5 sm:h-5" />
-          </div>
+
+          <p className="text-xs font-medium text-white/85">
+            Finished & signed off
+          </p>
         </div>
       </div>
 
