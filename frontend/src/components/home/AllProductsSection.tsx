@@ -11,7 +11,9 @@ import {
   CheckCircle2,
   Package,
   Layers,
-  Sparkles
+  Sparkles,
+  Plus,
+  Minus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,6 +48,34 @@ export default function AllProductsSection() {
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [quickViewProduct, setQuickViewProduct] = useState<ProductItem | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [cartMap, setCartMap] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const syncCart = () => {
+      try {
+        const cart = JSON.parse(localStorage.getItem("shopping_cart") || "[]");
+        const map: Record<string, number> = {};
+        if (Array.isArray(cart)) {
+          cart.forEach((item: any) => {
+            if (item?.id !== undefined && item?.id !== null) {
+              map[String(item.id)] = Number(item.quantity) || 1;
+            }
+          });
+        }
+        setCartMap(map);
+      } catch {
+        setCartMap({});
+      }
+    };
+
+    syncCart();
+    window.addEventListener("cart-updated", syncCart);
+    window.addEventListener("storage", syncCart);
+    return () => {
+      window.removeEventListener("cart-updated", syncCart);
+      window.removeEventListener("storage", syncCart);
+    };
+  }, []);
 
   useEffect(() => {
     const API_URL = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
@@ -168,28 +198,41 @@ export default function AllProductsSection() {
     );
   };
 
-  const handleAddToCart = (product: ProductItem) => {
-    const cart = JSON.parse(localStorage.getItem("shopping_cart") || "[]");
-    const existing = cart.find((item: any) => item.id === product.id);
-    if (existing) {
-      existing.quantity = (existing.quantity || 1) + 1;
-    } else {
-      cart.push({
-        id: product.id,
-        name: product.name,
-        brand: product.brand,
-        price: product.price,
-        originalPrice: product.originalPrice,
-        image: product.image,
-        category: product.category || 'cctv',
-        quantity: 1
-      });
-    }
-    localStorage.setItem("shopping_cart", JSON.stringify(cart));
-    window.dispatchEvent(new Event("cart-updated"));
+  const handleUpdateCartQty = (product: ProductItem, delta: number) => {
+    try {
+      const cart = JSON.parse(localStorage.getItem("shopping_cart") || "[]");
+      const pId = String(product.id);
+      const existingIdx = cart.findIndex((item: any) => String(item.id) === pId);
 
-    setToastMessage(`Added "${product.name}" to cart!`);
-    setTimeout(() => setToastMessage(null), 3000);
+      if (existingIdx > -1) {
+        const nextQty = (Number(cart[existingIdx].quantity) || 1) + delta;
+        if (nextQty <= 0) {
+          cart.splice(existingIdx, 1);
+          setToastMessage(`Removed "${product.name}" from cart`);
+        } else {
+          cart[existingIdx].quantity = nextQty;
+          setToastMessage(delta > 0 ? `Updated "${product.name}" quantity (${nextQty})` : `Reduced "${product.name}" quantity`);
+        }
+      } else if (delta > 0) {
+        cart.push({
+          id: product.id,
+          name: product.name,
+          brand: product.brand,
+          price: product.price,
+          originalPrice: product.originalPrice,
+          image: product.image,
+          category: product.category || 'cctv',
+          quantity: 1
+        });
+        setToastMessage(`Added "${product.name}" to cart!`);
+      }
+
+      localStorage.setItem("shopping_cart", JSON.stringify(cart));
+      window.dispatchEvent(new Event("cart-updated"));
+      setTimeout(() => setToastMessage(null), 3000);
+    } catch (err) {
+      console.error("Cart update error:", err);
+    }
   };
 
   return (
@@ -446,14 +489,42 @@ export default function AllProductsSection() {
                     <span>Quick View</span>
                   </button>
 
-                  <button
-                    onClick={() => handleAddToCart(product)}
-                    className="h-8 sm:h-9 px-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-red-600/20 active:scale-95 cursor-pointer shrink-0"
-                    title="Add to Cart"
-                  >
-                    <ShoppingCart className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Add</span>
-                  </button>
+                  {cartMap[String(product.id)] ? (
+                    <div className="flex items-center justify-between bg-red-600 text-white rounded-xl h-8 sm:h-9 px-1 shadow-md shadow-red-600/20 font-bold select-none shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleUpdateCartQty(product, -1);
+                        }}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/20 active:scale-90 transition-all text-white cursor-pointer"
+                        title="Decrease Quantity"
+                      >
+                        <Minus className="h-3.5 w-3.5" />
+                      </button>
+                      <span className="px-2 font-black text-xs sm:text-sm font-mono tracking-tight text-white">
+                        {cartMap[String(product.id)]}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleUpdateCartQty(product, 1);
+                        }}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/20 active:scale-90 transition-all text-white cursor-pointer"
+                        title="Increase Quantity"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => handleUpdateCartQty(product, 1)}
+                      className="h-8 sm:h-9 px-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-red-600/20 active:scale-95 cursor-pointer shrink-0"
+                      title="Add to Cart"
+                    >
+                      <ShoppingCart className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Add</span>
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -556,20 +627,42 @@ export default function AllProductsSection() {
                 </div>
 
                 <div className="pt-3 border-t border-gray-100 flex items-center gap-3">
-                  <Button
-                    onClick={() => {
-                      handleAddToCart(quickViewProduct);
-                      setQuickViewProduct(null);
-                    }}
-                    className="flex-1 h-10 bg-red-600 hover:bg-red-700 text-white font-bold text-xs gap-2 rounded-xl"
-                  >
-                    <ShoppingCart className="h-4 w-4" /> Add to Cart
-                  </Button>
+                  {cartMap[String(quickViewProduct.id)] ? (
+                    <div className="flex-1 h-10 flex items-center justify-between bg-red-600 text-white rounded-xl px-2 shadow-md shadow-red-600/20 font-bold select-none">
+                      <button
+                        onClick={() => handleUpdateCartQty(quickViewProduct, -1)}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/20 active:scale-90 transition-all text-white cursor-pointer"
+                        title="Decrease Quantity"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] text-white/80 uppercase font-semibold">In Cart:</span>
+                        <span className="font-black text-base font-mono text-white">
+                          {cartMap[String(quickViewProduct.id)]}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => handleUpdateCartQty(quickViewProduct, 1)}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/20 active:scale-90 transition-all text-white cursor-pointer"
+                        title="Increase Quantity"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <Button
+                      onClick={() => handleUpdateCartQty(quickViewProduct, 1)}
+                      className="flex-1 h-10 bg-red-600 hover:bg-red-700 text-white font-bold text-xs gap-2 rounded-xl cursor-pointer"
+                    >
+                      <ShoppingCart className="h-4 w-4" /> Add to Cart
+                    </Button>
+                  )}
 
                   <Link
                     to={`/products/${quickViewProduct.id}`}
                     onClick={() => setQuickViewProduct(null)}
-                    className="px-3.5 h-10 border border-gray-200 hover:bg-gray-50 rounded-xl text-xs font-bold text-gray-700 flex items-center justify-center transition-colors"
+                    className="px-4 h-10 border border-gray-200 hover:bg-gray-50 rounded-xl text-xs font-bold text-gray-700 flex items-center justify-center transition-colors"
                   >
                     Details
                   </Link>

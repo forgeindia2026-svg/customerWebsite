@@ -338,6 +338,34 @@ export default function Products() {
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const [quickViewQty, setQuickViewQty] = useState<number>(1);
   const [addedToCartToast, setAddedToCartToast] = useState<string | null>(null);
+  const [cartMap, setCartMap] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const syncCart = () => {
+      try {
+        const cart = JSON.parse(localStorage.getItem("shopping_cart") || "[]");
+        const map: Record<string, number> = {};
+        if (Array.isArray(cart)) {
+          cart.forEach((item: any) => {
+            if (item?.id !== undefined && item?.id !== null) {
+              map[String(item.id)] = Number(item.quantity) || 1;
+            }
+          });
+        }
+        setCartMap(map);
+      } catch {
+        setCartMap({});
+      }
+    };
+
+    syncCart();
+    window.addEventListener("cart-updated", syncCart);
+    window.addEventListener("storage", syncCart);
+    return () => {
+      window.removeEventListener("cart-updated", syncCart);
+      window.removeEventListener("storage", syncCart);
+    };
+  }, []);
 
   // Initialize filters from URL parameters if available
   useEffect(() => {
@@ -407,36 +435,50 @@ export default function Products() {
     });
   };
 
-  // Toast feedback
-  const handleAddToCart = (product: Product) => {
-    const cart = JSON.parse(localStorage.getItem("shopping_cart") || "[]");
-    const existing = cart.find((item: any) => item.id === product.id);
-    if (existing) {
-      existing.quantity = (existing.quantity || 1) + 1;
-    } else {
-      cart.push({
-        id: product.id,
-        name: product.name,
-        brand: product.brand,
-        price: product.price,
-        originalPrice: product.originalPrice,
-        image: product.image,
-        category: product.category,
-        subCategory: product.subCategory,
-        quantity: 1
-      });
-    }
-    localStorage.setItem("shopping_cart", JSON.stringify(cart));
-    window.dispatchEvent(new Event("cart-updated"));
+  // Toast feedback and dynamic quantity update
+  const handleUpdateCartQty = (product: Product, delta: number) => {
+    try {
+      const cart = JSON.parse(localStorage.getItem("shopping_cart") || "[]");
+      const pId = String(product.id);
+      const existingIdx = cart.findIndex((item: any) => String(item.id) === pId);
 
-    setAddedToCartToast(product.name);
-    setTimeout(() => {
-      setAddedToCartToast(null);
-    }, 3000);
+      if (existingIdx > -1) {
+        const nextQty = (Number(cart[existingIdx].quantity) || 1) + delta;
+        if (nextQty <= 0) {
+          cart.splice(existingIdx, 1);
+          setAddedToCartToast(`Removed "${product.name}" from cart`);
+        } else {
+          cart[existingIdx].quantity = nextQty;
+          setAddedToCartToast(delta > 0 ? `Updated "${product.name}" quantity (${nextQty})` : `Reduced "${product.name}" quantity`);
+        }
+      } else if (delta > 0) {
+        cart.push({
+          id: product.id,
+          name: product.name,
+          brand: product.brand,
+          price: product.price,
+          originalPrice: product.originalPrice,
+          image: product.image,
+          category: product.category,
+          subCategory: product.subCategory,
+          quantity: 1
+        });
+        setAddedToCartToast(`Added "${product.name}" to cart!`);
+      }
+
+      localStorage.setItem("shopping_cart", JSON.stringify(cart));
+      window.dispatchEvent(new Event("cart-updated"));
+      setTimeout(() => setAddedToCartToast(null), 3000);
+    } catch (err) {
+      console.error("Cart update error:", err);
+    }
   };
 
   const handleBuyNow = (product: Product) => {
-    handleAddToCart(product);
+    const pId = String(product.id);
+    if (!cartMap[pId]) {
+      handleUpdateCartQty(product, 1);
+    }
     navigate("/cart");
   };
 
@@ -1083,17 +1125,45 @@ export default function Products() {
 
                       {/* Card Footer Action: Side-by-Side Cart & Buy Now */}
                       <div className="pt-2 flex flex-row items-center gap-1.5 sm:gap-2">
-                        <button
-                          onClick={() => handleAddToCart(product)}
-                          className="h-8 w-8 sm:flex-1 sm:h-9 rounded-lg sm:rounded-xl bg-red-50 sm:bg-white border-0 sm:border border-slate-200 hover:bg-red-100 sm:hover:bg-slate-50 text-[#ff3b30] sm:text-slate-700 text-[10px] sm:text-xs font-extrabold flex items-center justify-center gap-1 transition-all shrink-0"
-                          title="Add to Cart"
-                        >
-                          <ShoppingCart className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
-                          <span className="hidden sm:inline">Cart</span>
-                        </button>
+                        {cartMap[String(product.id)] ? (
+                          <div className="h-8 sm:h-9 flex-1 flex items-center justify-between bg-red-600 text-white rounded-lg sm:rounded-xl px-1.5 shadow-sm font-bold select-none shrink-0">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleUpdateCartQty(product, -1);
+                              }}
+                              className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded hover:bg-white/20 active:scale-90 transition-all text-white cursor-pointer"
+                              title="Decrease Quantity"
+                            >
+                              <Minus className="h-3.5 w-3.5" />
+                            </button>
+                            <span className="px-1 font-black text-xs sm:text-sm font-mono tracking-tight text-white">
+                              {cartMap[String(product.id)]}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleUpdateCartQty(product, 1);
+                              }}
+                              className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded hover:bg-white/20 active:scale-90 transition-all text-white cursor-pointer"
+                              title="Increase Quantity"
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleUpdateCartQty(product, 1)}
+                            className="h-8 w-8 sm:flex-1 sm:h-9 rounded-lg sm:rounded-xl bg-red-50 sm:bg-white border-0 sm:border border-slate-200 hover:bg-red-100 sm:hover:bg-slate-50 text-[#ff3b30] sm:text-slate-700 text-[10px] sm:text-xs font-extrabold flex items-center justify-center gap-1 transition-all shrink-0 cursor-pointer"
+                            title="Add to Cart"
+                          >
+                            <ShoppingCart className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                            <span className="hidden sm:inline">Add</span>
+                          </button>
+                        )}
                         <button
                           onClick={() => handleBuyNow(product)}
-                          className="flex-1 h-8 sm:h-9 rounded-lg sm:rounded-xl bg-[#ff3b30] hover:bg-red-600 text-white text-[11px] sm:text-xs font-extrabold flex items-center justify-center gap-1 transition-all shadow-sm sm:hover:scale-[1.02] duration-200"
+                          className="flex-1 h-8 sm:h-9 rounded-lg sm:rounded-xl bg-[#ff3b30] hover:bg-red-600 text-white text-[11px] sm:text-xs font-extrabold flex items-center justify-center gap-1 transition-all shadow-sm sm:hover:scale-[1.02] duration-200 cursor-pointer"
                         >
                           <span>Buy Now</span>
                         </button>

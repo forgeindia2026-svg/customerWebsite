@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ShoppingCart, Star, Heart, CheckSquare, ChevronLeft, ChevronRight, CheckCircle2 } from "lucide-react";
+import { ShoppingCart, Star, Heart, CheckSquare, ChevronLeft, ChevronRight, CheckCircle2, Plus, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,7 +26,35 @@ export default function BestSellers() {
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [quickViewProduct, setQuickViewProduct] = useState<BestSellingProduct | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [cartMap, setCartMap] = useState<Record<string, number>>({});
   const sliderRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const syncCart = () => {
+      try {
+        const cart = JSON.parse(localStorage.getItem("shopping_cart") || "[]");
+        const map: Record<string, number> = {};
+        if (Array.isArray(cart)) {
+          cart.forEach((item: any) => {
+            if (item?.id !== undefined && item?.id !== null) {
+              map[String(item.id)] = Number(item.quantity) || 1;
+            }
+          });
+        }
+        setCartMap(map);
+      } catch {
+        setCartMap({});
+      }
+    };
+
+    syncCart();
+    window.addEventListener("cart-updated", syncCart);
+    window.addEventListener("storage", syncCart);
+    return () => {
+      window.removeEventListener("cart-updated", syncCart);
+      window.removeEventListener("storage", syncCart);
+    };
+  }, []);
 
   useEffect(() => {
     fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/products`)
@@ -56,13 +84,13 @@ export default function BestSellers() {
                 : undefined;
 
               return {
-                id: item._id,
+                id: item._id || item.id,
                 brand: item.brand || 'SK-Vision',
-                name: item.title,
+                name: item.title || item.name || 'Security Camera',
                 price: finalPrice,
                 originalPrice: finalOriginalPrice,
                 rating: item.rating || 4.5,
-                reviews: item.reviewsCount || Math.floor(Math.random() * 100) + 10,
+                reviews: item.reviewsCount || Math.floor(Math.random() * 50) + 10,
                 image: item.image ? item.image.replace('https://65.0.45.64.sslip.io', import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io') : '/images/cctv_camera.png',
                 badge: badgeStr,
                 isNew: item.isNew,
@@ -81,28 +109,41 @@ export default function BestSellers() {
     );
   };
 
-  const handleAddToCart = (product: BestSellingProduct) => {
-    const cart = JSON.parse(localStorage.getItem("shopping_cart") || "[]");
-    const existing = cart.find((item: any) => item.id === product.id);
-    if (existing) {
-      existing.quantity = (existing.quantity || 1) + 1;
-    } else {
-      cart.push({
-        id: product.id,
-        name: product.name,
-        brand: product.brand,
-        price: product.price,
-        originalPrice: product.originalPrice,
-        image: product.image,
-        category: 'cctv',
-        quantity: 1
-      });
-    }
-    localStorage.setItem("shopping_cart", JSON.stringify(cart));
-    window.dispatchEvent(new Event("cart-updated"));
+  const handleUpdateCartQty = (product: BestSellingProduct, delta: number) => {
+    try {
+      const cart = JSON.parse(localStorage.getItem("shopping_cart") || "[]");
+      const pId = String(product.id);
+      const existingIdx = cart.findIndex((item: any) => String(item.id) === pId);
 
-    setToastMessage(`Added "${product.name}" to cart!`);
-    setTimeout(() => setToastMessage(null), 3000);
+      if (existingIdx > -1) {
+        const nextQty = (Number(cart[existingIdx].quantity) || 1) + delta;
+        if (nextQty <= 0) {
+          cart.splice(existingIdx, 1);
+          setToastMessage(`Removed "${product.name}" from cart`);
+        } else {
+          cart[existingIdx].quantity = nextQty;
+          setToastMessage(delta > 0 ? `Updated "${product.name}" quantity (${nextQty})` : `Reduced "${product.name}" quantity`);
+        }
+      } else if (delta > 0) {
+        cart.push({
+          id: product.id,
+          name: product.name,
+          brand: product.brand,
+          price: product.price,
+          originalPrice: product.originalPrice,
+          image: product.image,
+          category: 'cctv',
+          quantity: 1
+        });
+        setToastMessage(`Added "${product.name}" to cart!`);
+      }
+
+      localStorage.setItem("shopping_cart", JSON.stringify(cart));
+      window.dispatchEvent(new Event("cart-updated"));
+      setTimeout(() => setToastMessage(null), 3000);
+    } catch (err) {
+      console.error("Cart update error:", err);
+    }
   };
 
   const scrollLeft = () => {
@@ -243,19 +284,48 @@ export default function BestSellers() {
                 <div className="p-3 pt-0 flex items-center gap-2">
                   <button
                     onClick={() => setQuickViewProduct(product)}
-                    className="flex-1 h-7 rounded border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 text-[11px] font-semibold flex items-center justify-center gap-1 transition-colors"
+                    className="flex-1 h-8 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 text-[11px] font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer"
                   >
                     <CheckSquare className="h-3 w-3 text-gray-500" />
                     <span>Quick View</span>
                   </button>
 
-                  <button
-                    onClick={() => handleAddToCart(product)}
-                    className="h-7 w-7 rounded bg-black hover:bg-gray-800 text-white flex items-center justify-center transition-colors shrink-0"
-                    title="Add to Cart"
-                  >
-                    <ShoppingCart className="h-3.5 w-3.5" />
-                  </button>
+                  {cartMap[String(product.id)] ? (
+                    <div className="flex items-center justify-between bg-red-600 text-white rounded-lg h-8 px-1 shadow-sm font-bold select-none shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleUpdateCartQty(product, -1);
+                        }}
+                        className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/20 active:scale-90 transition-all text-white cursor-pointer"
+                        title="Decrease Quantity"
+                      >
+                        <Minus className="h-3 w-3" />
+                      </button>
+                      <span className="px-1.5 font-black text-xs font-mono tracking-tight text-white">
+                        {cartMap[String(product.id)]}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleUpdateCartQty(product, 1);
+                        }}
+                        className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/20 active:scale-90 transition-all text-white cursor-pointer"
+                        title="Increase Quantity"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => handleUpdateCartQty(product, 1)}
+                      className="h-8 px-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold text-xs flex items-center justify-center gap-1 transition-colors shrink-0 shadow-sm cursor-pointer"
+                      title="Add to Cart"
+                    >
+                      <ShoppingCart className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline text-[11px]">Add</span>
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -302,15 +372,37 @@ export default function BestSellers() {
                 </div>
 
                 <div className="pt-2 border-t border-gray-100">
-                  <Button
-                    onClick={() => {
-                      handleAddToCart(quickViewProduct);
-                      setQuickViewProduct(null);
-                    }}
-                    className="w-full h-9 bg-black hover:bg-gray-800 text-white font-semibold text-xs gap-2"
-                  >
-                    <ShoppingCart className="h-4 w-4" /> Add to Cart
-                  </Button>
+                  {cartMap[String(quickViewProduct.id)] ? (
+                    <div className="w-full h-10 flex items-center justify-between bg-red-600 text-white rounded-xl px-2.5 shadow-sm font-bold select-none">
+                      <button
+                        onClick={() => handleUpdateCartQty(quickViewProduct, -1)}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/20 active:scale-90 transition-all text-white cursor-pointer"
+                        title="Decrease Quantity"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] text-white/80 uppercase font-semibold">In Cart:</span>
+                        <span className="font-black text-base font-mono text-white">
+                          {cartMap[String(quickViewProduct.id)]}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => handleUpdateCartQty(quickViewProduct, 1)}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/20 active:scale-90 transition-all text-white cursor-pointer"
+                        title="Increase Quantity"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <Button
+                      onClick={() => handleUpdateCartQty(quickViewProduct, 1)}
+                      className="w-full h-10 bg-red-600 hover:bg-red-700 text-white font-bold text-xs gap-2 rounded-xl cursor-pointer"
+                    >
+                      <ShoppingCart className="h-4 w-4" /> Add to Cart
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
