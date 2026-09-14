@@ -30,7 +30,10 @@ import {
   Heart,
   Briefcase,
   Menu,
-  X
+  X,
+  Building,
+  Navigation,
+  Map,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -189,6 +192,15 @@ export default function CustomerDashboard() {
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMsg, setProfileMsg] = useState("");
 
+  // Detailed Installation & Delivery Address states
+  const [addrDoorNo, setAddrDoorNo] = useState("");
+  const [addrStreet, setAddrStreet] = useState("");
+  const [addrCity, setAddrCity] = useState("");
+  const [addrState, setAddrState] = useState("Tamil Nadu");
+  const [addrPincode, setAddrPincode] = useState("");
+  const [addrLandmark, setAddrLandmark] = useState("");
+  const [fetchingLocation, setFetchingLocation] = useState(false);
+
   // Change Password form state
   const [cpCurrent, setCpCurrent] = useState("");
   const [cpNew, setCpNew] = useState("");
@@ -228,6 +240,29 @@ export default function CustomerDashboard() {
     setProfileName(name);
     setProfilePhone(phone);
     setProfileAddress(address);
+
+    const savedDoor = localStorage.getItem("user_door_no") || "";
+    const savedStreet = localStorage.getItem("user_street") || "";
+    const savedCity = localStorage.getItem("user_city") || "";
+    const savedState = localStorage.getItem("user_state") || "Tamil Nadu";
+    const savedPin = localStorage.getItem("user_pincode") || "";
+    const savedLandmark = localStorage.getItem("user_landmark") || "";
+
+    if (savedDoor) setAddrDoorNo(savedDoor);
+    if (savedStreet) setAddrStreet(savedStreet);
+    if (savedCity) setAddrCity(savedCity);
+    if (savedState) setAddrState(savedState);
+    if (savedPin) setAddrPincode(savedPin);
+    if (savedLandmark) setAddrLandmark(savedLandmark);
+
+    if (!savedDoor && !savedStreet && address) {
+      const parts = address.split(',').map(s => s.trim()).filter(Boolean);
+      if (parts.length > 0) setAddrDoorNo(parts[0]);
+      if (parts.length > 1) setAddrStreet(parts[1]);
+      if (parts.length > 2) setAddrCity(parts[2]);
+      const pinMatch = address.match(/\b\d{6}\b/);
+      if (pinMatch) setAddrPincode(pinMatch[0]);
+    }
   }, [navigate]);
 
   // Fetch fresh profile from DB when email is available
@@ -247,11 +282,21 @@ export default function CustomerDashboard() {
           setProfileName(freshName);
           setProfilePhone(freshPhone);
           setProfileAddress(freshAddress);
-          if (freshAddress) setUserAddress(freshAddress);
+          if (freshAddress) {
+            setUserAddress(freshAddress);
+            localStorage.setItem("user_address", freshAddress);
+            if (!localStorage.getItem("user_door_no") && !localStorage.getItem("user_street")) {
+              const parts = freshAddress.split(',').map((s: string) => s.trim()).filter(Boolean);
+              if (parts.length > 0) setAddrDoorNo(parts[0]);
+              if (parts.length > 1) setAddrStreet(parts[1]);
+              if (parts.length > 2) setAddrCity(parts[2]);
+              const pinMatch = freshAddress.match(/\b\d{6}\b/);
+              if (pinMatch) setAddrPincode(pinMatch[0]);
+            }
+          }
           // Keep localStorage in sync
           localStorage.setItem("user_name", freshName);
           localStorage.setItem("user_phone", freshPhone);
-          if (freshAddress) localStorage.setItem("user_address", freshAddress);
         }
       } catch (err) {
         console.warn("Could not sync profile from DB:", err);
@@ -376,11 +421,72 @@ export default function CustomerDashboard() {
     window.location.href = "/";
   };
 
+  // Fetch Geolocation automatically
+  const handleFetchLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser.");
+      return;
+    }
+
+    setFetchingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+
+        fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`
+        )
+          .then((res) => res.json())
+          .then((data) => {
+            if (data && data.address) {
+              const addr = data.address;
+              const road = addr.road || addr.suburb || addr.neighbourhood || "";
+              const town = addr.city || addr.town || addr.village || addr.county || "";
+              const st = addr.state || "Tamil Nadu";
+              const postcode = addr.postcode || "";
+              const houseNo = addr.house_number || "";
+
+              if (houseNo) setAddrDoorNo(houseNo);
+              if (road) setAddrStreet(road);
+              if (town) setAddrCity(town);
+              if (st) setAddrState(st);
+              if (postcode) setAddrPincode(postcode);
+            }
+          })
+          .catch((err) => {
+            console.error("Geocoding failed:", err);
+          })
+          .finally(() => {
+            setFetchingLocation(false);
+          });
+      },
+      (error) => {
+        console.error("Geolocation error:", error);
+        alert("Failed to fetch location. Please check browser permissions and try again.");
+        setFetchingLocation(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
+  };
+
   // Save profile name + phone + address to MongoDB
   const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setProfileSaving(true);
     setProfileMsg("");
+
+    const fullAddress = [
+      addrDoorNo.trim(),
+      addrStreet.trim(),
+      addrCity.trim(),
+      addrState.trim() ? `${addrState.trim()} - ${addrPincode.trim()}` : addrPincode.trim(),
+      addrLandmark.trim() ? `(${addrLandmark.trim()})` : ""
+    ].filter(Boolean).join(', ');
+
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/auth/profile`, {
         method: "PUT",
@@ -389,18 +495,24 @@ export default function CustomerDashboard() {
           email: userEmail,
           name: profileName,
           phone: profilePhone,
-          address: profileAddress
+          address: fullAddress
         })
       });
       const data = await res.json();
       if (data.success) {
-        const savedAddress = data.data?.address || profileAddress;
+        const savedAddress = data.data?.address || fullAddress;
         setUserName(data.data.name);
         setUserPhone(data.data.phone || "");
         setUserAddress(savedAddress);
         setProfileAddress(savedAddress);
         localStorage.setItem("user_name", data.data.name);
         localStorage.setItem("user_phone", data.data.phone || "");
+        localStorage.setItem("user_door_no", addrDoorNo.trim());
+        localStorage.setItem("user_street", addrStreet.trim());
+        localStorage.setItem("user_city", addrCity.trim());
+        localStorage.setItem("user_state", addrState.trim());
+        localStorage.setItem("user_pincode", addrPincode.trim());
+        localStorage.setItem("user_landmark", addrLandmark.trim());
         localStorage.setItem("user_address", savedAddress);
         window.dispatchEvent(new Event("storage"));
         setProfileMsg("✓ Profile updated successfully!");
@@ -1255,7 +1367,7 @@ export default function CustomerDashboard() {
             )}
 
             {activeTab === "Profile Settings" && (
-              <form onSubmit={handleProfileSave} className="max-w-md space-y-4 text-xs font-semibold text-slate-655">
+              <form onSubmit={handleProfileSave} className="max-w-2xl space-y-4 text-xs font-semibold text-slate-655">
                 {profileMsg && (
                   <div className={`p-3 rounded-xl text-center text-xs font-bold ${
                     profileMsg.startsWith("Error") ? "bg-red-50 border border-red-200 text-red-600" : "bg-emerald-50 border border-emerald-200 text-emerald-700"
@@ -1287,23 +1399,138 @@ export default function CustomerDashboard() {
                     placeholder="e.g. +91 98765 43210"
                   />
                 </div>
-                <div>
-                  <label className="block text-slate-455 mb-1.5">Address</label>
-                  <textarea 
-                    rows={3}
-                    value={profileAddress} 
-                    onChange={(e) => setProfileAddress(e.target.value)} 
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all resize-none shadow-2xs font-normal" 
-                    placeholder="Enter your house/door no, street, area, city, pincode..."
-                  />
+
+                {/* INSTALLATION & DELIVERY ADDRESS */}
+                <div className="pt-3 border-t border-slate-100 space-y-3">
+                  <div className="flex items-center justify-between pb-1">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      <MapPin className="h-4 w-4 text-[#ff3b30]" />
+                      <span>INSTALLATION & DELIVERY ADDRESS</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleFetchLocation}
+                      disabled={fetchingLocation}
+                      className="text-[10px] font-black text-blue-500 hover:text-blue-600 flex items-center gap-1 bg-blue-50 px-2.5 py-1 rounded-full cursor-pointer transition-colors"
+                    >
+                      <MapPin className="h-3 w-3" />
+                      <span>{fetchingLocation ? "Fetching..." : "Fetch Live Location"}</span>
+                    </button>
+                  </div>
+
+                  {/* 1. Door No & 2. Street / Area */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-1">
+                        1. Door No / Building / Apartment Name <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <Building className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+                        <input
+                          type="text"
+                          required
+                          value={addrDoorNo}
+                          onChange={e => setAddrDoorNo(e.target.value)}
+                          placeholder="Flat 4B / House No"
+                          className="w-full pl-10 pr-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#ff3b30] bg-white text-gray-900 shadow-2xs font-semibold"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-1">
+                        2. Street / Area / Colony <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <Navigation className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+                        <input
+                          type="text"
+                          required
+                          value={addrStreet}
+                          onChange={e => setAddrStreet(e.target.value)}
+                          placeholder="Street Name, Area"
+                          className="w-full pl-10 pr-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#ff3b30] bg-white text-gray-900 shadow-2xs font-semibold"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 3. City, 4. State & 5. Pincode */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-1">
+                        3. City / Town <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <Map className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+                        <input
+                          type="text"
+                          required
+                          value={addrCity}
+                          onChange={e => setAddrCity(e.target.value)}
+                          placeholder="City"
+                          className="w-full pl-10 pr-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#ff3b30] bg-white text-gray-900 shadow-2xs font-semibold"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-1">
+                        4. State <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={addrState}
+                        onChange={e => setAddrState(e.target.value)}
+                        placeholder="Tamil Nadu"
+                        className="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#ff3b30] bg-white text-gray-900 shadow-2xs font-semibold"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-1">
+                        5. Pincode (6 digits) <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        maxLength={6}
+                        value={addrPincode}
+                        onChange={e => {
+                          const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                          setAddrPincode(val);
+                        }}
+                        placeholder="600001"
+                        className="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#ff3b30] bg-white text-gray-900 shadow-2xs font-semibold"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 6. Landmark (Optional) */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-1">
+                      6. Landmark (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={addrLandmark}
+                      onChange={e => setAddrLandmark(e.target.value)}
+                      placeholder="e.g. Near Bus Stand, Opp. Temple"
+                      className="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#ff3b30] bg-white text-gray-900 shadow-2xs font-semibold"
+                    />
+                  </div>
                 </div>
-                <Button 
-                  type="submit" 
-                  disabled={profileSaving}
-                  className="h-10 px-5 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl shadow-md shadow-red-500/10"
-                >
-                  {profileSaving ? "Saving..." : "Save Changes"}
-                </Button>
+
+                <div className="pt-2">
+                  <Button 
+                    type="submit" 
+                    disabled={profileSaving}
+                    className="h-10 px-6 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl shadow-md shadow-red-500/10 cursor-pointer"
+                  >
+                    {profileSaving ? "Saving..." : "Save Changes"}
+                  </Button>
+                </div>
               </form>
             )}
 
