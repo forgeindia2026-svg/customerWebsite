@@ -156,28 +156,28 @@ export default function CustomerDashboard() {
 
   // Tab State
   const [searchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<string>("Profile Settings");
+  const getTabFromParam = (param: string | null) => {
+    const p = param?.toLowerCase();
+    if (p === "orders" || p === "my-orders" || p === "order") return "My Orders";
+    if (p === "profile" || p === "settings" || p === "profile-settings") return "Profile Settings";
+    if (p === "installations" || p === "my-installations") return "My Installations";
+    if (p === "requests" || p === "service-requests") return "Service Requests";
+    if (p === "wishlist") return "Wishlist";
+    if (p === "products" || p === "my-products") return "My Products";
+    if (p === "addresses" || p === "address") return "Addresses";
+    if (p === "payments" || p === "payment-methods") return "Payment Methods";
+    if (p === "password" || p === "change-password") return "Change Password";
+    return "Profile Settings";
+  };
+
+  const [activeTab, setActiveTab] = useState<string>(() => getTabFromParam(searchParams.get("tab")));
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Sync tab from URL query parameter (e.g. /dashboard?tab=orders or /dashboard?tab=profile)
   useEffect(() => {
-    const tabParam = searchParams.get("tab")?.toLowerCase();
-    if (tabParam === "orders" || tabParam === "my-orders") {
-      setActiveTab("My Orders");
-    } else if (tabParam === "profile" || tabParam === "settings" || tabParam === "profile-settings") {
-      setActiveTab("Profile Settings");
-    } else if (tabParam === "installations") {
-      setActiveTab("My Installations");
-    } else if (tabParam === "requests") {
-      setActiveTab("Service Requests");
-    } else if (tabParam === "wishlist") {
-      setActiveTab("Wishlist");
-    } else if (tabParam === "products") {
-      setActiveTab("My Products");
-    } else if (tabParam === "addresses") {
-      setActiveTab("Addresses");
-    } else {
-      setActiveTab("Profile Settings");
+    const tabParam = searchParams.get("tab");
+    if (tabParam) {
+      setActiveTab(getTabFromParam(tabParam));
     }
   }, [searchParams]);
 
@@ -220,6 +220,9 @@ export default function CustomerDashboard() {
   });
   const [isSubmittingService, setIsSubmittingService] = useState(false);
   const [serviceSuccessMsg, setServiceSuccessMsg] = useState("");
+
+  // Order Details Modal State
+  const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem("user_token");
@@ -566,12 +569,20 @@ export default function CustomerDashboard() {
 
   // Helper values derived from database + preset fallbacks
   const displayOrders = dbOrders.length > 0 ? dbOrders.map((o, idx) => ({
+    raw: o,
     id: o.orderNumber || o.id || `ORD-${idx + 100}`,
     date: new Date(o.createdAt || Date.now()).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+    time: new Date(o.createdAt || Date.now()).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
     price: o.totalAmount || 3200,
     itemsCount: o.items?.length || 1,
     status: o.orderStatus ? (o.orderStatus.charAt(0).toUpperCase() + o.orderStatus.slice(1).toLowerCase()) : "Processing",
-    productType: idx % 2 === 0 ? "bullet" : (idx % 3 === 0 ? "dome" : (idx % 4 === 0 ? "nvr" : "hdd"))
+    productType: idx % 2 === 0 ? "bullet" : (idx % 3 === 0 ? "dome" : (idx % 4 === 0 ? "nvr" : "hdd")),
+    items: o.items || [],
+    shippingAddress: o.shippingAddress || "",
+    paymentStatus: o.paymentStatus || "PENDING",
+    paymentMethod: o.paymentMethod || "Cash on Delivery",
+    serviceType: o.serviceType || "ONLY_PRODUCT_DELIVERY",
+    assignedTechnician: o.assignedTechnicianName || o.assignedTechnician || "Unassigned"
   })) : [];
 
   const totalOrdersCount = displayOrders.length;
@@ -756,6 +767,7 @@ export default function CustomerDashboard() {
                     <th className="py-3 px-4">Items</th>
                     <th className="py-3 px-4">Amount</th>
                     <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
@@ -769,6 +781,14 @@ export default function CustomerDashboard() {
                         <span className={`px-2.5 py-0.5 rounded-full border text-[9px] font-bold ${getStatusBadgeClass(order.status)}`}>
                           {getDisplayStatus(order.status)}
                         </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right">
+                        <button
+                          onClick={() => setSelectedOrder(order)}
+                          className="text-[11px] text-red-500 hover:text-red-700 font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"
+                        >
+                          View Details <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -796,7 +816,10 @@ export default function CustomerDashboard() {
                     </div>
                     <div className="text-right">
                       <p className="font-extrabold text-slate-800 text-sm">₹{order.price.toLocaleString("en-IN")}</p>
-                      <button className="text-[9px] text-red-500 font-bold flex items-center gap-0.5 mt-1.5 ml-auto hover:text-red-600">
+                      <button 
+                        onClick={() => setSelectedOrder(order)}
+                        className="text-[10px] text-red-500 font-bold flex items-center gap-0.5 mt-1.5 ml-auto hover:text-red-600 cursor-pointer"
+                      >
                         View <ChevronRight className="w-3 h-3" />
                       </button>
                     </div>
@@ -1290,6 +1313,177 @@ export default function CustomerDashboard() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* View Order Details Modal */}
+      {selectedOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            onClick={() => setSelectedOrder(null)}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity cursor-pointer"
+          />
+          <div className="relative w-full max-w-xl bg-white border border-slate-100 rounded-3xl p-6 sm:p-7 shadow-2xl text-left animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-start justify-between border-b border-slate-100 pb-4 mb-5">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-black text-slate-900 text-lg sm:text-xl tracking-tight">
+                    {selectedOrder.id}
+                  </h3>
+                  <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-bold ${getStatusBadgeClass(selectedOrder.status)}`}>
+                    {getDisplayStatus(selectedOrder.status)}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 font-semibold mt-1">
+                  Placed on {selectedOrder.date} {selectedOrder.time ? `at ${selectedOrder.time}` : ''}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedOrder(null)}
+                className="h-8 w-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Status Stepper */}
+            <div className="bg-slate-50 rounded-2xl p-4 mb-5 border border-slate-100">
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Order Status</div>
+              <div className="flex items-center justify-between relative">
+                {[
+                  { label: "Placed", done: true },
+                  { 
+                    label: "Processing", 
+                    done: !["cancelled"].includes(selectedOrder.status?.toLowerCase()) 
+                  },
+                  { 
+                    label: "Shipped", 
+                    done: ["shipped", "in transit", "delivered", "completed"].includes(selectedOrder.status?.toLowerCase()) 
+                  },
+                  { 
+                    label: "Delivered", 
+                    done: ["delivered", "completed", "approved"].includes(selectedOrder.status?.toLowerCase()) 
+                  }
+                ].map((step, idx) => (
+                  <div key={idx} className="flex flex-col items-center text-center z-10 flex-1">
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                      step.done 
+                        ? "bg-emerald-500 text-white shadow-sm" 
+                        : "bg-slate-200 text-slate-500"
+                    }`}>
+                      {step.done ? <CheckCircle2 className="w-4 h-4" /> : idx + 1}
+                    </div>
+                    <span className={`text-[10px] font-bold mt-1.5 ${step.done ? "text-slate-800" : "text-slate-400"}`}>
+                      {step.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Order Items */}
+            <div className="space-y-3 mb-5">
+              <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">
+                Order Items ({selectedOrder.items?.length || selectedOrder.itemsCount || 1})
+              </h4>
+              <div className="divide-y divide-slate-100 border border-slate-100 rounded-2xl p-3 bg-white">
+                {selectedOrder.items && selectedOrder.items.length > 0 ? (
+                  selectedOrder.items.map((it: any, i: number) => (
+                    <div key={i} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+                      {it.image ? (
+                        <img 
+                          src={it.image.startsWith('http') ? it.image : `${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}${it.image}`} 
+                          alt={it.title || it.name} 
+                          className="w-12 h-12 object-cover rounded-xl border border-slate-100 bg-slate-50 shrink-0" 
+                        />
+                      ) : (
+                        <ProductThumb type={selectedOrder.productType} />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-slate-800 truncate">{it.title || it.name || "CCTV Equipment"}</p>
+                        <p className="text-[11px] text-slate-400 font-semibold mt-0.5">
+                          Qty: <strong className="text-slate-700">{it.quantity || 1}</strong> × ₹{(it.price || 0).toLocaleString("en-IN")}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs font-extrabold text-slate-900">
+                          ₹{((it.price || 0) * (it.quantity || 1)).toLocaleString("en-IN")}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex items-center gap-3 py-2">
+                    <ProductThumb type={selectedOrder.productType} />
+                    <div className="flex-1">
+                      <p className="text-xs font-bold text-slate-800">CCTV Security Equipment</p>
+                      <p className="text-[11px] text-slate-400 font-semibold">Qty: {selectedOrder.itemsCount}</p>
+                    </div>
+                    <span className="text-xs font-extrabold text-slate-900">₹{selectedOrder.price.toLocaleString("en-IN")}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Delivery & Payment Information Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5 text-xs">
+              {/* Delivery Address */}
+              <div className="border border-slate-100 rounded-2xl p-3.5 bg-slate-50/50">
+                <div className="flex items-center gap-1.5 text-slate-400 font-bold text-[10px] uppercase tracking-wider mb-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-red-500" />
+                  Delivery Address
+                </div>
+                <p className="text-slate-800 font-bold text-xs">{selectedOrder.raw?.customerName || userName}</p>
+                <p className="text-slate-500 text-[11px] mt-0.5 leading-relaxed break-words">
+                  {selectedOrder.shippingAddress || userAddress || "Address provided during checkout"}
+                </p>
+                <p className="text-slate-500 text-[11px] mt-1 font-semibold">
+                  📞 {selectedOrder.raw?.customerPhone || userPhone}
+                </p>
+              </div>
+
+              {/* Payment Summary */}
+              <div className="border border-slate-100 rounded-2xl p-3.5 bg-slate-50/50 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-1.5 text-slate-400 font-bold text-[10px] uppercase tracking-wider mb-1.5">
+                    <CreditCard className="w-3.5 h-3.5 text-blue-500" />
+                    Payment Details
+                  </div>
+                  <div className="flex justify-between items-center text-[11px] mt-1">
+                    <span className="text-slate-500">Method:</span>
+                    <span className="font-bold text-slate-800">{selectedOrder.paymentMethod || "Cash on Delivery"}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[11px] mt-1">
+                    <span className="text-slate-500">Payment Status:</span>
+                    <span className={`font-bold px-1.5 py-0.5 rounded text-[10px] ${
+                      selectedOrder.paymentStatus === "PAID" 
+                        ? "bg-emerald-100 text-emerald-700" 
+                        : "bg-amber-100 text-amber-700"
+                    }`}>
+                      {selectedOrder.paymentStatus === "PAID" ? "PAID" : "CASH ON DELIVERY (PENDING)"}
+                    </span>
+                  </div>
+                </div>
+                <div className="border-t border-slate-200/60 pt-2 mt-2 flex justify-between items-center">
+                  <span className="text-xs font-bold text-slate-600">Total Amount:</span>
+                  <span className="text-sm font-black text-slate-900">₹{selectedOrder.price.toLocaleString("en-IN")}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setSelectedOrder(null)}
+                className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl cursor-pointer"
+              >
+                Close
+              </Button>
+            </div>
           </div>
         </div>
       )}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Trash2, ArrowRight, ShoppingBag, CheckCircle2, X, MapPin, Building, Navigation, Map } from "lucide-react";
+import { Trash2, ArrowRight, ArrowLeft, ShoppingBag, CheckCircle2, X, MapPin, Building, Navigation, Map, Phone, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface CartItem {
@@ -14,12 +14,42 @@ interface CartItem {
   quantity: number;
 }
 
+export interface SavedAddress {
+  id: string;
+  name: string;
+  phone: string;
+  type: "HOME" | "WORK" | "OTHER";
+  isPrimary?: boolean;
+  flat: string;
+  locality: string;
+  city: string;
+  state: string;
+  pincode: string;
+}
+
 export default function Cart() {
   const [searchParams] = useSearchParams();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutStep, setCheckoutStep] = useState<1 | 2>(1);
   const [orderSuccess, setOrderSuccess] = useState<any | null>(null);
   const [placingOrder, setPlacingOrder] = useState(false);
+
+  // Saved Addresses State (Flipkart/Amazon style)
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string>("");
+  const [isAddingNewAddress, setIsAddingNewAddress] = useState(false);
+  const [newAddr, setNewAddr] = useState({
+    name: "",
+    phone: "",
+    pincode: "",
+    locality: "",
+    flat: "",
+    city: "",
+    state: "Tamil Nadu",
+    type: "HOME" as "HOME" | "WORK" | "OTHER"
+  });
+
   const [checkoutForm, setCheckoutForm] = useState({
     name: "",
     email: "",
@@ -31,7 +61,7 @@ export default function Cart() {
     zipcode: "",
     landmark: "",
     serviceType: "ONLY_PRODUCT_DELIVERY" as "ONLY_PRODUCT_DELIVERY" | "DELIVERY_INSTALLATION",
-    paymentMethod: "RAZORPAY" as "RAZORPAY" | "COD"
+    paymentMethod: "COD" as "COD" | "RAZORPAY"
   });
   const [fetchingLocation, setFetchingLocation] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
@@ -144,93 +174,114 @@ export default function Cart() {
     const localCity = localStorage.getItem("user_city") || "";
     const localState = localStorage.getItem("user_state") || "Tamil Nadu";
     const localPincode = localStorage.getItem("user_pincode") || "";
-    const localLandmark = localStorage.getItem("user_landmark") || "";
     const localAddress = localStorage.getItem("user_address") || "";
 
-    let initialDoor = localDoorNo;
-    let initialStreet = localStreet;
-    let initialCity = localCity;
-    let initialState = localState;
-    let initialZip = localPincode;
-    let initialLandmark = localLandmark;
+    let profileFlat = localDoorNo;
+    let profileLocality = localStreet;
+    let profileCity = localCity;
+    let profileState = localState;
+    let profilePin = localPincode;
 
-    if (!initialDoor && !initialStreet && localAddress) {
+    if (!localDoorNo && !localStreet && localAddress) {
       const parts = localAddress.split(',').map((s: string) => s.trim());
       if (parts.length >= 2) {
-        initialDoor = parts[0] || '';
-        initialStreet = parts[1] || '';
-        const landmarkPart = parts.find((p: string) => /^Near\s+/i.test(p));
-        if (landmarkPart) initialLandmark = landmarkPart.replace(/^Near\s+/i, '').trim();
-        const pinMatch = localAddress.match(/\b\d{6}\b/);
-        if (pinMatch) initialZip = pinMatch[0];
+        profileFlat = parts[0] || '';
+        profileLocality = parts[1] || '';
+        const pMatch = localAddress.match(/\b\d{6}\b/);
+        if (pMatch) profilePin = pMatch[0];
         if (parts.length >= 4) {
-          initialCity = parts[parts.length - 2].replace(/^Near\s+.*$/i, '').trim() || '';
-          const lastPart = parts[parts.length - 1];
-          initialState = lastPart.replace(/-\s*\d{6}/, '').replace(/\b\d{6}\b/, '').trim() || 'Tamil Nadu';
+          profileCity = parts[parts.length - 2].replace(/^Near\s+.*$/i, '').trim() || '';
+          profileState = parts[parts.length - 1].replace(/-\s*\d{6}/, '').replace(/\b\d{6}\b/, '').trim() || 'Tamil Nadu';
         }
       }
     }
 
-    setCheckoutForm({
-      name,
-      email,
-      phone,
-      doorNo: initialDoor,
-      street: initialStreet,
-      city: initialCity,
-      state: initialState,
-      zipcode: initialZip,
-      landmark: initialLandmark,
-      serviceType: "ONLY_PRODUCT_DELIVERY",
-      paymentMethod: "RAZORPAY"
-    });
-    setCheckoutError("");
-    setCheckoutOpen(true);
-
-    // Try to load cached profile address
-    fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/auth/profile?email=${encodeURIComponent(email)}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && data.data) {
-          const u = data.data;
-          setCheckoutForm(prev => {
-            let dNo = u.doorNo || prev.doorNo;
-            let str = u.street || prev.street;
-            let ct = u.city || prev.city;
-            let st = u.state || prev.state;
-            let pin = u.pincode || prev.zipcode;
-            let lmk = u.landmark || prev.landmark;
-
-            if (!dNo && !str && (u.shippingAddress || u.address)) {
-              const full = u.shippingAddress || u.address || '';
-              const parts = full.split(',').map((s: string) => s.trim());
-              if (parts.length >= 2) {
-                dNo = parts[0] || '';
-                str = parts[1] || '';
-                const lPart = parts.find((p: string) => /^Near\s+/i.test(p));
-                if (lPart) lmk = lPart.replace(/^Near\s+/i, '').trim();
-                const pMatch = full.match(/\b\d{6}\b/);
-                if (pMatch) pin = pMatch[0];
-                if (parts.length >= 4) {
-                  ct = parts[parts.length - 2].replace(/^Near\s+.*$/i, '').trim() || '';
-                  st = parts[parts.length - 1].replace(/-\s*\d{6}/, '').replace(/\b\d{6}\b/, '').trim() || 'Tamil Nadu';
-                }
-              }
-            }
-
-            return {
-              ...prev,
-              doorNo: dNo,
-              street: str,
-              city: ct,
-              state: st,
-              zipcode: pin,
-              landmark: lmk,
-            };
+    // Load saved addresses from localStorage and strictly purge mock/sample entries
+    let storedAddrs: SavedAddress[] = [];
+    try {
+      const raw = localStorage.getItem("user_saved_addresses");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          storedAddrs = parsed.filter((a: SavedAddress) => {
+            const isMockId = a.id === "addr-work-1" || a.id === "addr-home-primary";
+            const isMockText =
+              a.flat?.includes("Kengeri") ||
+              a.locality?.includes("Vinayaka Layout") ||
+              a.flat?.includes("36 Harur") ||
+              a.city?.includes("Bengaluru");
+            return !isMockId && !isMockText && a.name && a.flat && a.pincode;
           });
         }
-      })
-      .catch(err => console.warn("Could not load address on checkout open:", err));
+      }
+    } catch (e) {}
+
+    // Check if user has a genuine profile address configured in profile
+    const hasRealProfileAddress = Boolean(
+      (profileFlat || profileLocality || localAddress) &&
+      profileCity &&
+      profilePin &&
+      !profileFlat.includes("36 Harur") &&
+      !profileFlat.includes("Kengeri")
+    );
+
+    if (storedAddrs.length === 0 && hasRealProfileAddress) {
+      storedAddrs.push({
+        id: `addr-profile-${Date.now()}`,
+        name: name || "Customer",
+        phone: phone || "",
+        type: "HOME",
+        flat: profileFlat || localAddress,
+        locality: profileLocality || "",
+        city: profileCity,
+        state: profileState || "Tamil Nadu",
+        pincode: profilePin,
+        isPrimary: true
+      });
+    }
+
+    // Save back the sanitized address list to localStorage
+    localStorage.setItem("user_saved_addresses", JSON.stringify(storedAddrs));
+    setSavedAddresses(storedAddrs);
+
+    // If addresses exist, select the first. Otherwise, open "Add New Address" form directly.
+    if (storedAddrs.length > 0) {
+      setSelectedAddressId(storedAddrs[0].id);
+      setIsAddingNewAddress(false);
+    } else {
+      setSelectedAddressId("");
+      setIsAddingNewAddress(true);
+    }
+
+    setNewAddr({
+      name: name,
+      phone: phone,
+      pincode: profilePin || "",
+      locality: profileLocality || "",
+      flat: profileFlat || "",
+      city: profileCity || "",
+      state: profileState || "Tamil Nadu",
+      type: "HOME"
+    });
+
+    setCheckoutStep(1);
+    setCheckoutError("");
+    setCheckoutOpen(true);
+  };
+
+  const handleDeleteAddress = (idToDelete: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = savedAddresses.filter(a => a.id !== idToDelete);
+    setSavedAddresses(updated);
+    localStorage.setItem("user_saved_addresses", JSON.stringify(updated));
+    if (selectedAddressId === idToDelete) {
+      if (updated.length > 0) {
+        setSelectedAddressId(updated[0].id);
+      } else {
+        setSelectedAddressId("");
+        setIsAddingNewAddress(true);
+      }
+    }
   };
 
   // Auto-open checkout modal if customer just logged in / registered via redirect
@@ -246,29 +297,55 @@ export default function Cart() {
     }
   }, [searchParams]);
 
-  const loadRazorpayScript = () => {
-    return new Promise((resolve) => {
-      if ((window as any).Razorpay) {
-        return resolve(true);
+  const handleProceedToPayment = () => {
+    setCheckoutError("");
+    if (isAddingNewAddress) {
+      if (!newAddr.name.trim() || !newAddr.phone.trim() || !newAddr.flat.trim() || !newAddr.pincode.trim() || !newAddr.city.trim()) {
+        setCheckoutError("Please fill in all required fields (Name, Mobile, Flat, Locality, City, Pincode).");
+        return;
       }
-      const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.body.appendChild(script);
-    });
+      if (newAddr.phone.length !== 10 || !/^[6-9]\d{9}$/.test(newAddr.phone)) {
+        setCheckoutError("Please enter a valid 10-digit Indian mobile number.");
+        return;
+      }
+      const created: SavedAddress = {
+        id: `addr-${Date.now()}`,
+        name: newAddr.name.trim(),
+        phone: newAddr.phone.trim(),
+        flat: newAddr.flat.trim(),
+        locality: newAddr.locality.trim(),
+        city: newAddr.city.trim(),
+        state: newAddr.state || "Tamil Nadu",
+        pincode: newAddr.pincode.trim(),
+        type: newAddr.type,
+        isPrimary: savedAddresses.length === 0
+      };
+      const updated = [created, ...savedAddresses];
+      setSavedAddresses(updated);
+      setSelectedAddressId(created.id);
+      localStorage.setItem("user_saved_addresses", JSON.stringify(updated));
+      setIsAddingNewAddress(false);
+    } else {
+      if (!selectedAddressId) {
+        setCheckoutError("Please select an address or add a new one.");
+        return;
+      }
+    }
+    setCheckoutStep(2);
   };
 
   const isSubmittingRef = useRef(false);
 
-  const handlePlaceOrder = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!checkoutForm.name || !checkoutForm.phone || (!checkoutForm.doorNo && !checkoutForm.street)) {
-      setCheckoutError("Please enter your name, phone, door number and street address.");
+  const handlePlaceOrder = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (isSubmittingRef.current || placingOrder) return;
+
+    const activeAddr = savedAddresses.find(a => a.id === selectedAddressId) || (isAddingNewAddress ? newAddr : (savedAddresses[0] || newAddr));
+    if (!activeAddr || !activeAddr.name || !activeAddr.phone || !activeAddr.flat || !activeAddr.pincode) {
+      setCheckoutError("Please select or fill in a complete delivery address.");
       return;
     }
 
-    if (isSubmittingRef.current || placingOrder) return;
     isSubmittingRef.current = true;
     setPlacingOrder(true);
     setCheckoutError("");
@@ -281,61 +358,29 @@ export default function Cart() {
       image: item.image ? item.image.replace('https://65.0.45.64.sslip.io', import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io') : ''
     }));
 
-    const addressParts = [
-      checkoutForm.doorNo ? checkoutForm.doorNo.trim() : "",
-      checkoutForm.street ? checkoutForm.street.trim() : "",
-      checkoutForm.landmark ? `Near ${checkoutForm.landmark.trim()}` : "",
-      checkoutForm.city ? checkoutForm.city.trim() : "",
-      checkoutForm.state ? (checkoutForm.zipcode ? `${checkoutForm.state.trim()} - ${checkoutForm.zipcode.trim()}` : checkoutForm.state.trim()) : checkoutForm.zipcode?.trim()
-    ].filter(Boolean).join(', ');
-    const fullAddress = `${addressParts} [Service: ${checkoutForm.serviceType === 'DELIVERY_INSTALLATION' ? 'DELIVERY + INSTALLATION' : 'ONLY PRODUCT DELIVERY'}]`;
-
-    // Persist updated structured address to localStorage
-    localStorage.setItem("user_door_no", checkoutForm.doorNo);
-    localStorage.setItem("user_street", checkoutForm.street);
-    localStorage.setItem("user_city", checkoutForm.city);
-    localStorage.setItem("user_state", checkoutForm.state);
-    localStorage.setItem("user_pincode", checkoutForm.zipcode);
-    localStorage.setItem("user_landmark", checkoutForm.landmark);
-    localStorage.setItem("user_address", addressParts);
-
-    // Background sync to backend profile
-    fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/auth/profile`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: checkoutForm.email,
-        doorNo: checkoutForm.doorNo,
-        street: checkoutForm.street,
-        city: checkoutForm.city,
-        state: checkoutForm.state,
-        pincode: checkoutForm.zipcode,
-        landmark: checkoutForm.landmark,
-        address: addressParts
-      })
-    }).catch(e => console.warn("Background profile sync:", e));
+    const fullAddress = [activeAddr.flat, activeAddr.locality, activeAddr.city, activeAddr.state].filter(Boolean).join(", ") + ` - ${activeAddr.pincode} [Service: ${checkoutForm.serviceType === 'DELIVERY_INSTALLATION' ? 'DELIVERY + INSTALLATION' : 'ONLY PRODUCT DELIVERY'}]`;
+    const userEmail = localStorage.getItem("user_email") || checkoutForm.email || "customer@sktechnology.in";
 
     try {
-      // 1. Create Order in backend database
       const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/orders`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          customerName: checkoutForm.name,
-          customerEmail: checkoutForm.email,
-          customerPhone: checkoutForm.phone,
+          customerName: activeAddr.name,
+          customerEmail: userEmail,
+          customerPhone: activeAddr.phone,
           shippingAddress: fullAddress,
-          doorNo: checkoutForm.doorNo,
-          street: checkoutForm.street,
-          city: checkoutForm.city || 'Local',
-          state: checkoutForm.state || 'Tamil Nadu',
-          postalCode: checkoutForm.zipcode || '600001',
-          zipcode: checkoutForm.zipcode || '600001',
-          landmark: checkoutForm.landmark || '',
+          doorNo: activeAddr.flat,
+          street: activeAddr.locality,
+          city: activeAddr.city || '',
+          state: activeAddr.state || 'Tamil Nadu',
+          postalCode: activeAddr.pincode || '',
+          zipcode: activeAddr.pincode || '',
+          landmark: '',
           items: orderItems,
           totalAmount: total,
           serviceType: checkoutForm.serviceType,
-          paymentMethod: checkoutForm.paymentMethod,
+          paymentMethod: "Cash on Delivery",
         })
       });
 
@@ -343,86 +388,17 @@ export default function Cart() {
       if (!data.success || !data.data) {
         setCheckoutError(data.message || "Failed to place order.");
         setPlacingOrder(false);
+        isSubmittingRef.current = false;
         return;
       }
 
       const createdOrder = data.data;
-
-      // 2. If Razorpay Online Payment selected, launch Razorpay Gateway
-      if (checkoutForm.paymentMethod === "RAZORPAY") {
-        const loaded = await loadRazorpayScript();
-        if (!loaded) {
-          setCheckoutError("Razorpay SDK failed to load. Please check your network.");
-          setPlacingOrder(false);
-          return;
-        }
-
-        const paymentRes = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/payments/create-order`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            amount: total,
-            orderId: createdOrder._id,
-            notes: { orderNumber: createdOrder.orderNumber }
-          })
-        });
-        const paymentOrderData = await paymentRes.json();
-
-        if (paymentOrderData.success && paymentOrderData.order) {
-          const options = {
-            key: paymentOrderData.key,
-            amount: paymentOrderData.order.amount,
-            currency: paymentOrderData.order.currency || "INR",
-            name: "SK Technology CCTV Solutions",
-            description: `Payment for Order #${createdOrder.orderNumber}`,
-            order_id: paymentOrderData.order.id,
-            handler: async (response: any) => {
-              // Verify Payment Signature on Backend
-              await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/payments/verify`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  razorpay_order_id: response.razorpay_order_id,
-                  razorpay_payment_id: response.razorpay_payment_id,
-                  razorpay_signature: response.razorpay_signature,
-                  orderId: createdOrder._id,
-                  paymentMethod: "Razorpay Online (UPI/Card)"
-                })
-              });
-
-              createdOrder.paymentStatus = "PAID";
-              setOrderSuccess(createdOrder);
-              localStorage.removeItem("shopping_cart");
-              window.dispatchEvent(new Event("cart-updated"));
-              setPlacingOrder(false);
-            },
-            prefill: {
-              name: checkoutForm.name,
-              email: checkoutForm.email,
-              contact: checkoutForm.phone,
-            },
-            theme: {
-              color: "#ff3b30"
-            }
-          };
-
-          const rzp = new (window as any).Razorpay(options);
-          rzp.on('payment.failed', function (resp: any) {
-            setCheckoutError(`Payment Failed: ${resp.error.description || 'Transaction cancelled'}`);
-            setPlacingOrder(false);
-            isSubmittingRef.current = false;
-          });
-          rzp.open();
-          return;
-        }
-      }
-
-      // COD or Fallback Success
       setOrderSuccess(createdOrder);
       localStorage.removeItem("shopping_cart");
       window.dispatchEvent(new Event("cart-updated"));
     } catch (err: any) {
-      setCheckoutError(err.message || "An error occurred. Please try again.");
+      console.error("Order placement error:", err);
+      setCheckoutError(err.message || "An error occurred while placing order.");
     } finally {
       setPlacingOrder(false);
       isSubmittingRef.current = false;
@@ -561,7 +537,7 @@ export default function Cart() {
                   </p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3 pt-4 justify-center">
-                  <Link to="/dashboard">
+                  <Link to="/dashboard?tab=orders">
                     <Button className="w-full sm:w-auto bg-slate-900 hover:bg-slate-850 text-white font-bold px-6 py-2.5 rounded-xl text-xs">
                       View My Orders
                     </Button>
@@ -578,285 +554,431 @@ export default function Cart() {
                 </div>
               </div>
             ) : (
-              <form onSubmit={handlePlaceOrder}>
-                {/* Modal Header */}
-                <div className="px-6 py-4 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center">
-                  <h3 className="text-lg font-black text-gray-900 dark:text-white">Checkout Details</h3>
+              <div>
+                {/* Modal Header (Dark Navy with Yellow Circle Icon & Step Badge) */}
+                <div className="bg-[#0b192e] text-white px-5 py-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-[#fca311] flex items-center justify-center text-slate-950 shrink-0 shadow-md">
+                      <MapPin className="w-5 h-5 fill-slate-950 text-slate-950" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm sm:text-base font-extrabold tracking-tight">
+                          {checkoutStep === 1 ? "Select Delivery & Service Address" : "Confirm Cash on Delivery"}
+                        </h3>
+                        <span className="bg-[#242b26] text-[#ffb703] border border-[#ffb703]/50 text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider">
+                          STEP {checkoutStep} OF 2
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+                        {checkoutStep === 1 
+                          ? "Choose where your order or service booking should be delivered" 
+                          : "Review your address and confirm your Cash on Delivery order"}
+                      </p>
+                    </div>
+                  </div>
                   <button
                     type="button"
                     onClick={() => setCheckoutOpen(false)}
-                    className="p-1 rounded-full text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+                    className="w-8 h-8 rounded-full bg-slate-800/80 hover:bg-slate-700 flex items-center justify-center text-slate-300 transition-colors"
                   >
-                    <X className="h-5 w-5" />
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
 
-                {/* Modal Body */}
-                <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-                  {checkoutError && (
-                    <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-xs text-red-650 font-bold">
-                      {checkoutError}
-                    </div>
-                  )}
-
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-bold text-gray-500 uppercase">Full Name</label>
-                    <input
-                      type="text"
-                      required
-                      value={checkoutForm.name}
-                      onChange={e => setCheckoutForm(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#ff3b30] bg-white text-gray-900"
-                    />
+                {/* Error Banner */}
+                {checkoutError && (
+                  <div className="mx-5 mt-3 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-650 font-bold">
+                    {checkoutError}
                   </div>
+                )}
 
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-bold text-gray-500 uppercase">Email Address</label>
-                    <input
-                      type="email"
-                      disabled
-                      value={checkoutForm.email}
-                      className="w-full px-3.5 py-2.5 text-xs border border-gray-150 rounded-xl bg-gray-50 text-gray-400 cursor-not-allowed"
-                    />
-                  </div>
+                {/* ================= STEP 1: ADDRESS SELECTION / ADD NEW ================= */}
+                {checkoutStep === 1 && (
+                  <div className="p-5 sm:p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                    {!isAddingNewAddress ? (
+                      /* --- SAVED ADDRESSES VIEW (Image 1) --- */
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between pb-1">
+                          <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">
+                            SELECT FROM SAVED ADDRESSES
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setIsAddingNewAddress(true)}
+                            className="text-xs font-bold text-amber-500 hover:text-amber-600 flex items-center gap-1 cursor-pointer"
+                          >
+                            + Add New Address
+                          </button>
+                        </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-bold text-gray-500 uppercase">Phone Number</label>
-                    <input
-                      type="tel"
-                      required
-                      maxLength={10}
-                      placeholder="10-digit mobile number"
-                      value={checkoutForm.phone}
-                      onChange={e => {
-                        const cleaned = e.target.value.replace(/\D/g, '').slice(0, 10);
-                        setCheckoutForm(prev => ({ ...prev, phone: cleaned }));
-                      }}
-                      className={`w-full px-3.5 py-2.5 text-xs border ${
-                        checkoutForm.phone && (checkoutForm.phone.length !== 10 || !/^[6-9]\d{9}$/.test(checkoutForm.phone))
-                          ? 'border-red-500 focus:border-red-500'
-                          : 'border-gray-200 focus:border-[#ff3b30]'
-                      } rounded-xl focus:outline-none bg-white text-gray-900`}
-                    />
-                    {checkoutForm.phone && checkoutForm.phone.length < 10 && (
-                      <p className="text-[11px] text-red-500 mt-1 font-medium">
-                        Phone number must be exactly 10 digits ({checkoutForm.phone.length}/10)
-                      </p>
-                    )}
-                    {checkoutForm.phone && checkoutForm.phone.length === 10 && !/^[6-9]\d{9}$/.test(checkoutForm.phone) && (
-                      <p className="text-[11px] text-red-500 mt-1 font-medium">
-                        Must start with 6, 7, 8, or 9 for valid Indian mobile number
-                      </p>
-                    )}
-                  </div>
+                        {/* Address Cards List */}
+                        <div className="space-y-3">
+                          {savedAddresses.map(addr => {
+                            const isSelected = selectedAddressId === addr.id;
+                            return (
+                              <div
+                                key={addr.id}
+                                onClick={() => setSelectedAddressId(addr.id)}
+                                className={`p-4 rounded-2xl border-2 text-left cursor-pointer transition-all ${
+                                  isSelected
+                                    ? "border-amber-400 bg-amber-50/20 shadow-xs"
+                                    : "border-slate-150 hover:border-slate-300 bg-white"
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex items-start gap-3 min-w-0 flex-1">
+                                    {/* Radio Circle */}
+                                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center mt-1 shrink-0 ${
+                                      isSelected ? "border-amber-500" : "border-slate-300"
+                                    }`}>
+                                      {isSelected && <div className="w-2 h-2 rounded-full bg-amber-500" />}
+                                    </div>
 
-                  {/* INSTALLATION & DELIVERY ADDRESS */}
-                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-3">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider pb-1">
-                      <MapPin className="h-4 w-4 text-[#ff3b30]" />
-                      <span>INSTALLATION & DELIVERY ADDRESS</span>
-                    </div>
+                                    {/* Details */}
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                                        <h4 className="font-extrabold text-xs sm:text-sm text-slate-900">
+                                          {addr.name}
+                                        </h4>
+                                        <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${
+                                          addr.type === "WORK"
+                                            ? "bg-amber-100 text-amber-800"
+                                            : addr.type === "HOME"
+                                            ? "bg-blue-100 text-blue-800"
+                                            : "bg-purple-100 text-purple-800"
+                                        }`}>
+                                          {addr.type}
+                                        </span>
+                                        {addr.isPrimary && (
+                                          <span className="bg-emerald-100 text-emerald-800 text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider">
+                                            PRIMARY PROFILE ADDRESS
+                                          </span>
+                                        )}
+                                      </div>
 
-                    {/* 1. Door No & 2. Street / Area */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
-                          1. Door No / Building / Apartment Name <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <Building className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-                          <input
-                            type="text"
-                            required
-                            value={checkoutForm.doorNo}
-                            onChange={e => setCheckoutForm(prev => ({ ...prev, doorNo: e.target.value }))}
-                            placeholder="Flat 4B / House No"
-                            className="w-full pl-10 pr-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#ff3b30] bg-white text-gray-900 shadow-2xs font-semibold"
-                          />
+                                      <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                                        {[addr.flat, addr.locality, addr.city, addr.state].filter(Boolean).join(", ")} - <strong className="text-slate-900">{addr.pincode}</strong>
+                                      </p>
+
+                                      <p className="text-[11px] text-slate-500 font-semibold mt-1.5 flex items-center gap-1">
+                                        📞 Contact: {addr.phone}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  {/* Delete Button */}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleDeleteAddress(addr.id, e)}
+                                    title="Delete address"
+                                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
+                    ) : (
+                      /* --- ADD NEW ADDRESS VIEW (Image 2) --- */
+                      <div className="space-y-3.5">
+                        {savedAddresses.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setIsAddingNewAddress(false)}
+                            className="text-xs font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1 mb-1 cursor-pointer"
+                          >
+                            <ArrowLeft className="w-3.5 h-3.5" /> Back to Saved Addresses
+                          </button>
+                        )}
 
-                      <div>
-                        <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
-                          2. Street / Area / Colony <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <Navigation className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-700 uppercase tracking-wider mb-1">
+                            RECEIVER NAME <span className="text-amber-500">*</span>
+                          </label>
                           <input
                             type="text"
                             required
-                            value={checkoutForm.street}
-                            onChange={e => setCheckoutForm(prev => ({ ...prev, street: e.target.value }))}
-                            placeholder="Street Name, Area"
-                            className="w-full pl-10 pr-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#ff3b30] bg-white text-gray-900 shadow-2xs font-semibold"
+                            value={newAddr.name}
+                            onChange={e => setNewAddr(prev => ({ ...prev, name: e.target.value }))}
+                            placeholder="Receiver Name"
+                            className="w-full px-4 py-2.5 text-xs font-semibold border-2 border-slate-200/90 rounded-xl focus:outline-none focus:border-amber-400 bg-white"
                           />
                         </div>
-                      </div>
-                    </div>
 
-                    {/* 3. City, 4. State & 5. Pincode */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div>
-                        <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
-                          3. City / Town <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <Map className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-700 uppercase tracking-wider mb-1">
+                            10-DIGIT MOBILE NUMBER <span className="text-amber-500">*</span>
+                          </label>
+                          <input
+                            type="tel"
+                            required
+                            maxLength={10}
+                            value={newAddr.phone}
+                            onChange={e => setNewAddr(prev => ({ ...prev, phone: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
+                            placeholder="Mobile Number"
+                            className="w-full px-4 py-2.5 text-xs font-semibold border-2 border-slate-200/90 rounded-xl focus:outline-none focus:border-amber-400 bg-white"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-700 uppercase tracking-wider mb-1">
+                            PINCODE <span className="text-amber-500">*</span>
+                          </label>
                           <input
                             type="text"
                             required
-                            value={checkoutForm.city}
-                            onChange={e => setCheckoutForm(prev => ({ ...prev, city: e.target.value }))}
+                            maxLength={6}
+                            value={newAddr.pincode}
+                            onChange={e => setNewAddr(prev => ({ ...prev, pincode: e.target.value.replace(/\D/g, '').slice(0, 6) }))}
+                            placeholder="6-Digit Pincode"
+                            className="w-full px-4 py-2.5 text-xs font-semibold border-2 border-slate-200/90 rounded-xl focus:outline-none focus:border-amber-400 bg-white"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-700 uppercase tracking-wider mb-1">
+                            LOCALITY / SECTOR <span className="text-amber-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={newAddr.locality}
+                            onChange={e => setNewAddr(prev => ({ ...prev, locality: e.target.value }))}
+                            placeholder="Locality / Area"
+                            className="w-full px-4 py-2.5 text-xs font-semibold border-2 border-slate-200/90 rounded-xl focus:outline-none focus:border-amber-400 bg-white"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-700 uppercase tracking-wider mb-1">
+                            FLAT / HOUSE NO / STREET ADDRESS <span className="text-amber-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={newAddr.flat}
+                            onChange={e => setNewAddr(prev => ({ ...prev, flat: e.target.value }))}
+                            placeholder="Building / House No, Street Name"
+                            className="w-full px-4 py-2.5 text-xs font-semibold border-2 border-slate-200/90 rounded-xl focus:outline-none focus:border-amber-400 bg-white"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-700 uppercase tracking-wider mb-1">
+                            CITY <span className="text-amber-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={newAddr.city}
+                            onChange={e => setNewAddr(prev => ({ ...prev, city: e.target.value }))}
                             placeholder="City"
-                            className="w-full pl-10 pr-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#ff3b30] bg-white text-gray-900 shadow-2xs font-semibold"
+                            className="w-full px-4 py-2.5 text-xs font-semibold border-2 border-slate-200/90 rounded-xl focus:outline-none focus:border-amber-400 bg-white"
                           />
                         </div>
-                      </div>
 
-                      <div>
-                        <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
-                          4. State <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={checkoutForm.state}
-                          onChange={e => setCheckoutForm(prev => ({ ...prev, state: e.target.value }))}
-                          placeholder="Tamil Nadu"
-                          className="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#ff3b30] bg-white text-gray-900 shadow-2xs font-semibold"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
-                          5. Pincode (6 digits) <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          maxLength={6}
-                          value={checkoutForm.zipcode}
-                          onChange={e => {
-                            const val = e.target.value.replace(/\D/g, '').slice(0, 6);
-                            setCheckoutForm(prev => ({ ...prev, zipcode: val }));
-                          }}
-                          placeholder="600001"
-                          className="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#ff3b30] bg-white text-gray-900 shadow-2xs font-semibold"
-                        />
-                      </div>
-                    </div>
-
-                    {/* 6. Landmark (Optional) */}
-                    <div>
-                      <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
-                        6. Landmark (Optional)
-                      </label>
-                      <input
-                        type="text"
-                        value={checkoutForm.landmark}
-                        onChange={e => setCheckoutForm(prev => ({ ...prev, landmark: e.target.value }))}
-                        placeholder="e.g. Near Bus Stand, Opp. Temple"
-                        className="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#ff3b30] bg-white text-gray-900 shadow-2xs font-semibold"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Service Type Selection Cards */}
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Service Type</label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {/* Only Product Delivery */}
-                      <div
-                        onClick={() => setCheckoutForm(prev => ({ ...prev, serviceType: "ONLY_PRODUCT_DELIVERY" }))}
-                        className={`p-4 rounded-xl border-2 text-left cursor-pointer transition-all ${
-                          checkoutForm.serviceType === "ONLY_PRODUCT_DELIVERY"
-                            ? "border-blue-500 bg-blue-50/50 dark:bg-blue-950/20"
-                            : "border-gray-200/80 hover:border-gray-300 bg-white"
-                        }`}
-                      >
-                        <h4 className="font-extrabold text-xs text-gray-900 uppercase">Only Product Delivery</h4>
-                        <p className="text-[10px] text-gray-500 mt-1">Fastest dispatch without setup.</p>
-                      </div>
-
-                      {/* Delivery + Installation */}
-                      <div
-                        onClick={() => setCheckoutForm(prev => ({ ...prev, serviceType: "DELIVERY_INSTALLATION" }))}
-                        className={`p-4 rounded-xl border-2 text-left cursor-pointer transition-all ${
-                          checkoutForm.serviceType === "DELIVERY_INSTALLATION"
-                            ? "border-blue-500 bg-blue-50/50 dark:bg-blue-950/20"
-                            : "border-gray-200/80 hover:border-gray-300 bg-white"
-                        }`}
-                      >
-                        <h4 className="font-extrabold text-xs text-gray-900 uppercase">Delivery + Installation</h4>
-                        <p className="text-[10px] text-gray-500 mt-1">Verified technicians for expert setup.</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Payment Method Selection */}
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Payment Method</label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div
-                        onClick={() => setCheckoutForm(prev => ({ ...prev, paymentMethod: "RAZORPAY" }))}
-                        className={`p-4 rounded-xl border-2 text-left cursor-pointer transition-all ${
-                          checkoutForm.paymentMethod === "RAZORPAY"
-                            ? "border-[#ff3b30] bg-red-50/40 dark:bg-red-950/20"
-                            : "border-gray-200/80 hover:border-gray-300 bg-white"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-extrabold text-xs text-gray-900 uppercase">Razorpay Online</h4>
-                          <span className="text-[9px] bg-red-100 text-[#ff3b30] font-black px-1.5 py-0.5 rounded">UPI / CARDS</span>
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-700 uppercase tracking-wider mb-1">
+                            STATE <span className="text-amber-500">*</span>
+                          </label>
+                          <select
+                            value={newAddr.state}
+                            onChange={e => setNewAddr(prev => ({ ...prev, state: e.target.value }))}
+                            className="w-full px-4 py-2.5 text-xs font-semibold border-2 border-slate-200/90 rounded-xl focus:outline-none focus:border-amber-400 bg-white"
+                          >
+                            <option value="Tamil Nadu">Tamil Nadu</option>
+                            <option value="Karnataka">Karnataka</option>
+                            <option value="Kerala">Kerala</option>
+                            <option value="Andhra Pradesh">Andhra Pradesh</option>
+                            <option value="Telangana">Telangana</option>
+                            <option value="Maharashtra">Maharashtra</option>
+                            <option value="Delhi">Delhi</option>
+                            <option value="Other">Other</option>
+                          </select>
                         </div>
-                        <p className="text-[10px] text-gray-500 mt-1">Instant digital payment with warranty lock.</p>
-                      </div>
 
-                      <div
-                        onClick={() => setCheckoutForm(prev => ({ ...prev, paymentMethod: "COD" }))}
-                        className={`p-4 rounded-xl border-2 text-left cursor-pointer transition-all ${
-                          checkoutForm.paymentMethod === "COD"
-                            ? "border-[#ff3b30] bg-red-50/40 dark:bg-red-950/20"
-                            : "border-gray-200/80 hover:border-gray-300 bg-white"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-extrabold text-xs text-gray-900 uppercase">Pay After Service</h4>
-                          <span className="text-[9px] bg-gray-100 text-gray-600 font-black px-1.5 py-0.5 rounded">COD / CASH</span>
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-700 uppercase tracking-wider mb-1.5">
+                            SAVE ADDRESS AS <span className="text-amber-500">*</span>
+                          </label>
+                          <div className="grid grid-cols-3 gap-3">
+                            {(["Home", "Work", "Other"] as const).map(tag => {
+                              const isSelected = newAddr.type === tag.toUpperCase();
+                              return (
+                                <button
+                                  key={tag}
+                                  type="button"
+                                  onClick={() => setNewAddr(prev => ({ ...prev, type: tag.toUpperCase() as any }))}
+                                  className={`py-2 rounded-xl text-xs font-extrabold transition-all border ${
+                                    isSelected
+                                      ? "bg-[#ffb703] border-[#ffb703] text-slate-950 shadow-xs"
+                                      : "bg-slate-50 border-slate-200/90 text-slate-650 hover:bg-slate-100"
+                                  }`}
+                                >
+                                  {tag}
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
-                        <p className="text-[10px] text-gray-500 mt-1">Pay upon delivery or completed installation.</p>
+                      </div>
+                    )}
+
+                    {/* Order Price Summary Box (from Image 1) */}
+                    <div className="border border-slate-150 rounded-2xl p-4 bg-slate-50/70 text-xs font-bold space-y-2 mt-4">
+                      <div className="flex justify-between text-slate-650">
+                        <span>Selected Items ({cartItems.reduce((acc, i) => acc + (i.quantity || 1), 0)}):</span>
+                        <span className="text-slate-900 font-extrabold">₹{total.toLocaleString("en-IN")}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-650">
+                        <span>Delivery Charge:</span>
+                        <span className="text-emerald-600 font-black tracking-wide">FREE EXPRESS</span>
+                      </div>
+                      <div className="border-t border-slate-200/80 pt-2 flex justify-between items-center text-sm">
+                        <span className="text-slate-800 font-black tracking-wider uppercase">AMOUNT PAYABLE:</span>
+                        <span className="text-base font-black text-[#ff3b30]">₹{total.toLocaleString("en-IN")}</span>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Summary inside modal */}
-                  <div className="border-t border-gray-100 dark:border-slate-800 pt-4 mt-4 space-y-2">
-                    <div className="flex justify-between text-xs text-gray-500 font-semibold">
-                      <span>Total Amount to Pay</span>
-                      <span className="text-sm font-black text-gray-900">₹{total.toLocaleString("en-IN")}</span>
+                    {/* Footer Navigation Buttons */}
+                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setCheckoutOpen(false)}
+                        className="text-xs font-black text-slate-500 hover:text-slate-800 px-3 py-2 cursor-pointer"
+                      >
+                        ← BACK TO CART
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleProceedToPayment}
+                        className="bg-[#0b192e] hover:bg-slate-800 text-white text-xs font-extrabold px-6 py-3 rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-all uppercase tracking-wider"
+                      >
+                        PROCEED TO PAYMENT <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
-                </div>
+                )}
 
-                {/* Modal Footer */}
-                <div className="px-6 py-4 border-t border-gray-100 dark:border-slate-800 flex justify-end gap-3 bg-gray-50 dark:bg-slate-900/30">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setCheckoutOpen(false)}
-                    className="border-gray-200 text-gray-650 hover:bg-gray-100 text-xs font-bold px-4 py-2 rounded-xl"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={placingOrder}
-                    className="bg-[#ff3b30] hover:bg-red-700 text-white text-xs font-bold px-6 py-2 rounded-xl"
-                  >
-                    {placingOrder ? "Placing Order..." : "Confirm & Place Order"}
-                  </Button>
-                </div>
-              </form>
+                {/* ================= STEP 2: CASH ON DELIVERY & CONFIRMATION ================= */}
+                {checkoutStep === 2 && (
+                  <div className="p-5 sm:p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                    {/* Selected Address Preview */}
+                    {(() => {
+                      const active = savedAddresses.find(a => a.id === selectedAddressId) || savedAddresses[0] || newAddr;
+                      return (
+                        <div className="p-4 rounded-2xl border-2 border-amber-400/80 bg-amber-50/20 text-left">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[10px] font-black text-amber-700 uppercase tracking-wider">
+                              DELIVERING TO
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setCheckoutStep(1)}
+                              className="text-[11px] font-bold text-blue-600 hover:underline cursor-pointer"
+                            >
+                              Change Address
+                            </button>
+                          </div>
+                          <h4 className="font-extrabold text-sm text-slate-900">{active.name}</h4>
+                          <p className="text-xs text-slate-600 font-medium mt-0.5">
+                            {[active.flat, active.locality, active.city, active.state].filter(Boolean).join(", ")} - <strong className="text-slate-900">{active.pincode}</strong>
+                          </p>
+                          <p className="text-[11px] text-slate-500 font-semibold mt-1">
+                            📞 Contact: {active.phone}
+                          </p>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Service Type Selection */}
+                    <div className="space-y-2 text-left">
+                      <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Service Type</label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div
+                          onClick={() => setCheckoutForm(prev => ({ ...prev, serviceType: "ONLY_PRODUCT_DELIVERY" }))}
+                          className={`p-3.5 rounded-xl border-2 text-left cursor-pointer transition-all ${
+                            checkoutForm.serviceType === "ONLY_PRODUCT_DELIVERY"
+                              ? "border-blue-600 bg-blue-50/40"
+                              : "border-slate-200 hover:border-slate-300 bg-white"
+                          }`}
+                        >
+                          <h5 className="font-extrabold text-xs text-slate-900 uppercase">Only Product Delivery</h5>
+                          <p className="text-[10px] text-slate-500 mt-0.5">Fastest dispatch without setup.</p>
+                        </div>
+
+                        <div
+                          onClick={() => setCheckoutForm(prev => ({ ...prev, serviceType: "DELIVERY_INSTALLATION" }))}
+                          className={`p-3.5 rounded-xl border-2 text-left cursor-pointer transition-all ${
+                            checkoutForm.serviceType === "DELIVERY_INSTALLATION"
+                              ? "border-blue-600 bg-blue-50/40"
+                              : "border-slate-200 hover:border-slate-300 bg-white"
+                          }`}
+                        >
+                          <h5 className="font-extrabold text-xs text-slate-900 uppercase">Delivery + Installation</h5>
+                          <p className="text-[10px] text-slate-500 mt-0.5">Expert technicians for site mounting.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Payment Method - Solely Cash on Delivery */}
+                    <div className="space-y-2 text-left">
+                      <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Payment Method</label>
+                      <div className="p-4 rounded-xl border-2 border-emerald-500/90 bg-emerald-50/40 text-left flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-extrabold text-xs text-slate-900 uppercase">Cash on Delivery</h4>
+                            <span className="text-[9px] bg-emerald-100 text-emerald-800 font-black px-1.5 py-0.5 rounded">COD / CASH</span>
+                          </div>
+                          <p className="text-[10px] text-slate-500 mt-0.5">Pay upon delivery or completed installation.</p>
+                        </div>
+                        <div className="h-6 w-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Price Breakdown */}
+                    <div className="border border-slate-150 rounded-2xl p-4 bg-slate-50/70 text-xs font-bold space-y-2">
+                      <div className="flex justify-between text-slate-650">
+                        <span>Items Total:</span>
+                        <span className="text-slate-900 font-extrabold">₹{total.toLocaleString("en-IN")}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-650">
+                        <span>Delivery:</span>
+                        <span className="text-emerald-600 font-black">FREE EXPRESS</span>
+                      </div>
+                      <div className="border-t border-slate-200/80 pt-2 flex justify-between items-center text-sm">
+                        <span className="text-slate-800 font-black uppercase">Total Amount to Pay:</span>
+                        <span className="text-base font-black text-[#ff3b30]">₹{total.toLocaleString("en-IN")}</span>
+                      </div>
+                    </div>
+
+                    {/* Step 2 Actions */}
+                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setCheckoutStep(1)}
+                        className="text-xs font-black text-slate-500 hover:text-slate-800 px-3 py-2 cursor-pointer"
+                      >
+                        ← CHANGE ADDRESS
+                      </button>
+                      <Button
+                        type="button"
+                        onClick={() => handlePlaceOrder()}
+                        disabled={placingOrder}
+                        className="bg-[#ff3b30] hover:bg-red-700 text-white text-xs font-black px-6 py-3.5 rounded-xl shadow-md cursor-pointer transition-all"
+                      >
+                        {placingOrder ? "Placing Order..." : "Confirm & Place Order"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

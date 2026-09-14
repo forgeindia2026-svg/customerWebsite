@@ -49,8 +49,8 @@ export default function Footer() {
           <div>
             <h3 className="font-semibold text-base sm:text-lg text-white mb-3 sm:mb-4">Customer Support</h3>
             <ul className="space-y-2 text-sm text-gray-400">
-              <li><Link to="/dashboard/orders" className="hover:text-red-500 transition-colors">Track Order</Link></li>
-              <li><Link to="/dashboard/support" className="hover:text-red-500 transition-colors">Support Tickets</Link></li>
+              <li><Link to="/dashboard?tab=orders" className="hover:text-red-500 transition-colors">Track Order</Link></li>
+              <li><Link to="/dashboard?tab=requests" className="hover:text-red-500 transition-colors">Support Tickets</Link></li>
               <li><Link to="/warranty" className="hover:text-red-500 transition-colors">Warranty & AMC</Link></li>
               <li><Link to="/faq" className="hover:text-red-500 transition-colors">FAQs</Link></li>
             </ul>
