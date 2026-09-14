@@ -41,7 +41,6 @@ export default function Footer() {
               <li><Link to="/products" className="hover:text-red-500 transition-colors">Shop CCTV</Link></li>
               <li><Link to="/services" className="hover:text-red-500 transition-colors">Book Installation</Link></li>
               <li><Link to="/about" className="hover:text-red-500 transition-colors">About Us</Link></li>
-              <li><Link to="/blog" className="hover:text-red-500 transition-colors">Security Blog</Link></li>
             </ul>
           </div>
 

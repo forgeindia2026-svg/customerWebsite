@@ -603,8 +603,8 @@ export default function Login() {
                     </div>
                   </div>
 
-                  {/* Checkbox and Forgot Password Row */}
-                  <div className="flex items-center justify-between text-xs pt-1">
+                  {/* Checkbox Row */}
+                  <div className="flex items-center text-xs pt-1">
                     <div className="flex items-center gap-2">
                       <input
                         type="checkbox"
@@ -617,9 +617,6 @@ export default function Login() {
                         Remember Me
                       </label>
                     </div>
-                    <a href="#forgot" className="text-[#ff3b30] font-semibold hover:text-red-700 hover:underline">
-                      Forgot Password?
-                    </a>
                   </div>
 
                   {/* Login Button */}

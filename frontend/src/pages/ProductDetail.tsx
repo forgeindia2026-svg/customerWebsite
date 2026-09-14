@@ -1025,7 +1025,6 @@ export default function ProductDetail() {
                         <span>{similar.rating || 4.5}</span>
                         <Star className="h-2 w-2 fill-white text-white" />
                       </div>
-                      <span className="text-[10px] text-gray-400">({similar.reviewsCount || 10})</span>
                     </div>
                   </div>
                   <div className="flex items-baseline gap-2 pt-1.5 border-t border-gray-50 mt-1">

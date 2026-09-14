@@ -80,7 +80,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
       }`}
     >
       {/* Brand Header block */}
-      <div className="h-18 px-4 flex items-center gap-3 border-b border-[#0F2347] bg-[#07152D]">
+      <div className="h-20 px-4 flex items-center gap-3 border-b border-[#0F2347] bg-[#07152D]">
         <BrandLogo />
         {isOpen && (
           <div className="transition-opacity duration-300 text-left flex-1 min-w-0">

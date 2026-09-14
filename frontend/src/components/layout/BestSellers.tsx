@@ -275,7 +275,6 @@ export default function BestSellers() {
                     <div className="flex items-center gap-1 pt-0.5">
                       <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
                       <span className="text-xs font-semibold text-gray-800">{product.rating}</span>
-                      <span className="text-[11px] text-gray-400">({product.reviews})</span>
                     </div>
                   </div>
                 </div>

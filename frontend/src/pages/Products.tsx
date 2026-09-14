@@ -1073,9 +1073,6 @@ export default function Products() {
                             <span>{product.rating}</span>
                             <Star className="h-2.5 w-2.5 fill-white text-white" />
                           </div>
-                          <span className="text-[11px] font-medium text-slate-400">
-                            ({product.reviewsCount})
-                          </span>
                           
                           {/* Premium "SK Assured" Trust Badge */}
                           <div className="flex items-center gap-0.5 bg-blue-50 border border-blue-100 rounded-md px-1 py-0.5 shadow-sm">

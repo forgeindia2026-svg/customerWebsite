@@ -53,7 +53,9 @@ export default function MobileAppSection() {
             <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-3 sm:gap-4 pt-1">
               {/* Official Google Play Store Button */}
               <a
-                href="#"
+                href="https://play.google.com/store/apps/details?id=com.sktechnology.cctv&pcampaignid=web_share"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="flex items-center justify-center sm:justify-between gap-2 sm:gap-4 px-2 py-2 sm:px-6 sm:py-3.5 rounded-xl bg-[#0d1322] border border-red-500/40 hover:border-red-500 text-white transition-all duration-300 shadow-[0_0_12px_rgba(255,59,48,0.1)] hover:shadow-[0_0_18px_rgba(255,59,48,0.25)] hover:scale-[1.02] sm:min-w-[200px]"
               >
                 <div className="flex items-center gap-1.5 sm:gap-3">
@@ -65,7 +67,7 @@ export default function MobileAppSection() {
                   </svg>
                   <div className="text-left">
                     <p className="text-[7px] sm:text-[9px] uppercase tracking-wider text-slate-400 font-bold leading-none">GET IT ON</p>
-                    <p className="text-[10px] sm:text-sm font-black leading-tight text-white mt-0.5">Google Play</p>
+                    <p className="text-[10px] sm:text-sm font-black leading-tight text-white mt-0.5">Play Store</p>
                   </div>
                 </div>
                 <ArrowRight className="hidden sm:block h-4 w-4 text-[#ff3b30] shrink-0" />

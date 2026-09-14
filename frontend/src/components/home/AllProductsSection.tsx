@@ -462,7 +462,6 @@ export default function AllProductsSection() {
                         <Star className="h-3 w-3 fill-current" />
                       </div>
                       <span className="text-xs font-bold text-gray-800">{product.rating}</span>
-                      <span className="text-[11px] text-gray-400">({product.reviews})</span>
                     </div>
 
                     {/* Price */}

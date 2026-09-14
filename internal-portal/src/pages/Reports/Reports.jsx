@@ -1600,7 +1600,6 @@ export default function Reports() {
               { id: 'Attendance', icon: '🕒', label: 'Attendance' },
               { id: 'Field Reports', icon: '📸', label: 'Field Reports' },
               { id: 'Daybook', icon: '📓', label: 'Daybook' },
-              { id: 'Technicians', icon: '⭐', label: 'Performance' },
             ].map(tab => (
               <button
                 key={tab.id}
