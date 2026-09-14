@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Heart, Star, ShoppingCart, ChevronRight, CheckCircle2, AlarmClock } from "lucide-react";
 
 interface FlashDealProduct {
@@ -73,6 +73,7 @@ const flashDealsProducts: FlashDealProduct[] = [
 ];
 
 export default function FlashDealsSection() {
+  const navigate = useNavigate();
   const [wishlist, setWishlist] = useState<number[]>([]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [deals, setDeals] = useState<FlashDealProduct[]>([]);
@@ -180,6 +181,11 @@ export default function FlashDealsSection() {
 
     setToastMessage(`Added "${product.name}" to cart!`);
     setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleBuyNow = (product: any) => {
+    handleAddToCart(product);
+    navigate("/cart");
   };
 
   const formatTwoDigits = (num: number) => String(num).padStart(2, "0");
@@ -337,14 +343,22 @@ export default function FlashDealsSection() {
                 </div>
               </div>
 
-              {/* Card Footer Action */}
-              <div className="p-3.5 pt-0">
+              {/* Card Footer Action: Side-by-Side Add to Cart & Buy Now */}
+              <div className="p-3 sm:p-3.5 pt-0 flex items-center gap-1.5 sm:gap-2">
                 <button
                   onClick={() => handleAddToCart(product)}
-                  className="w-full h-8 rounded-lg bg-white border border-gray-300 hover:bg-black hover:text-white hover:border-black text-gray-800 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+                  className="flex-1 h-8 sm:h-9 px-1.5 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 text-gray-800 text-[10px] sm:text-xs font-bold flex items-center justify-center gap-1 transition-colors shadow-xs cursor-pointer min-w-0"
+                  title="Add to Cart"
                 >
-                  <ShoppingCart className="h-3.5 w-3.5" />
-                  <span>Add to Cart</span>
+                  <ShoppingCart className="h-3.5 w-3.5 text-gray-700 shrink-0" />
+                  <span className="truncate">Add to Cart</span>
+                </button>
+                <button
+                  onClick={() => handleBuyNow(product)}
+                  className="flex-1 h-8 sm:h-9 px-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-[10px] sm:text-xs font-bold flex items-center justify-center gap-1 transition-all shadow-sm shadow-red-600/20 active:scale-95 cursor-pointer min-w-0"
+                  title="Buy Now"
+                >
+                  <span className="truncate">Buy Now</span>
                 </button>
               </div>
             </div>
