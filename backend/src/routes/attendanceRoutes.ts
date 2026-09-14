@@ -225,9 +225,11 @@ router.post('/check-out', async (req: Request, res: Response) => {
     record.checkOutTime = checkOutTimeStr;
     record.checkOutTimestamp = now;
     record.status = 'OFF_DUTY';
-    if (location) record.checkOutLocation = location;
+    record.checkOutLocation = location || record.location || '';
     if (latitude) record.checkOutLatitude = latitude;
+    else if (record.latitude) record.checkOutLatitude = record.latitude;
     if (longitude) record.checkOutLongitude = longitude;
+    else if (record.longitude) record.checkOutLongitude = record.longitude;
     if (notes) record.notes = notes;
 
     await record.save();

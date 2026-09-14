@@ -354,31 +354,31 @@ export default function Orders() {
 
     if (t.includes('amc') || t.includes('maintenance')) {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60 font-bold text-xs shadow-2xs max-w-[170px]" title={rawType}>
-          <FiShield size={12} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60 font-bold text-[11px] shadow-2xs max-w-[140px]" title={rawType}>
+          <FiShield size={11} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
           <span className="truncate">{displayLabel}</span>
         </span>
       );
     }
     if (t.includes('repair') || t.includes('service')) {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/60 font-bold text-xs shadow-2xs max-w-[170px]" title={rawType}>
-          <FiTool size={12} className="text-amber-600 dark:text-amber-400 shrink-0" />
+        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/60 font-bold text-[11px] shadow-2xs max-w-[140px]" title={rawType}>
+          <FiTool size={11} className="text-amber-600 dark:text-amber-400 shrink-0" />
           <span className="truncate">{displayLabel}</span>
         </span>
       );
     }
     if (t.includes('upgrade') || t.includes('dvr') || t.includes('network') || t.includes('product') || t.includes('cctv camera order')) {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200/80 dark:border-purple-800/60 font-bold text-xs shadow-2xs max-w-[170px]" title={rawType}>
-          <FiCpu size={12} className="text-purple-600 dark:text-purple-400 shrink-0" />
+        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200/80 dark:border-purple-800/60 font-bold text-[11px] shadow-2xs max-w-[140px]" title={rawType}>
+          <FiCpu size={11} className="text-purple-600 dark:text-purple-400 shrink-0" />
           <span className="truncate">{displayLabel}</span>
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border border-sky-200/80 dark:border-sky-800/60 font-bold text-xs shadow-2xs max-w-[170px]" title={rawType}>
-        <FiVideo size={12} className="text-sky-600 dark:text-sky-400 shrink-0" />
+      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border border-sky-200/80 dark:border-sky-800/60 font-bold text-[11px] shadow-2xs max-w-[140px]" title={rawType}>
+        <FiVideo size={11} className="text-sky-600 dark:text-sky-400 shrink-0" />
         <span className="truncate">{displayLabel}</span>
       </span>
     );
@@ -403,9 +403,9 @@ export default function Orders() {
     // Persist to Production Backend (AWS EC2 / MongoDB)
     dispatch(createOrderAPI({
       customerName: orderForm.customer,
-      customerEmail: orderForm.email || `${orderForm.customer.toLowerCase().replace(/\s+/g, '')}@example.com`,
-      customerPhone: orderForm.phone || '+91 99999 99999',
-      shippingAddress: orderForm.location || 'Site Address',
+      customerEmail: orderForm.email || '',
+      customerPhone: orderForm.phone || '',
+      shippingAddress: orderForm.location || '',
       totalAmount: parseFloat(orderForm.amount) || 0,
       serviceType: orderForm.type || 'Cameras Installation',
       items: [{
@@ -782,7 +782,7 @@ export default function Orders() {
           </div>
 
           {/* 💻 Desktop Table View (hidden md:block) */}
-          <div className="hidden md:block overflow-x-auto min-w-full pb-24">
+          <div className="hidden md:block overflow-x-auto w-full pb-24">
             {filteredOrders.length === 0 ? (
               <div className="py-12 text-center text-slate-450 text-xs font-medium">
                 <FiInfo size={36} className="mx-auto mb-2 opacity-50" />
@@ -791,14 +791,14 @@ export default function Orders() {
             ) : (
               <table className="w-full text-left border-collapse table-auto">
                 <thead>
-                  <tr className="bg-gradient-to-r from-slate-100 via-blue-50/50 to-slate-100 dark:from-slate-800/80 dark:via-slate-800/60 dark:to-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold uppercase tracking-wider text-[11px]">
-                    <th className="py-3.5 px-4 whitespace-nowrap w-32">Order ID</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap w-32">Created Date</th>
-                    <th className="py-3.5 px-4 min-w-[200px] max-w-[250px]">Customer Details</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap w-48">Order Type</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap w-40">Assigned Staff</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap w-32">Amount</th>
-                    <th className="py-3.5 px-4 text-right whitespace-nowrap w-44">Status & Actions</th>
+                  <tr className="bg-gradient-to-r from-slate-100 via-blue-50/50 to-slate-100 dark:from-slate-800/80 dark:via-slate-800/60 dark:to-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold uppercase tracking-wider text-[11px] align-middle">
+                    <th className="py-3 px-3 whitespace-nowrap w-28">Order ID</th>
+                    <th className="py-3 px-2.5 whitespace-nowrap w-24">Date</th>
+                    <th className="py-3 px-3 min-w-[140px] max-w-[170px]">Customer Details</th>
+                    <th className="py-3 px-2.5 whitespace-nowrap w-32">Order Type</th>
+                    <th className="py-3 px-2.5 whitespace-nowrap w-28">Assigned Staff</th>
+                    <th className="py-3 px-2.5 whitespace-nowrap text-right w-24">Amount</th>
+                    <th className="py-3 px-3 text-right whitespace-nowrap w-36">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-800 dark:text-slate-200 text-xs">
@@ -811,31 +811,31 @@ export default function Orders() {
                         className="hover:bg-blue-50/40 dark:hover:bg-slate-800/60 transition-colors cursor-pointer group"
                       >
                         {/* 1. Colorful Order ID */}
-                        <td className="py-4 px-4 align-middle whitespace-nowrap">
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-mono font-black text-xs bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/60 shadow-2xs group-hover:scale-105 group-hover:border-indigo-400 transition-all">
+                        <td className="py-3 px-3 align-middle whitespace-nowrap w-28">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-xl font-mono font-black text-xs bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/60 shadow-2xs group-hover:scale-105 group-hover:border-indigo-400 transition-all">
                             #{ord.id.replace(/^#/, '')}
                           </span>
                         </td>
 
                         {/* 2. Colorful Created Date */}
-                        <td className="py-4 px-4 align-middle whitespace-nowrap">
-                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-50/80 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/50 text-xs font-semibold">
-                            <FiCalendar size={13} className="text-purple-500 shrink-0" />
+                        <td className="py-3 px-2.5 align-middle whitespace-nowrap w-24">
+                          <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-purple-50/80 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/50 text-[11px] font-semibold">
+                            <FiCalendar size={12} className="text-purple-500 shrink-0" />
                             <span>{formatOrderDate(ord)}</span>
                           </div>
                         </td>
 
                         {/* 3. Colorful Customer Details with Avatar */}
-                        <td className="py-4 px-4 align-middle max-w-[250px]">
-                          <div className="flex items-center gap-2.5">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 shadow-xs ${getAvatarColor(ord.customer)}`}>
+                        <td className="py-3 px-3 align-middle max-w-[170px]">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs shrink-0 shadow-xs ${getAvatarColor(ord.customer)}`}>
                               {(ord.customer || 'C').charAt(0).toUpperCase()}
                             </div>
                             <div className="min-w-0">
-                              <div className="font-bold text-slate-900 dark:text-slate-100 text-xs sm:text-sm group-hover:text-blue-600 transition-colors truncate" title={ord.customer}>
+                              <div className="font-bold text-slate-900 dark:text-slate-100 text-xs group-hover:text-blue-600 transition-colors truncate max-w-[125px]" title={ord.customer}>
                                 {ord.customer}
                               </div>
-                              <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5 truncate flex items-center gap-1" title={`${ord.phone || ''} • ${ord.email || ''}`}>
+                              <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate flex items-center gap-1" title={ord.phone || ''}>
                                 <span>📞 {ord.phone || 'No phone'}</span>
                               </div>
                             </div>
@@ -843,55 +843,55 @@ export default function Orders() {
                         </td>
 
                         {/* 4. Colorful Order Type Badge */}
-                        <td className="py-4 px-4 align-middle whitespace-nowrap w-48">
+                        <td className="py-3 px-2.5 align-middle whitespace-nowrap w-32">
                           {getOrderTypeBadge(ord.type)}
                         </td>
 
                         {/* 5. Colorful Assigned Staff */}
-                        <td className="py-4 px-4 align-middle font-semibold whitespace-nowrap">
+                        <td className="py-3 px-2.5 align-middle font-semibold whitespace-nowrap w-28">
                           <div className="flex flex-col gap-1">
                             {ord.assignedTechnician && ord.assignedTechnician !== 'Unassigned' ? (
-                              <span className="inline-flex w-fit items-center gap-1.5 px-3 py-1 rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200/80 dark:border-blue-800/60 font-bold text-xs shadow-2xs">
-                                <FiUser size={12} className="text-blue-600 dark:text-blue-400" />
-                                <span>{ord.assignedTechnician}</span>
+                              <span className="inline-flex w-fit items-center gap-1 px-2 py-0.5 rounded-lg bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200/80 dark:border-blue-800/60 font-bold text-[11px] shadow-2xs">
+                                <FiUser size={11} className="text-blue-600 dark:text-blue-400" />
+                                <span className="truncate max-w-[85px]">{ord.assignedTechnician}</span>
                               </span>
                             ) : (
-                              <span className="inline-flex w-fit items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/60 font-bold text-xs">
-                                <FiAlertCircle size={12} className="text-amber-500" />
+                              <span className="inline-flex w-fit items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/60 font-bold text-[11px]">
+                                <FiAlertCircle size={11} className="text-amber-500" />
                                 <span>Unassigned</span>
                               </span>
                             )}
                             {ord.subTechnicians?.length > 0 && (
-                              <span className="text-[10px] font-bold text-purple-600 bg-purple-50 dark:bg-purple-950/40 border border-purple-200/60 dark:border-purple-800/50 w-fit px-2 py-0.5 rounded-md">
-                                +{ord.subTechnicians.length} Sub-Tech
+                              <span className="text-[9px] font-bold text-purple-600 bg-purple-50 dark:bg-purple-950/40 border border-purple-200/60 dark:border-purple-800/50 w-fit px-1.5 py-0.5 rounded">
+                                +{ord.subTechnicians.length}
                               </span>
                             )}
                           </div>
                         </td>
 
                         {/* 6. Colorful Amount */}
-                        <td className="py-4 px-4 align-middle whitespace-nowrap">
+                        <td className="py-3 px-2.5 align-middle whitespace-nowrap text-right w-24">
                           {parseFloat(ord.amount || ord.totalAmount || 0) > 0 ? (
-                            <div className="inline-flex flex-col">
-                              <span className="inline-flex items-center px-3 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-mono font-black text-xs sm:text-sm border border-emerald-200/80 dark:border-emerald-800/60 shadow-2xs">
+                            <div className="inline-flex flex-col items-end">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-mono font-black text-xs border border-emerald-200/80 dark:border-emerald-800/60 shadow-2xs">
                                 ₹{(parseFloat(ord.amount || ord.totalAmount) || 0).toLocaleString('en-IN')}
                               </span>
                               {ord.financials?.technicianEarning > 0 && (
-                                <span className="text-[10px] font-bold text-teal-600 dark:text-teal-400 mt-1">
+                                <span className="text-[9px] font-bold text-teal-600 dark:text-teal-400 mt-0.5">
                                   Tech: ₹{Number(ord.financials.technicianEarning).toLocaleString('en-IN')}
                                 </span>
                               )}
                             </div>
                           ) : (
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-mono font-bold text-xs border border-slate-200/70 dark:border-slate-700">
-                              ₹0 (Pending)
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-mono font-bold text-[11px] border border-slate-200/70 dark:border-slate-700">
+                              ₹0
                             </span>
                           )}
                         </td>
 
                         {/* 7. Colorful Status & Actions */}
-                        <td className="py-4 px-4 align-middle text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center justify-end gap-2">
+                        <td className="py-3 px-3 align-middle text-right whitespace-nowrap w-36" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-1.5">
                             {/* Quick Approve Button if Waiting Approval */}
                             {(getDisplayStatus(ord) === 'Completed' || ord.status === 'WAITING_ADMIN_APPROVAL' || ord.status === 'Pending Approval') && (
                               <button
@@ -900,10 +900,10 @@ export default function Orders() {
                                   e.stopPropagation();
                                   openApprovalModal(ord);
                                 }}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm hover:shadow transition-all cursor-pointer"
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs hover:shadow transition-all cursor-pointer"
                                 title="Click to approve job completion and allocate financials"
                               >
-                                <FiCheck size={13} />
+                                <FiCheck size={12} />
                                 <span>Approve</span>
                               </button>
                             )}
@@ -915,9 +915,9 @@ export default function Orders() {
                                   e.stopPropagation();
                                   setActiveStatusDropdown(isOpenDropdown ? null : ord.id);
                                 }}
-                                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all shadow-xs cursor-pointer ${getStatusBadge(getDisplayStatus(ord))} hover:opacity-90`}
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all shadow-xs cursor-pointer ${getStatusBadge(getDisplayStatus(ord))} hover:opacity-90`}
                               >
-                                <span className={`w-2 h-2 rounded-full ${
+                                <span className={`w-1.5 h-1.5 rounded-full ${
                                   getDisplayStatus(ord) === 'Completed' || getDisplayStatus(ord) === 'Approved'
                                     ? 'bg-emerald-500'
                                     : getDisplayStatus(ord) === 'In Progress'
@@ -925,7 +925,7 @@ export default function Orders() {
                                     : 'bg-amber-500'
                                 }`} />
                                 <span>{getDisplayStatus(ord)}</span>
-                                <FiChevronDown className="w-3.5 h-3.5 opacity-70" />
+                                <FiChevronDown className="w-3 h-3 opacity-70" />
                               </button>
 
                               {isOpenDropdown && (

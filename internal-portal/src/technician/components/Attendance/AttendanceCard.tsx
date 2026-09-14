@@ -25,6 +25,7 @@ interface PunchSession {
   punchInLocation?: string;
   punchOutTime?: string;
   punchOutTimestamp?: string | Date;
+  punchOutLocation?: string;
   durationHours?: number;
   notes?: string;
 }
@@ -39,6 +40,9 @@ interface AttendanceRecord {
   punchInPhoto?: string;
   checkOutTime?: string;
   checkOutTimestamp?: string;
+  checkOutLocation?: string;
+  checkOutLatitude?: number;
+  checkOutLongitude?: number;
   totalHours?: number;
   status: 'PRESENT' | 'HALF_DAY' | 'OVERTIME' | 'OFF_DUTY';
   location?: string;
@@ -297,9 +301,23 @@ export const AttendanceCard: React.FC = () => {
   const handlePunchOut = async () => {
     try {
       setIsPunching(true);
+      setLocationStatus('Getting live GPS location for punch out...');
+
+      // 1. Live GPS Location for Punch Out
+      let coordsData: { locationName: string; lat: number; lng: number } | null = null;
+      try {
+        coordsData = await getLiveLocation();
+      } catch (locErr) {
+        console.warn('Punch-out GPS fallback to check-in location:', locErr);
+      }
+
       const now = new Date();
       const today = now.toISOString().split('T')[0];
       const checkOutTimeStr = now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true });
+
+      const finalLocation = coordsData?.locationName || attendance?.location || '';
+      const finalLat = coordsData?.lat ?? attendance?.latitude;
+      const finalLng = coordsData?.lng ?? attendance?.longitude;
 
       // Calculate session duration
       const startMs = activeSession?.punchInTimestamp 
@@ -315,6 +333,7 @@ export const AttendanceCard: React.FC = () => {
             ...p,
             punchOutTime: checkOutTimeStr,
             punchOutTimestamp: now.toISOString(),
+            punchOutLocation: finalLocation,
             durationHours: sessionHours,
             notes: notes || p.notes
           };
@@ -328,6 +347,9 @@ export const AttendanceCard: React.FC = () => {
         ...(attendance || { technicianId: techId, technicianName: techName, date: today }),
         checkOutTime: checkOutTimeStr,
         checkOutTimestamp: now.toISOString(),
+        checkOutLocation: finalLocation,
+        checkOutLatitude: finalLat,
+        checkOutLongitude: finalLng,
         status: 'OFF_DUTY',
         totalHours: Math.round(totalWorked * 100) / 100,
         punches: updatedPunches
@@ -339,12 +361,15 @@ export const AttendanceCard: React.FC = () => {
       setShowCheckoutConfirm(false);
       setNotes('');
 
-      // 2. Sync to Backend API
+      // 2. Sync to Backend API with Live Location
       const res = await fetch(`${getApiUrl()}/api/attendance/check-out`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           technicianId: techId,
+          location: finalLocation,
+          latitude: finalLat,
+          longitude: finalLng,
           notes: notes || 'Session Completed'
         })
       });
@@ -360,6 +385,7 @@ export const AttendanceCard: React.FC = () => {
       console.warn('Punch-out API fallback engaged:', err);
     } finally {
       setIsPunching(false);
+      setLocationStatus(null);
     }
   };
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { addCustomer, editCustomer } from '../../redux/dashboardSlice';
-import { FiSearch, FiMail, FiPhone, FiMapPin, FiGrid, FiList, FiPlus, FiLayers, FiInfo } from 'react-icons/fi';
+import { FiSearch, FiMail, FiPhone, FiMapPin, FiGrid, FiList, FiPlus, FiLayers, FiInfo, FiUsers, FiShoppingBag, FiCheckCircle, FiDollarSign, FiTool } from 'react-icons/fi';
 import Modal from '../../components/Modal';
 
 function formatLocation(locationStr) {
@@ -19,6 +19,22 @@ function formatLocation(locationStr) {
   };
 }
 
+const getAvatarColor = (name) => {
+  const colors = [
+    'bg-blue-100 text-blue-700 dark:bg-blue-950/70 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60',
+    'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60',
+    'bg-purple-100 text-purple-700 dark:bg-purple-950/70 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/60',
+    'bg-amber-100 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/60',
+    'bg-rose-100 text-rose-700 dark:bg-rose-950/70 dark:text-rose-300 border border-rose-200/60 dark:border-rose-800/60',
+    'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/60',
+    'bg-teal-100 text-teal-700 dark:bg-teal-950/70 dark:text-teal-300 border border-teal-200/60 dark:border-teal-800/60',
+  ];
+  const s = name || 'Customer';
+  let hash = 0;
+  for (let i = 0; i < s.length; i++) hash += s.charCodeAt(i);
+  return colors[hash % colors.length];
+};
+
 export default function Customers() {
   const dispatch = useDispatch();
   const customers = useSelector(state => state.dashboard?.customers) || [];
@@ -33,7 +49,7 @@ export default function Customers() {
     name: '',
     email: '',
     phone: '',
-    location: 'Anna Nagar, Chennai'
+    location: ''
   });
 
   const safeCustomers = Array.isArray(customers) ? customers : [];
@@ -91,13 +107,73 @@ export default function Customers() {
       name: '',
       email: '',
       phone: '',
-      location: 'Anna Nagar, Chennai'
+      location: ''
     });
     setModalOpen(false);
   };
 
+  const totalCustomersCount = safeCustomers.length;
+  const totalOrdersCount = safeCustomers.reduce((sum, c) => sum + (Number(c.installationsCount) || 0), 0);
+  const totalSpentAmount = safeCustomers.reduce((sum, c) => sum + (Number(c.totalSpent) || 0), 0);
+  const activeLocationsCount = new Set(safeCustomers.map(c => c.location).filter(Boolean)).size;
+
   return (
     <div className="space-y-6">
+
+      {/* 📊 Colorful Customers KPI Cards Row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {/* 1. Total Customers */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-[#E5EFFF] border border-[#CCE1FC] dark:bg-blue-900/30 dark:border-blue-800 shadow-xs flex items-center justify-between select-none">
+          <div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Total Customers</span>
+            <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono mt-1">
+              {totalCustomersCount}
+            </h3>
+          </div>
+          <div className="w-12 h-12 rounded-full bg-[#1D68FE] text-white flex items-center justify-center shadow-md shadow-blue-600/25 shrink-0">
+            <FiUsers size={22} />
+          </div>
+        </div>
+
+        {/* 2. Active Orders */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-[#D6F5E3] border border-[#BBECD0] dark:bg-emerald-900/30 dark:border-emerald-800 shadow-xs flex items-center justify-between select-none">
+          <div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Orders Delivered</span>
+            <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono mt-1">
+              {totalOrdersCount}
+            </h3>
+          </div>
+          <div className="w-12 h-12 rounded-full bg-[#069655] text-white flex items-center justify-center shadow-md shadow-emerald-600/25 shrink-0">
+            <FiCheckCircle size={22} />
+          </div>
+        </div>
+
+        {/* 3. Locations */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-[#F3EAFF] border border-[#EAD9FF] dark:bg-purple-900/30 dark:border-purple-800 shadow-xs flex items-center justify-between select-none">
+          <div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Active Locations</span>
+            <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono mt-1">
+              {activeLocationsCount}
+            </h3>
+          </div>
+          <div className="w-12 h-12 rounded-full bg-[#8B2BE2] text-white flex items-center justify-center shadow-md shadow-purple-600/25 shrink-0">
+            <FiMapPin size={22} />
+          </div>
+        </div>
+
+        {/* 4. Total Billing */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-[#FEF5D2] border border-[#FDE68A] dark:bg-amber-900/30 dark:border-amber-800 shadow-xs flex items-center justify-between select-none">
+          <div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Total Billing</span>
+            <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono mt-1">
+              ₹{totalSpentAmount.toLocaleString('en-IN')}
+            </h3>
+          </div>
+          <div className="w-12 h-12 rounded-full bg-[#E58A00] text-white flex items-center justify-center shadow-md shadow-amber-500/25 shrink-0">
+            <FiDollarSign size={22} />
+          </div>
+        </div>
+      </div>
       
       {/* Search Bar, Location Tabs & Switcher Row */}
       <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col xl:flex-row gap-4 justify-between items-center transition-colors">
@@ -167,7 +243,7 @@ export default function Customers() {
                         <h4 className="ty-card-title truncate text-sm font-extrabold" title={cust.name}>{cust.name}</h4>
                         <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2 leading-relaxed flex items-start gap-1">
                           <FiMapPin size={12} className="shrink-0 mt-0.5 text-red-500" />
-                          <span>{cust.location || 'Anna Nagar, Chennai'}</span>
+                          <span>{cust.location || 'N/A'}</span>
                         </p>
                       </div>
                       <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs uppercase shrink-0 shadow-2xs ${theme.badge}`}>
@@ -232,16 +308,18 @@ export default function Customers() {
               filteredCustomers.map((cust, idx) => {
                 const { address, service } = formatLocation(cust.location);
                 return (
-                  <div key={`mob-cust-${cust.id || idx}`} className="bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-3.5 space-y-2">
+                  <div key={`mob-cust-${cust.id || idx}`} className="bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-3.5 space-y-2.5">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <h4 className="font-bold text-xs text-slate-900 dark:text-white truncate">{cust.name}</h4>
-                        <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5" title={cust.location}>📍 {address}</p>
-                        {service && (
-                          <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                            Service: {service}
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center font-black text-xs shrink-0 shadow-xs ${getAvatarColor(cust.name)}`}>
+                          {(cust.name || 'C').charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="font-bold text-xs text-slate-900 dark:text-white truncate">{cust.name}</h4>
+                          <span className="font-mono text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded">
+                            #{cust.id || `CUST-0${idx + 1}`}
                           </span>
-                        )}
+                        </div>
                       </div>
                       <button
                         onClick={() => {
@@ -260,11 +338,24 @@ export default function Customers() {
                       </button>
                     </div>
 
-                    <div className="text-[11px] text-slate-600 dark:text-slate-300 space-y-0.5 pt-1 border-t border-slate-200/60 dark:border-slate-700/60">
-                      <p className="truncate font-semibold">📞 {cust.phone || 'N/A'}</p>
-                      <div className="flex items-center justify-between font-mono font-bold pt-1">
-                        <span className="text-slate-500">{cust.installationsCount || 0} Orders</span>
-                        <span className="text-emerald-600">₹{(cust.totalSpent || 0).toLocaleString('en-IN')}</span>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2" title={cust.location}>
+                      📍 {address}
+                    </p>
+                    {service && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold uppercase bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200/60">
+                        Service: {service}
+                      </span>
+                    )}
+
+                    <div className="text-[11px] text-slate-600 dark:text-slate-300 space-y-1 pt-1.5 border-t border-slate-200/60 dark:border-slate-700/60">
+                      <p className="font-semibold text-blue-600 dark:text-blue-400">📞 {cust.phone || 'N/A'}</p>
+                      <div className="flex items-center justify-between font-mono font-bold pt-0.5">
+                        <span className="text-[11px] font-bold text-amber-700 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded-lg border border-amber-200/60">
+                          {cust.installationsCount || 0} Orders
+                        </span>
+                        <span className="text-xs font-bold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-lg border border-emerald-200/60">
+                          ₹{(cust.totalSpent || 0).toLocaleString('en-IN')}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -274,22 +365,22 @@ export default function Customers() {
           </div>
 
           {/* 💻 Desktop Table View (hidden md:block) */}
-          <div className="hidden md:block overflow-x-auto w-full max-w-full">
+          <div className="hidden md:block overflow-x-auto w-full">
             {filteredCustomers.length === 0 ? (
               <div className="py-12 text-center text-slate-450 text-xs font-medium">
                 <FiInfo size={36} className="mx-auto mb-2 opacity-50" />
                 <p className="text-xs">No customers match your search parameters.</p>
               </div>
             ) : (
-              <table className="w-full text-left border-collapse table-auto min-w-[920px]">
+              <table className="w-full text-left border-collapse table-auto">
                 <thead>
-                  <tr className="bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-200/80 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider text-[11px] align-middle">
-                    <th className="py-3.5 px-4 whitespace-nowrap w-[130px]">Customer ID</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap w-[180px]">Customer Name</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap w-[240px]">Contact Details</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap min-w-[220px]">Location Area</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap text-center w-[120px]">Orders</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap text-right w-[140px]">Total Billing</th>
+                  <tr className="bg-gradient-to-r from-slate-100 via-blue-50/50 to-slate-100 dark:from-slate-800/80 dark:via-slate-800/60 dark:to-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold uppercase tracking-wider text-[11px] align-middle">
+                    <th className="py-3 px-3 whitespace-nowrap w-28">Customer ID</th>
+                    <th className="py-3 px-3 whitespace-nowrap min-w-[150px]">Customer Name</th>
+                    <th className="py-3 px-3 whitespace-nowrap w-36">Contact Details</th>
+                    <th className="py-3 px-3 min-w-[170px]">Location Area</th>
+                    <th className="py-3 px-3 whitespace-nowrap text-center w-28">Orders</th>
+                    <th className="py-3 px-3 whitespace-nowrap text-right w-32">Total Billing</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-800 dark:text-slate-200 text-xs">
@@ -308,44 +399,91 @@ export default function Customers() {
                           });
                           setEditModalOpen(true);
                         }}
-                        className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors cursor-pointer group"
+                        className="hover:bg-blue-50/40 dark:hover:bg-slate-800/60 transition-colors cursor-pointer group"
                       >
-                        <td className="py-4 px-4 align-middle font-mono font-bold text-slate-500 whitespace-nowrap w-[130px]">
-                          {cust.id || `CUST-0${idx + 1}`}
-                        </td>
-                        <td className="py-4 px-4 align-middle w-[180px]">
-                          <span className="font-bold text-slate-900 dark:text-slate-100 text-xs block leading-tight group-hover:text-primary transition-colors truncate max-w-[170px]" title={cust.name}>
-                            {cust.name}
+                        {/* 1. Colorful Customer ID */}
+                        <td className="py-3.5 px-3 align-middle whitespace-nowrap w-28">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-xl font-mono font-black text-xs bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/60 shadow-2xs group-hover:scale-105 group-hover:border-indigo-400 transition-all">
+                            #{cust.id || `CUST-0${idx + 1}`}
                           </span>
                         </td>
-                        <td className="py-4 px-4 align-middle w-[240px]">
-                          <div className="flex flex-col min-w-0 max-w-[220px]">
-                            <span className="text-[13px] font-bold text-slate-700 dark:text-slate-300 truncate tracking-tight" title={cust.phone}>
-                              {cust.phone || 'N/A'}
-                            </span>
+
+                        {/* 2. Customer Name with Colorful Avatar */}
+                        <td className="py-3.5 px-3 align-middle min-w-[150px]">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs shrink-0 shadow-xs ${getAvatarColor(cust.name)}`}>
+                              {(cust.name || 'C').charAt(0).toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <span className="font-bold text-slate-900 dark:text-slate-100 text-xs sm:text-sm block leading-tight group-hover:text-blue-600 transition-colors truncate max-w-[130px]" title={cust.name}>
+                                {cust.name}
+                              </span>
+                              {cust.email && !cust.email.includes('@example.com') && !cust.email.includes('@domain.com') ? (
+                                <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate block mt-0.5 max-w-[130px]" title={cust.email}>
+                                  {cust.email}
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate block mt-0.5">
+                                  Customer
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </td>
-                        <td className="py-4 px-4 align-middle min-w-[220px]">
-                          <div className="flex flex-col gap-1 min-w-0 max-w-[260px] text-left" title={cust.location}>
-                            <span className="font-semibold text-slate-800 dark:text-slate-200 text-xs leading-snug break-words line-clamp-2">
-                              {address}
-                            </span>
+
+                        {/* 3. Colorful Contact Details */}
+                        <td className="py-3.5 px-3 align-middle whitespace-nowrap w-36">
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-blue-50/80 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/50 text-xs font-bold">
+                            <FiPhone size={11} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                            <span>{cust.phone || 'N/A'}</span>
+                          </div>
+                        </td>
+
+                        {/* 4. Location Area with Pin & Service Badge */}
+                        <td className="py-3.5 px-3 align-middle min-w-[170px]">
+                          <div className="flex flex-col gap-1 min-w-0 max-w-[240px] text-left" title={cust.location}>
+                            <div className="flex items-start gap-1 text-slate-800 dark:text-slate-200">
+                              <FiMapPin size={12} className="text-amber-500 shrink-0 mt-0.5" />
+                              <span className="font-semibold text-xs leading-snug break-words line-clamp-2">
+                                {address}
+                              </span>
+                            </div>
                             {service && (
-                              <div className="pt-0.5">
-                                <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60 truncate max-w-full">
-                                  Service: {service}
+                              <div className="pl-3.5">
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold uppercase bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200/70 dark:border-purple-800/60 shadow-2xs">
+                                  <FiTool size={9} className="text-purple-500" />
+                                  <span>Service: {service}</span>
                                 </span>
                               </div>
                             )}
                           </div>
                         </td>
-                        <td className="py-4 px-4 align-middle text-center whitespace-nowrap w-[120px]">
-                          <span className="inline-block px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300">
-                            {cust.installationsCount || 0} orders
-                          </span>
+
+                        {/* 5. Colorful Orders Badge */}
+                        <td className="py-3.5 px-3 align-middle text-center whitespace-nowrap w-28">
+                          {Number(cust.installationsCount) > 0 ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/60 font-bold text-xs shadow-2xs">
+                              <FiShoppingBag size={11} className="text-amber-600" />
+                              <span>{cust.installationsCount} orders</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-semibold text-xs border border-slate-200/60 dark:border-slate-700">
+                              0 orders
+                            </span>
+                          )}
                         </td>
-                        <td className="py-4 px-4 align-middle text-right font-bold text-slate-900 dark:text-white whitespace-nowrap w-[140px]">
-                          ₹{(cust.totalSpent || 0).toLocaleString('en-IN')}
+
+                        {/* 6. Colorful Total Billing */}
+                        <td className="py-3.5 px-3 align-middle text-right whitespace-nowrap w-32">
+                          {Number(cust.totalSpent) > 0 ? (
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-mono font-black text-xs sm:text-sm border border-emerald-200/80 dark:border-emerald-800/60 shadow-2xs">
+                              ₹{(cust.totalSpent || 0).toLocaleString('en-IN')}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-mono font-bold text-xs border border-slate-200/60 dark:border-slate-700">
+                              ₹0
+                            </span>
+                          )}
                         </td>
                       </tr>
                     );
@@ -371,62 +509,44 @@ export default function Customers() {
               className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Phone Number</label>
-              <input 
-                required
-                type="tel" 
-                maxLength={10}
-                placeholder="10-digit mobile number" 
-                value={customerForm.phone}
-                onChange={(e) => {
-                  const cleaned = e.target.value.replace(/\D/g, '').slice(0, 10);
-                  setCustomerForm({ ...customerForm, phone: cleaned });
-                }}
-                className={`w-full text-xs p-2.5 border ${
-                  customerForm.phone && (customerForm.phone.length !== 10 || !/^[6-9]\d{9}$/.test(customerForm.phone))
-                    ? 'border-red-500 focus:border-red-500'
-                    : 'border-slate-200 dark:border-slate-700 focus:border-primary'
-                } bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none text-slate-800 dark:text-slate-100`}
-              />
-              {customerForm.phone && customerForm.phone.length < 10 && (
-                <p className="text-[11px] text-red-500 mt-1 font-medium">
-                  Phone number must be exactly 10 digits ({customerForm.phone.length}/10)
-                </p>
-              )}
-              {customerForm.phone && customerForm.phone.length === 10 && !/^[6-9]\d{9}$/.test(customerForm.phone) && (
-                <p className="text-[11px] text-red-500 mt-1 font-medium">
-                  Must start with 6, 7, 8, or 9 for valid Indian mobile number
-                </p>
-              )}
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Email ID</label>
-              <input 
-                required
-                type="email" 
-                placeholder="customer@domain.com" 
-                value={customerForm.email}
-                onChange={(e) => setCustomerForm({ ...customerForm, email: e.target.value })}
-                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
-              />
-            </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Phone Number</label>
+            <input 
+              required
+              type="tel" 
+              maxLength={10}
+              placeholder="10-digit mobile number" 
+              value={customerForm.phone}
+              onChange={(e) => {
+                const cleaned = e.target.value.replace(/\D/g, '').slice(0, 10);
+                setCustomerForm({ ...customerForm, phone: cleaned });
+              }}
+              className={`w-full text-xs p-2.5 border ${
+                customerForm.phone && (customerForm.phone.length !== 10 || !/^[6-9]\d{9}$/.test(customerForm.phone))
+                  ? 'border-red-500 focus:border-red-500'
+                  : 'border-slate-200 dark:border-slate-700 focus:border-primary'
+              } bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none text-slate-800 dark:text-slate-100`}
+            />
+            {customerForm.phone && customerForm.phone.length < 10 && (
+              <p className="text-[11px] text-red-500 mt-1 font-medium">
+                Phone number must be exactly 10 digits ({customerForm.phone.length}/10)
+              </p>
+            )}
+            {customerForm.phone && customerForm.phone.length === 10 && !/^[6-9]\d{9}$/.test(customerForm.phone) && (
+              <p className="text-[11px] text-red-500 mt-1 font-medium">
+                Must start with 6, 7, 8, or 9 for valid Indian mobile number
+              </p>
+            )}
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Location Area</label>
-            <select 
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Location Area / Address</label>
+            <input 
+              type="text"
+              placeholder="Enter customer location or address (e.g. Dharmapuri)" 
               value={customerForm.location}
               onChange={(e) => setCustomerForm({ ...customerForm, location: e.target.value })}
-              className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
-            >
-              <option value="Anna Nagar, Chennai">Anna Nagar, Chennai</option>
-              <option value="T. Nagar, Chennai">T. Nagar, Chennai</option>
-              <option value="Velachery, Chennai">Velachery, Chennai</option>
-              <option value="Porur, Chennai">Porur, Chennai</option>
-              <option value="Adyar, Chennai">Adyar, Chennai</option>
-              <option value="Mylapore, Chennai">Mylapore, Chennai</option>
-            </select>
+              className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+            />
           </div>
           <div className="pt-2 flex justify-end gap-2.5">
             <button 
@@ -474,61 +594,44 @@ export default function Customers() {
                 className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1.5">Phone Number</label>
-                <input 
-                  required
-                  type="tel" 
-                  maxLength={10}
-                  placeholder="10-digit mobile number" 
-                  value={customerForm.phone}
-                  onChange={(e) => {
-                    const cleaned = e.target.value.replace(/\D/g, '').slice(0, 10);
-                    setCustomerForm({ ...customerForm, phone: cleaned });
-                  }}
-                  className={`w-full text-xs p-2.5 border ${
-                    customerForm.phone && (customerForm.phone.length !== 10 || !/^[6-9]\d{9}$/.test(customerForm.phone))
-                      ? 'border-red-500 focus:border-red-500'
-                      : 'border-slate-200 dark:border-slate-700 focus:border-primary'
-                  } bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none text-slate-800 dark:text-slate-100`}
-                />
-                {customerForm.phone && customerForm.phone.length < 10 && (
-                  <p className="text-[11px] text-red-500 mt-1 font-medium">
-                    Phone number must be exactly 10 digits ({customerForm.phone.length}/10)
-                  </p>
-                )}
-                {customerForm.phone && customerForm.phone.length === 10 && !/^[6-9]\d{9}$/.test(customerForm.phone) && (
-                  <p className="text-[11px] text-red-500 mt-1 font-medium">
-                    Must start with 6, 7, 8, or 9 for valid Indian mobile number
-                  </p>
-                )}
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1.5">Email ID</label>
-                <input 
-                  required
-                  type="email" 
-                  value={customerForm.email}
-                  onChange={(e) => setCustomerForm({ ...customerForm, email: e.target.value })}
-                  className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
-                />
-              </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Phone Number</label>
+              <input 
+                required
+                type="tel" 
+                maxLength={10}
+                placeholder="10-digit mobile number" 
+                value={customerForm.phone}
+                onChange={(e) => {
+                  const cleaned = e.target.value.replace(/\D/g, '').slice(0, 10);
+                  setCustomerForm({ ...customerForm, phone: cleaned });
+                }}
+                className={`w-full text-xs p-2.5 border ${
+                  customerForm.phone && (customerForm.phone.length !== 10 || !/^[6-9]\d{9}$/.test(customerForm.phone))
+                    ? 'border-red-500 focus:border-red-500'
+                    : 'border-slate-200 dark:border-slate-700 focus:border-primary'
+                } bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none text-slate-800 dark:text-slate-100`}
+              />
+              {customerForm.phone && customerForm.phone.length < 10 && (
+                <p className="text-[11px] text-red-500 mt-1 font-medium">
+                  Phone number must be exactly 10 digits ({customerForm.phone.length}/10)
+                </p>
+              )}
+              {customerForm.phone && customerForm.phone.length === 10 && !/^[6-9]\d{9}$/.test(customerForm.phone) && (
+                <p className="text-[11px] text-red-500 mt-1 font-medium">
+                  Must start with 6, 7, 8, or 9 for valid Indian mobile number
+                </p>
+              )}
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Location Area</label>
-              <select 
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Location Area / Address</label>
+              <input 
+                type="text"
+                placeholder="Enter customer location or address (e.g. Dharmapuri)" 
                 value={customerForm.location}
                 onChange={(e) => setCustomerForm({ ...customerForm, location: e.target.value })}
-                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
-              >
-                <option value="Anna Nagar, Chennai">Anna Nagar, Chennai</option>
-                <option value="T. Nagar, Chennai">T. Nagar, Chennai</option>
-                <option value="Velachery, Chennai">Velachery, Chennai</option>
-                <option value="Porur, Chennai">Porur, Chennai</option>
-                <option value="Adyar, Chennai">Adyar, Chennai</option>
-                <option value="Mylapore, Chennai">Mylapore, Chennai</option>
-              </select>
+                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+              />
             </div>
             <div className="pt-2 flex justify-end gap-2.5">
               <button 

@@ -112,13 +112,14 @@ export const adminReworkJob = createAsyncThunk(
 const getInitialCustomers = (orders) => {
   const customersMap = {};
   orders.forEach((order, idx) => {
-    const key = order.customer.toLowerCase().trim();
+    const key = (order.customer || '').toLowerCase().trim();
+    if (!key) return;
     if (!customersMap[key]) {
       customersMap[key] = {
         id: `CUST-0${idx + 1}`,
         name: order.customer,
-        email: order.email || 'support@domain.com',
-        phone: order.phone || '+91 99999 99999',
+        email: order.email || '',
+        phone: order.phone || '',
         location: order.location || '',
         totalSpent: 0,
         installationsCount: 0,
@@ -322,8 +323,8 @@ const dashboardSlice = createSlice({
           state.customers.unshift({
             id: `CUST-${Date.now().toString().slice(-4)}`,
             name: newOrder.customer,
-            email: newOrder.email || 'support@domain.com',
-            phone: newOrder.phone || '+91 99999 99999',
+            email: newOrder.email || '',
+            phone: newOrder.phone || '',
             location: newOrder.location || '',
             totalSpent: newOrder.amount || 0,
             installationsCount: 1,

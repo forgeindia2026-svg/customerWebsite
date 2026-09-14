@@ -5,7 +5,8 @@ import jsPDF from 'jspdf';
 import { 
   FiDownload, FiBarChart2, FiTrendingUp, FiCheckCircle, 
   FiUsers, FiStar, FiClock, FiSettings, FiGrid, FiActivity,
-  FiEye, FiTrash2, FiFileText, FiMoreVertical, FiShield, FiShieldOff
+  FiEye, FiTrash2, FiFileText, FiMoreVertical, FiShield, FiShieldOff,
+  FiUserX, FiZap
 } from 'react-icons/fi';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -655,18 +656,26 @@ export default function Reports() {
       checkOutTime: formattedCheckOut,
       totalHours: Number(rec.totalHours) || 0,
       status: rec.status || 'PRESENT',
-      location: rec.location || 'Field Location',
+      location: rec.location || (rec.latitude && rec.longitude ? `${Number(rec.latitude).toFixed(4)}, ${Number(rec.longitude).toFixed(4)}` : 'On-Duty Location'),
       latitude: rec.latitude,
       longitude: rec.longitude,
-      checkOutLocation: rec.checkOutLocation,
-      checkOutLatitude: rec.checkOutLatitude,
-      checkOutLongitude: rec.checkOutLongitude,
+      checkOutLocation: rec.checkOutLocation || rec.punches?.[rec.punches?.length - 1]?.punchOutLocation || (rec.checkOutLatitude && rec.checkOutLongitude ? `${Number(rec.checkOutLatitude).toFixed(4)}, ${Number(rec.checkOutLongitude).toFixed(4)}` : (rec.location || '')),
+      checkOutLatitude: rec.checkOutLatitude || rec.latitude,
+      checkOutLongitude: rec.checkOutLongitude || rec.longitude,
       notes: salaryNote
     };
   });
 
   // Filter ONLY TODAY'S attendance for Today's KPI metrics
   const todayAttendanceList = dailyAttendanceList.filter(r => r.date === todayStr);
+
+  // Simple & clear attendance counters for today
+  const totalStaffCount = (technicians || []).length;
+  const presentTechIds = new Set(todayAttendanceList.map(r => r.technicianId || r.technician).filter(Boolean));
+  const presentTodayCount = presentTechIds.size > 0 ? presentTechIds.size : todayAttendanceList.length;
+  const absentTodayCount = Math.max(0, totalStaffCount - presentTodayCount);
+  const checkedOutCount = todayAttendanceList.filter(r => r.checkOutTime && r.checkOutTime !== '--:--').length;
+  const workingNowCount = Math.max(0, presentTodayCount - checkedOutCount);
 
   // Calculations
   const totalCollected = (payments || []).filter(p => p && p.status === 'Paid').reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
@@ -1615,49 +1624,76 @@ export default function Reports() {
         <div className="space-y-6">
           {/* KPI Attendance Summary Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xs flex items-center justify-between">
+            {/* Card 1: Total Staff */}
+            <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xs flex items-center justify-between transition-all hover:shadow-sm">
               <div>
-                <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider block">PRESENT TODAY</span>
-                <span className="text-xl sm:text-2xl font-black text-emerald-600 block mt-0.5 font-mono">
-                  {todayAttendanceList.filter(r => r.status === 'PRESENT' || r.status === 'OVERTIME').length} Techs
-                </span>
+                <span className="text-slate-400 dark:text-slate-500 text-[11px] font-bold uppercase tracking-wider block">TOTAL STAFF</span>
+                <div className="flex items-baseline gap-1.5 mt-1">
+                  <span className="text-2xl sm:text-3xl font-black text-slate-800 dark:text-white font-mono tracking-tight">
+                    {totalStaffCount}
+                  </span>
+                  <span className="text-xs font-semibold text-slate-400 dark:text-slate-500">Techs</span>
+                </div>
+                <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 block mt-0.5">Registered Team</span>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                <FiCheckCircle size={18} />
+              <div className="w-11 h-11 rounded-2xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                <FiUsers size={20} />
               </div>
             </div>
 
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xs flex items-center justify-between">
+            {/* Card 2: Present Today */}
+            <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xs flex items-center justify-between transition-all hover:shadow-sm">
               <div>
-                <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider block">HALF DAY / ON LEAVE</span>
-                <span className="text-xl sm:text-2xl font-black text-amber-600 block mt-0.5 font-mono">
-                  {todayAttendanceList.filter(r => r.status === 'HALF_DAY').length} Techs
+                <span className="text-slate-400 dark:text-slate-500 text-[11px] font-bold uppercase tracking-wider block">PRESENT TODAY</span>
+                <div className="flex items-baseline gap-1.5 mt-1">
+                  <span className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400 font-mono tracking-tight">
+                    {presentTodayCount}
+                  </span>
+                  <span className="text-xs font-semibold text-emerald-600/70 dark:text-emerald-400/70">Techs</span>
+                </div>
+                <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+                  Punched In
                 </span>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-                <FiActivity size={18} />
+              <div className="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <FiCheckCircle size={20} />
               </div>
             </div>
 
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xs flex items-center justify-between">
+            {/* Card 3: Absent Today */}
+            <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xs flex items-center justify-between transition-all hover:shadow-sm">
               <div>
-                <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider block">TOTAL HOURS LOGGED</span>
-                <span className="text-xl sm:text-2xl font-black text-purple-600 block mt-0.5 font-mono">
-                  {todayAttendanceList.reduce((sum, r) => sum + (Number(r.totalHours) || 0), 0).toFixed(1)} Hours
-                </span>
+                <span className="text-slate-400 dark:text-slate-500 text-[11px] font-bold uppercase tracking-wider block">ABSENT TODAY</span>
+                <div className="flex items-baseline gap-1.5 mt-1">
+                  <span className="text-2xl sm:text-3xl font-black text-rose-500 dark:text-rose-400 font-mono tracking-tight">
+                    {absentTodayCount}
+                  </span>
+                  <span className="text-xs font-semibold text-rose-500/70 dark:text-rose-400/70">Techs</span>
+                </div>
+                <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 block mt-0.5">Not Punched In</span>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-                <FiClock size={18} />
+              <div className="w-11 h-11 rounded-2xl bg-rose-50 dark:bg-rose-900/30 text-rose-500 dark:text-rose-400 flex items-center justify-center shrink-0">
+                <FiUserX size={20} />
               </div>
             </div>
 
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xs flex items-center justify-between">
+            {/* Card 4: Working Now */}
+            <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xs flex items-center justify-between transition-all hover:shadow-sm">
               <div>
-                <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider block">ACTIVE ROSTER</span>
-                <span className="text-xl sm:text-2xl font-black text-blue-600 block mt-0.5 font-mono">{(technicians || []).length} Techs</span>
+                <span className="text-slate-400 dark:text-slate-500 text-[11px] font-bold uppercase tracking-wider block">WORKING NOW</span>
+                <div className="flex items-baseline gap-1.5 mt-1">
+                  <span className="text-2xl sm:text-3xl font-black text-amber-550 dark:text-amber-400 font-mono tracking-tight">
+                    {workingNowCount}
+                  </span>
+                  <span className="text-xs font-semibold text-amber-550/70 dark:text-amber-400/70">Techs</span>
+                </div>
+                <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 block mt-0.5">
+                  {checkedOutCount > 0 ? `${checkedOutCount} Checked Out` : 'Active On Field'}
+                </span>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                <FiUsers size={18} />
+              <div className="w-11 h-11 rounded-2xl bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <FiZap size={20} />
               </div>
             </div>
           </div>
@@ -1776,7 +1812,7 @@ export default function Reports() {
                                 ? 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400'
                                 : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300'
                             }`}>
-                              {att.status.replace('_', ' ')}
+                              {(att.status || 'PRESENT').replace('_', ' ')}
                             </span>
                           </td>
                           <td className="py-2.5 px-3 align-middle">
@@ -1803,12 +1839,12 @@ export default function Reports() {
                               {att.checkOutTime && att.checkOutTime !== '--:--' && (
                                 <div className="flex items-center gap-1.5">
                                   <span className="text-[10px] font-bold text-rose-600 bg-rose-50 dark:bg-rose-950/30 px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">OUT</span>
-                                  <span className="text-xs text-slate-700 dark:text-slate-200 font-medium truncate" title={att.checkOutLocation}>
-                                    {att.checkOutLocation || 'Field Location'}
+                                  <span className="text-xs text-slate-700 dark:text-slate-200 font-medium truncate" title={att.checkOutLocation || att.location}>
+                                    {att.checkOutLocation || att.location || 'Site Location'}
                                   </span>
-                                  {att.checkOutLatitude && att.checkOutLongitude && (
+                                  {(att.checkOutLatitude || att.latitude) && (att.checkOutLongitude || att.longitude) && (
                                     <a 
-                                      href={`https://www.google.com/maps?q=${att.checkOutLatitude},${att.checkOutLongitude}`} 
+                                      href={`https://www.google.com/maps?q=${att.checkOutLatitude || att.latitude},${att.checkOutLongitude || att.longitude}`} 
                                       target="_blank" 
                                       rel="noopener noreferrer"
                                       className="text-[10px] text-blue-600 hover:text-blue-700 font-bold shrink-0 underline"
@@ -2274,9 +2310,14 @@ export default function Reports() {
 
       {/* Attendance Punch-In Selfie Photo Preview Modal */}
       {selectedAttendancePhoto && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+        <div 
+          onClick={(e) => { if (e.target === e.currentTarget) setSelectedAttendancePhoto(null); }}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-fade-in"
+        >
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-5 max-w-md w-full shadow-2xl border border-slate-200 dark:border-slate-800 my-auto max-h-[92vh] flex flex-col">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 shrink-0">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-sm">
                   📸
@@ -2287,58 +2328,110 @@ export default function Reports() {
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setSelectedAttendancePhoto(null)}
                 className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center font-bold text-xs cursor-pointer transition-colors"
+                title="Close"
               >
                 ✕
               </button>
             </div>
 
-            {/* Photo Display */}
-            <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-950 flex items-center justify-center shadow-inner max-h-[380px]">
-              <img
-                src={selectedAttendancePhoto.punchInPhoto}
-                alt={selectedAttendancePhoto.technician}
-                className="w-full h-auto max-h-[380px] object-contain"
-              />
-            </div>
+            {/* Modal Scrollable Body */}
+            <div className="overflow-y-auto flex-1 pr-1 space-y-3 pt-3">
+              {/* Photo Display */}
+              <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-950 flex items-center justify-center shadow-inner max-h-[280px] sm:max-h-[320px]">
+                <img
+                  src={selectedAttendancePhoto.punchInPhoto}
+                  alt={selectedAttendancePhoto.technician}
+                  className="w-full h-auto max-h-[280px] sm:max-h-[320px] object-contain"
+                />
+              </div>
 
-            {/* Metadata Footer */}
-            <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3 text-xs space-y-1.5 border border-slate-100 dark:border-slate-800">
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500 font-medium">Punch-In Time:</span>
-                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">{selectedAttendancePhoto.checkInTime}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500 font-medium">Duty Status:</span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">{selectedAttendancePhoto.status}</span>
-              </div>
-              <div className="flex justify-between items-start pt-1 border-t border-slate-200/50 dark:border-slate-700/50">
-                <span className="text-slate-500 font-medium shrink-0">Location:</span>
-                <span className="text-right text-slate-700 dark:text-slate-300 font-medium truncate max-w-[220px]">
-                  {selectedAttendancePhoto.location}
-                </span>
-              </div>
-              {selectedAttendancePhoto.latitude && selectedAttendancePhoto.longitude && (
-                <div className="text-right pt-0.5">
-                  <a
-                    href={`https://www.google.com/maps?q=${selectedAttendancePhoto.latitude},${selectedAttendancePhoto.longitude}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[11px] font-bold text-blue-600 hover:text-blue-700 underline"
-                  >
-                    📍 Open Google Maps Location
-                  </a>
+              {/* Punch-Out Photo if available */}
+              {selectedAttendancePhoto.punchOutPhoto && selectedAttendancePhoto.punchOutPhoto !== selectedAttendancePhoto.punchInPhoto && (
+                <div>
+                  <h5 className="text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">Punch-Out Photo</h5>
+                  <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-950 flex items-center justify-center shadow-inner max-h-[240px]">
+                    <img
+                      src={selectedAttendancePhoto.punchOutPhoto}
+                      alt="Punch out verification"
+                      className="w-full h-auto max-h-[240px] object-contain"
+                    />
+                  </div>
                 </div>
               )}
+
+              {/* Metadata Card */}
+              <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3 text-xs space-y-1.5 border border-slate-100 dark:border-slate-800">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500 font-medium">Punch-In Time:</span>
+                  <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">{selectedAttendancePhoto.checkInTime || '09:00 AM'}</span>
+                </div>
+                {selectedAttendancePhoto.checkOutTime && selectedAttendancePhoto.checkOutTime !== '--:--' && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500 font-medium">Punch-Out Time:</span>
+                    <span className="font-mono font-bold text-rose-600 dark:text-rose-400">{selectedAttendancePhoto.checkOutTime}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500 font-medium">Duty Status:</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{selectedAttendancePhoto.status}</span>
+                </div>
+                <div className="flex justify-between items-start pt-1.5 border-t border-slate-200/50 dark:border-slate-700/50">
+                  <span className="text-slate-500 font-medium shrink-0">Punch-In Location:</span>
+                  <span className="text-right text-slate-700 dark:text-slate-300 font-medium truncate max-w-[220px]" title={selectedAttendancePhoto.location}>
+                    {selectedAttendancePhoto.location || 'On-Site'}
+                  </span>
+                </div>
+                {selectedAttendancePhoto.latitude && selectedAttendancePhoto.longitude && (
+                  <div className="text-right pt-0.5">
+                    <a
+                      href={`https://www.google.com/maps?q=${selectedAttendancePhoto.latitude},${selectedAttendancePhoto.longitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] font-bold text-blue-600 hover:text-blue-700 underline"
+                    >
+                      📍 Open In-Location on Google Maps
+                    </a>
+                  </div>
+                )}
+
+                {/* Check-Out Location if available */}
+                {selectedAttendancePhoto.checkOutLocation && selectedAttendancePhoto.checkOutLocation !== selectedAttendancePhoto.location && (
+                  <div className="flex justify-between items-start pt-1.5 border-t border-slate-200/50 dark:border-slate-700/50">
+                    <span className="text-slate-500 font-medium shrink-0">Punch-Out Location:</span>
+                    <span className="text-right text-slate-700 dark:text-slate-300 font-medium truncate max-w-[220px]" title={selectedAttendancePhoto.checkOutLocation}>
+                      {selectedAttendancePhoto.checkOutLocation}
+                    </span>
+                  </div>
+                )}
+                {selectedAttendancePhoto.checkOutLatitude && selectedAttendancePhoto.checkOutLongitude && (
+                  <div className="text-right pt-0.5">
+                    <a
+                      href={`https://www.google.com/maps?q=${selectedAttendancePhoto.checkOutLatitude},${selectedAttendancePhoto.checkOutLongitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] font-bold text-rose-600 hover:text-rose-700 underline"
+                    >
+                      📍 Open Out-Location on Google Maps
+                    </a>
+                  </div>
+                )}
+              </div>
             </div>
 
-            <button
-              onClick={() => setSelectedAttendancePhoto(null)}
-              className="w-full py-2.5 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer"
-            >
-              Close
-            </button>
+            {/* Modal Footer */}
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 shrink-0">
+              <button
+                type="button"
+                onClick={() => setSelectedAttendancePhoto(null)}
+                className="w-full py-2.5 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+
           </div>
         </div>
       )}
@@ -2681,7 +2774,7 @@ export default function Reports() {
                     <span className="text-slate-400 text-sm">📍</span>
                     <div>
                       <span className="text-[10px] text-slate-400 font-semibold block">Location</span>
-                      <span className="font-bold text-slate-900 dark:text-white leading-snug text-xs">{adminQuickDetailReport.address || 'No. 45, 5th Street, Anna Nagar, Chennai - 600040'}</span>
+                      <span className="font-bold text-slate-900 dark:text-white leading-snug text-xs">{adminQuickDetailReport.address || adminQuickDetailReport.location || 'N/A'}</span>
                     </div>
                   </div>
                   <span className="text-red-600 text-sm p-1">📍</span>

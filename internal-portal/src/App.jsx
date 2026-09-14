@@ -24,6 +24,7 @@ import Categories from './pages/Categories/Categories';
 import Workstation from './pages/Workstation/Workstation';
 import Customers from './pages/Customers/Customers';
 import Scanner from './pages/Scanner/Scanner';
+import TvDashboard from './pages/TvDashboard/TvDashboard';
 import ToastContainer from './components/Toast';
 import { Toaster } from 'react-hot-toast';
 
@@ -115,6 +116,10 @@ export default function App() {
         <Route path="/settings" element={<Navigate to="/admin/settings" replace />} />
         <Route path="/queries" element={<Navigate to="/admin/queries" replace />} />
         <Route path="/announcements" element={<Navigate to="/admin/announcements" replace />} />
+
+        {/* TV Command Center Display Route */}
+        <Route path="/tv" element={<TvDashboard />} />
+        <Route path="/admin/tv" element={<TvDashboard />} />
 
         {/* Technician Portal Routes */}
         <Route element={<TechnicianRoute />}>

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { toggleDarkMode, markNotificationAsRead, markAllNotificationsAsRead } from '../redux/dashboardSlice';
-import { FiSearch, FiBell, FiSun, FiMoon, FiMenu, FiLogOut, FiSettings, FiUser, FiCheck } from 'react-icons/fi';
+import { FiSearch, FiBell, FiSun, FiMoon, FiMenu, FiLogOut, FiSettings, FiUser, FiCheck, FiChevronDown, FiX, FiArrowRight, FiTv } from 'react-icons/fi';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 
 export default function Header({ toggleMobileSidebar }) {
@@ -11,12 +11,27 @@ export default function Header({ toggleMobileSidebar }) {
   const darkMode = useSelector(state => state.dashboard?.darkMode);
   const notifications = useSelector(state => state.dashboard?.notifications) || [];
   const settings = useSelector(state => state.dashboard?.settings) || {};
+  const orders = useSelector(state => state.dashboard?.orders) || [];
+  const technicians = useSelector(state => state.dashboard?.technicians) || [];
 
   const unreadNotifications = (notifications || []).filter(n => !n?.read);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const notifRef = useRef(null);
   const profileRef = useRef(null);
+
+  // Date Filter State
+  const [showDateMenu, setShowDateMenu] = useState(false);
+  const [selectedDateRange, setSelectedDateRange] = useState(
+    () => localStorage.getItem('admin_date_range') || 'This Month'
+  );
+  const dateMenuRef = useRef(null);
+
+  // Search State
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchContainerRef = useRef(null);
+  const searchInputRef = useRef(null);
 
   // Close menus on click outside
   useEffect(() => {
@@ -27,10 +42,64 @@ export default function Header({ toggleMobileSidebar }) {
       if (profileRef.current && !profileRef.current.contains(event.target)) {
         setShowProfileMenu(false);
       }
+      if (dateMenuRef.current && !dateMenuRef.current.contains(event.target)) {
+        setShowDateMenu(false);
+      }
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
+        setIsSearchOpen(false);
+      }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (isSearchOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [isSearchOpen]);
+
+  const handleSelectDateRange = (range) => {
+    setSelectedDateRange(range);
+    localStorage.setItem('admin_date_range', range);
+    setShowDateMenu(false);
+    window.dispatchEvent(new CustomEvent('admin_date_filter_change', { detail: range }));
+  };
+
+  const trimmedSearch = searchQuery.trim().toLowerCase();
+  const searchResults = trimmedSearch ? {
+    orders: orders.filter(o => 
+      (o.id && String(o.id).toLowerCase().includes(trimmedSearch)) ||
+      (o.customer && o.customer.toLowerCase().includes(trimmedSearch)) ||
+      (o.phone && String(o.phone).includes(trimmedSearch))
+    ).slice(0, 3),
+    technicians: technicians.filter(t => 
+      (t.name && t.name.toLowerCase().includes(trimmedSearch)) ||
+      (t.phone && String(t.phone).includes(trimmedSearch))
+    ).slice(0, 3),
+    pages: [
+      { name: 'Orders Management', path: '/admin/orders' },
+      { name: 'Technicians Management', path: '/admin/technicians' },
+      { name: 'Dashboard Overview', path: '/admin/dashboard' },
+      { name: 'Workstation Tracking', path: '/admin/workstation' },
+      { name: 'Payments & Revenue', path: '/admin/payments' },
+      { name: 'System Settings', path: '/admin/settings' },
+      { name: 'Inventory & Stock', path: '/admin/inventory' },
+    ].filter(p => p.name.toLowerCase().includes(trimmedSearch)).slice(0, 3)
+  } : null;
+
+  const totalResultsCount = searchResults 
+    ? searchResults.orders.length + searchResults.technicians.length + searchResults.pages.length 
+    : 0;
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/admin/orders?search=${encodeURIComponent(searchQuery.trim())}`);
+      setIsSearchOpen(false);
+      setSearchQuery('');
+    }
+  };
 
   // Determine page title
   const getPageTitle = () => {
@@ -86,18 +155,175 @@ export default function Header({ toggleMobileSidebar }) {
 
       {/* Right section: Quick actions, notifications, dark/light, admin profile */}
       <div className="flex items-center gap-2.5">
-        {/* Date Filter Pill */}
-        <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold shadow-2xs cursor-pointer hover:bg-slate-50 transition-colors">
-          <span>📅 This Month ▾</span>
+        {/* Date Filter Dropdown */}
+        <div className="relative" ref={dateMenuRef}>
+          <button 
+            type="button"
+            onClick={() => setShowDateMenu(!showDateMenu)}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold shadow-2xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+          >
+            <span>📅 {selectedDateRange}</span>
+            <FiChevronDown size={12} className={`transition-transform duration-200 ${showDateMenu ? 'rotate-180' : ''}`} />
+          </button>
+
+          {showDateMenu && (
+            <div className="absolute right-0 mt-2 w-48 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-xl z-50 py-1.5 animate-in fade-in zoom-in-95 duration-150">
+              <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
+                Filter Date Range
+              </div>
+              {['Today', 'This Week', 'This Month', 'Last Month', 'This Year', 'All Time'].map(range => (
+                <button
+                  key={range}
+                  type="button"
+                  onClick={() => handleSelectDateRange(range)}
+                  className={`w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-left transition-colors cursor-pointer ${
+                    selectedDateRange === range 
+                      ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-bold' 
+                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <span>{range}</span>
+                  {selectedDateRange === range && <FiCheck size={13} className="text-blue-600 dark:text-blue-400" />}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Search button */}
-        <button 
-          className="p-2 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-2xs cursor-pointer"
-          title="Search"
-        >
-          <FiSearch size={15} />
-        </button>
+        {/* Global Quick Search */}
+        <div className="relative" ref={searchContainerRef}>
+          {isSearchOpen ? (
+            <div className="flex items-center animate-in fade-in zoom-in-95 duration-150">
+              <form onSubmit={handleSearchSubmit} className="relative flex items-center">
+                <FiSearch size={14} className="absolute left-3 text-blue-500 pointer-events-none" />
+                <input 
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search orders, techs, pages..."
+                  className="w-48 sm:w-72 pl-8 pr-7 py-1.5 text-xs bg-white dark:bg-slate-800 border-2 border-blue-500 rounded-xl shadow-lg text-slate-800 dark:text-slate-100 focus:outline-none placeholder:text-slate-400 font-medium"
+                />
+                <button 
+                  type="button"
+                  onClick={() => { setIsSearchOpen(false); setSearchQuery(''); }}
+                  className="absolute right-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                  title="Close search"
+                >
+                  <FiX size={14} />
+                </button>
+              </form>
+
+              {/* Instant Search Results Dropdown */}
+              {trimmedSearch && (
+                <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+                  <div className="px-3 py-2 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-bold text-slate-500">
+                    <span>Quick Search Results</span>
+                    <span className="text-[10px] bg-blue-100 dark:bg-blue-950 text-blue-600 px-1.5 py-0.5 rounded-full">{totalResultsCount} found</span>
+                  </div>
+
+                  <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+                    {totalResultsCount === 0 ? (
+                      <div className="p-4 text-center text-slate-400 text-xs">
+                        No matches found for "{searchQuery}"
+                      </div>
+                    ) : (
+                      <>
+                        {/* Pages */}
+                        {searchResults.pages.length > 0 && (
+                          <div className="p-1.5">
+                            <div className="text-[10px] font-bold uppercase text-slate-400 px-2 py-1">Pages</div>
+                            {searchResults.pages.map(page => (
+                              <button
+                                key={page.path}
+                                type="button"
+                                onClick={() => {
+                                  navigate(page.path);
+                                  setIsSearchOpen(false);
+                                  setSearchQuery('');
+                                }}
+                                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/40 text-slate-700 dark:text-slate-200 text-left transition-colors cursor-pointer"
+                              >
+                                <span className="font-semibold">{page.name}</span>
+                                <FiArrowRight size={12} className="text-slate-400" />
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Orders */}
+                        {searchResults.orders.length > 0 && (
+                          <div className="p-1.5">
+                            <div className="text-[10px] font-bold uppercase text-slate-400 px-2 py-1">Orders</div>
+                            {searchResults.orders.map(order => (
+                              <button
+                                key={order.id}
+                                type="button"
+                                onClick={() => {
+                                  navigate(`/admin/orders?search=${encodeURIComponent(order.id)}`);
+                                  setIsSearchOpen(false);
+                                  setSearchQuery('');
+                                }}
+                                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/40 text-left transition-colors cursor-pointer"
+                              >
+                                <div>
+                                  <span className="font-bold text-slate-900 dark:text-white">#{order.id}</span>
+                                  <span className="text-slate-500 text-[11px] ml-1.5">{order.customer}</span>
+                                </div>
+                                <span className="text-[11px] font-bold text-emerald-600 font-mono">₹{order.amount || order.totalAmount || 0}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Technicians */}
+                        {searchResults.technicians.length > 0 && (
+                          <div className="p-1.5">
+                            <div className="text-[10px] font-bold uppercase text-slate-400 px-2 py-1">Technicians</div>
+                            {searchResults.technicians.map(tech => (
+                              <button
+                                key={tech.id}
+                                type="button"
+                                onClick={() => {
+                                  navigate(`/admin/technicians`);
+                                  setIsSearchOpen(false);
+                                  setSearchQuery('');
+                                }}
+                                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/40 text-left transition-colors cursor-pointer"
+                              >
+                                <span className="font-bold text-slate-900 dark:text-white">{tech.name}</span>
+                                <span className="text-slate-400 text-[10px]">{tech.phone || 'Technician'}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  <div className="p-2 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800 text-center">
+                    <button
+                      type="button"
+                      onClick={handleSearchSubmit}
+                      className="text-[11px] font-bold text-blue-600 hover:text-blue-700"
+                    >
+                      Press Enter to see all results in Orders →
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button 
+              type="button"
+              onClick={() => setIsSearchOpen(true)}
+              className="p-2 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-2xs cursor-pointer"
+              title="Search orders, technicians, pages..."
+            >
+              <FiSearch size={15} />
+            </button>
+          )}
+        </div>
 
         {/* Dark/Light mode pill toggle */}
         <button
@@ -108,6 +334,17 @@ export default function Header({ toggleMobileSidebar }) {
           {darkMode ? <FiSun size={14} className="text-amber-500" /> : <FiMoon size={14} className="text-blue-600" />}
           <span>{darkMode ? 'Light' : 'Dark'}</span>
         </button>
+
+        {/* TV Mode Command Center Button */}
+        <Link
+          to="/tv"
+          target="_blank"
+          className="px-3 py-1.5 rounded-xl border border-indigo-200/80 dark:border-indigo-800/80 bg-indigo-50/80 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 text-xs font-bold flex items-center gap-1.5 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors shadow-2xs cursor-pointer"
+          title="Open Live Operations TV Display (Command Center)"
+        >
+          <FiTv size={14} className="text-indigo-600 dark:text-indigo-400" />
+          <span className="hidden sm:inline">TV Mode</span>
+        </Link>
 
         {/* Notification center */}
         <div className="relative" ref={notifRef}>
