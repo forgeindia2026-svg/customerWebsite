@@ -155,7 +155,7 @@ export default function ProductDetail() {
             reviewsCount: item.reviewsCount || 42,
             inStock: item.stock > 0,
             stockCount: item.stock || 20,
-            warranty: item.specs?.find((s: string) => s.toLowerCase().includes('warranty')) || "2 Years Warranty",
+            warranty: (item.warranty || item.specs?.find((s: string) => typeof s === 'string' && s.toLowerCase().includes('warranty')) || '').trim(),
             freeDelivery: true,
             image: (item.image ? item.image.replace('https://65.0.45.64.sslip.io', import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io') : null) || "https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=600&q=80",
             resolution: item.specs?.find((s: string) => s.toLowerCase().includes('mp') || s.toLowerCase().includes('p')) || "1080p (2MP)",
@@ -533,11 +533,6 @@ export default function ProductDetail() {
                 </div>
               )}
               
-              {/* EMI Callout */}
-              <div className="flex items-center gap-2 text-xs font-semibold text-slate-650 pt-1">
-                <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-extrabold">No Cost EMI</span>
-                <span>Starting from <strong className="text-slate-900">₹299/month</strong>. Standard plans available.</span>
-              </div>
             </div>
 
             {/* Logistics & Delivery details */}
@@ -575,10 +570,12 @@ export default function ProductDetail() {
                   <Truck className="h-4 w-4 text-emerald-600" />
                   <span>Free Delivery</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 text-blue-600" />
-                  <span>{product.warranty}</span>
-                </div>
+                {product.warranty && (
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-blue-600" />
+                    <span>{product.warranty.toLowerCase().includes('warranty') ? product.warranty : `${product.warranty} Warranty`}</span>
+                  </div>
+                )}
                 <div className="flex items-center gap-2">
                   <span className={`h-2.5 w-2.5 rounded-full ${product.inStock ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
                   <span>Stock: <strong className="text-slate-900">{product.inStock ? `In Stock (${product.stockCount} left)` : 'Out of Stock'}</strong></span>
@@ -724,10 +721,12 @@ export default function ProductDetail() {
                         <td className="px-4 py-3 font-bold text-slate-600">Camera Type</td>
                         <td className="px-4 py-3 text-slate-800 capitalize">{product.subCategory || 'Bullet'}</td>
                       </tr>
-                      <tr className="border-b border-gray-200 bg-gray-50/50">
-                        <td className="px-4 py-3 font-bold text-slate-600">Warranty</td>
-                        <td className="px-4 py-3 text-slate-800">{product.warranty}</td>
-                      </tr>
+                      {product.warranty && (
+                        <tr className="border-b border-gray-200 bg-gray-50/50">
+                          <td className="px-4 py-3 font-bold text-slate-600">Warranty</td>
+                          <td className="px-4 py-3 text-slate-800">{product.warranty.toLowerCase().includes('warranty') ? product.warranty : `${product.warranty} Warranty`}</td>
+                        </tr>
+                      )}
                       <tr className="border-b border-gray-200">
                         <td className="px-4 py-3 font-bold text-slate-600">Weatherproofing</td>
                         <td className="px-4 py-3 text-slate-800">IP67 Weatherproof Rated</td>
@@ -790,7 +789,7 @@ export default function ProductDetail() {
               <div className="space-y-4 max-w-3xl">
                 <h3 className="text-lg font-bold text-slate-900">Warranty Coverage</h3>
                 <p className="text-sm text-slate-650 leading-relaxed">
-                  Your purchase includes a <strong className="text-slate-900">{product.warranty}</strong> replacement promise covering manufacturing defects or hardware malfunctions.
+                  Your purchase includes a <strong className="text-slate-900">{product.warranty ? (product.warranty.toLowerCase().includes('warranty') ? product.warranty : `${product.warranty} Warranty`) : 'Manufacturer Warranty'}</strong> replacement promise covering manufacturing defects or hardware malfunctions.
                 </p>
                 <ul className="list-disc pl-5 text-sm text-slate-600 space-y-1">
                   <li>Coverage includes camera sensors, lenses, and PoE processors.</li>
