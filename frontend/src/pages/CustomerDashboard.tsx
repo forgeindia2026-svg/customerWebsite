@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { 
   ShoppingBag, 
   Wrench, 
@@ -152,8 +152,29 @@ export default function CustomerDashboard() {
   const [userAddress, setUserAddress] = useState<string>("No address saved yet.");
 
   // Tab State
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<string>("Dashboard");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Sync tab from URL query parameter (e.g. /dashboard?tab=orders or /dashboard?tab=profile)
+  useEffect(() => {
+    const tabParam = searchParams.get("tab")?.toLowerCase();
+    if (tabParam === "orders" || tabParam === "my-orders") {
+      setActiveTab("My Orders");
+    } else if (tabParam === "profile" || tabParam === "settings" || tabParam === "profile-settings") {
+      setActiveTab("Profile Settings");
+    } else if (tabParam === "installations") {
+      setActiveTab("My Installations");
+    } else if (tabParam === "requests") {
+      setActiveTab("Service Requests");
+    } else if (tabParam === "wishlist") {
+      setActiveTab("Wishlist");
+    } else if (tabParam === "products") {
+      setActiveTab("My Products");
+    } else if (tabParam === "dashboard") {
+      setActiveTab("Dashboard");
+    }
+  }, [searchParams]);
 
   // Dynamic Dashboard Stats
   const [dbOrders, setDbOrders] = useState<any[]>([]);

@@ -12,6 +12,8 @@ import {
   ChevronDown,
   Menu,
   X,
+  ShoppingBag,
+  LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,6 +53,7 @@ const navItems = [
 export default function Header() {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileProductsOpen, setMobileProductsOpen] = useState(false);
   const location = useLocation();
   const navRef = useRef<HTMLDivElement>(null);
 
@@ -88,6 +91,7 @@ export default function Header() {
   // Close dropdown on route change
   useEffect(() => {
     setActiveDropdown(null);
+    setMobileProductsOpen(false);
   }, [location]);
 
   // Click outside listener to close dropdowns
@@ -307,10 +311,22 @@ export default function Header() {
                     {userName || "Customer"}
                   </div>
                   <Link
+                    to="/dashboard?tab=profile"
+                    className="w-full block text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg transition-colors mb-0.5"
+                  >
+                    My Profile
+                  </Link>
+                  <Link
+                    to="/dashboard?tab=orders"
+                    className="w-full block text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg transition-colors mb-0.5"
+                  >
+                    My Orders
+                  </Link>
+                  <Link
                     to="/dashboard"
                     className="w-full block text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg transition-colors mb-0.5"
                   >
-                    My Dashboard
+                    Customer Dashboard
                   </Link>
                   <button
                     onClick={handleLogout}
@@ -388,29 +404,112 @@ export default function Header() {
 
             {navItems.map((item) => (
               <div key={item.name} className="flex flex-col">
-                <Link 
-                  to={item.path} 
-                  className="text-[15px] font-bold text-foreground py-2 border-b border-gray-100/50 hover:text-red-500 transition-colors"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  {item.name}
-                </Link>
-                {item.subLinks && (
-                  <div className="pl-4 flex flex-col mt-2 space-y-2 border-l-2 border-red-100 ml-1">
-                    {item.subLinks.map((sub) => (
-                      <Link
-                        key={sub.name}
-                        to={sub.path}
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="text-xs font-semibold text-muted-foreground hover:text-red-500 py-1 transition-colors pl-2"
-                      >
-                        {sub.name}
-                      </Link>
-                    ))}
+                {item.subLinks ? (
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setMobileProductsOpen(!mobileProductsOpen)}
+                      className="w-full flex items-center justify-between text-[15px] font-bold text-foreground py-2 border-b border-gray-100/50 hover:text-red-500 transition-colors text-left cursor-pointer"
+                    >
+                      <span>{item.name}</span>
+                      <ChevronDown
+                        className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${
+                          mobileProductsOpen ? "rotate-180 text-red-500" : ""
+                        }`}
+                      />
+                    </button>
+                    {mobileProductsOpen && (
+                      <div className="pl-4 flex flex-col mt-2 mb-2 space-y-2 border-l-2 border-red-200 ml-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                        <Link
+                          to="/products"
+                          onClick={() => {
+                            setMobileMenuOpen(false);
+                            setMobileProductsOpen(false);
+                          }}
+                          className="text-xs font-bold text-red-600 hover:text-red-700 py-1 transition-colors pl-2"
+                        >
+                          All Products Catalog →
+                        </Link>
+                        {item.subLinks.map((sub) => (
+                          <Link
+                            key={sub.name}
+                            to={sub.path}
+                            onClick={() => {
+                              setMobileMenuOpen(false);
+                              setMobileProductsOpen(false);
+                            }}
+                            className="text-xs font-semibold text-muted-foreground hover:text-red-500 py-1 transition-colors pl-2"
+                          >
+                            {sub.name}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
                   </div>
+                ) : (
+                  <Link 
+                    to={item.path} 
+                    className="text-[15px] font-bold text-foreground py-2 border-b border-gray-100/50 hover:text-red-500 transition-colors"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    {item.name}
+                  </Link>
                 )}
               </div>
             ))}
+
+            {/* My Profile */}
+            <div className="flex flex-col">
+              <Link 
+                to={userToken ? "/dashboard?tab=profile" : "/login"} 
+                className="text-[15px] font-bold text-foreground py-2 border-b border-gray-100/50 hover:text-red-500 transition-colors flex items-center justify-between"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <div className="flex items-center gap-2.5">
+                  <User className="h-4 w-4 text-red-500" />
+                  <span>My Profile</span>
+                </div>
+                {!userToken && (
+                  <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+                    Login
+                  </span>
+                )}
+              </Link>
+            </div>
+
+            {/* My Orders */}
+            <div className="flex flex-col">
+              <Link 
+                to={userToken ? "/dashboard?tab=orders" : "/login"} 
+                className="text-[15px] font-bold text-foreground py-2 border-b border-gray-100/50 hover:text-red-500 transition-colors flex items-center justify-between"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <div className="flex items-center gap-2.5">
+                  <ShoppingBag className="h-4 w-4 text-red-500" />
+                  <span>My Orders</span>
+                </div>
+                {!userToken && (
+                  <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+                    Login
+                  </span>
+                )}
+              </Link>
+            </div>
+
+            {/* Logout button for logged in user */}
+            {userToken && (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  handleLogout();
+                }}
+                className="text-[14px] font-bold text-red-600 hover:text-red-700 py-2 border-b border-gray-100/50 flex items-center gap-2.5 transition-colors cursor-pointer text-left"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Logout ({userName || "Customer"})</span>
+              </button>
+            )}
+
             <Link to="/contact" onClick={() => setMobileMenuOpen(false)} className="pt-4 pb-2 block w-full">
               <Button className="w-full bg-red-500 hover:bg-red-600 text-white font-bold h-10 rounded-full shadow-md">
                 Get Quote / Contact Us
