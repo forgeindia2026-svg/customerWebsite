@@ -499,14 +499,17 @@ export default function Orders() {
   const totalOrdersCount = orders.length;
   const pendingOrdersCount = orders.filter(o => getDisplayStatus(o) === 'Pending').length;
   const inProgressOrdersCount = orders.filter(o => getDisplayStatus(o) === 'In Progress').length;
-  const completedOrdersCount = orders.filter(o => getDisplayStatus(o) === 'Completed').length;
+  const completedOrdersCount = orders.filter(o => {
+    const s = getDisplayStatus(o);
+    return s === 'Completed' || s === 'Approved';
+  }).length;
   const totalRevenue = orders.reduce((sum, o) => sum + (Number(o.amount) || 0), 0);
 
   return (
     <div className="space-y-6">
       
-      {/* 📊 Orders KPI Summary Cards Row (Clean, Simple & Minimalist) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      {/* 📊 Orders KPI Summary Cards Row (5 Cards: Total, Pending, In Progress, Completed, Revenue) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         {/* 1. Total Orders */}
         <div 
           onClick={() => setStatusFilter('All')}
@@ -561,11 +564,29 @@ export default function Orders() {
           </div>
         </div>
 
-        {/* 4. Completed Revenue */}
+        {/* 4. Completed (Requested KPI Card) */}
         <div 
           onClick={() => setStatusFilter('Completed')}
           className={`p-4 sm:p-5 rounded-2xl bg-[#D6F5E3] border border-[#BBECD0] dark:bg-emerald-900/30 dark:border-emerald-800 transition-all cursor-pointer shadow-xs hover:shadow-md hover:scale-[1.01] active:scale-[0.99] select-none flex items-center justify-between ${
             statusFilter === 'Completed' || statusFilter === 'Approved' ? 'ring-2 ring-emerald-500 shadow-md' : ''
+          }`}
+        >
+          <div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Completed</span>
+            <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono mt-1">
+              {completedOrdersCount}
+            </h3>
+          </div>
+          <div className="w-12 h-12 rounded-full bg-[#069655] text-white flex items-center justify-center shadow-md shadow-emerald-600/25 shrink-0">
+            <FiCheckCircle size={22} />
+          </div>
+        </div>
+
+        {/* 5. Completed Revenue */}
+        <div 
+          onClick={() => setStatusFilter('Completed')}
+          className={`p-4 sm:p-5 rounded-2xl bg-[#E0F2FE] border border-[#BAE6FD] dark:bg-sky-900/30 dark:border-sky-800 transition-all cursor-pointer shadow-xs hover:shadow-md hover:scale-[1.01] active:scale-[0.99] select-none flex items-center justify-between ${
+            statusFilter === 'Completed' || statusFilter === 'Approved' ? 'ring-2 ring-sky-500 shadow-md' : ''
           }`}
         >
           <div>
@@ -574,8 +595,8 @@ export default function Orders() {
               ₹{totalRevenue.toLocaleString('en-IN')}
             </h3>
           </div>
-          <div className="w-12 h-12 rounded-full bg-[#069655] text-white flex items-center justify-center shadow-md shadow-emerald-600/25 shrink-0">
-            <FiCheckCircle size={22} />
+          <div className="w-12 h-12 rounded-full bg-[#0284C7] text-white flex items-center justify-center shadow-md shadow-sky-600/25 shrink-0">
+            <FiDollarSign size={22} />
           </div>
         </div>
       </div>

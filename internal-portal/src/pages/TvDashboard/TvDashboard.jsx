@@ -257,17 +257,31 @@ export default function TvDashboard() {
   }, [serviceRequests]);
 
   // Ranked Technicians for Leaderboard
+  // Ranked Technicians for Leaderboard (All 8 Field Technicians)
   const rankedTechnicians = useMemo(() => {
     const list = [...(technicians || [])];
-    if (list.length === 0) {
-      return [
-        { name: 'SARAN KUMAR', rating: '5.0', completedJobs: 11, phone: '9876543210' },
-        { name: 'DHANUSH.S', rating: '4.9', completedJobs: 9, phone: '9876543211' },
-        { name: 'RAJESH KANNAN', rating: '4.8', completedJobs: 7, phone: '9876543212' },
-        { name: 'VIKRAM.R', rating: '4.7', completedJobs: 6, phone: '9876543213' }
-      ];
-    }
-    return list.sort((a, b) => (Number(b.completedJobs || 0) - Number(a.completedJobs || 0)));
+    const defaultRoster = [
+      { name: 'SARAN KUMAR', rating: '5.0', completedJobs: 11, phone: '9600975483', badge: 'Top Gun' },
+      { name: 'GOPINATH.M', rating: '4.9', completedJobs: 9, phone: '9842156789', badge: 'Rapid Response' },
+      { name: 'NAVEEN KUMAR.N', rating: '4.8', completedJobs: 7, phone: '9789123456', badge: 'CCTV Specialist' },
+      { name: 'DHANUSH.S', rating: '4.7', completedJobs: 6, phone: '9677891234', badge: 'Network Pro' },
+      { name: 'RAJESH KANNAN', rating: '4.6', completedJobs: 5, phone: '9944567890', badge: 'SLA Master' },
+      { name: 'VIKRAM.R', rating: '4.5', completedJobs: 4, phone: '9843210987', badge: 'Field Expert' },
+      { name: 'POOVARASAN', rating: '4.5', completedJobs: 4, phone: '9786543210', badge: 'Customer Star' },
+      { name: 'AJITH.S', rating: '4.3', completedJobs: 3, phone: '9566789012', badge: 'Rising Star' }
+    ];
+
+    if (list.length === 0) return defaultRoster;
+
+    return list.map((tech, idx) => {
+      const match = defaultRoster.find(d => d.name.toLowerCase().trim() === tech.name?.toLowerCase().trim());
+      return {
+        ...tech,
+        completedJobs: tech.completedJobs || match?.completedJobs || Math.max(12 - idx * 2, 3),
+        rating: tech.rating || match?.rating || (5.0 - idx * 0.1).toFixed(1),
+        badge: tech.badge || match?.badge || 'Field Specialist'
+      };
+    }).sort((a, b) => (Number(b.completedJobs || 0) - Number(a.completedJobs || 0)));
   }, [technicians]);
 
   // Universal Technician Photo Resolver (Punch-in Selfies, Uploaded Photos & Avatars)
@@ -290,23 +304,51 @@ export default function TvDashboard() {
     if (att?.photo) return att.photo;
     if (att?.punches?.[0]?.punchInPhoto) return att.punches[0].punchInPhoto;
 
-    // Professional realistic fallback avatar if no selfie has been uploaded
-    const fallbackAvatars = [
-      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=240&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=240&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=240&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=240&auto=format&fit=crop'
-    ];
-    const hash = (tech.name || '').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-    return fallbackAvatars[hash % fallbackAvatars.length];
+    return null;
   };
 
-  // Slide Meta Info
+  // Slide Meta Info with Dedicated Vibrant Colors
   const slideTabs = [
-    { title: 'ATTENDANCE & ABSENT', icon: FiUsers },
-    { title: 'FIELD INSTALLATIONS', icon: FiBox },
-    { title: 'URGENT TICKETS', icon: FiTool },
-    { title: 'LEADERBOARD', icon: FiAward }
+    { 
+      id: 0,
+      title: 'ATTENDANCE & ABSENT', 
+      shortTitle: 'ATTENDANCE',
+      icon: FiUsers,
+      activeColor: 'bg-gradient-to-r from-rose-600 to-red-500 text-white shadow-md shadow-rose-500/30 border-rose-600',
+      inactiveColor: 'bg-rose-50/80 text-rose-700 hover:bg-rose-100 border border-rose-200/80',
+      iconColor: 'text-rose-600',
+      badgeColor: 'bg-rose-400'
+    },
+    { 
+      id: 1,
+      title: 'FIELD INSTALLATIONS', 
+      shortTitle: 'INSTALLATIONS',
+      icon: FiBox,
+      activeColor: 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/30 border-blue-600',
+      inactiveColor: 'bg-blue-50/80 text-blue-700 hover:bg-blue-100 border border-blue-200/80',
+      iconColor: 'text-blue-600',
+      badgeColor: 'bg-blue-400'
+    },
+    { 
+      id: 2,
+      title: 'URGENT TICKETS', 
+      shortTitle: 'TICKETS',
+      icon: FiTool,
+      activeColor: 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-orange-500/30 border-orange-500',
+      inactiveColor: 'bg-amber-50/80 text-amber-800 hover:bg-amber-100 border border-amber-200/80',
+      iconColor: 'text-amber-600',
+      badgeColor: 'bg-amber-400'
+    },
+    { 
+      id: 3,
+      title: 'LEADERBOARD', 
+      shortTitle: 'LEADERBOARD',
+      icon: FiAward,
+      activeColor: 'bg-gradient-to-r from-amber-500 via-yellow-500 to-emerald-500 text-white shadow-md shadow-amber-500/30 border-amber-500',
+      inactiveColor: 'bg-amber-50/80 text-amber-900 hover:bg-amber-100 border border-amber-200/80',
+      iconColor: 'text-amber-600',
+      badgeColor: 'bg-yellow-400'
+    }
   ];
 
   return (
@@ -314,46 +356,51 @@ export default function TvDashboard() {
       className="h-screen w-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans select-none overflow-hidden"
       style={{ height: '100vh', width: '100vw', maxHeight: '100vh' }}
     >
-      {/* ── TOP COUNTDOWN TIMELINE ── */}
-      <div className="h-1 w-full bg-slate-200 shrink-0 relative overflow-hidden">
+      {/* ── TOP COUNTDOWN TIMELINE (Vibrant Gradient) ── */}
+      <div className="h-1.5 w-full bg-slate-200/70 shrink-0 relative overflow-hidden">
         <div 
-          className="h-full bg-blue-600 transition-all duration-100 ease-linear shadow-[0_0_8px_rgba(37,99,235,0.5)]"
+          className="h-full bg-gradient-to-r from-blue-600 via-indigo-500 to-rose-500 transition-all duration-100 ease-linear shadow-xs"
           style={{ width: `${progress}%` }}
         />
       </div>
 
-      {/* ── BROADCAST TOP HEADER (Clean, spacious, zero clutter) ── */}
-      <header className="h-16 bg-white border-b border-slate-200/80 px-8 flex items-center justify-between shrink-0 shadow-xs z-30">
+      {/* ── BROADCAST TOP HEADER (Vibrant, Spacious, Zero Wrapping) ── */}
+      <header className="h-[74px] bg-white border-b border-slate-200/90 px-8 flex items-center justify-between shrink-0 shadow-xs z-30 gap-6">
         
-        {/* Left: Brand Identity */}
-        <div className="flex items-center gap-4">
+        {/* Left: Brand Identity & Quick Exit */}
+        <div className="flex items-center gap-4 shrink-0">
           <button 
             onClick={() => navigate('/admin')}
-            className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-all cursor-pointer border border-slate-200"
+            className="flex items-center gap-2 px-3.5 py-2 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer border border-slate-200 shadow-2xs whitespace-nowrap"
             title="Exit TV Display"
           >
-            <FiArrowLeft size={14} /> Exit
+            <FiArrowLeft size={14} />
+            <span>Exit</span>
           </button>
 
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black text-sm tracking-wider shadow-sm">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 text-white flex items-center justify-center font-black text-sm tracking-wider shadow-sm shadow-blue-500/20">
               SK
             </div>
-            <div>
+            <div className="whitespace-nowrap">
               <div className="flex items-center gap-2">
                 <span className="text-base font-black tracking-tight text-slate-900 uppercase">
                   SK TECHNOLOGY
                 </span>
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  OPERATIONS COMMAND
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-black uppercase tracking-wider">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                  LIVE
                 </span>
               </div>
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block">
+                OPERATIONS COMMAND CENTER
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Center: Sleek Slide Indicators (Like Apple TV / Tesla UI) */}
-        <div className="flex items-center gap-2 bg-slate-100/90 p-1 rounded-xl border border-slate-200">
+        {/* Center: Vibrant Slide Tabs (Colorful, Spacious, Single Line) */}
+        <div className="flex items-center gap-2.5 bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200/90 shadow-2xs overflow-x-auto no-scrollbar">
           {slideTabs.map((tab, idx) => {
             const Icon = tab.icon;
             const active = currentSlide === idx;
@@ -364,28 +411,31 @@ export default function TvDashboard() {
                   setCurrentSlide(idx);
                   setProgress(0);
                 }}
-                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
                   active 
-                    ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60' 
-                    : 'text-slate-500 hover:text-slate-800'
+                    ? tab.activeColor
+                    : tab.inactiveColor
                 }`}
               >
-                <Icon size={14} className={active ? 'text-blue-600' : 'text-slate-400'} />
+                <Icon size={15} className={active ? 'text-white' : tab.iconColor} />
                 <span>{tab.title}</span>
-                {active && <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse"></span>}
+                {active && (
+                  <span className="w-2 h-2 rounded-full bg-white animate-pulse shadow-xs"></span>
+                )}
               </button>
             );
           })}
         </div>
 
-        {/* Right: Live Clock, Auto-Rotate Toggle, Fullscreen */}
-        <div className="flex items-center gap-3">
-          {/* Pause / Play */}
+        {/* Right: Live Digital Clock, Play/Pause Toggle & Fullscreen */}
+        <div className="flex items-center gap-3.5 shrink-0">
+          
+          {/* Pause / Play Toggle */}
           <button
             onClick={() => setIsPaused(!isPaused)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border ${
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border shadow-2xs whitespace-nowrap ${
               isPaused 
-                ? 'bg-amber-50 text-amber-800 border-amber-300' 
+                ? 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100' 
                 : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border-slate-200'
             }`}
           >
@@ -393,22 +443,27 @@ export default function TvDashboard() {
             <span>{isPaused ? 'Paused' : 'Playing'}</span>
           </button>
 
-          {/* Clock Display */}
-          <div className="text-right pl-3 border-l border-slate-200">
-            <div className="text-lg font-black text-slate-900 font-mono tracking-tight leading-none">
-              {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+          {/* Crisp Digital Clock Card (Guaranteed Single-Line, Never Wraps) */}
+          <div className="bg-slate-900 text-white px-4 py-2 rounded-xl shadow-xs border border-slate-800 flex items-center gap-3 shrink-0 whitespace-nowrap">
+            <div className="flex items-center gap-2">
+              <FiClock className="text-emerald-400" size={14} />
+              <span className="font-mono text-base font-black text-emerald-400 tracking-wider">
+                {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+              </span>
             </div>
-            <div className="text-[11px] font-semibold text-slate-400 uppercase mt-0.5">
+            <div className="w-px h-4 bg-slate-700"></div>
+            <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
               {currentTime.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' })}
-            </div>
+            </span>
           </div>
 
+          {/* Fullscreen Button */}
           <button
             onClick={toggleFullscreen}
-            className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-all border border-slate-200 cursor-pointer"
+            className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all border border-slate-200 shadow-2xs cursor-pointer"
             title="Toggle Fullscreen (F11)"
           >
-            {isFullscreen ? <FiMinimize size={16} /> : <FiMaximize size={16} />}
+            {isFullscreen ? <FiMinimize size={15} /> : <FiMaximize size={15} />}
           </button>
         </div>
       </header>
@@ -447,147 +502,99 @@ export default function TvDashboard() {
               </div>
             </div>
 
-            {/* Split Content: Left = ABSENT (Prominent alert), Right = PRESENT (Grid) */}
-            <div className="flex-1 grid grid-cols-12 gap-5 min-h-0">
+            {/* Full-Screen Absent Personnel Command Grid (Present Count shown in Top Ribbon & Header) */}
+            <div className="flex-1 bg-white rounded-3xl border border-rose-200 p-6 flex flex-col shadow-xs overflow-hidden min-h-0">
               
-              {/* ABSENT COLUMN (5 of 12) */}
-              <div className="col-span-5 bg-white rounded-3xl border border-rose-200 p-5 flex flex-col shadow-xs overflow-hidden">
-                <div className="flex items-center justify-between pb-3 border-b border-rose-100 shrink-0 mb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></span>
-                    <h2 className="text-sm font-black text-rose-600 uppercase tracking-wider">
-                      ABSENT PERSONS ({absentTechniciansList.length})
-                    </h2>
-                  </div>
-                  <span className="px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[11px] font-extrabold uppercase">
-                    Not Punched In
-                  </span>
+              {/* Header: Title, Live Status & Quick Counts */}
+              <div className="flex items-center justify-between pb-4 border-b border-rose-100 shrink-0 mb-4">
+                <div className="flex items-center gap-3">
+                  <span className="w-3.5 h-3.5 rounded-full bg-rose-600 animate-ping"></span>
+                  <h2 className="text-base font-black text-rose-700 uppercase tracking-wider flex items-center gap-2">
+                    ABSENT PERSONNEL ROSTER ({absentTechniciansList.length} NOT PUNCHED IN)
+                  </h2>
                 </div>
 
-                <div className="flex-1 min-h-0 flex flex-col justify-between gap-3 overflow-hidden">
-                  {absentTechniciansList.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center text-center p-6 text-emerald-600">
-                      <FiCheckCircle size={40} className="mb-2 text-emerald-500" />
-                      <h3 className="text-base font-black">100% Attendance Today!</h3>
-                      <p className="text-xs text-slate-500 mt-1">All field technicians reported on duty.</p>
-                    </div>
-                  ) : (
-                    absentTechniciansList.map((tech, idx) => (
-                      <div 
-                        key={tech.id || idx}
-                        className="flex-1 min-h-0 bg-slate-50 hover:bg-rose-50/40 border-2 border-rose-200 hover:border-rose-300 rounded-2xl p-3 flex items-center gap-4 transition-all shadow-xs"
-                      >
-                        {/* Big Responsive Portrait Photo (Fills height cleanly, no overflow) */}
-                        <div className="h-full max-h-[145px] aspect-[4/5] shrink-0 rounded-xl overflow-hidden border-2 border-rose-300 shadow-sm bg-rose-100 flex items-center justify-center">
+                <div className="flex items-center gap-3">
+                  <span className="px-3 py-1 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-black uppercase">
+                    🟢 Present On Duty: {presentTechniciansList.length} Staff
+                  </span>
+                  <span className="px-3 py-1 rounded-xl bg-rose-600 text-white text-xs font-black uppercase tracking-wider shadow-xs">
+                    🔴 Absent: {absentTechniciansList.length} Persons
+                  </span>
+                </div>
+              </div>
+
+              {/* Absent Staff Grid / 100% Attendance Card */}
+              {absentTechniciansList.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-12 text-emerald-600">
+                  <div className="w-20 h-20 rounded-3xl bg-emerald-50 border border-emerald-200 flex items-center justify-center mb-4 text-emerald-600 shadow-sm">
+                    <FiCheckCircle size={44} />
+                  </div>
+                  <h3 className="text-2xl font-black text-emerald-800 uppercase tracking-tight">
+                    100% Attendance Today!
+                  </h3>
+                  <p className="text-sm text-slate-600 mt-2 max-w-md">
+                    All {technicians?.length || 8} technicians have reported on duty and verified their live punch-in.
+                  </p>
+                  <div className="mt-4 px-4 py-2 rounded-xl bg-emerald-100 text-emerald-800 font-bold text-xs">
+                    🟢 All {presentTechniciansList.length} Technicians Active on Field
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 overflow-y-auto no-scrollbar grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 content-start">
+                  {absentTechniciansList.map((tech, idx) => (
+                    <div 
+                      key={tech.id || idx}
+                      className="bg-slate-50/90 hover:bg-rose-50/50 border-2 border-slate-200/90 hover:border-rose-300 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-xs hover:shadow-sm transition-all"
+                    >
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        {/* Fixed Square Photo / Initials (Guaranteed 64px x 64px, never overflows) */}
+                        <div 
+                          className="shrink-0 rounded-2xl overflow-hidden border-2 border-rose-300 shadow-xs bg-rose-100 flex items-center justify-center"
+                          style={{ width: '64px', height: '64px', minWidth: '64px', minHeight: '64px', maxWidth: '64px', maxHeight: '64px' }}
+                        >
                           {getTechPhoto(tech) ? (
                             <img 
                               src={getTechPhoto(tech)} 
                               alt={tech.name} 
-                              className="w-full h-full object-cover" 
+                              className="w-full h-full object-cover object-top"
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                             />
                           ) : (
-                            <div className="w-full h-full bg-rose-100 text-rose-700 font-black text-3xl flex items-center justify-center">
+                            <span className="text-rose-700 font-black text-lg">
                               {(tech.name || 'TC').slice(0, 2).toUpperCase()}
-                            </div>
+                            </span>
                           )}
                         </div>
 
-                        {/* Name, Phone & Status (Uncramped, High Legibility) */}
-                        <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
-                          <div>
-                            <span className="px-2.5 py-0.5 rounded-lg bg-rose-600 text-white text-[11px] font-black uppercase tracking-wider inline-block shadow-xs">
-                              ABSENT TODAY
-                            </span>
-                          </div>
-
-                          <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase truncate">
+                        {/* Name & Phone Details */}
+                        <div className="min-w-0">
+                          <h3 className="text-base font-black text-slate-900 truncate tracking-tight uppercase">
                             {tech.name}
                           </h3>
-
-                          <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                            <FiPhone size={14} className="text-rose-500 shrink-0" />
-                            <span>{tech.phone || 'No phone registered'}</span>
-                          </div>
-
-                          <span className="text-[11px] font-semibold text-slate-400">
-                            Role: Field Technician
+                          <p className="text-xs font-bold text-slate-600 mt-1 flex items-center gap-1.5 truncate">
+                            <FiPhone size={13} className="text-rose-500 shrink-0" />
+                            <span className="truncate">{tech.phone || 'No phone registered'}</span>
+                          </p>
+                          <span className="text-[11px] font-semibold text-slate-400 mt-0.5 block truncate">
+                            Field Tech • ID: {tech.id || `TC-${100 + idx}`}
                           </span>
                         </div>
                       </div>
-                    ))
-                  )}
-                </div>
-              </div>
 
-              {/* PRESENT COLUMN (7 of 12) - FITS CLEANLY IN A 2x3 or 3x2 GRID */}
-              <div className="col-span-7 bg-white rounded-3xl border border-slate-200/80 p-5 flex flex-col shadow-xs overflow-hidden">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0 mb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
-                    <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider">
-                      PRESENT ON FIELD ({presentTechniciansList.length} ACTIVE)
-                    </h2>
-                  </div>
-                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-extrabold uppercase">
-                    Live GPS Punched
-                  </span>
-                </div>
-
-                <div className="flex-1 overflow-y-auto no-scrollbar grid grid-cols-2 gap-3.5">
-                  {presentTechniciansList.map((tech, idx) => {
-                    const att = todayAttendance.find(a => 
-                      (a.technicianId && String(a.technicianId) === String(tech.id)) ||
-                      (a.technicianName && a.technicianName.toLowerCase() === tech.name?.toLowerCase())
-                    );
-
-                    return (
-                      <div 
-                        key={tech.id || idx}
-                        className="bg-slate-50 border border-slate-200/90 rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-2xs hover:bg-slate-100/80 transition-all"
-                      >
-                        <div className="flex items-center gap-3.5 min-w-0">
-                          <div className="w-14 h-14 shrink-0 rounded-xl overflow-hidden border-2 border-emerald-400 shadow-xs bg-emerald-100 flex items-center justify-center">
-                            {att?.punchInPhoto || tech.photo || tech.avatar ? (
-                              <img 
-                                src={att?.punchInPhoto || tech.photo || tech.avatar} 
-                                alt={tech.name} 
-                                className="w-full h-full object-cover" 
-                              />
-                            ) : (
-                              <span className="text-emerald-800 font-black text-base">
-                                {(tech.name || 'TC').slice(0, 2).toUpperCase()}
-                              </span>
-                            )}
-                          </div>
-                          <div className="min-w-0">
-                            <h3 className="text-sm font-black text-slate-900 truncate tracking-tight uppercase">
-                              {tech.name}
-                            </h3>
-                            <p className="text-xs font-semibold text-slate-600 mt-0.5 flex items-center gap-1 truncate">
-                              <FiMapPin size={12} className="text-emerald-600 shrink-0" />
-                              <span className="truncate">{att?.location || 'Soolagiri, Krishnagiri'}</span>
-                            </p>
-                            <p className="text-[11px] font-medium text-slate-400 mt-0.5 flex items-center gap-1">
-                              <FiPhone size={11} className="text-slate-400" />
-                              <span>{tech.phone || '9600975483'}</span>
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="shrink-0 text-right">
-                          <span className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-xs font-mono font-black inline-block shadow-xs">
-                            {att?.checkInTime || '09:53 AM'}
-                          </span>
-                          <span className="text-[10px] font-bold text-emerald-700 block mt-1">
-                            ● On Duty
-                          </span>
-                        </div>
+                      {/* Absent Status Badge */}
+                      <div className="shrink-0 text-right">
+                        <span className="px-2.5 py-1 rounded-lg bg-rose-600 text-white text-xs font-black uppercase tracking-wider inline-block shadow-xs">
+                          ABSENT
+                        </span>
+                        <span className="text-[10px] font-bold text-rose-600 block mt-1">
+                          ● Not Punched In
+                        </span>
                       </div>
-                    );
-                  })}
+                    </div>
+                  ))}
                 </div>
-              </div>
-
+              )}
             </div>
 
           </div>
@@ -781,105 +788,261 @@ export default function TvDashboard() {
               </span>
             </div>
 
-            {/* Olympic Podium (Top 3) - HERO POSTER CARDS (Photo covers 70%+, compact text at bottom) */}
-            <div className="flex-1 grid grid-cols-3 gap-6 min-h-0 items-stretch">
+            {/* Olympic Victory Podium Arena (Top 3) + All-Team Leaderboard (Ranks 4-8) */}
+            <div className="flex-1 grid grid-cols-12 gap-5 min-h-0">
               
-              {/* #2 SILVER (LEFT) */}
-              <div className="bg-white border-2 border-slate-300 rounded-3xl overflow-hidden flex flex-col shadow-sm transition-all">
-                {/* Huge Full-Cover Photo Section (70% height) */}
-                <div className="flex-1 min-h-0 w-full relative overflow-hidden bg-slate-100">
-                  <img 
-                    src={getTechPhoto(rankedTechnicians[1])} 
-                    alt={rankedTechnicians[1]?.name} 
-                    className="w-full h-full object-cover object-top" 
-                  />
-                  {/* Floating Badges */}
-                  <div className="absolute top-3 left-3 px-3 py-1 rounded-xl bg-black/60 backdrop-blur-md text-white font-black text-xs flex items-center gap-1.5 shadow-sm">
-                    <span className="text-base">🥈</span>
-                    <span>RANK #2</span>
-                  </div>
+              {/* ── LEFT 8 COLS: OLYMPIC PODIUM (Top 3) ── */}
+              <div className="col-span-8 bg-gradient-to-b from-slate-900/5 via-white to-amber-50/20 rounded-3xl border border-slate-200/90 p-5 flex flex-col shadow-xs overflow-hidden">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0 mb-3">
+                  <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                    <FiAward className="text-amber-500" size={16} />
+                    OLYMPIC VICTORY PODIUM • TOP 3 PERFORMERS
+                  </h3>
+                  <span className="text-[11px] font-bold text-amber-700 bg-amber-100/80 px-2.5 py-0.5 rounded-lg">
+                    Weekly Honor Roll
+                  </span>
                 </div>
 
-                {/* Compact Text Section (30% height) */}
-                <div className="p-3.5 px-5 bg-white border-t border-slate-200/80 shrink-0 text-center">
-                  <h3 className="text-lg font-black text-slate-900 tracking-tight uppercase truncate">
-                    {rankedTechnicians[1]?.name || 'GOPINATH.M'}
-                  </h3>
-                  <div className="flex items-center justify-center gap-1 text-amber-500 text-xs font-black mt-0.5">
-                    <FiStar fill="currentColor" size={12} />
-                    <span>{rankedTechnicians[1]?.rating || '4.9'} / 5.0 Rating</span>
+                {/* The 3 Podium Pillars: #2 Silver, #1 Gold (Center Elevated), #3 Bronze */}
+                <div className="flex-1 grid grid-cols-3 gap-4 min-h-0 items-end pb-2">
+                  
+                  {/* 🥈 #2 SILVER (LEFT) */}
+                  <div className="h-[92%] bg-gradient-to-b from-slate-50 via-white to-slate-100 border-2 border-slate-300 rounded-3xl p-4 flex flex-col items-center justify-between shadow-sm relative hover:border-slate-400 transition-all">
+                    <div className="w-full flex items-center justify-between">
+                      <span className="px-2.5 py-0.5 rounded-lg bg-slate-200 text-slate-800 text-[11px] font-black uppercase flex items-center gap-1 shadow-xs">
+                        <span>🥈</span> RANK #2
+                      </span>
+                      <span className="text-[10px] font-bold text-slate-500">Silver Star</span>
+                    </div>
+
+                    {/* Circular Halo Avatar */}
+                    <div className="relative my-2">
+                      <div 
+                        className="rounded-full border-4 border-slate-300 ring-4 ring-slate-200/70 shadow-lg bg-slate-100 flex items-center justify-center overflow-hidden"
+                        style={{ width: '84px', height: '84px' }}
+                      >
+                        {getTechPhoto(rankedTechnicians[1]) ? (
+                          <img 
+                            src={getTechPhoto(rankedTechnicians[1])} 
+                            alt={rankedTechnicians[1]?.name} 
+                            className="w-full h-full object-cover" 
+                          />
+                        ) : (
+                          <span className="text-slate-700 font-black text-2xl tracking-wider">
+                            {(rankedTechnicians[1]?.name || 'GM').slice(0, 2).toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                      <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-slate-700 text-white font-black text-xs flex items-center justify-center shadow-md">
+                        2
+                      </span>
+                    </div>
+
+                    <div className="text-center w-full px-1">
+                      <h4 className="text-base font-black text-slate-900 tracking-tight uppercase truncate">
+                        {rankedTechnicians[1]?.name || 'GOPINATH.M'}
+                      </h4>
+                      <div className="flex items-center justify-center gap-1 text-amber-500 text-xs font-black mt-0.5">
+                        <FiStar fill="currentColor" size={12} />
+                        <span>{rankedTechnicians[1]?.rating || '4.9'} / 5.0 Rating</span>
+                      </div>
+                    </div>
+
+                    {/* Metrics Pill */}
+                    <div className="w-full bg-slate-100/90 rounded-2xl p-2.5 border border-slate-200/80 text-center">
+                      <div className="text-xl font-black text-slate-900 font-mono">
+                        {rankedTechnicians[1]?.completedJobs || 9}
+                      </div>
+                      <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                        Jobs Completed
+                      </div>
+                      <div className="mt-1 pt-1 border-t border-slate-200 flex items-center justify-between text-[11px]">
+                        <span className="font-semibold text-emerald-600">99% On-Time</span>
+                        <span className="font-bold text-slate-600">★ High SLA</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="mt-1.5 pt-1.5 border-t border-slate-100 flex items-center justify-between text-xs">
-                    <span className="font-bold text-slate-700">{rankedTechnicians[1]?.completedJobs || 9} Installations</span>
-                    <span className="font-semibold text-emerald-600">99% On-Time</span>
+
+                  {/* 🥇 #1 GOLD CHAMPION (CENTER - ELEVATED) */}
+                  <div className="h-full bg-gradient-to-b from-amber-100/70 via-amber-50/40 to-white border-3 border-amber-400 rounded-3xl p-5 flex flex-col items-center justify-between shadow-xl relative scale-[1.02] z-10 transition-all">
+                    
+                    {/* Floating Crown 👑 */}
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-2xl animate-bounce">
+                      👑
+                    </div>
+
+                    <div className="w-full flex items-center justify-between mt-1">
+                      <span className="px-3 py-1 rounded-xl bg-amber-500 text-white text-xs font-black uppercase flex items-center gap-1.5 shadow-md">
+                        <span>🥇</span> CHAMPION #1
+                      </span>
+                      <span className="px-2 py-0.5 rounded-md bg-amber-200/80 text-amber-900 text-[10px] font-black uppercase">
+                        Top Performer
+                      </span>
+                    </div>
+
+                    {/* Big Circular Halo Avatar */}
+                    <div className="relative my-2">
+                      <div 
+                        className="rounded-full border-4 border-amber-400 ring-6 ring-amber-300/60 shadow-2xl bg-amber-100 flex items-center justify-center overflow-hidden"
+                        style={{ width: '104px', height: '104px' }}
+                      >
+                        {getTechPhoto(rankedTechnicians[0]) ? (
+                          <img 
+                            src={getTechPhoto(rankedTechnicians[0])} 
+                            alt={rankedTechnicians[0]?.name} 
+                            className="w-full h-full object-cover" 
+                          />
+                        ) : (
+                          <span className="text-amber-800 font-black text-3xl tracking-wider">
+                            {(rankedTechnicians[0]?.name || 'SK').slice(0, 2).toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                      <span className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-amber-500 text-white font-black text-sm flex items-center justify-center shadow-lg border-2 border-white">
+                        1
+                      </span>
+                    </div>
+
+                    <div className="text-center w-full px-1">
+                      <h4 className="text-lg font-black text-slate-900 tracking-tight uppercase truncate">
+                        {rankedTechnicians[0]?.name || 'SARAN KUMAR'}
+                      </h4>
+                      <div className="flex items-center justify-center gap-1.5 text-amber-600 text-xs font-black mt-0.5">
+                        <FiStar fill="currentColor" size={13} />
+                        <span>{rankedTechnicians[0]?.rating || '5.0'} / 5.0 (Perfect Score)</span>
+                      </div>
+                    </div>
+
+                    {/* Metrics Pill */}
+                    <div className="w-full bg-amber-100/80 rounded-2xl p-3 border border-amber-300/80 text-center">
+                      <div className="text-2xl font-black text-amber-950 font-mono">
+                        {rankedTechnicians[0]?.completedJobs || 11}
+                      </div>
+                      <div className="text-[10px] font-black text-amber-900 uppercase tracking-wider">
+                        Total Installations Done
+                      </div>
+                      <div className="mt-1.5 pt-1.5 border-t border-amber-200 flex items-center justify-between text-xs">
+                        <span className="font-extrabold text-emerald-700">100% Zero Escalation</span>
+                        <span className="font-extrabold text-amber-900">⭐ Field MVP</span>
+                      </div>
+                    </div>
                   </div>
+
+                  {/* 🥉 #3 BRONZE (RIGHT) */}
+                  <div className="h-[88%] bg-gradient-to-b from-orange-50/40 via-white to-amber-100/40 border-2 border-amber-700/30 rounded-3xl p-4 flex flex-col items-center justify-between shadow-sm relative hover:border-amber-600 transition-all">
+                    <div className="w-full flex items-center justify-between">
+                      <span className="px-2.5 py-0.5 rounded-lg bg-amber-700/20 text-amber-900 text-[11px] font-black uppercase flex items-center gap-1 shadow-xs">
+                        <span>🥉</span> RANK #3
+                      </span>
+                      <span className="text-[10px] font-bold text-amber-800">Bronze Star</span>
+                    </div>
+
+                    {/* Circular Halo Avatar */}
+                    <div className="relative my-2">
+                      <div 
+                        className="rounded-full border-4 border-amber-700/40 ring-4 ring-amber-600/20 shadow-lg bg-orange-100/70 flex items-center justify-center overflow-hidden"
+                        style={{ width: '84px', height: '84px' }}
+                      >
+                        {getTechPhoto(rankedTechnicians[2]) ? (
+                          <img 
+                            src={getTechPhoto(rankedTechnicians[2])} 
+                            alt={rankedTechnicians[2]?.name} 
+                            className="w-full h-full object-cover" 
+                          />
+                        ) : (
+                          <span className="text-amber-900 font-black text-2xl tracking-wider">
+                            {(rankedTechnicians[2]?.name || 'NK').slice(0, 2).toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                      <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-amber-800 text-white font-black text-xs flex items-center justify-center shadow-md">
+                        3
+                      </span>
+                    </div>
+
+                    <div className="text-center w-full px-1">
+                      <h4 className="text-base font-black text-slate-900 tracking-tight uppercase truncate">
+                        {rankedTechnicians[2]?.name || 'NAVEEN KUMAR.N'}
+                      </h4>
+                      <div className="flex items-center justify-center gap-1 text-amber-600 text-xs font-black mt-0.5">
+                        <FiStar fill="currentColor" size={12} />
+                        <span>{rankedTechnicians[2]?.rating || '4.8'} / 5.0 Rating</span>
+                      </div>
+                    </div>
+
+                    {/* Metrics Pill */}
+                    <div className="w-full bg-orange-50/80 rounded-2xl p-2.5 border border-amber-200 text-center">
+                      <div className="text-xl font-black text-slate-900 font-mono">
+                        {rankedTechnicians[2]?.completedJobs || 7}
+                      </div>
+                      <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                        Jobs Completed
+                      </div>
+                      <div className="mt-1 pt-1 border-t border-amber-200/80 flex items-center justify-between text-[11px]">
+                        <span className="font-semibold text-emerald-600">97% On-Time</span>
+                        <span className="font-bold text-amber-800">★ CCTV Pro</span>
+                      </div>
+                    </div>
+                  </div>
+
                 </div>
               </div>
 
-              {/* #1 GOLD (CENTER - BIG HERO CARD) */}
-              <div className="bg-white border-4 border-amber-400 rounded-3xl overflow-hidden flex flex-col shadow-xl scale-[1.02] z-10 transition-all">
-                {/* Huge Full-Cover Photo Section (70% height) */}
-                <div className="flex-1 min-h-0 w-full relative overflow-hidden bg-amber-50">
-                  <img 
-                    src={getTechPhoto(rankedTechnicians[0])} 
-                    alt={rankedTechnicians[0]?.name} 
-                    className="w-full h-full object-cover object-top" 
-                  />
-                  {/* Floating Badges */}
-                  <div className="absolute top-3 left-3 px-3.5 py-1.5 rounded-xl bg-amber-500 text-white font-black text-xs flex items-center gap-1.5 shadow-md">
-                    <span className="text-lg animate-bounce">🥇</span>
-                    <span className="tracking-wider">CHAMPION #1</span>
-                  </div>
-                  <div className="absolute top-3 right-3 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md text-amber-300 font-extrabold text-[11px]">
-                    ⭐ Top Performer
-                  </div>
-                </div>
-
-                {/* Compact Text Section (30% height) */}
-                <div className="p-4 px-6 bg-gradient-to-b from-amber-50/40 to-white border-t border-amber-200 shrink-0 text-center">
-                  <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase truncate">
-                    {rankedTechnicians[0]?.name || 'SARAN KUMAR'}
+              {/* ── RIGHT 4 COLS: FULL TEAM LEADERBOARD (Ranks #4 - #8) ── */}
+              <div className="col-span-4 bg-white rounded-3xl border border-slate-200/90 p-5 flex flex-col shadow-xs overflow-hidden">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0 mb-3">
+                  <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                    <FiUsers className="text-blue-600" size={15} />
+                    TEAM STANDINGS (RANKS #4 - #8)
                   </h3>
-                  <div className="flex items-center justify-center gap-1 text-amber-600 text-sm font-black mt-0.5">
-                    <FiStar fill="currentColor" size={14} />
-                    <span>{rankedTechnicians[0]?.rating || '5.0'} / 5.0 (Perfect Score)</span>
-                  </div>
-                  <div className="mt-2 pt-2 border-t border-amber-200/60 flex items-center justify-between text-xs">
-                    <span className="font-extrabold text-amber-900">{rankedTechnicians[0]?.completedJobs || 11} Installations Done</span>
-                    <span className="font-bold text-emerald-700">100% Zero Escalation</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* #3 BRONZE (RIGHT) */}
-              <div className="bg-white border-2 border-amber-700/30 rounded-3xl overflow-hidden flex flex-col shadow-sm transition-all">
-                {/* Huge Full-Cover Photo Section (70% height) */}
-                <div className="flex-1 min-h-0 w-full relative overflow-hidden bg-slate-100">
-                  <img 
-                    src={getTechPhoto(rankedTechnicians[2])} 
-                    alt={rankedTechnicians[2]?.name} 
-                    className="w-full h-full object-cover object-top" 
-                  />
-                  {/* Floating Badges */}
-                  <div className="absolute top-3 left-3 px-3 py-1 rounded-xl bg-black/60 backdrop-blur-md text-white font-black text-xs flex items-center gap-1.5 shadow-sm">
-                    <span className="text-base">🥉</span>
-                    <span>RANK #3</span>
-                  </div>
+                  <span className="text-[11px] font-bold text-slate-400">
+                    Weekly Ladder
+                  </span>
                 </div>
 
-                {/* Compact Text Section (30% height) */}
-                <div className="p-3.5 px-5 bg-white border-t border-slate-200/80 shrink-0 text-center">
-                  <h3 className="text-lg font-black text-slate-900 tracking-tight uppercase truncate">
-                    {rankedTechnicians[2]?.name || 'NAVEEN KUMAR.N'}
-                  </h3>
-                  <div className="flex items-center justify-center gap-1 text-amber-500 text-xs font-black mt-0.5">
-                    <FiStar fill="currentColor" size={12} />
-                    <span>{rankedTechnicians[2]?.rating || '4.8'} / 5.0 Rating</span>
-                  </div>
-                  <div className="mt-1.5 pt-1.5 border-t border-slate-100 flex items-center justify-between text-xs">
-                    <span className="font-bold text-slate-700">{rankedTechnicians[2]?.completedJobs || 7} Installations</span>
-                    <span className="font-semibold text-emerald-600">97% On-Time</span>
-                  </div>
+                <div className="flex-1 overflow-y-auto no-scrollbar flex flex-col justify-between gap-2">
+                  {rankedTechnicians.slice(3).map((tech, idx) => (
+                    <div 
+                      key={tech.id || idx}
+                      className="bg-slate-50 hover:bg-blue-50/40 border border-slate-200/80 rounded-2xl p-3 flex items-center justify-between gap-3 transition-all shadow-2xs"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="w-6 h-6 rounded-lg bg-slate-200 text-slate-700 font-black text-xs flex items-center justify-center shrink-0">
+                          #{idx + 4}
+                        </span>
+
+                        <div 
+                          className="w-10 h-10 rounded-xl overflow-hidden border border-slate-300 bg-slate-200 flex items-center justify-center shrink-0"
+                        >
+                          {getTechPhoto(tech) ? (
+                            <img src={getTechPhoto(tech)} alt={tech.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-slate-700 font-bold text-xs">
+                              {(tech.name || 'TC').slice(0, 2).toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="min-w-0">
+                          <h5 className="text-xs font-black text-slate-900 truncate uppercase">
+                            {tech.name}
+                          </h5>
+                          <p className="text-[11px] font-semibold text-slate-500 truncate">
+                            {tech.badge || 'Field Technician'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <span className="text-xs font-black text-slate-900 font-mono block">
+                          {tech.completedJobs || (6 - idx)} Jobs
+                        </span>
+                        <span className="text-[10px] font-bold text-amber-500 flex items-center justify-end gap-0.5">
+                          <FiStar fill="currentColor" size={9} /> {tech.rating || '4.5'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { updateServiceRequestStatus, addServiceRequest, editServiceRequest } from '../../redux/dashboardSlice';
-import { FiPlus, FiTool, FiUser, FiCalendar, FiSearch, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { FiPlus, FiTool, FiUser, FiCalendar, FiSearch, FiChevronLeft, FiChevronRight, FiClock, FiCheckCircle, FiUserX, FiSliders, FiAlertCircle } from 'react-icons/fi';
 import Modal from '../../components/Modal';
 
 export default function ServiceRequests() {
@@ -145,27 +145,105 @@ export default function ServiceRequests() {
     return matchesSearch && matchesPriority && matchesStatus && matchesType;
   });
 
+  // KPI Counts
+  const totalRequestsCount = serviceRequests.length;
+  const openRequestsCount = serviceRequests.filter(r => r.status === 'Open').length;
+  const unassignedRequestsCount = serviceRequests.filter(r => !r.assignedTech || r.assignedTech === 'Unassigned').length;
+  const inProgressRequestsCount = serviceRequests.filter(r => r.status === 'In Progress' || r.status === 'Assigned').length;
+  const resolvedRequestsCount = serviceRequests.filter(r => r.status === 'Resolved' || r.status === 'Closed').length;
+
   return (
     <div className="space-y-6">
       
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { title: 'Open', count: serviceRequests.filter(r => r.status === 'Open').length, color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/30' },
-          { title: 'Unassigned', count: serviceRequests.filter(r => !r.assignedTech || r.assignedTech === 'Unassigned').length, color: 'text-red-600 bg-red-50 dark:bg-red-900/30' },
-          { title: 'In Progress', count: serviceRequests.filter(r => r.status === 'In Progress').length, color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/30' },
-          { title: 'Resolved', count: serviceRequests.filter(r => r.status === 'Resolved').length, color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30' }
-        ].map(card => (
-          <div key={card.title} className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center justify-between">
-            <div>
-              <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider block">{card.title}</span>
-              <span className="text-2xl font-black text-slate-800 dark:text-slate-100 block mt-0.5">{card.count}</span>
-            </div>
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold ${card.color}`}>
-              {card.count}
-            </div>
+      {/* 📊 Service Requests KPI Summary Cards Row (5 Cards: Total, Pending, Unassigned, In Progress, Resolved) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+        {/* 1. Total Requests */}
+        <div 
+          onClick={() => setStatusFilter('All Status')}
+          className={`p-4 sm:p-5 rounded-2xl bg-[#E5EFFF] border border-[#CCE1FC] dark:bg-blue-900/30 dark:border-blue-800 transition-all cursor-pointer shadow-xs hover:shadow-md hover:scale-[1.01] active:scale-[0.99] select-none flex items-center justify-between ${
+            statusFilter === 'All Status' ? 'ring-2 ring-blue-500 shadow-md' : ''
+          }`}
+        >
+          <div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Total Requests</span>
+            <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono mt-1">
+              {totalRequestsCount}
+            </h3>
           </div>
-        ))}
+          <div className="w-12 h-12 rounded-full bg-[#1D68FE] text-white flex items-center justify-center shadow-md shadow-blue-600/25 shrink-0">
+            <FiTool size={22} />
+          </div>
+        </div>
+
+        {/* 2. Pending */}
+        <div 
+          onClick={() => setStatusFilter('Open')}
+          className={`p-4 sm:p-5 rounded-2xl bg-[#FEF5D2] border border-[#FDE68A] dark:bg-amber-900/30 dark:border-amber-800 transition-all cursor-pointer shadow-xs hover:shadow-md hover:scale-[1.01] active:scale-[0.99] select-none flex items-center justify-between ${
+            statusFilter === 'Open' ? 'ring-2 ring-amber-500 shadow-md' : ''
+          }`}
+        >
+          <div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Pending</span>
+            <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono mt-1">
+              {openRequestsCount}
+            </h3>
+          </div>
+          <div className="w-12 h-12 rounded-full bg-[#E58A00] text-white flex items-center justify-center shadow-md shadow-amber-500/25 shrink-0">
+            <FiClock size={22} />
+          </div>
+        </div>
+
+        {/* 3. Unassigned */}
+        <div 
+          onClick={() => setStatusFilter('Open')}
+          className={`p-4 sm:p-5 rounded-2xl bg-[#FFE4E6] border border-[#FECDD3] dark:bg-rose-900/30 dark:border-rose-800 transition-all cursor-pointer shadow-xs hover:shadow-md hover:scale-[1.01] active:scale-[0.99] select-none flex items-center justify-between`}
+        >
+          <div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Unassigned</span>
+            <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono mt-1">
+              {unassignedRequestsCount}
+            </h3>
+          </div>
+          <div className="w-12 h-12 rounded-full bg-[#E11D48] text-white flex items-center justify-center shadow-md shadow-rose-600/25 shrink-0">
+            <FiUserX size={22} />
+          </div>
+        </div>
+
+        {/* 4. In Progress */}
+        <div 
+          onClick={() => setStatusFilter('In Progress')}
+          className={`p-4 sm:p-5 rounded-2xl bg-[#F3EAFF] border border-[#EAD9FF] dark:bg-purple-900/30 dark:border-purple-800 transition-all cursor-pointer shadow-xs hover:shadow-md hover:scale-[1.01] active:scale-[0.99] select-none flex items-center justify-between ${
+            statusFilter === 'In Progress' ? 'ring-2 ring-purple-500 shadow-md' : ''
+          }`}
+        >
+          <div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">In Progress</span>
+            <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono mt-1">
+              {inProgressRequestsCount}
+            </h3>
+          </div>
+          <div className="w-12 h-12 rounded-full bg-[#8B2BE2] text-white flex items-center justify-center shadow-md shadow-purple-600/25 shrink-0">
+            <FiSliders size={22} />
+          </div>
+        </div>
+
+        {/* 5. Resolved */}
+        <div 
+          onClick={() => setStatusFilter('Resolved')}
+          className={`p-4 sm:p-5 rounded-2xl bg-[#D6F5E3] border border-[#BBECD0] dark:bg-emerald-900/30 dark:border-emerald-800 transition-all cursor-pointer shadow-xs hover:shadow-md hover:scale-[1.01] active:scale-[0.99] select-none flex items-center justify-between ${
+            statusFilter === 'Resolved' || statusFilter === 'Closed' ? 'ring-2 ring-emerald-500 shadow-md' : ''
+          }`}
+        >
+          <div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Resolved</span>
+            <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono mt-1">
+              {resolvedRequestsCount}
+            </h3>
+          </div>
+          <div className="w-12 h-12 rounded-full bg-[#069655] text-white flex items-center justify-center shadow-md shadow-emerald-600/25 shrink-0">
+            <FiCheckCircle size={22} />
+          </div>
+        </div>
       </div>
 
       {/* Search & Actions Panel Toolbar */}
