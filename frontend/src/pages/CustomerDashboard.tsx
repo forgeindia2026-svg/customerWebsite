@@ -34,6 +34,10 @@ import {
   Building,
   Navigation,
   Map,
+  Trash2,
+  Edit2,
+  Plus,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -145,6 +149,19 @@ function getStatusBadgeClass(status: string) {
   return "bg-red-50/70 text-red-500 border-red-100";
 }
 
+export interface SavedAddress {
+  id: string;
+  name: string;
+  phone: string;
+  type: "HOME" | "WORK" | "OTHER";
+  isPrimary?: boolean;
+  flat: string;
+  locality: string;
+  city: string;
+  state: string;
+  pincode: string;
+}
+
 export default function CustomerDashboard() {
   const navigate = useNavigate();
   
@@ -224,6 +241,81 @@ export default function CustomerDashboard() {
   // Order Details Modal State
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
 
+  // Saved Addresses State & Modal
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [showAddressModal, setShowAddressModal] = useState(false);
+  const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
+  const [addrModalData, setAddrModalData] = useState<{
+    name: string;
+    phone: string;
+    type: "HOME" | "WORK" | "OTHER";
+    isPrimary: boolean;
+    flat: string;
+    locality: string;
+    city: string;
+    state: string;
+    pincode: string;
+  }>({
+    name: "",
+    phone: "",
+    type: "HOME",
+    isPrimary: false,
+    flat: "",
+    locality: "",
+    city: "",
+    state: "Tamil Nadu",
+    pincode: ""
+  });
+  const [addrModalError, setAddrModalError] = useState("");
+  const [addrSuccessMsg, setAddrSuccessMsg] = useState("");
+  const [fetchingLocationModal, setFetchingLocationModal] = useState(false);
+
+  const loadSavedAddresses = (fallbackAddress?: string, fallbackName?: string, fallbackPhone?: string) => {
+    try {
+      const raw = localStorage.getItem("user_saved_addresses");
+      let list: SavedAddress[] = [];
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          list = parsed.filter(a => a && a.id && (a.flat || a.locality || a.city));
+        }
+      }
+
+      const activeAddr = fallbackAddress || localStorage.getItem("user_address") || "";
+      const activeName = fallbackName || localStorage.getItem("user_name") || "Customer";
+      const activePhone = fallbackPhone || localStorage.getItem("user_phone") || "";
+
+      if (list.length === 0 && activeAddr && activeAddr !== "No address saved yet.") {
+        const parts = activeAddr.split(',').map((s: string) => s.trim()).filter(Boolean);
+        const pinMatch = activeAddr.match(/\b\d{6}\b/);
+        const savedDoor = localStorage.getItem("user_door_no") || "";
+        const savedStreet = localStorage.getItem("user_street") || "";
+        const savedCity = localStorage.getItem("user_city") || "";
+        const savedState = localStorage.getItem("user_state") || "Tamil Nadu";
+        const savedPin = localStorage.getItem("user_pincode") || "";
+
+        const primaryAddr: SavedAddress = {
+          id: `addr-${Date.now()}`,
+          name: activeName,
+          phone: activePhone,
+          type: "HOME",
+          isPrimary: true,
+          flat: savedDoor || parts[0] || activeAddr,
+          locality: savedStreet || parts[1] || "",
+          city: savedCity || parts[2] || "Chennai",
+          state: savedState || "Tamil Nadu",
+          pincode: savedPin || (pinMatch ? pinMatch[0] : "600001")
+        };
+        list = [primaryAddr];
+        localStorage.setItem("user_saved_addresses", JSON.stringify(list));
+      }
+
+      setSavedAddresses(list);
+    } catch (e) {
+      console.error("Error loading saved addresses:", e);
+    }
+  };
+
   useEffect(() => {
     const token = localStorage.getItem("user_token");
     const role = localStorage.getItem("user_role");
@@ -268,6 +360,16 @@ export default function CustomerDashboard() {
       const pinMatch = address.match(/\b\d{6}\b/);
       if (pinMatch) setAddrPincode(pinMatch[0]);
     }
+
+    loadSavedAddresses(address, name, phone);
+
+    const handleStorage = () => {
+      loadSavedAddresses();
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+    };
   }, [navigate]);
 
   // Fetch fresh profile from DB when email is available
@@ -519,6 +621,33 @@ export default function CustomerDashboard() {
         localStorage.setItem("user_pincode", addrPincode.trim());
         localStorage.setItem("user_landmark", addrLandmark.trim());
         localStorage.setItem("user_address", savedAddress);
+        // Update user_saved_addresses primary entry
+        try {
+          const raw = localStorage.getItem("user_saved_addresses");
+          let list: SavedAddress[] = raw ? JSON.parse(raw) : [];
+          if (!Array.isArray(list)) list = [];
+          const primaryIdx = list.findIndex(a => a.isPrimary);
+          const updatedPrimary: SavedAddress = {
+            id: primaryIdx >= 0 ? list[primaryIdx].id : `addr-${Date.now()}`,
+            name: profileName || data.data.name,
+            phone: profilePhone || data.data.phone || "",
+            type: primaryIdx >= 0 ? list[primaryIdx].type : "HOME",
+            isPrimary: true,
+            flat: addrDoorNo.trim(),
+            locality: addrStreet.trim(),
+            city: addrCity.trim(),
+            state: addrState.trim() || "Tamil Nadu",
+            pincode: addrPincode.trim()
+          };
+          if (primaryIdx >= 0) {
+            list[primaryIdx] = updatedPrimary;
+          } else {
+            list = [updatedPrimary, ...list.map(a => ({ ...a, isPrimary: false }))];
+          }
+          localStorage.setItem("user_saved_addresses", JSON.stringify(list));
+          setSavedAddresses(list);
+        } catch (e) {}
+
         window.dispatchEvent(new Event("storage"));
         setProfileMsg("✓ Profile updated successfully!");
       } else {
@@ -565,6 +694,266 @@ export default function CustomerDashboard() {
       setCpSaving(false);
       setTimeout(() => { setCpMsg(""); setCpError(""); }, 4000);
     }
+  };
+
+  // Address Management Actions
+  const handleOpenAddAddress = () => {
+    setEditingAddressId(null);
+    setAddrModalData({
+      name: userName || "",
+      phone: userPhone || "",
+      type: "HOME",
+      isPrimary: savedAddresses.length === 0,
+      flat: "",
+      locality: "",
+      city: addrCity || "",
+      state: addrState || "Tamil Nadu",
+      pincode: addrPincode || ""
+    });
+    setAddrModalError("");
+    setShowAddressModal(true);
+  };
+
+  const handleOpenEditAddress = (addr: SavedAddress) => {
+    setEditingAddressId(addr.id);
+    setAddrModalData({
+      name: addr.name || "",
+      phone: addr.phone || "",
+      type: addr.type || "HOME",
+      isPrimary: !!addr.isPrimary,
+      flat: addr.flat || "",
+      locality: addr.locality || "",
+      city: addr.city || "",
+      state: addr.state || "Tamil Nadu",
+      pincode: addr.pincode || ""
+    });
+    setAddrModalError("");
+    setShowAddressModal(true);
+  };
+
+  const handleDeleteAddress = (idToDelete: string) => {
+    if (!window.confirm("Are you sure you want to remove this address?")) return;
+    const remaining = savedAddresses.filter(a => a.id !== idToDelete);
+    if (remaining.length > 0 && !remaining.some(a => a.isPrimary)) {
+      remaining[0].isPrimary = true;
+    }
+    setSavedAddresses(remaining);
+    localStorage.setItem("user_saved_addresses", JSON.stringify(remaining));
+    setAddrSuccessMsg("Address removed successfully.");
+    setTimeout(() => setAddrSuccessMsg(""), 3000);
+  };
+
+  const handleSetPrimary = async (id: string) => {
+    const target = savedAddresses.find(a => a.id === id);
+    if (!target) return;
+
+    const updated = savedAddresses.map(a => ({
+      ...a,
+      isPrimary: a.id === id
+    }));
+    setSavedAddresses(updated);
+    localStorage.setItem("user_saved_addresses", JSON.stringify(updated));
+
+    const formatted = [
+      target.flat,
+      target.locality,
+      target.city,
+      target.state ? `${target.state} - ${target.pincode}` : target.pincode
+    ].filter(Boolean).join(", ");
+
+    setUserAddress(formatted);
+    localStorage.setItem("user_address", formatted);
+    if (target.flat) localStorage.setItem("user_door_no", target.flat);
+    if (target.locality) localStorage.setItem("user_street", target.locality);
+    if (target.city) localStorage.setItem("user_city", target.city);
+    if (target.state) localStorage.setItem("user_state", target.state);
+    if (target.pincode) localStorage.setItem("user_pincode", target.pincode);
+
+    if (userEmail) {
+      try {
+        await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/auth/profile`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: userEmail,
+            name: profileName || userName,
+            phone: profilePhone || userPhone,
+            address: formatted
+          })
+        });
+      } catch (err) {
+        console.warn("Could not sync primary address to profile:", err);
+      }
+    }
+
+    window.dispatchEvent(new Event("storage"));
+    setAddrSuccessMsg("Primary address updated!");
+    setTimeout(() => setAddrSuccessMsg(""), 3000);
+  };
+
+  const handleFetchLocationForModal = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser.");
+      return;
+    }
+
+    setFetchingLocationModal(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+
+        fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`
+        )
+          .then((res) => res.json())
+          .then((data) => {
+            if (data && data.address) {
+              const addr = data.address;
+              const road = addr.road || addr.suburb || addr.neighbourhood || "";
+              const town = addr.city || addr.town || addr.village || addr.county || "";
+              const st = addr.state || "Tamil Nadu";
+              const postcode = addr.postcode || "";
+              const houseNo = addr.house_number || "";
+
+              setAddrModalData(prev => ({
+                ...prev,
+                flat: houseNo ? `${houseNo}, ${road}`.trim() : (road || prev.flat),
+                locality: addr.suburb || addr.neighbourhood || addr.city_district || prev.locality,
+                city: town || prev.city,
+                state: st || prev.state,
+                pincode: postcode || prev.pincode
+              }));
+            }
+          })
+          .catch((err) => {
+            console.error("Geocoding failed:", err);
+          })
+          .finally(() => {
+            setFetchingLocationModal(false);
+          });
+      },
+      (error) => {
+        console.error("Geolocation error:", error);
+        alert("Failed to fetch location. Please allow location permissions.");
+        setFetchingLocationModal(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
+  };
+
+  const handleSaveAddressModal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddrModalError("");
+
+    if (!addrModalData.name.trim()) {
+      setAddrModalError("Please enter receiver name.");
+      return;
+    }
+    const cleanPhone = addrModalData.phone.replace(/\D/g, '');
+    if (cleanPhone.length !== 10) {
+      setAddrModalError("Please enter a valid 10-digit mobile number.");
+      return;
+    }
+    if (!addrModalData.flat.trim()) {
+      setAddrModalError("Please enter Flat / Door No. / Street address.");
+      return;
+    }
+    if (!addrModalData.city.trim()) {
+      setAddrModalError("Please enter city.");
+      return;
+    }
+    const cleanPin = addrModalData.pincode.replace(/\D/g, '');
+    if (cleanPin.length !== 6) {
+      setAddrModalError("Please enter a valid 6-digit pincode.");
+      return;
+    }
+
+    let updatedList: SavedAddress[] = [];
+    const isPrimary = addrModalData.isPrimary || savedAddresses.length === 0;
+
+    if (editingAddressId) {
+      updatedList = savedAddresses.map(item => {
+        if (item.id === editingAddressId) {
+          return {
+            ...item,
+            name: addrModalData.name.trim(),
+            phone: cleanPhone,
+            type: addrModalData.type,
+            flat: addrModalData.flat.trim(),
+            locality: addrModalData.locality.trim(),
+            city: addrModalData.city.trim(),
+            state: addrModalData.state.trim() || "Tamil Nadu",
+            pincode: cleanPin,
+            isPrimary
+          };
+        }
+        return isPrimary ? { ...item, isPrimary: false } : item;
+      });
+    } else {
+      const newAddrItem: SavedAddress = {
+        id: `addr-${Date.now()}`,
+        name: addrModalData.name.trim(),
+        phone: cleanPhone,
+        type: addrModalData.type,
+        flat: addrModalData.flat.trim(),
+        locality: addrModalData.locality.trim(),
+        city: addrModalData.city.trim(),
+        state: addrModalData.state.trim() || "Tamil Nadu",
+        pincode: cleanPin,
+        isPrimary
+      };
+      if (isPrimary) {
+        updatedList = [newAddrItem, ...savedAddresses.map(a => ({ ...a, isPrimary: false }))];
+      } else {
+        updatedList = [...savedAddresses, newAddrItem];
+      }
+    }
+
+    setSavedAddresses(updatedList);
+    localStorage.setItem("user_saved_addresses", JSON.stringify(updatedList));
+
+    if (isPrimary) {
+      const formatted = [
+        addrModalData.flat.trim(),
+        addrModalData.locality.trim(),
+        addrModalData.city.trim(),
+        addrModalData.state.trim() ? `${addrModalData.state.trim()} - ${cleanPin}` : cleanPin
+      ].filter(Boolean).join(", ");
+
+      setUserAddress(formatted);
+      localStorage.setItem("user_address", formatted);
+      localStorage.setItem("user_door_no", addrModalData.flat.trim());
+      localStorage.setItem("user_street", addrModalData.locality.trim());
+      localStorage.setItem("user_city", addrModalData.city.trim());
+      localStorage.setItem("user_state", addrModalData.state.trim());
+      localStorage.setItem("user_pincode", cleanPin);
+
+      if (userEmail) {
+        try {
+          await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/auth/profile`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: userEmail,
+              name: profileName || userName,
+              phone: profilePhone || userPhone,
+              address: formatted
+            })
+          });
+        } catch (err) {
+          console.warn("Could not sync to DB:", err);
+        }
+      }
+      window.dispatchEvent(new Event("storage"));
+    }
+
+    setShowAddressModal(false);
+    setAddrSuccessMsg(editingAddressId ? "Address updated successfully!" : "New address added successfully!");
+    setTimeout(() => setAddrSuccessMsg(""), 3500);
   };
 
   // Helper values derived from database + preset fallbacks
@@ -1145,13 +1534,111 @@ export default function CustomerDashboard() {
 
             {activeTab === "Addresses" && (
               <div className="space-y-4">
-                <div className="p-4 border border-slate-100 rounded-2xl bg-slate-50/20">
-                  <h4 className="font-bold text-xs text-slate-800">Primary Installation / Shipping Address</h4>
-                  <p className="text-slate-505 text-xs font-semibold mt-2 leading-relaxed">
-                    {userAddress || "No. 45, 1st Avenue, Anna Nagar East, Chennai, Tamil Nadu - 600102"}
-                  </p>
-                </div>
-                <Button className="h-10 px-5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold rounded-xl text-xs">Add New Address</Button>
+                {addrSuccessMsg && (
+                  <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                    <span>{addrSuccessMsg}</span>
+                  </div>
+                )}
+
+                {savedAddresses.length === 0 ? (
+                  <div className="p-4 border border-slate-100 rounded-2xl bg-slate-50/20">
+                    <h4 className="font-bold text-xs text-slate-800">Primary Installation / Shipping Address</h4>
+                    <p className="text-slate-505 text-xs font-semibold mt-2 leading-relaxed">
+                      {userAddress || "No. 45, 1st Avenue, Anna Nagar East, Chennai, Tamil Nadu - 600102"}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {savedAddresses.map((addr) => {
+                      const isPrimary = !!addr.isPrimary;
+                      return (
+                        <div
+                          key={addr.id}
+                          className={`p-4 border rounded-2xl transition-all ${
+                            isPrimary
+                              ? "border-slate-200 bg-slate-50/40"
+                              : "border-slate-150 bg-white hover:border-slate-300"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap mb-1">
+                                <h4 className="font-bold text-xs text-slate-800">
+                                  {isPrimary ? "Primary Installation / Shipping Address" : (addr.name || "Delivery Address")}
+                                </h4>
+                                <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${
+                                  addr.type === "WORK"
+                                    ? "bg-amber-100 text-amber-800"
+                                    : addr.type === "HOME"
+                                    ? "bg-blue-100 text-blue-800"
+                                    : "bg-purple-100 text-purple-800"
+                                }`}>
+                                  {addr.type || "HOME"}
+                                </span>
+                                {isPrimary && (
+                                  <span className="bg-emerald-100 text-emerald-800 text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider">
+                                    PRIMARY
+                                  </span>
+                                )}
+                              </div>
+
+                              <p className="text-slate-505 text-xs font-semibold mt-2 leading-relaxed">
+                                {[addr.flat, addr.locality, addr.city, addr.state].filter(Boolean).join(", ")}
+                                {addr.pincode && <> &ndash; {addr.pincode}</>}
+                              </p>
+
+                              {addr.phone && (
+                                <p className="text-[11px] text-slate-400 font-semibold mt-1">
+                                  📞 {addr.phone} {addr.name && !isPrimary ? `(${addr.name})` : ""}
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditAddress(addr)}
+                                title="Edit Address"
+                                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteAddress(addr.id)}
+                                title="Delete Address"
+                                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {!isPrimary && (
+                            <div className="mt-3 pt-2.5 border-t border-slate-100 flex justify-end">
+                              <button
+                                type="button"
+                                onClick={() => handleSetPrimary(addr.id)}
+                                className="text-xs font-bold text-slate-600 hover:text-red-500 transition-colors cursor-pointer"
+                              >
+                                Set as Primary Address
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <Button
+                  type="button"
+                  onClick={handleOpenAddAddress}
+                  className="h-10 px-5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold rounded-xl text-xs flex items-center gap-2 cursor-pointer transition-all"
+                >
+                  <Plus className="w-4 h-4" /> Add New Address
+                </Button>
               </div>
             )}
 
@@ -1485,6 +1972,231 @@ export default function CustomerDashboard() {
                 Close
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADD / EDIT ADDRESS MODAL */}
+      {showAddressModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="max-w-lg w-full bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div>
+                <h3 className="font-extrabold text-base text-slate-900">
+                  {editingAddressId ? "Edit Address" : "Add New Address"}
+                </h3>
+                <p className="text-xs text-slate-500 font-medium">
+                  Enter complete delivery and installation address details
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddressModal(false)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleSaveAddressModal} className="overflow-y-auto px-6 py-5 space-y-4">
+              {addrModalError && (
+                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-bold flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{addrModalError}</span>
+                </div>
+              )}
+
+              {/* Geolocation auto-fill */}
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleFetchLocationForModal}
+                  disabled={fetchingLocationModal}
+                  className="text-xs font-bold text-red-500 hover:text-red-600 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <Navigation className={`w-3.5 h-3.5 ${fetchingLocationModal ? "animate-spin" : ""}`} />
+                  {fetchingLocationModal ? "Locating..." : "Use My Current Location"}
+                </button>
+              </div>
+
+              {/* Name & Phone */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1">
+                    Receiver Name <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    type="text"
+                    required
+                    value={addrModalData.name}
+                    onChange={e => setAddrModalData(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Full Name"
+                    className="h-10 text-xs rounded-xl"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1">
+                    10-Digit Mobile <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    type="tel"
+                    required
+                    maxLength={10}
+                    value={addrModalData.phone}
+                    onChange={e => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setAddrModalData(prev => ({ ...prev, phone: val }));
+                    }}
+                    placeholder="9876543210"
+                    className="h-10 text-xs rounded-xl"
+                  />
+                </div>
+              </div>
+
+              {/* Flat / Door No / Street */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1">
+                  Flat / House No. / Building / Street <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  type="text"
+                  required
+                  value={addrModalData.flat}
+                  onChange={e => setAddrModalData(prev => ({ ...prev, flat: e.target.value }))}
+                  placeholder="e.g. Flat 4B / Door No. 11, Anna Nagar"
+                  className="h-10 text-xs rounded-xl"
+                />
+              </div>
+
+              {/* Locality / Area / Landmark */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1">
+                  Area / Locality / Landmark
+                </label>
+                <Input
+                  type="text"
+                  value={addrModalData.locality}
+                  onChange={e => setAddrModalData(prev => ({ ...prev, locality: e.target.value }))}
+                  placeholder="e.g. Near Bus Stand, Opp. Temple"
+                  className="h-10 text-xs rounded-xl"
+                />
+              </div>
+
+              {/* City, State, Pincode */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1">
+                    City <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    type="text"
+                    required
+                    value={addrModalData.city}
+                    onChange={e => setAddrModalData(prev => ({ ...prev, city: e.target.value }))}
+                    placeholder="City"
+                    className="h-10 text-xs rounded-xl"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1">
+                    State <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={addrModalData.state}
+                    onChange={e => setAddrModalData(prev => ({ ...prev, state: e.target.value }))}
+                    className="w-full h-10 px-3 text-xs font-semibold border border-input rounded-xl focus:outline-none focus:border-red-500 bg-white"
+                  >
+                    <option value="Tamil Nadu">Tamil Nadu</option>
+                    <option value="Karnataka">Karnataka</option>
+                    <option value="Kerala">Kerala</option>
+                    <option value="Andhra Pradesh">Andhra Pradesh</option>
+                    <option value="Telangana">Telangana</option>
+                    <option value="Maharashtra">Maharashtra</option>
+                    <option value="Delhi">Delhi</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1">
+                    Pincode (6 digits) <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    type="text"
+                    required
+                    maxLength={6}
+                    value={addrModalData.pincode}
+                    onChange={e => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                      setAddrModalData(prev => ({ ...prev, pincode: val }));
+                    }}
+                    placeholder="635301"
+                    className="h-10 text-xs rounded-xl"
+                  />
+                </div>
+              </div>
+
+              {/* Address Tag */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1.5">
+                  Address Type
+                </label>
+                <div className="grid grid-cols-3 gap-2.5">
+                  {(["HOME", "WORK", "OTHER"] as const).map(tag => {
+                    const isSelected = addrModalData.type === tag;
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => setAddrModalData(prev => ({ ...prev, type: tag }))}
+                        className={`py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+                          isSelected
+                            ? "bg-red-500 border-red-500 text-white shadow-xs"
+                            : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Primary Address Checkbox */}
+              <label className="flex items-center gap-2.5 pt-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={addrModalData.isPrimary}
+                  onChange={e => setAddrModalData(prev => ({ ...prev, isPrimary: e.target.checked }))}
+                  className="w-4 h-4 rounded text-red-500 focus:ring-red-400 border-slate-300"
+                />
+                <span className="text-xs font-bold text-slate-700">
+                  Set as Primary / Default Address for orders & installations
+                </span>
+              </label>
+
+              {/* Modal Actions */}
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowAddressModal(false)}
+                  className="h-10 px-4 rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  className="h-10 px-6 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-bold shadow-md shadow-red-500/10 cursor-pointer"
+                >
+                  {editingAddressId ? "Save Changes" : "Add Address"}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}

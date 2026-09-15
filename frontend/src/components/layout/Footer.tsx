@@ -50,7 +50,6 @@ export default function Footer() {
             <ul className="space-y-2 text-sm text-gray-400">
               <li><Link to="/dashboard?tab=orders" className="hover:text-red-500 transition-colors">Track Order</Link></li>
               <li><Link to="/dashboard?tab=requests" className="hover:text-red-500 transition-colors">Support Tickets</Link></li>
-              <li><Link to="/warranty" className="hover:text-red-500 transition-colors">Warranty & AMC</Link></li>
               <li><Link to="/faq" className="hover:text-red-500 transition-colors">FAQs</Link></li>
             </ul>
           </div>

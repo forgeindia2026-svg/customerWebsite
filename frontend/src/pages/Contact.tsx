@@ -46,9 +46,6 @@ export default function Contact() {
       <div className="bg-[#0b0f19] text-white py-16 px-4 relative overflow-hidden border-b border-gray-800">
         <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 via-transparent to-red-500/5 pointer-events-none"></div>
         <div className="container max-w-7xl mx-auto text-center space-y-4 relative z-10">
-          <span className="inline-flex items-center gap-2 px-3.5 py-1 bg-red-500/20 text-red-400 rounded-full text-xs font-bold uppercase tracking-widest border border-red-500/30">
-            <Phone className="h-3.5 w-3.5" /> 24/7 Security Assistance
-          </span>
           <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-white">
             How Can We Protect Your Space Today?
           </h1>
@@ -67,7 +64,6 @@ export default function Contact() {
                 <div className="p-2.5 bg-red-500/10 text-red-500 rounded-xl group-hover:bg-red-500 group-hover:text-white transition-all">
                   <Phone className="h-5 w-5" />
                 </div>
-                <span className="text-[10px] uppercase font-bold text-green-400 bg-green-500/10 px-2 py-0.5 rounded">24/7 Service</span>
               </div>
               <p className="text-xs text-gray-400 font-medium">Call Sales & Support</p>
               <p className="text-base font-extrabold text-white group-hover:text-red-400 transition-colors">+91 96009 75483</p>
