@@ -1275,7 +1275,7 @@ router.post('/:id/admin-approve', async (req: Request, res: Response) => {
           dashboardData.payments = [];
         }
         const techName = (job?.assignedTechnicians && job.assignedTechnicians[0]?.name) || order?.assignedTechnician || 'Technician';
-        const customerName = order?.customerName || job?.customerName || 'Customer';
+        const customerName = order?.customerName || (job as any)?.customerName || job?.customer?.name || 'Customer';
         
         const existingIdx = dashboardData.payments.findIndex((p: any) => p.invoiceNo === targetCode || p.transactionNo === targetCode || p.id === `PAY-${targetCode}`);
         const daybookEntry = {
