@@ -693,14 +693,25 @@ router.put('/:id', async (req: Request, res: Response) => {
     try {
       const techToAssign = job.assignedTechnicians?.[0]?.name || req.body.assignedTechnician || req.body.assignedTechnicianName;
       const orderUpdateFields: any = {
-        orderStatus: job.status === 'COMPLETED' ? 'DELIVERED' : 'PROCESSING',
+        orderStatus: (job.status === 'COMPLETED' || job.status === 'APPROVED') ? 'DELIVERED' : 'PROCESSING',
       };
       if (techToAssign) {
         orderUpdateFields.assignedTechnician = techToAssign;
         orderUpdateFields.assignedTechnicianName = techToAssign;
       }
-      await Order.updateOne(
-        { $or: [{ orderNumber: job.jobCode }, { orderNumber: cleanCode }, { orderNumber: `#${cleanCode}` }] },
+
+      const cleanId = String(job.jobCode || '').replace(/^#/, '').replace(/^SK-/, '').replace(/^ORD-/, '').trim();
+      await Order.updateMany(
+        {
+          $or: [
+            { orderNumber: job.jobCode },
+            { orderNumber: `#${job.jobCode}` },
+            { orderNumber: `SK-${job.jobCode}` },
+            { orderNumber: `SK-ORD-${cleanId}` },
+            { orderNumber: `ORD-${cleanId}` },
+            { orderNumber: cleanId }
+          ]
+        },
         { $set: orderUpdateFields }
       );
     } catch (orderSyncErr) {
@@ -801,6 +812,36 @@ router.post('/:id/accept', async (req: Request, res: Response) => {
     job.acceptanceStatus = 'ACCEPTED';
     job.customerConfirmed = true;
     const updatedJob = await job.save();
+
+    // Synchronize corresponding Order in MongoDB
+    try {
+      const Order = require('../models/Order').default;
+      const cleanId = String(updatedJob.jobCode || '').replace(/^#/, '').replace(/^SK-/, '').replace(/^ORD-/, '').trim();
+      await Order.updateMany(
+        {
+          $or: [
+            { orderNumber: updatedJob.jobCode },
+            { orderNumber: `#${updatedJob.jobCode}` },
+            { orderNumber: `SK-${updatedJob.jobCode}` },
+            { orderNumber: `SK-ORD-${cleanId}` },
+            { orderNumber: `ORD-${cleanId}` },
+            { orderNumber: cleanId }
+          ]
+        },
+        {
+          $set: {
+            orderStatus: 'PROCESSING',
+            status: 'In Progress',
+            assignedTechnician: technician.name,
+            assignedTechnicianName: technician.name,
+            assignedTechnicianId: technician.id,
+            updatedAt: new Date()
+          }
+        }
+      );
+    } catch (e) {
+      console.warn('Accept order sync notice:', e);
+    }
 
     // Broadcast to admins, customer, and technician room
     broadcastEvent('job:accepted', {
