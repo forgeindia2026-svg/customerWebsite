@@ -9,6 +9,10 @@ import Cart from "./pages/Cart";
 import Login from "./pages/Login";
 import CustomerDashboard from "./pages/CustomerDashboard";
 import ProductDetail from "./pages/ProductDetail";
+import Warranty from "./pages/Warranty";
+import Faq from "./pages/Faq";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
 
 const router = createBrowserRouter([
   {
@@ -38,6 +42,26 @@ const router = createBrowserRouter([
       {
         path: "contact",
         element: <Contact />,
+      },
+      {
+        path: "warranty",
+        element: <Warranty />,
+      },
+      {
+        path: "faq",
+        element: <Faq />,
+      },
+      {
+        path: "faqs",
+        element: <Faq />,
+      },
+      {
+        path: "privacy",
+        element: <Privacy />,
+      },
+      {
+        path: "terms",
+        element: <Terms />,
       },
       {
         path: "cart",

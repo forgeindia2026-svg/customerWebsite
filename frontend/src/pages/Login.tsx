@@ -109,6 +109,12 @@ export default function Login() {
     setIsLoading(true);
 
     if (isRegister) {
+      const cleanMobile = mobile.replace(/\D/g, "");
+      if (cleanMobile.length !== 10) {
+        setErrorMsg("Mobile number must be exactly 10 digits");
+        setIsLoading(false);
+        return;
+      }
       if (password !== confirmPassword) {
         setErrorMsg("Passwords do not match");
         setIsLoading(false);
@@ -265,7 +271,9 @@ export default function Login() {
                     <Input
                       type="tel"
                       value={mobile}
-                      onChange={(e) => setMobile(e.target.value)}
+                      onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                      maxLength={10}
+                      pattern="[0-9]{10}"
                       placeholder="10-digit Mobile Number"
                       className="pl-10 h-10 bg-white border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus-visible:ring-red-500 focus-visible:border-red-500 text-xs sm:text-sm font-medium"
                       required

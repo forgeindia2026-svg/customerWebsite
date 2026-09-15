@@ -5,7 +5,6 @@ const testimonials = [
   {
     name: "Ramesh Kumar",
     role: "Home Owner",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80",
     rating: 5,
     comment:
       "Excellent service and installation. Highly recommended! The cameras quality is superb and the team was very professional.",
@@ -14,7 +13,6 @@ const testimonials = [
   {
     name: "Vikram Singh",
     role: "Office Manager",
-    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80",
     rating: 5,
     comment:
       "Very good quality products and on-time installation. The night vision is crystal clear.",
@@ -23,7 +21,6 @@ const testimonials = [
   {
     name: "Anita Sharma",
     role: "Business Owner",
-    avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80",
     rating: 5,
     comment:
       "Great support team and quick response. They helped us choose the best solution for our office.",
@@ -32,7 +29,6 @@ const testimonials = [
   {
     name: "Karthik R",
     role: "Shop Owner",
-    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=200&q=80",
     rating: 5,
     comment:
       "Best CCTV solution for our shop. Very satisfied with the product quality and after sales support.",
@@ -41,7 +37,6 @@ const testimonials = [
   {
     name: "Senthil Nathan",
     role: "Factory Manager",
-    avatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=200&q=80",
     rating: 5,
     comment:
       "Installed 16 IP cameras for our warehouse. Outstanding clarity and smooth remote playback on mobile.",
@@ -50,7 +45,6 @@ const testimonials = [
   {
     name: "Priya Sundaram",
     role: "Apartment Secretary",
-    avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=200&q=80",
     rating: 5,
     comment:
       "SK Technology provided complete CCTV security for our entire residential complex. Exceptional work!",
@@ -117,11 +111,9 @@ export default function CustomerTestimonials() {
 
               <div className="space-y-2.5 relative z-10">
                 <div className="flex items-center gap-2.5 pr-4">
-                  <img
-                    src={item.avatar}
-                    alt={item.name}
-                    className="w-9 h-9 rounded-full object-cover border-2 border-red-50 shadow-sm shrink-0"
-                  />
+                  <div className="w-9 h-9 rounded-full bg-red-50 text-red-600 font-black text-xs flex items-center justify-center border border-red-200/60 shrink-0">
+                    {item.name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()}
+                  </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-extrabold text-[11px] text-slate-900 leading-snug truncate">
                       {item.name}
@@ -178,11 +170,9 @@ export default function CustomerTestimonials() {
                   <div className="space-y-3 relative z-10">
                     {/* User Profile Info Header */}
                     <div className="flex items-center gap-2.5 pr-4">
-                      <img
-                        src={item.avatar}
-                        alt={item.name}
-                        className="w-10 h-10 max-w-[40px] max-h-[40px] rounded-full object-cover border-2 border-red-100 shadow-sm shrink-0 group-hover:scale-105 transition-transform"
-                      />
+                      <div className="w-10 h-10 rounded-full bg-red-50 text-red-600 font-black text-xs flex items-center justify-center border border-red-200/70 shadow-xs shrink-0 group-hover:bg-red-500 group-hover:text-white transition-colors">
+                        {item.name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()}
+                      </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="font-extrabold text-xs text-slate-900 leading-snug truncate">
                           {item.name}

@@ -1013,9 +1013,10 @@ export default function CustomerDashboard() {
                   <Input 
                     type="tel" 
                     value={profilePhone} 
-                    onChange={(e) => setProfilePhone(e.target.value)} 
+                    maxLength={10}
+                    onChange={(e) => setProfilePhone(e.target.value.replace(/\D/g, '').slice(0, 10))} 
                     className="h-10 rounded-xl" 
-                    placeholder="e.g. +91 98765 43210"
+                    placeholder="10-digit mobile number"
                   />
                 </div>
 
