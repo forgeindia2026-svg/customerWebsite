@@ -119,12 +119,13 @@ router.post('/', async (req: Request, res: Response) => {
       workDescription, hoursWorked, checkInTime, checkOutTime, 
       status, jobId, jobCode, customerName, location, 
       isMultiDay, dayNumber, beforePhotos, afterPhotos,
-      voiceNoteUrl, hasVoiceNote 
+      voiceNoteUrl, hasVoiceNote, time: reqTime
     } = req.body;
     
     const finalTechId = technicianId || 'TECH-01';
     const finalTechName = technicianName || 'Field Technician';
     const cleanJobCode = (jobCode || '').trim();
+    const currentSubmissionTime = reqTime || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
     // ⚡ If a report for this jobCode already exists, UPDATE it instead of creating a duplicate!
     if (cleanJobCode && cleanJobCode !== 'DAILY WORK LOG') {
@@ -136,6 +137,7 @@ router.post('/', async (req: Request, res: Response) => {
         existing.technicianId = finalTechId;
         existing.technicianName = finalTechName;
         existing.date = date || new Date().toISOString().split('T')[0];
+        existing.time = currentSubmissionTime;
         existing.workDescription = workDescription || existing.workDescription;
         existing.activityType = activityType || existing.activityType;
         if (customerName) existing.customerName = customerName;
@@ -154,6 +156,7 @@ router.post('/', async (req: Request, res: Response) => {
       technicianId: finalTechId,
       technicianName: finalTechName,
       date: date || new Date().toISOString().split('T')[0],
+      time: currentSubmissionTime,
       activityType: activityType || 'General Work',
       workDescription: workDescription || 'General daily log submitted',
       hoursWorked: hoursWorked != null ? Number(hoursWorked) : 8,

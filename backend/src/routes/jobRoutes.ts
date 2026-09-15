@@ -745,13 +745,29 @@ router.put('/:id', async (req: Request, res: Response) => {
 // POST accept job
 router.post('/:id/accept', async (req: Request, res: Response) => {
   try {
-    const isMongoId = /^[0-9a-fA-F]{24}$/.test(req.params.id as string);
-    const job = await Job.findOne({
-      $or: [
-        ...(isMongoId ? [{ _id: req.params.id }] : []),
-        { jobCode: req.params.id },
-      ],
-    });
+    const rawId = String(req.params.id || '').trim();
+    const cleanId = rawId.replace(/^#/, '').replace(/^SK-/, '').replace(/^ORD-/, '').trim();
+    const isMongoId = /^[0-9a-fA-F]{24}$/.test(rawId);
+
+    const matchConditions: any[] = [
+      ...(isMongoId ? [{ _id: rawId }] : []),
+      { jobCode: rawId },
+      { jobCode: `#${rawId}` },
+      { jobCode: `SK-${rawId}` },
+      { jobCode: `#SK-${rawId}` },
+      { jobCode: `SK-ORD-${cleanId}` },
+      { jobCode: `#SK-ORD-${cleanId}` },
+      { jobCode: `ORD-${cleanId}` },
+      { jobCode: `#ORD-${cleanId}` },
+      { jobCode: cleanId },
+      ...(cleanId ? [{ jobCode: new RegExp(cleanId, 'i') }] : []),
+      { orderNumber: rawId },
+      { orderNumber: `#${rawId}` },
+      { orderNumber: `SK-${rawId}` },
+      { orderNumber: cleanId }
+    ];
+
+    const job = await Job.findOne({ $or: matchConditions });
     if (!job) {
       return res.status(404).json({ success: false, message: `Job ${req.params.id} not found` });
     }
@@ -831,13 +847,29 @@ router.post('/:id/accept', async (req: Request, res: Response) => {
 // POST /api/jobs/:id/reject - Technician rejects auto-assigned job (Triggers Cascade & Admin Notification)
 router.post('/:id/reject', async (req: Request, res: Response) => {
   try {
-    const isMongoId = /^[0-9a-fA-F]{24}$/.test(req.params.id as string);
-    const job = await Job.findOne({
-      $or: [
-        ...(isMongoId ? [{ _id: req.params.id }] : []),
-        { jobCode: req.params.id },
-      ],
-    });
+    const rawId = String(req.params.id || '').trim();
+    const cleanId = rawId.replace(/^#/, '').replace(/^SK-/, '').replace(/^ORD-/, '').trim();
+    const isMongoId = /^[0-9a-fA-F]{24}$/.test(rawId);
+
+    const matchConditions: any[] = [
+      ...(isMongoId ? [{ _id: rawId }] : []),
+      { jobCode: rawId },
+      { jobCode: `#${rawId}` },
+      { jobCode: `SK-${rawId}` },
+      { jobCode: `#SK-${rawId}` },
+      { jobCode: `SK-ORD-${cleanId}` },
+      { jobCode: `#SK-ORD-${cleanId}` },
+      { jobCode: `ORD-${cleanId}` },
+      { jobCode: `#ORD-${cleanId}` },
+      { jobCode: cleanId },
+      ...(cleanId ? [{ jobCode: new RegExp(cleanId, 'i') }] : []),
+      { orderNumber: rawId },
+      { orderNumber: `#${rawId}` },
+      { orderNumber: `SK-${rawId}` },
+      { orderNumber: cleanId }
+    ];
+
+    const job = await Job.findOne({ $or: matchConditions });
     if (!job) {
       return res.status(404).json({ success: false, message: `Job ${req.params.id} not found` });
     }
@@ -1105,26 +1137,33 @@ router.post('/:id/complete', async (req: Request, res: Response) => {
 // POST /api/jobs/:id/admin-approve - Admin approves job completion, frees technician and processes queue
 router.post('/:id/admin-approve', async (req: Request, res: Response) => {
   try {
-    const isMongoId = /^[0-9a-fA-F]{24}$/.test(req.params.id as string);
-    let job = await Job.findOne({
-      $or: [
-        ...(isMongoId ? [{ _id: req.params.id }] : []),
-        { jobCode: req.params.id },
-      ],
-    });
+    const rawId = String(req.params.id || '').trim();
+    const cleanId = rawId.replace(/^#/, '').replace(/^SK-/, '').trim();
+    const isMongoId = /^[0-9a-fA-F]{24}$/.test(rawId);
 
+    const matchConditions: any[] = [
+      ...(isMongoId ? [{ _id: rawId }] : []),
+      { jobCode: rawId },
+      { jobCode: `#${rawId}` },
+      { jobCode: `SK-${rawId}` },
+      { jobCode: `SK-ORD-${cleanId}` },
+      { jobCode: `ORD-${cleanId}` },
+      { jobCode: cleanId },
+      { jobCode: new RegExp(cleanId, 'i') },
+      { orderNumber: rawId },
+      { orderNumber: `#${rawId}` },
+      { orderNumber: `SK-${rawId}` },
+      { orderNumber: cleanId }
+    ];
+
+    let job = await Job.findOne({ $or: matchConditions });
     const Order = require('../models/Order').default;
-    const order = await Order.findOne({
-      $or: [
-        ...(isMongoId ? [{ _id: req.params.id }] : []),
-        { orderNumber: req.params.id },
-      ],
-    });
+    const order = await Order.findOne({ $or: matchConditions });
 
     if (!job && !order) {
       let dashboardData = await Dashboard.findOne();
       if (dashboardData && Array.isArray(dashboardData.orders)) {
-        const orderInDash = dashboardData.orders.find((o: any) => o.id === req.params.id || o.orderNumber === req.params.id);
+        const orderInDash = dashboardData.orders.find((o: any) => o.id === req.params.id || o.orderNumber === req.params.id || (o.orderNumber && o.orderNumber.includes(cleanId)));
         if (orderInDash) {
           orderInDash.status = 'Approved';
           await dashboardData.save();
@@ -1154,17 +1193,22 @@ router.post('/:id/admin-approve', async (req: Request, res: Response) => {
       approvedBy: approvedBy || 'Admin'
     };
 
+    // Update all matching Job & Order documents in MongoDB
+    await Job.updateMany(
+      { $or: matchConditions },
+      { $set: { status: 'APPROVED', financials: financialData, technicianEarning: parsedEarning, updatedAt: new Date() } }
+    );
+
+    await Order.updateMany(
+      { $or: matchConditions },
+      { $set: { orderStatus: 'DELIVERED', status: 'Approved', financials: financialData, technicianEarning: parsedEarning, updatedAt: new Date() } }
+    );
+
     if (job) {
       job.status = 'APPROVED';
       job.financials = financialData;
       job.technicianEarning = parsedEarning;
       await job.save();
-      await Job.updateOne({ _id: job._id }, { $set: { status: 'APPROVED', financials: financialData, technicianEarning: parsedEarning } });
-    }
-
-    if (targetCode) {
-      await Job.updateOne({ jobCode: targetCode }, { $set: { status: 'APPROVED', financials: financialData, technicianEarning: parsedEarning } });
-      await Order.updateOne({ orderNumber: targetCode }, { $set: { orderStatus: 'DELIVERED', financials: financialData, technicianEarning: parsedEarning } });
     }
 
     if (order) {
@@ -1172,7 +1216,6 @@ router.post('/:id/admin-approve', async (req: Request, res: Response) => {
       order.financials = financialData;
       order.technicianEarning = parsedEarning;
       await order.save();
-      await Order.updateOne({ _id: order._id }, { $set: { orderStatus: 'DELIVERED', financials: financialData, technicianEarning: parsedEarning } });
     }
 
     // Also update Dashboard model orders array and payments (Daybook) if present

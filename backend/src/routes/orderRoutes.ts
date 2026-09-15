@@ -271,7 +271,10 @@ router.put('/:id', async (req: Request, res: Response): Promise<any> => {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
-    // Sync with corresponding Job in MongoDB
+    // Sync status with corresponding Job in MongoDB if status is Approved/Delivered/Completed
+    const targetStatusStr = String(req.body.orderStatus || req.body.status || '').toUpperCase();
+    const isApprovedStatus = targetStatusStr === 'DELIVERED' || targetStatusStr === 'APPROVED' || targetStatusStr === 'COMPLETED';
+
     if (techName && techName !== 'Unassigned') {
       const techUser = await User.findOne({ name: new RegExp(`^${techName}$`, 'i'), role: 'TECHNICIAN' });
       const techId = techUser ? techUser._id.toString() : (req.body.assignedTechnicianId || 'temp-id');
@@ -286,7 +289,9 @@ router.put('/:id', async (req: Request, res: Response): Promise<any> => {
       });
       if (existingJob) {
         existingJob.assignedTechnicians = [{ id: techId, name: techName, phone: techUser?.phone || '' }];
-        if (existingJob.status === 'PENDING' || existingJob.status === 'WAITING_FOR_TECH') {
+        if (isApprovedStatus) {
+          existingJob.status = 'APPROVED';
+        } else if (existingJob.status === 'PENDING' || existingJob.status === 'WAITING_FOR_TECH') {
           existingJob.status = 'ASSIGNED';
         }
         existingJob.updatedAt = new Date();
@@ -296,7 +301,7 @@ router.put('/:id', async (req: Request, res: Response): Promise<any> => {
           jobCode: updatedOrder.orderNumber,
           title: updatedOrder.items?.[0]?.title || 'CCTV Installation',
           category: 'CCTV Installation',
-          status: 'ASSIGNED',
+          status: isApprovedStatus ? 'APPROVED' : 'ASSIGNED',
           priority: 'MEDIUM',
           scheduledDate: new Date().toISOString().split('T')[0],
           customer: {
@@ -318,7 +323,19 @@ router.put('/:id', async (req: Request, res: Response): Promise<any> => {
             { jobCode: rawId }
           ]
         },
-        { $set: { assignedTechnicians: [], status: 'WAITING_FOR_TECH', updatedAt: new Date() } }
+        { $set: { assignedTechnicians: [], status: isApprovedStatus ? 'APPROVED' : 'WAITING_FOR_TECH', updatedAt: new Date() } }
+      );
+    } else if (isApprovedStatus) {
+      await Job.updateMany(
+        {
+          $or: [
+            { jobCode: updatedOrder.orderNumber },
+            { jobCode: `#${updatedOrder.orderNumber}` },
+            { jobCode: cleanId },
+            { jobCode: rawId }
+          ]
+        },
+        { $set: { status: 'APPROVED', updatedAt: new Date() } }
       );
     }
 

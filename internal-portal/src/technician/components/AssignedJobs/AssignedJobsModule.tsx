@@ -67,7 +67,7 @@ export const AssignedJobsModule: React.FC<AssignedJobsModuleProps> = ({
         totalAvailable: jobs.filter((j) => j.isAvailableToAccept).length,
         pendingCount: jobs.filter((j) => j.status === 'PENDING').length,
         inProgressCount: jobs.filter((j) => j.status === 'IN_PROGRESS' || j.status === 'ACCEPTED').length,
-        completedCount: jobs.filter((j) => j.status === 'COMPLETED').length,
+        completedCount: jobs.filter((j) => j.status === 'COMPLETED' || (j.status as string) === 'APPROVED').length,
         onHoldCount: jobs.filter((j) => j.status === 'ON_HOLD').length,
       };
 

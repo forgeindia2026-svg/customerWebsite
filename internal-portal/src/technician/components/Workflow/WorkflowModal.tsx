@@ -496,6 +496,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
           technicianId: techId,
           technicianName: techName,
           date: new Date().toISOString().split('T')[0],
+          time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
           activityType: job.title || 'Customer Job',
           workDescription: summaryText,
           hoursWorked: 8,

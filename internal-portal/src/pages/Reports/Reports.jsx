@@ -62,18 +62,22 @@ export const getReportDisplayDate = (report) => {
 
 export const getReportDisplayTime = (report) => {
   if (!report) return '';
-  if (report.time) return report.time;
-  if (report.checkInTime) return report.checkInTime;
-  const rawTimeSource = report.createdAt || report.updatedAt;
+  if (report.time && typeof report.time === 'string' && report.time.length > 0 && report.time !== '09:30 AM' && report.time !== '04:26 PM') {
+    return report.time;
+  }
+  const rawTimeSource = report.updatedAt || report.createdAt;
   if (rawTimeSource) {
     try {
       const d = new Date(rawTimeSource);
       if (!isNaN(d.getTime())) {
-        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+        return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
       }
     } catch (e) {}
   }
-  return '09:30 AM';
+  if (report.checkInTime && typeof report.checkInTime === 'string' && report.checkInTime.length > 0) {
+    return report.checkInTime;
+  }
+  return '';
 };
 
 // ─── Report Action Dropdown Menu ────────────────────────────────────────────

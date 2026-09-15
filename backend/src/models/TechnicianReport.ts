@@ -9,6 +9,7 @@ export interface ITechnicianReport extends Document {
   hoursWorked: number;
   checkInTime?: string;
   checkOutTime?: string;
+  time?: string;
   status?: string; // 'PRESENT' | 'HALF_DAY' | 'ON_LEAVE' | 'FIELD_JOB'
   jobId?: string; // Optional reference to a Job
   jobCode?: string;
@@ -39,6 +40,7 @@ const TechnicianReportSchema: Schema = new Schema(
     hoursWorked: { type: Number, required: true, default: 8 },
     checkInTime: { type: String, default: '' },
     checkOutTime: { type: String, default: '' },
+    time: { type: String, default: '' },
     status: { type: String, default: 'PRESENT' },
     jobId: { type: String, default: '' },
     jobCode: { type: String, default: '' },

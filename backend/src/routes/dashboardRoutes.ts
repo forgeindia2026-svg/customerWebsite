@@ -480,23 +480,23 @@ router.get('/', async (req: Request, res: Response) => {
       };
     });
 
-    // Map live Payments from liveOrders & existing DB payments
+    // Map live Payments from mappedOrders & existing DB payments
     const existingDbPayments = Array.isArray(dashboardData.payments) ? dashboardData.payments : [];
     
-    const livePaymentsFromOrders = liveOrders.map((o: any, idx: number) => {
-      const orderCode = o.orderNumber || o.id || `ORD-${idx}`;
-      const sales = o.financials?.salesValue || o.financials?.totalValue || o.totalAmount || 0;
-      const purchase = o.financials?.purchaseValue || 0;
-      const profit = o.financials?.companyProfit !== undefined ? o.financials.companyProfit : 0;
-      const earning = o.financials?.technicianEarning !== undefined ? o.financials.technicianEarning : (o.technicianEarning || 0);
-      const techName = o.assignedTechnician || 'Technician';
+    const livePaymentsFromOrders = mappedOrders.map((o: any, idx: number) => {
+      const orderCode = o.id || o.orderNumber || `ORD-${idx}`;
+      const sales = Number(o.financials?.salesValue ?? o.financials?.totalValue ?? o.amount ?? o.totalAmount ?? 0);
+      const purchase = Number(o.financials?.purchaseValue ?? 0);
+      const profit = Number(o.financials?.companyProfit ?? 0);
+      const earning = Number(o.financials?.technicianEarning ?? o.technicianEarning ?? 0);
+      const techName = o.assignedTechnician || o.assignedTechnicianName || 'Technician';
 
       return {
         id: `PAY-${orderCode}`,
         invoiceNo: orderCode,
         transactionNo: orderCode,
-        customerName: o.customerName || o.customer || 'Customer',
-        customer: o.customerName || o.customer || 'Customer',
+        customerName: o.customer || o.customerName || 'Customer',
+        customer: o.customer || o.customerName || 'Customer',
         type: 'Sales Invoices',
         transactionType: 'Sales Invoices',
         salesValue: sales,
@@ -504,7 +504,7 @@ router.get('/', async (req: Request, res: Response) => {
         companyProfit: profit,
         technicianEarning: earning,
         amount: sales,
-        status: (o.orderStatus === 'DELIVERED' || o.status === 'Approved' || o.paymentStatus === 'PAID') ? 'Paid' : 'Pending',
+        status: (o.status === 'Approved' || o.rawJobStatus === 'APPROVED' || o.orderStatus === 'DELIVERED') ? 'Paid' : 'Pending',
         method: o.paymentMethod || (idx % 2 === 0 ? 'Razorpay / Online UPI' : 'Cash on Delivery'),
         createdBy: techName,
         creator: techName,

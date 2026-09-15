@@ -806,6 +806,7 @@ export const JobsApiService = {
             technicianId: techId,
             technicianName: techName,
             date: new Date().toISOString().split('T')[0],
+            time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
             activityType: updatedJob.category || 'Customer Job',
             workDescription: completionNotes || 'Field work completed on site',
             hoursWorked: 8,
