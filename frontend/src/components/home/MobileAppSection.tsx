@@ -206,7 +206,7 @@ export default function MobileAppSection() {
                   {/* Cam 1: Main Gate */}
                   <div className="relative rounded-2xl overflow-hidden border border-slate-800 group h-32">
                     <img
-                      src="https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=600&q=80"
+                      src="/images/about_cctv.jpg"
                       alt="CAM 01 Main Gate"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                     />

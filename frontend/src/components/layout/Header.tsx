@@ -452,7 +452,7 @@ export default function Header() {
               </Link>
             ) : (
               <Link to="/login" className="hidden sm:inline-flex shrink-0">
-                <Button variant="outline" size="sm" className="h-9 px-4 rounded-full text-xs font-bold border-slate-300 hover:border-red-500 hover:text-red-500 transition-all whitespace-nowrap">
+                <Button className="h-9 px-5 rounded-full bg-red-500 hover:bg-red-600 text-white font-bold text-xs shadow-sm hover:shadow-md transition-all whitespace-nowrap">
                   Login
                 </Button>
               </Link>

@@ -21,11 +21,11 @@ export default function About() {
               </div>
             </div>
           </div>
-          <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-border">
+          <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-border group">
             <img
-              src="https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=800&q=80"
-              alt="CCTV Security Monitoring"
-              className="w-full h-80 object-cover"
+              src="/images/about_cctv.jpg"
+              alt="SK Technology CCTV Surveillance Installation"
+              className="w-full h-80 sm:h-96 object-cover group-hover:scale-105 transition-transform duration-500"
             />
           </div>
         </div>
