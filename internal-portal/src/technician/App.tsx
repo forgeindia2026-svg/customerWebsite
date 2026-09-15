@@ -360,7 +360,7 @@ export function App() {
       const jobToUpdate = jobs.find(j => j.id === jobId);
       let updated;
       
-      if (status === 'ACCEPTED' && (!jobToUpdate?.assignedTechnician || !jobToUpdate.assignedTechnician.id)) {
+      if (status === 'ACCEPTED') {
         if (profile) {
           updated = await JobsApiService.acceptJob(jobId, profile);
         } else {
