@@ -16,14 +16,25 @@ import {
 
 interface ProfileModuleProps {
   profile: TechnicianProfile;
+  summaryStats?: any;
+  completedCount?: number;
   onUpdateStatus?: (status: 'ON_DUTY' | 'OFF_DUTY' | 'ON_JOB') => Promise<void>;
   onUpdateAvatar?: (newAvatarUrl: string) => void;
 }
 
 export const ProfileModule: React.FC<ProfileModuleProps> = ({
   profile,
+  summaryStats,
+  completedCount,
   onUpdateAvatar,
 }) => {
+  const totalCompletedDisplay =
+    completedCount !== undefined
+      ? completedCount
+      : summaryStats?.totalCompleted !== undefined
+      ? summaryStats.totalCompleted
+      : profile.completedJobsCount || 0;
+
   const [currentAvatar, setCurrentAvatar] = useState<string>(profile.avatarUrl);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState<boolean>(false);
   const [photoModalOpen, setPhotoModalOpen] = useState<boolean>(false);
@@ -154,7 +165,7 @@ export const ProfileModule: React.FC<ProfileModuleProps> = ({
                 <span>{profile.rating} Rating</span>
               </span>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 border border-blue-200/70 text-[11px] font-bold text-blue-800 whitespace-nowrap">
-                <span>{profile.completedJobsCount} Work Orders Completed</span>
+                <span>{totalCompletedDisplay} Work Orders Completed</span>
               </span>
             </div>
 

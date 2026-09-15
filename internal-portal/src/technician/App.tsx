@@ -15,11 +15,9 @@ import { TodaysScheduleModule } from './components/Schedule/TodaysScheduleModule
 import { DailyReportsModule } from './components/Reports/DailyReportsModule';
 import { JobHistoryModule } from './components/History/JobHistoryModule';
 import { QueryModule } from './components/Query/QueryModule';
-import { PerformanceAnalyticsModule } from './components/Analytics/PerformanceAnalyticsModule';
 import { LeaderboardModule } from './components/Leaderboard/LeaderboardModule';
 import { NotificationsModule } from './components/Notifications/NotificationsModule';
 import { ProfileModule } from './components/Profile/ProfileModule';
-import { SettingsModule } from './components/Settings/SettingsModule';
 import { ScannerModule } from './components/Scanner/ScannerModule';
 import { WorkflowModal } from './components/Workflow/WorkflowModal';
 import { JobDetailDrawer } from './components/JobDetailDrawer';
@@ -81,7 +79,6 @@ const ReportsErrorBoundary = ModuleErrorBoundary;
 
 export function App() {
   const [globalError, setGlobalError] = useState<GlobalErrorState | null>(null);
-  const [autoSyncEnabled, setAutoSyncEnabled] = useState<boolean>(true);
   const [queuedReportsCount, setQueuedReportsCount] = useState<number>(3);
   const [isAutoSyncing, setIsAutoSyncing] = useState<boolean>(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -91,6 +88,7 @@ export function App() {
   });
   const [activeTab, setActiveTab] = useState<string>(() => {
     const saved = localStorage.getItem('sk_tech_tab') || 'dashboard';
+    if (saved === 'analytics' || saved === 'settings') return 'dashboard';
     return saved === 'todays_jobs' ? 'assigned_jobs' : saved;
   });
   const [assignedJobsFilter, setAssignedJobsFilter] = useState<JobStatus | 'ALL'>('ALL');
@@ -193,7 +191,7 @@ export function App() {
       setIsOnline(true);
       setGlobalError(null);
 
-      if (autoSyncEnabled && queuedReportsCount > 0) {
+      if (queuedReportsCount > 0) {
         setIsAutoSyncing(true);
         setTimeout(() => {
           setQueuedReportsCount(0);
@@ -216,7 +214,7 @@ export function App() {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [autoSyncEnabled, queuedReportsCount]);
+  }, [queuedReportsCount]);
 
   // Mobile Responsive Drawer State
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
@@ -272,7 +270,14 @@ export function App() {
         } catch (_) {}
       }
       if (notifsData) setNotifications(notifsData);
-      if (profileData) setProfile(profileData);
+      if (profileData) {
+        const completedCount = summaryData?.totalCompleted ?? 
+          (jobsResponse?.data ? jobsResponse.data.filter((j: any) => j.status === 'COMPLETED').length : profileData.completedJobsCount);
+        setProfile({
+          ...profileData,
+          completedJobsCount: Math.max(profileData.completedJobsCount || 0, completedCount || 0)
+        });
+      }
     } catch (err: any) {
       console.warn('Jobs load warning:', err);
     } finally {
@@ -450,7 +455,15 @@ export function App() {
       // Re-fetch summary stats so dashboard immediately shows updated completed jobs and hours
       try {
         const newSummary = await JobsApiService.getDashboardSummary();
-        if (newSummary) setSummaryStats(newSummary);
+        if (newSummary) {
+          setSummaryStats(newSummary);
+          if (typeof newSummary.totalCompleted === 'number') {
+            setProfile((prev) => ({
+              ...prev,
+              completedJobsCount: newSummary.totalCompleted,
+            }));
+          }
+        }
       } catch (e) {
         console.warn('Failed to refresh summary stats:', e);
       }
@@ -547,11 +560,9 @@ export function App() {
                 {activeTab === 'reports' && 'Daily Reports'}
                 {activeTab === 'history' && 'Job History'}
                 {activeTab === 'query' && 'Helpdesk & Support'}
-                {activeTab === 'analytics' && 'Performance Analytics'}
                 {activeTab === 'scanner' && 'QR Scanner'}
                 {activeTab === 'notifications' && 'Notifications'}
                 {activeTab === 'profile' && 'Profile'}
-                {activeTab === 'settings' && 'Settings'}
               </h1>
               <p className="text-xs text-zinc-500 mt-1">
                 Field service daily activity logs and customer work reports.
@@ -633,14 +644,7 @@ export function App() {
             </ModuleErrorBoundary>
           )}
 
-          {activeTab === 'analytics' && (
-            <ModuleErrorBoundary moduleName="Performance Analytics">
-              <PerformanceAnalyticsModule
-                jobs={jobs}
-                profile={profile}
-              />
-            </ModuleErrorBoundary>
-          )}
+
 
           {activeTab === 'leaderboard' && (
             <ModuleErrorBoundary moduleName="Leadership Board">
@@ -664,6 +668,8 @@ export function App() {
             <ModuleErrorBoundary moduleName="Profile">
               <ProfileModule
                 profile={profile}
+                summaryStats={summaryStats}
+                completedCount={summaryStats?.totalCompleted ?? jobs.filter(j => j.status === 'COMPLETED').length}
                 onUpdateAvatar={(newUrl) => {
                   setProfile(prev => prev ? { ...prev, avatarUrl: newUrl } : prev);
                 }}
@@ -671,20 +677,7 @@ export function App() {
             </ModuleErrorBoundary>
           )}
 
-          {activeTab === 'settings' && (
-            <ModuleErrorBoundary moduleName="Settings">
-              <SettingsModule
-                autoSync={autoSyncEnabled}
-                onAutoSyncChange={setAutoSyncEnabled}
-                onSyncError={(title, message) => setGlobalError({
-                  id: `sync-${Date.now()}`,
-                  type: 'SYNC',
-                  title,
-                  message,
-                })}
-              />
-            </ModuleErrorBoundary>
-          )}
+
         </main>
       </div>
 

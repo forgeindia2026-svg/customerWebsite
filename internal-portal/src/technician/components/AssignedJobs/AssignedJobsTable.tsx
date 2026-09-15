@@ -37,6 +37,80 @@ const formatLocation = (address?: string, city?: string) => {
   return `${cleanAddr}, ${cleanCity}`;
 };
 
+const cleanJobTitle = (rawTitle: string): string => {
+  if (!rawTitle) return 'CCTV Installation & Service';
+  const parts = rawTitle.split('|').map(p => p.trim()).filter(Boolean);
+  let main = parts[0] || rawTitle;
+
+  const lastPart = parts.length > 1 ? parts[parts.length - 1] : '';
+  const modelMatch = lastPart.match(/\b([A-Z0-9]{2,5}-[A-Z0-9]{2,6})\b/i);
+
+  main = main
+    .replace(/\s*for\s+(Home|Outdoor|Indoor|Office|Shop|Commercial)\s*(Outdoor|Indoor|Home)?/gi, '')
+    .replace(/\s*\|\s*/g, ' ')
+    .trim();
+
+  if (modelMatch && !main.toLowerCase().includes(modelMatch[0].toLowerCase())) {
+    main = `${main} (${modelMatch[0]})`;
+  }
+
+  return main;
+};
+
+const cleanJobCategory = (rawCategory: string, rawTitle?: string): string => {
+  if (!rawCategory) return 'CCTV Setup';
+  if (rawCategory.length > 25 || rawCategory.includes('|')) {
+    const text = (rawCategory + ' ' + (rawTitle || '')).toLowerCase();
+    if (text.includes('4g') || text.includes('sim')) return '4G Smart Camera';
+    if (text.includes('solar')) return 'Solar Camera';
+    if (text.includes('dome')) return 'Dome Camera Setup';
+    if (text.includes('bullet')) return 'Bullet Camera Setup';
+    if (text.includes('wifi') || text.includes('wireless')) return 'WiFi Smart Cam';
+    if (text.includes('nvr') || text.includes('dvr')) return 'NVR / DVR Setup';
+    if (text.includes('amc') || text.includes('maintenance')) return 'AMC & Service';
+    return 'CCTV Installation';
+  }
+  return rawCategory;
+};
+
+const getCategoryColorBadge = (rawCategory: string, rawTitle?: string): string => {
+  const cat = cleanJobCategory(rawCategory, rawTitle);
+  const text = cat.toLowerCase();
+  if (text.includes('4g') || text.includes('sim') || text.includes('wifi')) {
+    return 'bg-purple-100 text-purple-900 border-purple-300 font-extrabold';
+  }
+  if (text.includes('solar')) {
+    return 'bg-amber-100 text-amber-900 border-amber-300 font-extrabold';
+  }
+  if (text.includes('dome') || text.includes('bullet')) {
+    return 'bg-teal-100 text-teal-900 border-teal-300 font-extrabold';
+  }
+  if (text.includes('nvr') || text.includes('dvr')) {
+    return 'bg-blue-100 text-blue-900 border-blue-300 font-extrabold';
+  }
+  return 'bg-indigo-100 text-indigo-900 border-indigo-300 font-extrabold';
+};
+
+const getJobCardBg = (status: JobStatus, isAssignedToMe: boolean) => {
+  switch (status) {
+    case 'IN_PROGRESS':
+    case 'WORKING':
+    case 'BEFORE_PHOTOS_DONE':
+      return 'bg-gradient-to-br from-blue-50/90 via-indigo-50/80 to-[#f0f4ff] border-2 border-blue-400/80 shadow-md shadow-blue-500/10';
+    case 'COMPLETED':
+      return 'bg-gradient-to-br from-emerald-50/90 via-teal-50/80 to-[#f0fdf4] border-2 border-emerald-400/80 shadow-sm';
+    case 'ACCEPTED':
+      return 'bg-gradient-to-br from-sky-50/90 via-blue-50/80 to-[#f0f9ff] border-2 border-sky-400/80 shadow-sm';
+    case 'PENDING':
+      return 'bg-gradient-to-br from-amber-50/90 via-orange-50/80 to-[#fffbeb] border-2 border-amber-400/80 shadow-sm';
+    default:
+      if (isAssignedToMe) {
+        return 'bg-gradient-to-br from-indigo-50/90 via-purple-50/80 to-[#f5f3ff] border-2 border-indigo-400/80 shadow-sm';
+      }
+      return 'bg-gradient-to-br from-slate-50/90 via-blue-50/40 to-[#f8fafc] border-2 border-slate-200/90 shadow-xs';
+  }
+};
+
 interface AssignedJobsTableProps {
   jobs: Job[];
   isLoading?: boolean;
@@ -76,40 +150,24 @@ export const AssignedJobsTable: React.FC<AssignedJobsTableProps> = ({
   if (isLoading) {
     return (
       <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-zinc-600">
-            <thead className="bg-zinc-50 border-b border-zinc-200 text-zinc-500 font-semibold uppercase text-[11px] tracking-wider">
-              <tr>
-                <th className="py-3.5 px-4">Job Code & Title</th>
-                <th className="py-3.5 px-4">Customer & Location</th>
-                <th className="py-3.5 px-4">Priority</th>
-                <th className="py-3.5 px-4">Schedule</th>
-                <th className="py-3.5 px-4">Status</th>
-                <th className="py-3.5 px-4">Workflow Actions</th>
-                <th className="py-3.5 px-4 text-right">Details</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100 font-normal">
-              {[...Array(5)].map((_, idx) => (
-                <tr key={idx} className="animate-pulse">
-                  <td className="py-4 px-4 space-y-2">
-                    <div className="h-3 w-20 bg-zinc-200 rounded"></div>
-                    <div className="h-4 w-48 bg-zinc-200 rounded"></div>
-                    <div className="h-2.5 w-32 bg-zinc-200 rounded"></div>
-                  </td>
-                  <td className="py-4 px-4 space-y-2">
-                    <div className="h-3.5 w-36 bg-zinc-200 rounded"></div>
-                    <div className="h-3 w-40 bg-zinc-200 rounded"></div>
+        <div className="p-4 space-y-4">
+          <div className="h-6 w-48 bg-zinc-200 animate-pulse rounded-md"></div>
+          <table className="w-full text-left border-collapse">
+            <tbody className="divide-y divide-zinc-100">
+              {[1, 2, 3].map((n) => (
+                <tr key={n} className="animate-pulse">
+                  <td className="py-4 px-4">
+                    <div className="h-4 w-32 bg-zinc-200 rounded mb-2"></div>
+                    <div className="h-3 w-48 bg-zinc-100 rounded"></div>
                   </td>
                   <td className="py-4 px-4">
-                    <div className="h-5 w-16 bg-zinc-200 rounded-full"></div>
+                    <div className="h-4 w-28 bg-zinc-200 rounded"></div>
                   </td>
-                  <td className="py-4 px-4 space-y-2">
-                    <div className="h-3.5 w-24 bg-zinc-200 rounded"></div>
-                    <div className="h-3 w-28 bg-zinc-200 rounded"></div>
+                  <td className="py-4 px-4 text-center">
+                    <div className="h-5 w-16 bg-zinc-200 rounded-md mx-auto"></div>
                   </td>
                   <td className="py-4 px-4">
-                    <div className="h-5 w-20 bg-zinc-200 rounded-full"></div>
+                    <div className="h-4 w-24 bg-zinc-200 rounded"></div>
                   </td>
                   <td className="py-4 px-4">
                     <div className="h-7 w-24 bg-zinc-200 rounded-md"></div>
@@ -148,69 +206,71 @@ export const AssignedJobsTable: React.FC<AssignedJobsTableProps> = ({
           <div
             key={job.id}
             onClick={() => onSelectJob(job)}
-            className="bg-white rounded-2xl p-4 shadow-xs border border-slate-200/80 transition-all cursor-pointer space-y-3.5 relative overflow-hidden active:scale-[0.99]"
+            className={`rounded-2xl p-3.5 transition-all duration-200 cursor-pointer space-y-2.5 relative overflow-hidden active:scale-[0.99] ${getJobCardBg(job.status, job.isAssignedToMe)}`}
           >
+            {/* Left colorful status stripe */}
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-blue-600 via-indigo-600 to-sky-500"></div>
+
             {/* Top Header Row */}
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="bg-slate-100 text-slate-800 border border-slate-200 font-mono font-bold text-xs px-2.5 py-0.5 rounded-md tracking-tight">
+            <div className="flex items-center justify-between gap-2 pl-0.5 flex-nowrap overflow-x-auto no-scrollbar">
+              <div className="flex items-center gap-2 min-w-0 flex-nowrap shrink mr-2">
+                <span className="bg-[#0B1527] text-white border border-slate-900 font-mono font-bold text-[10px] px-2 py-0.5 rounded-md tracking-tight shrink-0 shadow-2xs whitespace-nowrap">
                   {job.jobCode}
                 </span>
-                <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 shrink-0">
-                  {job.category}
+                <span className={`text-[9px] px-2 py-0.5 rounded-md border shrink-0 uppercase tracking-wide whitespace-nowrap max-w-[110px] sm:max-w-[140px] truncate ${getCategoryColorBadge(job.category, job.title)}`}>
+                  {cleanJobCategory(job.category, job.title)}
                 </span>
               </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <StatusBadge priority={job.priority} size="sm" />
+              <div className="flex items-center gap-1.5 shrink-0 whitespace-nowrap ml-auto">
                 {(job.isAssignedToMe || (job.beforePhotos && job.beforePhotos.length > 0)) ? (
-                  <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200/80 text-[10px] font-extrabold rounded-md flex items-center gap-1.5 shrink-0 shadow-2xs">
-                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
+                  <span className="px-2 py-0.5 bg-indigo-100 text-indigo-900 border border-indigo-300 text-[9px] font-black rounded-md flex items-center gap-1 shrink-0 uppercase tracking-wider whitespace-nowrap">
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse"></span>
                     <span>Assigned to You</span>
                   </span>
                 ) : job.assignedTechnicianName ? (
-                  <span className="px-2 py-0.5 bg-sky-50 text-sky-700 border border-sky-200/80 text-[10px] font-extrabold rounded-md flex items-center gap-1 shrink-0">
-                    <span className="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
+                  <span className="px-2 py-0.5 bg-sky-100 text-sky-900 border border-sky-300 text-[9px] font-black rounded-md flex items-center gap-1 shrink-0 uppercase tracking-wider whitespace-nowrap">
+                    <span className="w-1.5 h-1.5 rounded-full bg-sky-600"></span>
                     <span>Assigned to {job.assignedTechnicianName}</span>
                   </span>
                 ) : (
-                  <span className="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200/80 text-[10px] font-extrabold rounded-md flex items-center gap-1 shrink-0">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                    <span>Available to Accept</span>
+                  <span className="px-2 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 text-[9px] font-black rounded-md flex items-center gap-1 shrink-0 uppercase tracking-wider whitespace-nowrap">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse"></span>
+                    <span>Available</span>
                   </span>
                 )}
               </div>
             </div>
 
             {/* Title & Equipment */}
-            <div>
-              <h3 className="font-extrabold text-slate-900 text-sm leading-snug">{job.title}</h3>
-              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <p className="text-[11px] text-slate-500 font-medium">
-                  Equipment: <span className="text-slate-800 font-semibold">{job.installation.equipmentType}</span>
-                </p>
-              </div>
+            <div className="pl-0.5">
+              <h3 className="font-bold text-[#0B1527] text-xs leading-snug line-clamp-1" title={job.title}>
+                {cleanJobTitle(job.title)}
+              </h3>
+              <p className="text-[10px] text-slate-500 font-medium mt-0.5">
+                Equipment: <span className="text-[#0B1527] font-semibold">{job.installation?.equipmentType || 'CCTV Hardware & DVR'}</span>
+              </p>
             </div>
 
             {/* Info Box: Customer & Schedule */}
-            <div className="bg-slate-50 border border-slate-200/70 rounded-xl p-3 text-xs space-y-2">
-              <div className="flex flex-col gap-1">
-                <span className="font-extrabold text-slate-900 leading-tight">{job.customer.name}</span>
-                <div className="flex items-center space-x-1.5 text-slate-500 text-[11px]">
-                  <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <div className="bg-white/90 backdrop-blur-xs border border-slate-200/80 rounded-xl p-2.5 text-xs space-y-1.5 shadow-2xs">
+              <div className="flex flex-col gap-0.5">
+                <span className="font-bold text-[#0B1527] text-xs leading-tight">{job.customer.name}</span>
+                <div className="flex items-center space-x-1.5 text-slate-600 text-[10px]">
+                  <MapPin className="w-3 h-3 text-rose-500 shrink-0" />
                   <span className="truncate">{formatLocation(job.customer.address, job.customer.city)}</span>
                 </div>
-                <div className="flex items-center space-x-1.5 text-slate-500 text-[11px]">
-                  <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                  <span>{job.customer.phone || 'N/A'}</span>
+                <div className="flex items-center space-x-1.5 text-slate-600 text-[10px]">
+                  <Phone className="w-3 h-3 text-emerald-500 shrink-0" />
+                  <span className="font-semibold text-slate-800">{job.customer.phone || 'N/A'}</span>
                 </div>
               </div>
-              <div className="flex items-center gap-3 text-[11px] pt-2 border-t border-slate-200/60">
-                <div className="flex items-center space-x-1 text-slate-700 font-medium">
-                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
+              <div className="flex items-center justify-between text-[10px] pt-1.5 border-t border-slate-200/80">
+                <div className="flex items-center space-x-1 text-slate-800 font-semibold bg-blue-50/90 border border-blue-200 px-2 py-0.5 rounded-md">
+                  <Calendar className="w-3 h-3 text-blue-600" />
                   <span>{formatDate(job.scheduledDate)}</span>
                 </div>
-                <div className="flex items-center space-x-1 text-slate-700 font-mono font-medium">
-                  <Clock className="w-3.5 h-3.5 text-slate-400" />
+                <div className="flex items-center space-x-1 text-slate-800 font-mono font-semibold bg-purple-50/90 border border-purple-200 px-2 py-0.5 rounded-md">
+                  <Clock className="w-3 h-3 text-purple-600" />
                   <span>{job.scheduledTimeSlot}</span>
                 </div>
               </div>
@@ -300,7 +360,6 @@ export const AssignedJobsTable: React.FC<AssignedJobsTableProps> = ({
               <tr>
                 <th className="py-3.5 px-4 min-w-[300px]">Job Code & Title</th>
                 <th className="py-3.5 px-4 min-w-[220px]">Customer & Location</th>
-                <th className="py-3.5 px-4 min-w-[100px] text-center">Priority</th>
                 <th className="py-3.5 px-4 min-w-[150px]">Schedule</th>
                 <th className="py-3.5 px-4 min-w-[110px] text-center">Status</th>
                 <th className="py-3.5 px-4 min-w-[170px]">Workflow Actions</th>
@@ -320,8 +379,8 @@ export const AssignedJobsTable: React.FC<AssignedJobsTableProps> = ({
                       <span className="font-mono font-extrabold text-zinc-900 text-xs tracking-tight">
                         {job.jobCode}
                       </span>
-                      <span className="text-[10px] font-sans font-medium text-zinc-500 bg-zinc-100 border border-zinc-200 px-1.5 py-0.5 rounded-md shrink-0">
-                        {job.category}
+                      <span className={`text-[10px] font-sans px-2 py-0.5 rounded-md border shrink-0 uppercase tracking-wide ${getCategoryColorBadge(job.category, job.title)}`}>
+                        {cleanJobCategory(job.category, job.title)}
                       </span>
                       {(job.isAssignedToMe || job.status === 'IN_PROGRESS' || (job.beforePhotos && job.beforePhotos.length > 0)) ? (
                         <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200/80 text-[10px] font-extrabold rounded-md flex items-center gap-1.5 shrink-0 shadow-2xs">
@@ -340,11 +399,11 @@ export const AssignedJobsTable: React.FC<AssignedJobsTableProps> = ({
                         </span>
                       )}
                     </div>
-                    <div className="font-bold text-zinc-900 text-sm leading-snug group-hover:text-sky-700 transition-colors">
-                      {job.title}
+                    <div className="font-bold text-zinc-900 text-sm leading-snug group-hover:text-sky-700 transition-colors line-clamp-2" title={job.title}>
+                      {cleanJobTitle(job.title)}
                     </div>
                     <div className="text-[11px] text-zinc-400 font-medium mt-0.5">
-                      Equipment: {job.installation.equipmentType}
+                      Equipment: {job.installation?.equipmentType || 'CCTV Hardware & DVR'}
                     </div>
                   </td>
 
@@ -355,11 +414,6 @@ export const AssignedJobsTable: React.FC<AssignedJobsTableProps> = ({
                       <MapPin className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
                       <span className="truncate max-w-[200px]">{formatLocation(job.customer.address, job.customer.city)}</span>
                     </div>
-                  </td>
-
-                  {/* Priority */}
-                  <td className="py-4 px-4 align-middle text-center">
-                    <StatusBadge priority={job.priority} size="sm" />
                   </td>
 
                   {/* Scheduled Slot */}

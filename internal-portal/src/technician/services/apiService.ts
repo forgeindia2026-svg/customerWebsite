@@ -87,6 +87,46 @@ export const compressImageFile = (file: File, maxWidth = 1280, quality = 0.72): 
   });
 };
 
+export function formatCleanJobTitle(rawTitle: string): string {
+  if (!rawTitle) return 'CCTV Installation & Service';
+  const parts = rawTitle.split('|').map(p => p.trim()).filter(Boolean);
+  let mainTitle = parts[0] || rawTitle;
+
+  const lastPart = parts.length > 1 ? parts[parts.length - 1] : '';
+  const modelMatch = lastPart.match(/\b([A-Z0-9]{2,5}-[A-Z0-9]{2,6})\b/i);
+
+  mainTitle = mainTitle
+    .replace(/\s*for\s+(Home|Outdoor|Indoor|Office|Shop|Commercial)\s*(Outdoor|Indoor|Home)?/gi, '')
+    .replace(/\s*\|\s*/g, ' ')
+    .trim();
+
+  if (modelMatch && !mainTitle.toLowerCase().includes(modelMatch[0].toLowerCase())) {
+    mainTitle = `${mainTitle} (${modelMatch[0]})`;
+  }
+
+  if (mainTitle.length > 65) {
+    mainTitle = mainTitle.slice(0, 62).trim() + '...';
+  }
+
+  return mainTitle;
+}
+
+export function formatCleanCategory(rawCategory: string, rawTitle?: string): string {
+  if (!rawCategory) return 'CCTV Setup';
+  if (rawCategory.length > 25 || rawCategory.includes('|')) {
+    const text = (rawCategory + ' ' + (rawTitle || '')).toLowerCase();
+    if (text.includes('4g') || text.includes('sim')) return '4G Smart Camera';
+    if (text.includes('solar')) return 'Solar Camera';
+    if (text.includes('dome')) return 'Dome Camera Setup';
+    if (text.includes('bullet')) return 'Bullet Camera Setup';
+    if (text.includes('wifi') || text.includes('wireless')) return 'WiFi Smart Cam';
+    if (text.includes('nvr') || text.includes('dvr')) return 'NVR / DVR Setup';
+    if (text.includes('amc') || text.includes('maintenance')) return 'AMC & Service';
+    return 'CCTV Installation';
+  }
+  return rawCategory;
+}
+
 export const JobsApiService = {
   async getDashboardSummary(): Promise<any> {
     try {
@@ -211,8 +251,8 @@ export const JobsApiService = {
         return {
           id: j._id || j.id || `job-${Math.random()}`,
           jobCode: j.jobCode || '#SK-JOB',
-          title: j.title || 'CCTV Installation & Maintenance',
-          category: j.category || 'CCTV Installation',
+          title: formatCleanJobTitle(j.title || 'CCTV Installation & Maintenance'),
+          category: formatCleanCategory(j.category, j.title),
           status: normStatus,
           priority: (j.priority || 'MEDIUM').toString().toUpperCase(),
           isAssignedToMe: assignedToMe,
@@ -352,6 +392,8 @@ export const JobsApiService = {
         return {
           ...j,
           id: j._id || j.id,
+          title: formatCleanJobTitle(j.title || 'CCTV Installation & Maintenance'),
+          category: formatCleanCategory(j.category, j.title),
           beforePhotos,
           afterPhotos,
           taskDescription: j.workProgress?.taskDescription || j.fieldNotes || matchingReport?.workDescription || ''
@@ -429,20 +471,38 @@ export const JobsApiService = {
     const phone = localStorage.getItem('user_phone') || '+91 99999 99999';
     let avatarUrl = localStorage.getItem('user_avatar') || localStorage.getItem('tech_avatar') || '';
 
-    // If backend profile has an avatar, fetch and sync
+    let completedJobsCount = 0;
+
+    // If backend profile has an avatar or stats, fetch and sync
     try {
       if (email) {
         const baseUrl = getApiUrl();
         const res = await fetch(`${baseUrl}/api/auth/profile?email=${encodeURIComponent(email)}`);
         if (res.ok) {
           const resData = await res.json();
-          if (resData.success && resData.data && resData.data.avatar) {
-            avatarUrl = resData.data.avatar;
-            localStorage.setItem('user_avatar', avatarUrl);
+          if (resData.success && resData.data) {
+            if (resData.data.avatar) {
+              avatarUrl = resData.data.avatar;
+              localStorage.setItem('user_avatar', avatarUrl);
+            }
+            if (typeof resData.data.completedJobsCount === 'number') {
+              completedJobsCount = resData.data.completedJobsCount;
+            }
           }
         }
       }
     } catch (e) {}
+
+    // Check cached summary stats to ensure real count is reflected
+    try {
+      const summaryCache = localStorage.getItem('sk_tech_summary_cache');
+      if (summaryCache) {
+        const parsed = JSON.parse(summaryCache);
+        if (typeof parsed.totalCompleted === 'number') {
+          completedJobsCount = Math.max(completedJobsCount, parsed.totalCompleted);
+        }
+      }
+    } catch (_) {}
 
     if (!avatarUrl) {
       avatarUrl = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80';
@@ -459,7 +519,7 @@ export const JobsApiService = {
       vehicleNumber: 'Ford Transit #SK-408',
       status: 'ON_DUTY',
       rating: 5.0,
-      completedJobsCount: 0,
+      completedJobsCount,
       avatarUrl,
     };
   },

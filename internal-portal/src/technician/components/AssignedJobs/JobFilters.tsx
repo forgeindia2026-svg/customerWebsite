@@ -1,5 +1,5 @@
-import type { JobFilterOptions, JobStatus, Priority } from '../../types/job';
-import { Search, Filter, ArrowUpDown, X } from 'lucide-react';
+import type { JobFilterOptions, JobStatus } from '../../types/job';
+import { Search, Filter, X } from 'lucide-react';
 
 interface JobFiltersProps {
   filters: JobFilterOptions;
@@ -13,7 +13,7 @@ export const JobFilters = ({
   onResetFilters,
 }: JobFiltersProps) => {
   const hasActiveFilters =
-    filters.searchQuery !== '' || filters.status !== 'ALL' || filters.priority !== 'ALL';
+    filters.searchQuery !== '' || filters.status !== 'ALL';
 
   return (
     <div className="p-4 bg-white border border-zinc-200 rounded-xl space-y-4 shadow-xs">
@@ -45,9 +45,9 @@ export const JobFilters = ({
       </div>
 
       {/* Filter Options */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-3 border-t border-zinc-100 text-xs">
+      <div className="pt-3 border-t border-zinc-100 text-xs">
         {/* Status Filter */}
-        <div>
+        <div className="max-w-xs">
           <label className="block text-zinc-500 font-medium mb-1 flex items-center space-x-1">
             <Filter className="w-3 h-3 text-zinc-400" />
             <span>Job Status</span>
@@ -62,57 +62,6 @@ export const JobFilters = ({
             <option value="IN_PROGRESS">In Progress</option>
             <option value="COMPLETED">Completed</option>
             <option value="ON_HOLD">On Hold</option>
-          </select>
-        </div>
-
-        {/* Priority Filter */}
-        <div>
-          <label className="block text-zinc-500 font-medium mb-1 flex items-center space-x-1">
-            <Filter className="w-3 h-3 text-zinc-400" />
-            <span>Priority</span>
-          </label>
-          <select
-            value={filters.priority}
-            onChange={(e) => onFilterChange({ priority: e.target.value as Priority | 'ALL', page: 1 })}
-            className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg font-medium text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900"
-          >
-            <option value="ALL">All Priorities</option>
-            <option value="URGENT">Urgent</option>
-            <option value="HIGH">High</option>
-            <option value="MEDIUM">Medium</option>
-            <option value="LOW">Low</option>
-          </select>
-        </div>
-
-        {/* Sort By Filter */}
-        <div>
-          <label className="block text-zinc-500 font-medium mb-1 flex items-center space-x-1">
-            <ArrowUpDown className="w-3 h-3 text-zinc-400" />
-            <span>Sort Field</span>
-          </label>
-          <select
-            value={filters.sortBy}
-            onChange={(e) => onFilterChange({ sortBy: e.target.value as any })}
-            className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg font-medium text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900"
-          >
-            <option value="scheduledDate">Scheduled Date</option>
-            <option value="jobCode">Job Code</option>
-          </select>
-        </div>
-
-        {/* Sort Order Filter */}
-        <div>
-          <label className="block text-zinc-500 font-medium mb-1 flex items-center space-x-1">
-            <ArrowUpDown className="w-3 h-3 text-zinc-400" />
-            <span>Order</span>
-          </label>
-          <select
-            value={filters.sortOrder}
-            onChange={(e) => onFilterChange({ sortOrder: e.target.value as 'asc' | 'desc' })}
-            className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg font-medium text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900"
-          >
-            <option value="asc">Ascending</option>
-            <option value="desc">Descending</option>
           </select>
         </div>
       </div>

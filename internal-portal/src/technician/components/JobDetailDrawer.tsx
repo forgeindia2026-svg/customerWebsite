@@ -102,7 +102,6 @@ export const JobDetailDrawer = ({
             <div className="flex items-center space-x-3">
               <span className="text-xs font-mono font-bold text-zinc-500">{job.jobCode}</span>
               <StatusBadge status={job.status} size="sm" />
-              <StatusBadge priority={job.priority} size="sm" />
             </div>
             <h2 className="text-lg font-semibold text-zinc-900 mt-1">{job.title}</h2>
           </div>

@@ -20,6 +20,39 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
+function extractCleanJobTitle(raw: string): string {
+  if (!raw) return 'CCTV Installation & Service';
+  const parts = raw.split('|').map(p => p.trim()).filter(Boolean);
+  let main = parts[0] || raw;
+  const lastPart = parts.length > 1 ? parts[parts.length - 1] : '';
+  const modelMatch = lastPart.match(/\b([A-Z0-9]{2,5}-[A-Z0-9]{2,6})\b/i);
+
+  main = main
+    .replace(/\s*for\s+(Home|Outdoor|Indoor|Office|Shop|Commercial)\s*(Outdoor|Indoor|Home)?/gi, '')
+    .replace(/\s*\|\s*/g, ' ')
+    .trim();
+
+  if (modelMatch && !main.toLowerCase().includes(modelMatch[0].toLowerCase())) {
+    main = `${main} (${modelMatch[0]})`;
+  }
+  if (main.length > 65) {
+    main = main.slice(0, 62).trim() + '...';
+  }
+  return main;
+}
+
+function extractCleanCategory(rawCategory: string, rawTitle?: string): string {
+  const text = ((rawCategory || '') + ' ' + (rawTitle || '')).toLowerCase();
+  if (text.includes('4g') || text.includes('sim')) return '4G Smart Camera';
+  if (text.includes('solar')) return 'Solar Camera';
+  if (text.includes('dome')) return 'Dome Camera Setup';
+  if (text.includes('bullet')) return 'Bullet Camera Setup';
+  if (text.includes('wifi') || text.includes('wireless')) return 'WiFi Smart Cam';
+  if (text.includes('nvr') || text.includes('dvr')) return 'NVR / DVR Setup';
+  if (text.includes('amc') || text.includes('maintenance')) return 'AMC & Service';
+  return 'CCTV Installation';
+}
+
 // POST create order (for Customer Website)
 router.post('/', async (req: Request, res: Response) => {
   try {
@@ -91,11 +124,15 @@ router.post('/', async (req: Request, res: Response) => {
           await assignedTech.save();
         }
 
+        const rawItemTitles = req.body.items?.map((item: any) => item.title).join(', ') || 'CCTV Installation';
+        const cleanJobTitle = extractCleanJobTitle(rawItemTitles);
+        const cleanJobCat = extractCleanCategory(req.body.category || rawItemTitles, rawItemTitles);
+
         // 2. Create the Job mapped to this order, assigned to the tech
         const newJob = await Job.create({
           jobCode: orderNumber,
-          title: req.body.items?.map((item: any) => item.title).join(', ') || 'CCTV Installation',
-          category: req.body.items?.map((item: any) => item.title).join(', ') || 'CCTV Installation',
+          title: cleanJobTitle,
+          category: cleanJobCat,
           status: 'ASSIGNMENT_PENDING_ACCEPTANCE', // Admin sees assigned, Customer sees pending
           priority: 'MEDIUM',
           scheduledDate: new Date().toISOString().split('T')[0],
@@ -137,11 +174,15 @@ router.post('/', async (req: Request, res: Response) => {
         });
         await dashboardData.save();
       } else {
+        const rawItemTitles = req.body.items?.map((item: any) => item.title).join(', ') || 'CCTV Installation';
+        const cleanJobTitle = extractCleanJobTitle(rawItemTitles);
+        const cleanJobCat = extractCleanCategory(req.body.category || rawItemTitles, rawItemTitles);
+
         // No tech available -> push to waiting queue
         const newJob = await Job.create({
           jobCode: orderNumber,
-          title: req.body.items?.map((item: any) => item.title).join(', ') || 'CCTV Installation',
-          category: req.body.items?.map((item: any) => item.title).join(', ') || 'CCTV Installation',
+          title: cleanJobTitle,
+          category: cleanJobCat,
           status: 'WAITING_FOR_TECH',
           priority: 'MEDIUM',
           scheduledDate: new Date().toISOString().split('T')[0],

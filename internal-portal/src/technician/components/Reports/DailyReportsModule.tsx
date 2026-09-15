@@ -31,7 +31,7 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
   onOpenWorkflow,
 }) => {
   const [filterType, setFilterType] = useState<'ALL' | 'VERIFIED' | 'PENDING'>('ALL');
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedReportIndex, setSelectedReportIndex] = useState<number | null>(0);
   const [isExporting, setIsExporting] = useState(false);
   const [exportSuccess, setExportSuccess] = useState(false);
@@ -275,19 +275,20 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
   });
 
   const authUser = JSON.parse(localStorage.getItem('tech_user') || '{}');
-  const currentTechName = (authUser.name || localStorage.getItem('user_name') || '').trim().toLowerCase();
+  const rawTechName = (authUser.name || localStorage.getItem('user_name') || '').trim().toLowerCase();
   const currentTechId = authUser.id || authUser._id || localStorage.getItem('user_id') || '';
+  const isGenericTech = !rawTechName || ['admin', 'technician', 'field technician', 'staff'].includes(rawTechName);
 
   const dbReportsFormatted = (Array.isArray(dbReports) ? dbReports : [])
     .filter((gr) => {
       // Filter out pure Check-In/Attendance logs so only actual work reports are displayed here
       if (gr.activityType === 'Check-In' || (gr.workDescription && gr.workDescription.includes('Punched in'))) return false;
       
-      // Filter strictly to current logged-in technician
-      if (currentTechName) {
+      // Filter strictly to current logged-in technician if specific technician profile is loaded
+      if (!isGenericTech && rawTechName) {
         const reportTech = (gr.technicianName || gr.technician || '').trim().toLowerCase();
         const reportTechId = gr.technicianId || '';
-        if (reportTech && !reportTech.includes(currentTechName) && !currentTechName.includes(reportTech) && reportTechId && reportTechId !== currentTechId) {
+        if (reportTech && !reportTech.includes(rawTechName) && !rawTechName.includes(reportTech) && reportTechId && reportTechId !== currentTechId) {
           return false;
         }
       }
@@ -300,10 +301,11 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
           timeStr = new Date(gr.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
         } catch (_) {}
       }
+      const rawDate = gr.date || (gr.createdAt ? gr.createdAt.split('T')[0] : new Date().toISOString().split('T')[0]);
       return {
         id: gr._id || `REP-DB-${Math.random()}`,
         createdAt: gr.createdAt || gr.updatedAt || new Date().toISOString(),
-        date: gr.createdAt ? gr.createdAt.split('T')[0] : (gr.date || new Date().toISOString().split('T')[0]),
+        date: rawDate,
         time: timeStr || '',
         jobCode: gr.jobCode || gr.jobId || 'GENERAL-TASK',
         jobTitle: gr.activityType || 'Daily Work Log',
@@ -323,19 +325,19 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
       };
     });
 
-  // Enrich job reports with dbReports voice note and photos
-  const dbReportByCode = new Map(dbReportsFormatted.map(r => [r.jobCode, r]));
+  const normalizeCode = (c: string) => (c || '').replace(/^#/, '').trim().toLowerCase();
+  const dbReportByCode = new Map(dbReportsFormatted.map(r => [normalizeCode(r.jobCode), r]));
 
   const enrichedJobReports = jobReports
     .filter(jr => {
-      if (currentTechName) {
+      if (!isGenericTech && rawTechName) {
         const jrTech = (jr.technician || '').trim().toLowerCase();
-        if (jrTech && !jrTech.includes(currentTechName) && !currentTechName.includes(jrTech)) return false;
+        if (jrTech && !jrTech.includes(rawTechName) && !rawTechName.includes(jrTech)) return false;
       }
       return true;
     })
     .map(jr => {
-      const matchingDb = dbReportByCode.get(jr.jobCode);
+      const matchingDb = dbReportByCode.get(normalizeCode(jr.jobCode));
       if (matchingDb) {
         return {
           ...jr,
@@ -348,9 +350,11 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
       return jr;
     });
 
+  const dbCodesSet = new Set(dbReportsFormatted.map(d => normalizeCode(d.jobCode)));
+
   const reports = [
     ...dbReportsFormatted,
-    ...enrichedJobReports.filter(jr => !dbReportsFormatted.some(d => d.jobCode === jr.jobCode))
+    ...enrichedJobReports.filter(jr => !dbCodesSet.has(normalizeCode(jr.jobCode)))
   ]
     .filter((r) => {
       if (!selectedDate) return true;
@@ -545,7 +549,7 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
           <div className="min-w-0 pr-1">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1 truncate">SITE EVIDENCE PHOTOS</span>
             <p className="text-2xl font-black text-amber-600 leading-none">
-              {reports.reduce((acc, r) => acc + (r.photos?.length || 0), 0)} <span className="text-xs font-bold text-slate-400">photos</span>
+              {reports.reduce((acc, r) => acc + (r.beforePhotos?.length || 0) + (r.afterPhotos?.length || 0), 0)} <span className="text-xs font-bold text-slate-400">photos</span>
             </p>
             <span className="text-[10px] font-bold text-amber-600 mt-1 block truncate">Proof of Completion</span>
           </div>
@@ -677,10 +681,7 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
                 ) : null}
                 
                 {/* Actions Footer */}
-                <div className="mt-6 pt-5 border-t border-slate-100 flex items-center justify-between pl-3">
-                    <div className="flex items-center gap-2">
-                       <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-md text-[10px] font-bold uppercase tracking-wider">{report.hoursLogged} Hours Logged</span>
-                    </div>
+                <div className="mt-6 pt-5 border-t border-slate-100 flex items-center justify-end pl-3">
                     <button
                       onClick={() => handleExportPDF(report)}
                       className="text-[#2663ff] hover:text-[#1a50db] bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-sm"

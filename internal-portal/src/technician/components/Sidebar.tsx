@@ -5,11 +5,9 @@ import {
   Clock,
   FileText,
   Bell,
-  BarChart3,
   History,
   HelpCircle,
   User,
-  Settings,
   LogOut,
   ShieldCheck,
   X,
@@ -48,14 +46,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'history', label: 'Job History', icon: History, color: 'text-purple-600', iconBg: 'bg-purple-50 border-purple-200/70' },
     { id: 'query', label: 'Helpdesk & Queries', icon: HelpCircle, color: 'text-rose-600', iconBg: 'bg-rose-50 border-rose-200/70' },
     { id: 'scanner', label: 'QR Scanner', icon: QrCode, color: 'text-teal-600', iconBg: 'bg-teal-50 border-teal-200/70' },
-    { id: 'analytics', label: 'Performance Analytics', icon: BarChart3, color: 'text-violet-600', iconBg: 'bg-violet-50 border-violet-200/70' },
     { id: 'leaderboard', label: 'Leadership Board', icon: Trophy, color: 'text-amber-500', iconBg: 'bg-amber-50 border-amber-200/70', badge: 'TOP' },
     { id: 'notifications', label: 'Notifications', icon: Bell, badge: notificationsCount > 0 ? String(notificationsCount) : undefined, color: 'text-amber-500', iconBg: 'bg-amber-50 border-amber-200/70' },
   ];
 
   const secondaryNavItems = [
     { id: 'profile', label: 'Profile', icon: User, color: 'text-indigo-600', iconBg: 'bg-indigo-50 border-indigo-200/70' },
-    { id: 'settings', label: 'Settings', icon: Settings, color: 'text-slate-600', iconBg: 'bg-slate-100 border-slate-200/70' },
   ];
 
   const initials = currentTechnician?.name
