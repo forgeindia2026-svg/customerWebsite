@@ -12,6 +12,7 @@ import {
   Truck,
   Sparkles,
   ArrowRight,
+  X,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -141,15 +142,25 @@ export default function Faq() {
           </p>
 
           {/* Search Box */}
-          <div className="max-w-xl mx-auto pt-2 relative">
-            <Search className="absolute left-4 top-3.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <div className="max-w-xl mx-auto mt-4 relative flex items-center">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search questions (e.g. installation, mobile app, warranty, AMC)..."
-              className="pl-11 pr-4 h-11 rounded-2xl bg-card border-border shadow-sm text-sm focus-visible:ring-red-500"
+              className="w-full pl-11 pr-10 h-12 rounded-2xl bg-card border-border shadow-sm text-sm text-left focus-visible:ring-red-500"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                title="Clear search"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground rounded-full transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
       </div>
