@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useSearchParams } from 'react-router-dom';
 import { FiSearch, FiSliders, FiCheckCircle, FiInfo, FiTrash2, FiPlusCircle, FiEye, FiGrid, FiList, FiPlus, FiUser, FiCalendar, FiDollarSign, FiChevronDown, FiCheck, FiEdit, FiShoppingBag, FiClock, FiRefreshCw, FiVideo, FiShield, FiTool, FiCpu, FiPackage, FiAlertCircle } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
-import { approveOrder, approveOrderCompletion, reworkOrder, setOrderStatus, addOrder, assignTechnicianToOrder, editOrder, adminApproveJob, adminReworkJob, fetchDashboardData, createOrderAPI } from '../../redux/dashboardSlice';
+import { approveOrder, approveOrderCompletion, reworkOrder, setOrderStatus, addOrder, assignTechnicianToOrder, editOrder, adminApproveJob, adminReworkJob, fetchDashboardData, createOrderAPI, addPayment } from '../../redux/dashboardSlice';
 import { socket } from '../../socket';
 import Modal from '../../components/Modal';
 import { getApiUrl } from '../../utils/config';
@@ -70,7 +70,8 @@ export default function Orders() {
   const [approvalModalOpen, setApprovalModalOpen] = useState(false);
   const [approvalTargetOrder, setApprovalTargetOrder] = useState(null);
   const [approvalForm, setApprovalForm] = useState({
-    totalValue: '',
+    salesValue: '',
+    purchaseValue: '',
     companyProfit: '',
     technicianEarning: ''
   });
@@ -176,16 +177,14 @@ export default function Orders() {
   const openApprovalModal = (ord) => {
     setActiveStatusDropdown(null);
     setApprovalTargetOrder(ord);
-    const total = Number(ord.financials?.totalValue || ord.amount || ord.totalAmount || 0);
-    const profit = ord.financials?.companyProfit !== undefined 
-      ? ord.financials.companyProfit 
-      : (total > 0 ? Math.round(total * 0.7) : '');
-    const earning = ord.financials?.technicianEarning !== undefined 
-      ? ord.financials.technicianEarning 
-      : (ord.technicianEarning !== undefined ? ord.technicianEarning : (total > 0 ? Math.round(total * 0.3) : ''));
+    const sales = Number(ord.financials?.salesValue || ord.financials?.totalValue || ord.amount || ord.totalAmount || 0);
+    const purchase = Number(ord.financials?.purchaseValue || 0);
+    const profit = ord.financials?.companyProfit !== undefined ? ord.financials.companyProfit : '';
+    const earning = ord.financials?.technicianEarning !== undefined ? ord.financials.technicianEarning : (ord.technicianEarning !== undefined ? ord.technicianEarning : '');
 
     setApprovalForm({
-      totalValue: total > 0 ? String(total) : '',
+      salesValue: sales > 0 ? String(sales) : '',
+      purchaseValue: purchase > 0 ? String(purchase) : '',
       companyProfit: profit !== '' ? String(profit) : '',
       technicianEarning: earning !== '' ? String(earning) : ''
     });
@@ -203,7 +202,8 @@ export default function Orders() {
       return;
     }
 
-    const totalVal = parseFloat(approvalForm.totalValue) || 0;
+    const salesVal = parseFloat(approvalForm.salesValue) || 0;
+    const purchaseVal = parseFloat(approvalForm.purchaseValue) || 0;
     const profitVal = parseFloat(approvalForm.companyProfit) || 0;
     const earningVal = parseFloat(approvalForm.technicianEarning) || 0;
 
@@ -223,15 +223,42 @@ export default function Orders() {
       id: orderId,
       jobId: orderId,
       orderId: orderId,
-      totalValue: totalVal,
+      salesValue: salesVal,
+      purchaseValue: purchaseVal,
+      totalValue: salesVal,
       companyProfit: profitVal,
       technicianEarning: earningVal
+    }));
+
+    const techName = approvalTargetOrder.assignedTechnician || 'Staff';
+    const custName = approvalTargetOrder.customer || approvalTargetOrder.customerName || approvalTargetOrder.name || 'Customer';
+
+    dispatch(addPayment({
+      id: `PAY-${orderId}`,
+      invoiceNo: orderId,
+      transactionNo: orderId,
+      customerName: custName,
+      customer: custName,
+      type: 'Sales Invoices',
+      transactionType: 'Sales Invoices',
+      salesValue: salesVal,
+      purchaseValue: purchaseVal,
+      companyProfit: profitVal,
+      technicianEarning: earningVal,
+      amount: salesVal,
+      createdBy: techName,
+      creator: techName,
+      status: 'Paid',
+      createdAt: new Date().toISOString(),
+      date: new Date().toISOString().split('T')[0]
     }));
 
     try {
       await dispatch(adminApproveJob({
         jobId: orderId,
-        totalValue: totalVal,
+        salesValue: salesVal,
+        purchaseValue: purchaseVal,
+        totalValue: salesVal,
         companyProfit: profitVal,
         technicianEarning: earningVal,
         approvedBy: 'Admin'
@@ -254,7 +281,9 @@ export default function Orders() {
         rawJobStatus: 'APPROVED',
         technicianEarning: earningVal,
         financials: {
-          totalValue: totalVal,
+          salesValue: salesVal,
+          purchaseValue: purchaseVal,
+          totalValue: salesVal,
           companyProfit: profitVal,
           technicianEarning: earningVal
         }
@@ -2074,46 +2103,58 @@ export default function Orders() {
         {approvalTargetOrder && (
           <form onSubmit={handleConfirmApproval} className="space-y-4">
             {/* Header Info */}
-            <div className="p-3 bg-blue-50/70 dark:bg-blue-950/20 border border-blue-200/60 dark:border-blue-900/40 rounded-xl space-y-1">
+            <div className="p-3 bg-blue-50/70 dark:bg-blue-950/20 border border-blue-200/60 dark:border-blue-900/40 rounded-xl space-y-1.5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-800 dark:text-white">Order: {approvalTargetOrder.id}</span>
-                <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400">{approvalTargetOrder.customer}</span>
+                <span className="text-xs font-bold text-slate-800 dark:text-white">Order: {approvalTargetOrder.id || approvalTargetOrder.orderNumber || approvalTargetOrder.jobCode}</span>
+                <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/40 px-2 py-0.5 rounded-md">Customer</span>
               </div>
-              <p className="text-[11px] text-slate-500">
-                Assigned Technician: <strong className="text-slate-700 dark:text-slate-300">{approvalTargetOrder.assignedTechnician || 'Staff'}</strong>
+              <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                Customer Name: <strong className="text-slate-800 dark:text-slate-200 font-bold">{approvalTargetOrder.customer || approvalTargetOrder.customerName || approvalTargetOrder.name || 'N/A'}</strong>
+              </p>
+              <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                Assigned Technician: <strong className="text-slate-800 dark:text-slate-200 font-bold">{approvalTargetOrder.assignedTechnician || 'Staff'}</strong>
               </p>
             </div>
 
             <div className="space-y-3">
-              {/* 1. Total Value */}
+              {/* 1. Sales Value */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  1. Total Value (₹) *
+                  1. Sales Value (₹) *
                 </label>
                 <input
                   type="number"
                   required
                   min="0"
                   step="any"
-                  value={approvalForm.totalValue}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const num = parseFloat(val) || 0;
-                    setApprovalForm({
-                      totalValue: val,
-                      companyProfit: num > 0 ? String(Math.round(num * 0.7)) : '',
-                      technicianEarning: num > 0 ? String(Math.round(num * 0.3)) : ''
-                    });
-                  }}
-                  placeholder="Total order or job amount"
+                  value={approvalForm.salesValue}
+                  onChange={(e) => setApprovalForm({ ...approvalForm, salesValue: e.target.value })}
+                  placeholder="Sales value or total order amount"
                   className="w-full text-xs font-mono font-bold p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
                 />
               </div>
 
-              {/* 2. Company Profit */}
+              {/* 2. Purchase Value */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  2. Company Profit (₹) *
+                  2. Purchase Value (₹) *
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  step="any"
+                  value={approvalForm.purchaseValue}
+                  onChange={(e) => setApprovalForm({ ...approvalForm, purchaseValue: e.target.value })}
+                  placeholder="Purchase/cost value of products/materials"
+                  className="w-full text-xs font-mono font-bold p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+                />
+              </div>
+
+              {/* 3. Company Profit */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  3. Company Profit (₹) *
                 </label>
                 <input
                   type="number"
@@ -2127,10 +2168,10 @@ export default function Orders() {
                 />
               </div>
 
-              {/* 3. Technician Earning */}
+              {/* 4. Technician Earning */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  3. Technician Earning (₹) *
+                  4. Technician Earning (₹) *
                 </label>
                 <input
                   type="number"
@@ -2151,7 +2192,7 @@ export default function Orders() {
                 🔒 Strict Confidentiality Notice:
               </p>
               <p>
-                Only the <strong>Technician Earning (₹)</strong> is visible to the technician and used to calculate the <strong>Leaderboard Rank</strong>. Total Value and Company Profit are strictly confidential to Admins.
+                Only the <strong>Technician Earning (₹)</strong> is visible to the technician and used to calculate the <strong>Leaderboard Rank</strong>. Sales Value, Purchase Value, and Company Profit are strictly confidential to Admins.
               </p>
             </div>
 

@@ -397,7 +397,9 @@ const dashboardSlice = createSlice({
       }
 
       const financials = typeof action.payload === 'object' ? {
-        totalValue: Number(action.payload.totalValue) || 0,
+        salesValue: Number(action.payload.salesValue ?? action.payload.totalValue) || 0,
+        purchaseValue: Number(action.payload.purchaseValue) || 0,
+        totalValue: Number(action.payload.salesValue ?? action.payload.totalValue) || 0,
         companyProfit: Number(action.payload.companyProfit) || 0,
         technicianEarning: Number(action.payload.technicianEarning) || 0
       } : null;
@@ -1039,12 +1041,24 @@ const dashboardSlice = createSlice({
       }
     },
     addPayment: (state, action) => {
+      if (!state.payments) state.payments = [];
       const newPayment = {
-        id: `PAY-ORD-${Math.floor(1000 + Math.random() * 9000)}`,
+        id: action.payload.id || action.payload.transactionNo || action.payload.invoiceNo || `PAY-ORD-${Math.floor(1000 + Math.random() * 9000)}`,
         ...action.payload,
       };
-      if (!state.payments) state.payments = [];
-      state.payments.unshift(newPayment);
+      const existingIdx = state.payments.findIndex(p => p.id === newPayment.id || (p.invoiceNo && p.invoiceNo === newPayment.invoiceNo) || (p.transactionNo && p.transactionNo === newPayment.transactionNo));
+      if (existingIdx >= 0) {
+        state.payments[existingIdx] = { ...state.payments[existingIdx], ...newPayment };
+      } else {
+        state.payments.unshift(newPayment);
+      }
+      try {
+        const cached = JSON.parse(localStorage.getItem('sk_admin_dashboard_cache') || '{}');
+        if (cached) {
+          cached.payments = state.payments;
+          localStorage.setItem('sk_admin_dashboard_cache', JSON.stringify(cached));
+        }
+      } catch (e) {}
     },
     updatePaymentStatus: (state, action) => {
       const { id, status } = action.payload;

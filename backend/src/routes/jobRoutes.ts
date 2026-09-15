@@ -1137,12 +1137,16 @@ router.post('/:id/admin-approve', async (req: Request, res: Response) => {
 
     const targetCode = job?.jobCode || order?.orderNumber || req.params.id;
 
-    const { totalValue, companyProfit, technicianEarning, approvedBy } = req.body || {};
-    const parsedTotal = Number(totalValue) || (order?.totalAmount || 0);
+    const { salesValue, purchaseValue, totalValue, companyProfit, technicianEarning, approvedBy } = req.body || {};
+    const parsedSales = Number(salesValue ?? totalValue) || (order?.totalAmount || 0);
+    const parsedPurchase = Number(purchaseValue) || 0;
+    const parsedTotal = parsedSales;
     const parsedProfit = Number(companyProfit) || 0;
     const parsedEarning = Number(technicianEarning) || 0;
 
     const financialData = {
+      salesValue: parsedSales,
+      purchaseValue: parsedPurchase,
       totalValue: parsedTotal,
       companyProfit: parsedProfit,
       technicianEarning: parsedEarning,
@@ -1171,19 +1175,56 @@ router.post('/:id/admin-approve', async (req: Request, res: Response) => {
       await Order.updateOne({ _id: order._id }, { $set: { orderStatus: 'DELIVERED', financials: financialData, technicianEarning: parsedEarning } });
     }
 
-    // Also update Dashboard model orders array if present
+    // Also update Dashboard model orders array and payments (Daybook) if present
     try {
       let dashboardData = await Dashboard.findOne();
-      if (dashboardData && Array.isArray(dashboardData.orders)) {
-        const ordInDash = dashboardData.orders.find((o: any) => o.id === targetCode || o.orderNumber === targetCode);
-        if (ordInDash) {
-          ordInDash.status = 'Approved';
-          ordInDash.financials = financialData;
-          ordInDash.technicianEarning = parsedEarning;
-          await dashboardData.save();
+      if (dashboardData) {
+        if (Array.isArray(dashboardData.orders)) {
+          const ordInDash = dashboardData.orders.find((o: any) => o.id === targetCode || o.orderNumber === targetCode);
+          if (ordInDash) {
+            ordInDash.status = 'Approved';
+            ordInDash.financials = financialData;
+            ordInDash.technicianEarning = parsedEarning;
+          }
         }
+        if (!Array.isArray(dashboardData.payments)) {
+          dashboardData.payments = [];
+        }
+        const techName = (job?.assignedTechnicians && job.assignedTechnicians[0]?.name) || order?.assignedTechnician || 'Technician';
+        const customerName = order?.customerName || job?.customerName || 'Customer';
+        
+        const existingIdx = dashboardData.payments.findIndex((p: any) => p.invoiceNo === targetCode || p.transactionNo === targetCode || p.id === `PAY-${targetCode}`);
+        const daybookEntry = {
+          id: `PAY-${targetCode}`,
+          invoiceNo: targetCode,
+          transactionNo: targetCode,
+          customerName: customerName,
+          customer: customerName,
+          type: 'Sales Invoices',
+          transactionType: 'Sales Invoices',
+          salesValue: parsedSales,
+          purchaseValue: parsedPurchase,
+          companyProfit: parsedProfit,
+          technicianEarning: parsedEarning,
+          amount: parsedSales,
+          createdBy: techName,
+          creator: techName,
+          status: 'Paid',
+          createdAt: new Date(),
+          date: new Date()
+        };
+
+        if (existingIdx >= 0) {
+          dashboardData.payments[existingIdx] = { ...dashboardData.payments[existingIdx], ...daybookEntry };
+        } else {
+          dashboardData.payments.unshift(daybookEntry);
+        }
+
+        await dashboardData.save();
       }
-    } catch (e) {}
+    } catch (e) {
+      console.warn('Dashboard update error on approval:', e);
+    }
 
     // Free the assigned technicians and credit their earnings
     const User = require('../models/User').default;

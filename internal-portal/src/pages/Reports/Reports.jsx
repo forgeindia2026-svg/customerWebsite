@@ -198,18 +198,28 @@ export default function Reports() {
     }
   }, [tabParam]);
   const [showAddTransaction, setShowAddTransaction] = useState(false);
-  const [transactionForm, setTransactionForm] = useState({ date: new Date().toISOString().split('T')[0], customerName: '', type: 'Sales Invoices', invoiceNo: '', amount: '', moneyIn: '', moneyOut: '', balanceAmount: '', createdBy: '' });
+  const [transactionForm, setTransactionForm] = useState({ date: new Date().toISOString().split('T')[0], customerName: '', type: 'Sales Invoices', invoiceNo: '', salesValue: '', purchaseValue: '', companyProfit: '', technicianEarning: '', createdBy: '' });
   const handleAddTransaction = (e) => {
     e.preventDefault();
+    const salesNum = Number(transactionForm.salesValue || 0);
+    const purchaseNum = Number(transactionForm.purchaseValue || 0);
+    const margin = salesNum - purchaseNum;
+    const profitNum = transactionForm.companyProfit !== '' ? Number(transactionForm.companyProfit) : (margin > 0 ? Math.round(margin * 0.7) : 0);
+    const earningNum = transactionForm.technicianEarning !== '' ? Number(transactionForm.technicianEarning) : (margin > 0 ? Math.round(margin * 0.3) : 0);
+
     dispatch(addPayment({
       ...transactionForm,
-      amount: Number(transactionForm.amount),
+      salesValue: salesNum,
+      purchaseValue: purchaseNum,
+      companyProfit: profitNum,
+      technicianEarning: earningNum,
+      amount: salesNum,
       status: transactionForm.type.includes('Sales') ? 'Pending' : 'Paid',
       createdBy: transactionForm.createdBy || settings.contactPerson || 'Admin',
       createdAt: new Date().toISOString()
     }));
     setShowAddTransaction(false);
-    setTransactionForm({ date: new Date().toISOString().split('T')[0], customerName: '', type: 'Sales Invoices', invoiceNo: '', amount: '', moneyIn: '', moneyOut: '', balanceAmount: '', createdBy: '' });
+    setTransactionForm({ date: new Date().toISOString().split('T')[0], customerName: '', type: 'Sales Invoices', invoiceNo: '', salesValue: '', purchaseValue: '', companyProfit: '', technicianEarning: '', createdBy: '' });
     showToast('Transaction added successfully!');
   };
   const [selectedPhotoModal, setSelectedPhotoModal] = useState(null);
@@ -1575,22 +1585,22 @@ export default function Reports() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Total Amount (₹)</label>
-                  <input required type="number" min="0" placeholder="0" value={transactionForm.amount} onChange={e => setTransactionForm({...transactionForm, amount: e.target.value})} className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Sales Value (₹)</label>
+                  <input required type="number" min="0" placeholder="0" value={transactionForm.salesValue} onChange={e => setTransactionForm({...transactionForm, salesValue: e.target.value})} className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Balance Amount (₹)</label>
-                  <input type="number" placeholder="0" value={transactionForm.balanceAmount} onChange={e => setTransactionForm({...transactionForm, balanceAmount: e.target.value})} className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Purchase Value (₹)</label>
+                  <input type="number" placeholder="0" value={transactionForm.purchaseValue} onChange={e => setTransactionForm({...transactionForm, purchaseValue: e.target.value})} className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Money In (₹)</label>
-                  <input type="number" placeholder="0" value={transactionForm.moneyIn} onChange={e => setTransactionForm({...transactionForm, moneyIn: e.target.value})} className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Company Profit (₹)</label>
+                  <input type="number" placeholder="0" value={transactionForm.companyProfit} onChange={e => setTransactionForm({...transactionForm, companyProfit: e.target.value})} className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Money Out (₹)</label>
-                  <input type="number" placeholder="0" value={transactionForm.moneyOut} onChange={e => setTransactionForm({...transactionForm, moneyOut: e.target.value})} className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Technician Earning (₹)</label>
+                  <input type="number" placeholder="0" value={transactionForm.technicianEarning} onChange={e => setTransactionForm({...transactionForm, technicianEarning: e.target.value})} className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
                 </div>
               </div>
               <div>
@@ -2529,10 +2539,10 @@ export default function Reports() {
                     <th className="px-4 py-3">PARTY NAME</th>
                     <th className="px-4 py-3">TRANSACTION TYPE</th>
                     <th className="px-4 py-3">TRANSACTION NO.</th>
-                    <th className="px-4 py-3 text-right">TOTAL AMOUNT</th>
-                    <th className="px-4 py-3 text-right">MONEY IN</th>
-                    <th className="px-4 py-3 text-right">MONEY OUT</th>
-                    <th className="px-4 py-3 text-right">BALANCE AMOUNT</th>
+                    <th className="px-4 py-3 text-right">SALES VALUE</th>
+                    <th className="px-4 py-3 text-right">PURCHASE VALUE</th>
+                    <th className="px-4 py-3 text-right">COMPANY PROFIT</th>
+                    <th className="px-4 py-3 text-right">TECHNICIAN EARNING</th>
                     <th className="px-4 py-3">CREATED BY</th>
                   </tr>
                 </thead>
@@ -2544,16 +2554,22 @@ export default function Reports() {
                       </td>
                     </tr>
                   ) : payments.map((p, i) => {
-                    const isPaid = p.status === 'Paid';
+                    const salesVal = p.salesValue || p.financials?.salesValue || p.financials?.totalValue || p.amount || 0;
+                    const purchaseVal = p.purchaseValue || p.financials?.purchaseValue || 0;
+                    const margin = salesVal - purchaseVal;
+                    const profitVal = p.companyProfit !== undefined ? p.companyProfit : (p.financials?.companyProfit !== undefined ? p.financials.companyProfit : (margin > 0 ? Math.round(margin * 0.7) : 0));
+                    const techEarningVal = p.technicianEarning !== undefined ? p.technicianEarning : (p.financials?.technicianEarning !== undefined ? p.financials.technicianEarning : (margin > 0 ? Math.round(margin * 0.3) : 0));
+
                     const rowData = {
                       id: p.id || p._id || i,
                       date: new Date(p.createdAt || p.date || new Date()).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-'),
                       customer: p.customerName || p.customer?.name || p.customer || '-',
                       type: p.type || p.transactionType || '-',
                       no: p.invoiceNo || p.transactionNo || p.id || '-',
-                      amount: p.amount || 0,
-                      moneyIn: isPaid ? p.amount : null,
-                      balance: !isPaid ? p.amount : null,
+                      salesValue: salesVal,
+                      purchaseValue: purchaseVal,
+                      companyProfit: profitVal,
+                      technicianEarning: techEarningVal,
                       createdBy: p.createdBy || p.creator || '-'
                     };
                     return (
@@ -2562,17 +2578,17 @@ export default function Reports() {
                         <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">{rowData.customer}</td>
                         <td className="px-4 py-3 text-slate-500">{rowData.type}</td>
                         <td className="px-4 py-3 text-blue-600 hover:underline cursor-pointer">{rowData.no}</td>
-                        <td className="px-4 py-3 text-right">
-                          {rowData.amount ? `₹ ${Number(rowData.amount).toLocaleString('en-IN')}` : '-'}
-                        </td>
-                        <td className="px-4 py-3 text-right text-emerald-600">
-                          {rowData.moneyIn ? `₹ ${Number(rowData.moneyIn).toLocaleString('en-IN')}` : '-'}
-                        </td>
-                        <td className="px-4 py-3 text-right text-rose-600">
-                          -
-                        </td>
                         <td className="px-4 py-3 text-right font-medium">
-                          {rowData.balance ? `₹ ${Number(rowData.balance).toLocaleString('en-IN')}` : '-'}
+                          {rowData.salesValue ? `₹ ${Number(rowData.salesValue).toLocaleString('en-IN')}` : '-'}
+                        </td>
+                        <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-300">
+                          {rowData.purchaseValue ? `₹ ${Number(rowData.purchaseValue).toLocaleString('en-IN')}` : '-'}
+                        </td>
+                        <td className="px-4 py-3 text-right text-blue-600 font-medium">
+                          {rowData.companyProfit ? `₹ ${Number(rowData.companyProfit).toLocaleString('en-IN')}` : '-'}
+                        </td>
+                        <td className="px-4 py-3 text-right text-emerald-600 font-medium">
+                          {rowData.technicianEarning ? `₹ ${Number(rowData.technicianEarning).toLocaleString('en-IN')}` : '-'}
                         </td>
                         <td className="px-4 py-3 text-slate-500">{rowData.createdBy}</td>
                       </tr>

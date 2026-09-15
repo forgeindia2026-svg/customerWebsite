@@ -480,15 +480,58 @@ router.get('/', async (req: Request, res: Response) => {
       };
     });
 
-    // Map live Payments from liveOrders
-    const mappedPayments = liveOrders.map((o: any, idx: number) => ({
-      id: `PAY-${o.orderNumber || idx}`,
-      customer: o.customerName,
-      amount: o.totalAmount || 0,
-      method: o.paymentMethod || (idx % 2 === 0 ? 'Razorpay / Online UPI' : 'Cash on Delivery'),
-      status: o.paymentStatus === 'PAID' ? 'SUCCESS' : 'PENDING',
-      date: new Date(o.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-    }));
+    // Map live Payments from liveOrders & existing DB payments
+    const existingDbPayments = Array.isArray(dashboardData.payments) ? dashboardData.payments : [];
+    
+    const livePaymentsFromOrders = liveOrders.map((o: any, idx: number) => {
+      const orderCode = o.orderNumber || o.id || `ORD-${idx}`;
+      const sales = o.financials?.salesValue || o.financials?.totalValue || o.totalAmount || 0;
+      const purchase = o.financials?.purchaseValue || 0;
+      const profit = o.financials?.companyProfit !== undefined ? o.financials.companyProfit : 0;
+      const earning = o.financials?.technicianEarning !== undefined ? o.financials.technicianEarning : (o.technicianEarning || 0);
+      const techName = o.assignedTechnician || 'Technician';
+
+      return {
+        id: `PAY-${orderCode}`,
+        invoiceNo: orderCode,
+        transactionNo: orderCode,
+        customerName: o.customerName || o.customer || 'Customer',
+        customer: o.customerName || o.customer || 'Customer',
+        type: 'Sales Invoices',
+        transactionType: 'Sales Invoices',
+        salesValue: sales,
+        purchaseValue: purchase,
+        companyProfit: profit,
+        technicianEarning: earning,
+        amount: sales,
+        status: (o.orderStatus === 'DELIVERED' || o.status === 'Approved' || o.paymentStatus === 'PAID') ? 'Paid' : 'Pending',
+        method: o.paymentMethod || (idx % 2 === 0 ? 'Razorpay / Online UPI' : 'Cash on Delivery'),
+        createdBy: techName,
+        creator: techName,
+        date: new Date(o.createdAt || Date.now()).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-'),
+        createdAt: o.createdAt || new Date()
+      };
+    });
+
+    // Merge existing stored DB payments and live order payments
+    const paymentMap = new Map<string, any>();
+    
+    // Add live order payments first
+    livePaymentsFromOrders.forEach((p: any) => {
+      const key = String(p.invoiceNo || p.transactionNo || p.id).toLowerCase();
+      paymentMap.set(key, p);
+    });
+
+    // Add / overwrite with stored DB payments
+    existingDbPayments.forEach((p: any) => {
+      const key = String(p.invoiceNo || p.transactionNo || p.id || '').toLowerCase();
+      if (key) {
+        const existing = paymentMap.get(key) || {};
+        paymentMap.set(key, { ...existing, ...p });
+      }
+    });
+
+    const mappedPayments = Array.from(paymentMap.values());
 
     // Map live Support Queries (Customer & Technician)
     const mappedQueries = (liveQueries || []).map((q: any) => ({
