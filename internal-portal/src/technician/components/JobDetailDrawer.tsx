@@ -154,16 +154,16 @@ export const JobDetailDrawer = ({
                       <>
                         <button
                           disabled={isSubmitting}
-                          onClick={() => onUpdateStatus(job.id, 'ACCEPTED')}
-                          className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg flex items-center space-x-2 transition-colors shadow-sm cursor-pointer"
+                          onClick={() => handleStatusChange('ACCEPTED')}
+                          className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg flex items-center space-x-2 transition-colors shadow-sm cursor-pointer disabled:opacity-50"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Accept Job</span>
+                          <span>{isSubmitting ? 'Accepting...' : 'Accept Job'}</span>
                         </button>
                         <button
                           disabled={isSubmitting}
-                          onClick={() => onUpdateStatus(job.id, 'ON_HOLD')}
-                          className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg flex items-center space-x-2 transition-colors shadow-sm cursor-pointer"
+                          onClick={() => handleStatusChange('ON_HOLD')}
+                          className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg flex items-center space-x-2 transition-colors shadow-sm cursor-pointer disabled:opacity-50"
                         >
                           <X className="w-3.5 h-3.5" />
                           <span>Decline Job</span>
