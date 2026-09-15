@@ -258,7 +258,7 @@ export default function Header() {
           </Link>
 
           {/* Centered Navigation Bar */}
-          <nav ref={navRef} className="hidden md:flex items-center gap-8 text-sm font-semibold text-foreground/90">
+          <nav ref={navRef} className="hidden md:flex items-center gap-3.5 lg:gap-5 xl:gap-7 2xl:gap-8 text-sm font-semibold text-foreground/90 shrink-0">
             {navItems.map((item) => {
               const hasSubLinks = Boolean(item.subLinks && item.subLinks.length > 0);
               const isOpen = activeDropdown === item.name;
@@ -268,10 +268,10 @@ export default function Header() {
                   <Link
                     key={item.name}
                     to={item.path}
-                    className="hover:text-red-500 transition-colors py-1 relative group"
+                    className="hover:text-red-500 transition-colors py-2 relative group whitespace-nowrap inline-flex items-center"
                   >
-                    {item.name}
-                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-red-500 transition-all duration-300 group-hover:w-full"></span>
+                    <span>{item.name}</span>
+                    <span className="absolute bottom-1 left-0 w-0 h-0.5 bg-red-500 transition-all duration-300 group-hover:w-full"></span>
                   </Link>
                 );
               }
@@ -279,16 +279,16 @@ export default function Header() {
               return (
                 <div
                   key={item.name}
-                  className="relative group py-6"
+                  className="relative group py-2 flex items-center whitespace-nowrap"
                   onMouseEnter={() => setActiveDropdown(item.name)}
                   onMouseLeave={() => setActiveDropdown(null)}
                 >
                   {/* Main Nav Link Button */}
                   <div
                     onClick={() => setActiveDropdown(isOpen ? null : item.name)}
-                    className="flex items-center gap-1.5 cursor-pointer hover:text-red-500 transition-colors py-1 select-none"
+                    className="flex items-center gap-1 cursor-pointer hover:text-red-500 transition-colors py-0 select-none relative group/prod"
                   >
-                    <Link to={item.path} className="hover:text-red-500 transition-colors">
+                    <Link to={item.path} className="hover:text-red-500 transition-colors whitespace-nowrap">
                       {item.name}
                     </Link>
                     <ChevronDown
@@ -296,11 +296,12 @@ export default function Header() {
                         isOpen ? "rotate-180 text-red-500" : ""
                       }`}
                     />
+                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-red-500 transition-all duration-300 group-hover/prod:w-full"></span>
                   </div>
 
                   {/* Dropdown Menu Popup */}
                   {isOpen && (
-                    <div className="absolute top-full left-0 -mt-2 w-56 rounded-2xl bg-white border border-gray-200/90 shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="absolute top-full left-0 mt-1 w-56 rounded-2xl bg-white border border-gray-200/90 shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
                       <div className="space-y-0.5">
                         {item.subLinks!.map((sub) => (
                           <Link
@@ -322,9 +323,9 @@ export default function Header() {
           </nav>
 
           {/* Right Actions: Search, Cart, User & CTA */}
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 ml-3 lg:ml-6">
             {/* Search Bar with Live Instant Results */}
-            <div ref={searchRef} className="hidden lg:block relative w-60 xl:w-72">
+            <div ref={searchRef} className="hidden lg:block relative w-44 xl:w-56 2xl:w-64">
               <form onSubmit={handleSearchSubmit} className="relative flex items-center">
                 <Search className="absolute left-3 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <Input
@@ -443,26 +444,20 @@ export default function Header() {
               </Button>
             </Link>
 
-            {/* User Profile or Login CTA */}
             {userToken ? (
-              <Link to="/dashboard?tab=profile" title={`Logged in as ${userName || "Customer"}`}>
+              <Link to="/dashboard?tab=profile" title={`Logged in as ${userName || "Customer"}`} className="shrink-0">
                 <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-muted flex items-center justify-center font-bold text-xs bg-red-500/10 text-red-500 border border-red-500/20 cursor-pointer">
                   {(userName || "C").charAt(0).toUpperCase()}
                 </Button>
               </Link>
             ) : (
-              <Link to="/login" className="hidden sm:inline-flex">
-                <Button variant="outline" size="sm" className="rounded-full text-xs font-bold border-slate-300 hover:border-red-500 hover:text-red-500 transition-all">
+              <Link to="/login" className="hidden sm:inline-flex shrink-0">
+                <Button variant="outline" size="sm" className="h-9 px-4 rounded-full text-xs font-bold border-slate-300 hover:border-red-500 hover:text-red-500 transition-all whitespace-nowrap">
                   Login
                 </Button>
               </Link>
             )}
 
-            <Link to="/contact" className="hidden xl:inline-flex">
-              <Button className="h-9 px-4 rounded-full bg-red-500 hover:bg-red-600 text-white font-medium text-xs shadow-md transition-all hover:shadow-lg">
-                Get Quote
-              </Button>
-            </Link>
 
             {/* Mobile Menu Toggle (Far Right on Mobile) */}
             <Button 
