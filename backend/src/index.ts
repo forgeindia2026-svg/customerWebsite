@@ -45,6 +45,7 @@ app.get('/api/health', (req, res) => {
 import attendanceRoutes from './routes/attendanceRoutes';
 import queryRoutes from './routes/queryRoutes';
 import qrRoutes from './routes/qrRoutes';
+import orderTypeRoutes from './routes/orderTypeRoutes';
 
 // API Routes
 app.use('/api/products', productRoutes);
@@ -60,6 +61,7 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/queries', queryRoutes);
 app.use('/api/qrcodes', qrRoutes);
+app.use('/api/order-types', orderTypeRoutes);
 
 import Job from './models/Job';
 

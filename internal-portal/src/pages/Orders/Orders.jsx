@@ -77,6 +77,68 @@ export default function Orders() {
   });
   const [approvalSubmitting, setApprovalSubmitting] = useState(false);
 
+  // Dynamic Order Types State & Database Persistence
+  const [orderTypes, setOrderTypes] = useState([
+    'Cameras Installation',
+    'CCTV Installation',
+    'AMC Service',
+    'Cameras Repair',
+    'DVR Upgrade',
+    'System Audit'
+  ]);
+  const [showAddTypeModal, setShowAddTypeModal] = useState(false);
+  const [newTypeName, setNewTypeName] = useState('');
+  const [isSavingType, setIsSavingType] = useState(false);
+
+  useEffect(() => {
+    const fetchOrderTypes = async () => {
+      try {
+        const baseUrl = getApiUrl();
+        const res = await fetch(`${baseUrl}/api/order-types`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+            setOrderTypes(json.data);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to fetch order types:', err);
+      }
+    };
+    fetchOrderTypes();
+  }, []);
+
+  const handleAddNewOrderType = async (e) => {
+    e.preventDefault();
+    const name = newTypeName.trim();
+    if (!name) return;
+
+    setIsSavingType(true);
+    try {
+      const baseUrl = getApiUrl();
+      const res = await fetch(`${baseUrl}/api/order-types`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      });
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setOrderTypes(json.data);
+        setOrderForm((prev) => ({ ...prev, type: name }));
+        setNewTypeName('');
+        setShowAddTypeModal(false);
+        toast.success(`✓ Order Type "${name}" saved to database!`);
+      } else {
+        toast.error(json.message || 'Failed to add order type');
+      }
+    } catch (err) {
+      console.error('Add Order Type Error:', err);
+      toast.error('Failed to connect to backend server');
+    } finally {
+      setIsSavingType(false);
+    }
+  };
+
   // Real-time Socket.IO Sync with Backend for Technician Progress Updates
   useEffect(() => {
     socket.emit('join_role', 'admin');
@@ -1327,21 +1389,27 @@ export default function Orders() {
               )}
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Order Type</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-slate-500">Order Type</label>
+                <button
+                  type="button"
+                  onClick={() => setShowAddTypeModal(true)}
+                  className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5 cursor-pointer"
+                >
+                  ➕ Add Order Type
+                </button>
+              </div>
               <select 
                 value={orderForm.type}
                 onChange={(e) => setOrderForm({ ...orderForm, type: e.target.value })}
                 className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
               >
-                {!['Cameras Installation', 'CCTV Installation', 'AMC Service', 'Cameras Repair', 'DVR Upgrade', 'System Audit'].includes(orderForm.type) && orderForm.type && (
+                {!orderTypes.includes(orderForm.type) && orderForm.type && (
                   <option value={orderForm.type}>{orderForm.type}</option>
                 )}
-                <option>Cameras Installation</option>
-                <option>CCTV Installation</option>
-                <option>AMC Service</option>
-                <option>Cameras Repair</option>
-                <option>DVR Upgrade</option>
-                <option>System Audit</option>
+                {orderTypes.map((ot) => (
+                  <option key={ot} value={ot}>{ot}</option>
+                ))}
               </select>
             </div>
           </div>
@@ -1899,21 +1967,27 @@ export default function Orders() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1.5">Order Type</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-500">Order Type</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddTypeModal(true)}
+                    className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5 cursor-pointer"
+                  >
+                    ➕ Add Order Type
+                  </button>
+                </div>
                 <select 
                   value={orderForm.type}
                   onChange={(e) => setOrderForm({ ...orderForm, type: e.target.value })}
                   className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
                 >
-                  {!['Cameras Installation', 'CCTV Installation', 'AMC Service', 'Cameras Repair', 'DVR Upgrade', 'System Audit'].includes(orderForm.type) && orderForm.type && (
+                  {!orderTypes.includes(orderForm.type) && orderForm.type && (
                     <option value={orderForm.type}>{orderForm.type}</option>
                   )}
-                  <option>Cameras Installation</option>
-                  <option>CCTV Installation</option>
-                  <option>AMC Service</option>
-                  <option>Cameras Repair</option>
-                  <option>DVR Upgrade</option>
-                  <option>System Audit</option>
+                  {orderTypes.map((ot) => (
+                    <option key={ot} value={ot}>{ot}</option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -2218,6 +2292,63 @@ export default function Orders() {
           </form>
         )}
       </Modal>
+
+      {/* Add New Custom Order Type Modal */}
+      {showAddTypeModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 max-w-sm w-full space-y-4 shadow-2xl border border-slate-200 dark:border-slate-800 animate-fade-in">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-2">
+                <span>🏷️</span> Add New Order Type
+              </h3>
+              <button
+                type="button"
+                onClick={() => { setShowAddTypeModal(false); setNewTypeName(''); }}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 font-bold text-xs"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleAddNewOrderType} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                  Order Type Title / Category Name
+                </label>
+                <input
+                  required
+                  type="text"
+                  placeholder="e.g., Solar Camera Setup, IP Camera Config"
+                  value={newTypeName}
+                  onChange={(e) => setNewTypeName(e.target.value)}
+                  className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800 rounded-xl focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-100"
+                  autoFocus
+                />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  This will be stored in the MongoDB database and available for all future orders across the portal.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => { setShowAddTypeModal(false); setNewTypeName(''); }}
+                  className="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingType || !newTypeName.trim()}
+                  className="px-4 py-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors cursor-pointer shadow-sm disabled:opacity-50"
+                >
+                  {isSavingType ? 'Saving to DB...' : 'Save Order Type'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );
