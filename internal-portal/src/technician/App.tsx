@@ -17,6 +17,7 @@ import { JobHistoryModule } from './components/History/JobHistoryModule';
 import { QueryModule } from './components/Query/QueryModule';
 import { LeaderboardModule } from './components/Leaderboard/LeaderboardModule';
 import { NotificationsModule } from './components/Notifications/NotificationsModule';
+import { AnnouncementsModule } from './components/Announcements/AnnouncementsModule';
 import { ProfileModule } from './components/Profile/ProfileModule';
 import { ScannerModule } from './components/Scanner/ScannerModule';
 import { WorkflowModal } from './components/Workflow/WorkflowModal';
@@ -561,6 +562,7 @@ export function App() {
                 {activeTab === 'history' && 'Job History'}
                 {activeTab === 'query' && 'Helpdesk & Support'}
                 {activeTab === 'scanner' && 'QR Scanner'}
+                {activeTab === 'announcements' && 'Announcements'}
                 {activeTab === 'notifications' && 'Notifications'}
                 {activeTab === 'profile' && 'Profile'}
               </h1>
@@ -652,6 +654,12 @@ export function App() {
                 jobs={jobs}
                 currentTechProfile={profile}
               />
+            </ModuleErrorBoundary>
+          )}
+
+          {activeTab === 'announcements' && (
+            <ModuleErrorBoundary moduleName="Announcements">
+              <AnnouncementsModule />
             </ModuleErrorBoundary>
           )}
 
