@@ -4,9 +4,20 @@ import { getApiUrl } from '../utils/config';
 
 // --- NEW ASYNC THUNKS FOR INDIVIDUAL APIs ---
 export const createOrderAPI = createAsyncThunk('dashboard/createOrder', async (orderData, { dispatch }) => {
-  const res = await fetch(`${getApiUrl()}/api/orders`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(orderData) });
-  dispatch(fetchDashboardData());
-  return res.json();
+  try {
+    const res = await fetch(`${getApiUrl()}/api/orders`, { 
+      method: 'POST', 
+      headers: {'Content-Type':'application/json'}, 
+      body: JSON.stringify(orderData) 
+    });
+    const data = await res.json();
+    dispatch(fetchDashboardData());
+    return data;
+  } catch (err) {
+    console.error('createOrderAPI error:', err);
+    dispatch(fetchDashboardData());
+    throw err;
+  }
 });
 export const updateOrderAPI = createAsyncThunk('dashboard/updateOrder', async ({ id, ...data }, { dispatch }) => {
   const res = await fetch(`${getApiUrl()}/api/orders/${id}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
@@ -268,6 +279,7 @@ const dashboardSlice = createSlice({
           id,
           orderNumber: o.orderNumber || id,
           customer: o.customer || o.customerName || 'Customer Client',
+          subTechnicians: Array.isArray(o.subTechnicians) ? o.subTechnicians : (o.subTechnicians ? [o.subTechnicians] : []),
           amount: parseFloat(o.amount || o.totalAmount) || 0,
           status: isApproved ? 'Approved' : (o.status || fallbackStatus),
           date: o.date || (o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Today')
@@ -304,6 +316,7 @@ const dashboardSlice = createSlice({
         status: initialStatus,
         rawJobStatus: hasTech ? 'IN_PROGRESS' : 'PENDING',
         date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        createdAt: new Date().toISOString(),
         ...action.payload,
       };
       state.orders.unshift(newOrder);

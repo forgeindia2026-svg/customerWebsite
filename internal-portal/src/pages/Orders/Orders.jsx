@@ -500,15 +500,20 @@ export default function Orders() {
 
   const handleCreateOrder = (e) => {
     e.preventDefault();
+    const custName = (orderForm.customer && orderForm.customer.trim()) ? orderForm.customer.trim() : 'Customer Client';
+    const cleanEmail = (orderForm.email && orderForm.email.trim())
+      ? orderForm.email.trim().toLowerCase()
+      : `${custName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'client'}@sktech.com`;
+
     const orderPayload = {
-      customer: orderForm.customer,
-      email: orderForm.email,
-      phone: orderForm.phone,
-      type: orderForm.type,
-      assignedTechnician: orderForm.assignedTechnician,
-      subTechnicians: orderForm.subTechnicians,
+      customer: custName,
+      email: cleanEmail,
+      phone: orderForm.phone || '',
+      type: orderForm.type || 'Cameras Installation',
+      assignedTechnician: orderForm.assignedTechnician || 'Unassigned',
+      subTechnicians: orderForm.subTechnicians || [],
       amount: parseFloat(orderForm.amount) || 0,
-      location: orderForm.location
+      location: orderForm.location || 'Chennai Area'
     };
     
     // Optimistically update UI
@@ -516,8 +521,8 @@ export default function Orders() {
 
     // Persist to Production Backend (AWS EC2 / MongoDB)
     dispatch(createOrderAPI({
-      customerName: orderForm.customer,
-      customerEmail: orderForm.email || '',
+      customerName: custName,
+      customerEmail: cleanEmail,
       customerPhone: orderForm.phone || '',
       shippingAddress: orderForm.location || '',
       totalAmount: parseFloat(orderForm.amount) || 0,
@@ -529,7 +534,8 @@ export default function Orders() {
         quantity: 1,
         image: ''
       }],
-      assignedTechnician: orderForm.assignedTechnician !== 'Unassigned' ? orderForm.assignedTechnician : undefined
+      assignedTechnician: orderForm.assignedTechnician !== 'Unassigned' ? orderForm.assignedTechnician : undefined,
+      subTechnicians: orderForm.subTechnicians || []
     }));
 
     setOrderForm({ 

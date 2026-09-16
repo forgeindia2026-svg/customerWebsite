@@ -23,6 +23,7 @@ export interface IOrder extends Document {
   assignedTechnician?: string;
   assignedTechnicianName?: string;
   assignedTechnicianId?: string;
+  subTechnicians?: string[];
   financials?: {
     totalValue?: number;
     companyProfit?: number;
@@ -38,22 +39,22 @@ export interface IOrder extends Document {
 const OrderSchema: Schema = new Schema(
   {
     orderNumber: { type: String, required: true, unique: true },
-    customerName: { type: String, required: true },
-    customerEmail: { type: String, required: true },
-    customerPhone: { type: String, required: true },
-    shippingAddress: { type: String, required: true },
+    customerName: { type: String, default: 'Customer' },
+    customerEmail: { type: String, default: '' },
+    customerPhone: { type: String, default: '' },
+    shippingAddress: { type: String, default: '' },
     customerQuery: { type: String },
     siteImages: [{ type: String }],
     items: [
       {
-        productId: { type: String, required: true },
-        title: { type: String, required: true },
-        price: { type: Number, required: true },
-        quantity: { type: Number, required: true },
-        image: { type: String },
+        productId: { type: String, default: 'SRV-01' },
+        title: { type: String, default: 'CCTV Installation' },
+        price: { type: Number, default: 0 },
+        quantity: { type: Number, default: 1 },
+        image: { type: String, default: '' },
       },
     ],
-    totalAmount: { type: Number, required: true },
+    totalAmount: { type: Number, default: 0 },
     paymentStatus: {
       type: String,
       enum: ['PENDING', 'PAID', 'FAILED'],
@@ -67,6 +68,7 @@ const OrderSchema: Schema = new Schema(
     assignedTechnician: { type: String, default: 'Unassigned' },
     assignedTechnicianName: { type: String, default: 'Unassigned' },
     assignedTechnicianId: { type: String },
+    subTechnicians: [{ type: String }],
     financials: {
       totalValue: { type: Number, default: 0 },
       companyProfit: { type: Number, default: 0 },

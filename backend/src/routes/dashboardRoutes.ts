@@ -327,6 +327,11 @@ router.get('/', async (req: Request, res: Response) => {
         location: order.shippingAddress || '',
         assignedTechnician: techName,
         assignedTechnicianName: techName,
+        subTechnicians: (Array.isArray(order.subTechnicians) && order.subTechnicians.length > 0)
+          ? order.subTechnicians
+          : ((job?.assignedTechnicians && job.assignedTechnicians.length > 1)
+              ? job.assignedTechnicians.slice(1).map((t: any) => t.name)
+              : []),
         status: dashboardStatus,
         rawJobStatus: job?.status || 'PENDING',
         rawJobId: job?._id?.toString(),

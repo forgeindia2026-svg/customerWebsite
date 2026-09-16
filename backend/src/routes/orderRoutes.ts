@@ -57,12 +57,32 @@ function extractCleanCategory(rawCategory: string, rawTitle?: string): string {
 router.post('/', async (req: Request, res: Response) => {
   try {
     const orderNumber = `SK-ORD-${Math.floor(10000 + Math.random() * 90000)}`;
-    const newOrder = new Order({ ...req.body, orderNumber });
+    const customerName = (req.body.customerName && req.body.customerName.trim()) ? req.body.customerName.trim() : 'Customer Client';
+    const customerPhone = (req.body.customerPhone && req.body.customerPhone.trim()) ? req.body.customerPhone.trim() : '0000000000';
+    const shippingAddress = (req.body.shippingAddress && req.body.shippingAddress.trim()) ? req.body.shippingAddress.trim() : 'Site Location';
+    const customerEmail = (req.body.customerEmail && req.body.customerEmail.trim())
+      ? req.body.customerEmail.trim().toLowerCase()
+      : `${customerName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'client'}@sktech.com`;
+    const totalAmount = typeof req.body.totalAmount === 'number' ? req.body.totalAmount : (parseFloat(req.body.totalAmount) || 0);
+
+    const subTechs = Array.isArray(req.body.subTechnicians) ? req.body.subTechnicians : [];
+
+    const newOrder = new Order({
+      ...req.body,
+      orderNumber,
+      customerName,
+      customerEmail,
+      customerPhone,
+      shippingAddress,
+      totalAmount,
+      subTechnicians: subTechs,
+      orderStatus: 'PROCESSING'
+    });
+
+    const savedOrder = await newOrder.save();
     
     // Always automate the assignment for all orders (Option A requested by user)
     if (true) {
-      newOrder.orderStatus = 'PROCESSING';
-      
       // 1. Fetch all active technicians
       const allTechs = await User.find({ role: 'TECHNICIAN', isActive: true });
       
@@ -116,6 +136,7 @@ router.post('/', async (req: Request, res: Response) => {
         newOrder.assignedTechnician = assignedTech.name;
         newOrder.assignedTechnicianName = assignedTech.name;
         newOrder.assignedTechnicianId = assignedTech._id.toString();
+        await newOrder.save();
 
         // Mark tech as unavailable if real User model
         if (typeof assignedTech.save === 'function') {
@@ -141,10 +162,10 @@ router.post('/', async (req: Request, res: Response) => {
           requiredTechniciansCount: 1,
           orderCategory: 'Delivery & Installation',
           customer: {
-            name: req.body.customerName || 'Customer',
-            phone: req.body.customerPhone || '0000000000',
-            email: req.body.customerEmail || `${(req.body.customerName || 'customer').toLowerCase().replace(/\s+/g, '')}@example.com`,
-            address: req.body.shippingAddress || req.body.address || 'Standard Site Address',
+            name: customerName,
+            phone: customerPhone,
+            email: customerEmail,
+            address: shippingAddress,
             city: req.body.city || req.body.customerCity || req.body.state || 'Local',
             postalCode: req.body.postalCode || req.body.zipcode || req.body.customerPostalCode || '600001'
           },
@@ -190,10 +211,10 @@ router.post('/', async (req: Request, res: Response) => {
           requiredTechniciansCount: 1,
           orderCategory: 'Delivery & Installation',
           customer: {
-            name: req.body.customerName || 'Customer',
-            phone: req.body.customerPhone || '0000000000',
-            email: req.body.customerEmail || `${(req.body.customerName || 'customer').toLowerCase().replace(/\s+/g, '')}@example.com`,
-            address: req.body.shippingAddress || req.body.address || 'Standard Site Address',
+            name: customerName,
+            phone: customerPhone,
+            email: customerEmail,
+            address: shippingAddress,
             city: req.body.city || req.body.customerCity || req.body.state || 'Local',
             postalCode: req.body.postalCode || req.body.zipcode || req.body.customerPostalCode || '600001'
           },
@@ -221,8 +242,6 @@ router.post('/', async (req: Request, res: Response) => {
       }
     }
 
-    const savedOrder = await newOrder.save();
-
     // Emit Socket.io notifications
     emitToRole('admin', 'order:created', {
       orderId: savedOrder._id,
@@ -243,6 +262,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     res.status(201).json({ success: true, data: savedOrder });
   } catch (error: any) {
+    console.error('Error creating order:', error);
     res.status(400).json({ success: false, message: error.message });
   }
 });
