@@ -4,6 +4,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { addPayment } from '../../redux/dashboardSlice';
 import jsPDF from 'jspdf';
 import LeaderboardModule from '../../technician/components/Leaderboard/LeaderboardModule';
+import { getApiUrl } from '../../utils/config';
 import { 
   FiDownload, FiBarChart2, FiTrendingUp, FiCheckCircle, 
   FiUsers, FiStar, FiClock, FiSettings, FiGrid, FiActivity,
@@ -259,7 +260,7 @@ export default function Reports() {
     );
 
     // Also try to persist to backend
-    const baseUrl = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
+    const baseUrl = getApiUrl();
     fetch(`${baseUrl}/api/reports/${encodeURIComponent(report.id || jobCode)}/approve`, { method: 'PUT' })
       .catch(err => console.warn('Backend approve failed (local state updated):', err));
 
@@ -269,7 +270,8 @@ export default function Reports() {
   useEffect(() => {
     const fetchGeneralReports = async (isInitial = false) => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/reports?t=${Date.now()}`);
+        const baseUrl = getApiUrl();
+        const res = await fetch(`${baseUrl}/api/reports?t=${Date.now()}`);
         if (res.ok) {
           const data = await res.json();
           setGeneralReports(Array.isArray(data) ? data : []);
@@ -284,7 +286,8 @@ export default function Reports() {
     };
     const fetchAttendance = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/attendance?t=${Date.now()}`);
+        const baseUrl = getApiUrl();
+        const res = await fetch(`${baseUrl}/api/attendance?t=${Date.now()}`);
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data)) {
@@ -420,7 +423,7 @@ export default function Reports() {
     if (!confirmDelete) return;
 
     try {
-      const baseUrl = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
+      const baseUrl = getApiUrl();
       const deleteId = report.id || report.jobCode;
       
       await fetch(`${baseUrl}/api/reports/${encodeURIComponent(deleteId)}`, {
@@ -483,6 +486,7 @@ export default function Reports() {
         address: order.location || order.address || 'Location Specified on Work Order',
         technician: techName,
         status: mappedStatus,
+        jobStatus: (order.jobStatus || order.status || order.dailyReports?.[0]?.status || 'IN_PROGRESS').toUpperCase().includes('COMPLET') ? 'COMPLETED' : (order.jobStatus || order.status || 'IN_PROGRESS').toUpperCase().includes('HOLD') ? 'ON HOLD' : 'IN PROGRESS',
         notes: order.fieldNotes || order.dailyReports?.[0]?.workDone || order.workDone || 'Work order completed on site.',
         beforePhotos: order.beforePhotos || [],
         afterPhotos: order.afterPhotos || [],
@@ -522,6 +526,7 @@ export default function Reports() {
         address: gr.location || 'Site Location',
         technician: gr.technicianName || gr.technician || 'Field Technician',
         status: gr.approvedByAdmin || localStorage.getItem(`report_approved_${gr.jobCode || gr._id}`) === 'true' ? 'Verified' : 'Under Review',
+        jobStatus: (gr.jobStatus || gr.status || 'IN_PROGRESS').toUpperCase().includes('COMPLET') ? 'COMPLETED' : (gr.jobStatus || gr.status || 'IN_PROGRESS').toUpperCase().includes('HOLD') ? 'ON HOLD' : 'IN PROGRESS',
         checkInTime: gr.checkInTime || '',
         checkOutTime: gr.checkOutTime || '',
         notes: (gr.workDescription || 'Daily report log submitted.').replace(/\[Voice Memo Attached:[^\]]*\]/gi, '').trim(),
@@ -538,83 +543,50 @@ export default function Reports() {
       };
     });
 
-  // Combine reports: start with orderReportsList so verified customer & address data are primary
-  const combinedRaw = [...orderReportsList, ...generalReportsFormatted].sort((a, b) => {
-    const timeA = new Date(a.date || a.createdAt || a.updatedAt || 0).getTime();
-    const timeB = new Date(b.date || b.createdAt || b.updatedAt || 0).getTime();
-    return timeB - timeA;
+  // Map customer & location metadata from orders to generalReportsFormatted
+  const orderMetadataMap = new Map();
+  (orders || []).forEach(ord => {
+    const code = (ord.jobCode || ord.id || '').replace(/^#/, '').trim().toUpperCase();
+    if (code) {
+      orderMetadataMap.set(code, {
+        customer: ord.customerName || ord.customer || '',
+        address: ord.location || ord.address || '',
+        title: ord.title || ord.serviceType || '',
+        technician: ord.assignedTechnicianName || ord.technicianName || ''
+      });
+    }
   });
 
-  const dedupPhotos = (list) => {
-    const seen = new Set();
-    return (list || []).filter(p => {
-      const u = typeof p === 'string' ? p : (p?.url || p?.imageUrl || '');
-      if (!u || seen.has(u)) return false;
-      seen.add(u);
-      return true;
-    });
-  };
-
-  const allReportsList = [];
-
-  for (const rep of combinedRaw) {
-    const cleanCode = (rep.jobCode || '').replace(/^#/, '').trim().toUpperCase();
-    if (cleanCode && cleanCode !== 'DAILY WORK LOG') {
-      const existing = allReportsList.find(r => (r.jobCode || '').replace(/^#/, '').trim().toUpperCase() === cleanCode);
-      if (existing) {
-        // Merge photos so BEFORE and AFTER photos from both sources are permanently preserved!
-        existing.beforePhotos = dedupPhotos([...(existing.beforePhotos || []), ...(rep.beforePhotos || [])]);
-        existing.afterPhotos = dedupPhotos([...(existing.afterPhotos || []), ...(rep.afterPhotos || [])]);
-
-        // Preserve actual technician name instead of fallback 'Field Technician' or 'Unassigned'
-        if ((!existing.technician || existing.technician === 'Field Technician' || existing.technician === 'Unassigned') && rep.technician && rep.technician !== 'Field Technician' && rep.technician !== 'Unassigned') {
-          existing.technician = rep.technician;
-        }
-
-        // Preserve detailed notes instead of generic single-word notes like 'Today'
-        if ((!existing.notes || existing.notes === 'Today' || existing.notes === 'Work order completed on site.') && rep.notes && rep.notes !== 'Today') {
-          existing.notes = rep.notes;
-        }
-
-        // Preserve voice notes
-        if (!existing.voiceNoteUrl && rep.voiceNoteUrl) {
-          existing.voiceNoteUrl = rep.voiceNoteUrl;
-          existing.hasVoiceNote = true;
-        }
-
-        // Preserve verified shipping address over generic fallbacks like 'Local' or 'Chennai'
-        const isGenericAddress = !existing.address || existing.address === 'Local' || existing.address === 'Chennai' || existing.address === 'Site Location' || existing.address.length < 15;
-        if (isGenericAddress && rep.address && rep.address !== 'Local' && rep.address !== 'Chennai' && rep.address !== 'Site Location') {
-          existing.address = rep.address;
-        }
-
-        // Preserve true customer name over generic fallback 'Customer'
-        const isGenericCust = !existing.customer || existing.customer === 'Customer' || existing.customer === 'Customer Site';
-        if (isGenericCust && rep.customer && rep.customer !== 'Customer' && rep.customer !== 'Customer Site') {
-          existing.customer = rep.customer;
-        }
-
-        // Authentic technician report submission date ALWAYS takes precedence over customer shopping cart order date!
-        if (rep.isFromTechnicianReport || (!existing.isFromTechnicianReport && rep.date)) {
-          if (rep.date) existing.date = rep.date;
-          if (rep.createdAt) existing.createdAt = rep.createdAt;
-          if (rep.time) existing.time = rep.time;
-          existing.isFromTechnicianReport = true;
-        }
-        continue;
-      }
+  const processedGeneralReports = (generalReportsFormatted || []).map(gr => {
+    const cleanCode = (gr.jobCode || '').replace(/^#/, '').trim().toUpperCase();
+    const meta = orderMetadataMap.get(cleanCode);
+    if (meta) {
+      return {
+        ...gr,
+        customer: (gr.customer && gr.customer !== 'Customer Site' && gr.customer !== 'Customer' && gr.customer !== 'Office / Internal Activity') ? gr.customer : (meta.customer || gr.customer),
+        address: (gr.address && gr.address !== 'Site Location' && gr.address !== 'Local' && gr.address !== 'Chennai') ? gr.address : (meta.address || gr.address),
+        title: gr.title && gr.title !== 'General Work Activity' ? gr.title : (meta.title || gr.title),
+        technician: (gr.technician && gr.technician !== 'Field Technician' && gr.technician !== 'Unassigned') ? gr.technician : (meta.technician || gr.technician)
+      };
     }
-    allReportsList.push({
-      ...rep,
-      beforePhotos: dedupPhotos(rep.beforePhotos || []),
-      afterPhotos: dedupPhotos(rep.afterPhotos || [])
-    });
-  }
+    return gr;
+  });
+
+  const reportedCodesSet = new Set(processedGeneralReports.map(gr => (gr.jobCode || '').replace(/^#/, '').trim().toUpperCase()).filter(Boolean));
+
+  // Include orders that don't have explicit daily reports submitted yet
+  const unsubmittedOrders = (orderReportsList || []).filter(ord => {
+    const cleanCode = (ord.jobCode || '').replace(/^#/, '').trim().toUpperCase();
+    return !reportedCodesSet.has(cleanCode);
+  });
+
+  // Combine: Every report submission is a distinct, immutable row in Admin table!
+  const allReportsList = [...processedGeneralReports, ...unsubmittedOrders];
 
   // Sort allReportsList so newest submitted reports are consistently at the top
   allReportsList.sort((a, b) => {
-    const timeA = new Date(a.date || a.createdAt || a.updatedAt || 0).getTime();
-    const timeB = new Date(b.date || b.createdAt || b.updatedAt || 0).getTime();
+    const timeA = new Date(a.createdAt || a.date || a.updatedAt || 0).getTime();
+    const timeB = new Date(b.createdAt || b.date || b.updatedAt || 0).getTime();
     return timeB - timeA;
   });
 
@@ -953,7 +925,7 @@ export default function Reports() {
       const afterPhotos = report?.afterPhotos || report?.afterWorkPhotos || [];
       const allPhotos = [...afterPhotos, ...beforePhotos].filter(Boolean);
 
-      const baseUrl = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
+      const baseUrl = getApiUrl();
 
       // Robust base64 loader
       const loadImageAsBase64 = async (p) => {
@@ -2149,7 +2121,8 @@ export default function Reports() {
                     <th className="py-3 px-3 whitespace-nowrap">Job Code / Order</th>
                     <th className="py-3 px-3 whitespace-nowrap">Technician</th>
                     <th className="py-3 px-3 whitespace-nowrap">Customer & Location</th>
-                    <th className="py-3 px-3 text-center whitespace-nowrap">Status</th>
+                    <th className="py-3 px-3 text-center whitespace-nowrap">Job Status</th>
+                    <th className="py-3 px-3 text-center whitespace-nowrap">Report Status</th>
                     <th className="py-3 px-3 text-center whitespace-nowrap">Evidence & Media</th>
                     <th className="py-3 px-3 whitespace-nowrap">Technician Narrative / Notes</th>
                     <th className="py-3 px-3 text-right whitespace-nowrap">Actions</th>
@@ -2158,7 +2131,7 @@ export default function Reports() {
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
                   {isLoadingReports ? (
                     <tr>
-                      <td colSpan={8} className="py-16 text-center text-slate-400 text-sm">
+                      <td colSpan={9} className="py-16 text-center text-slate-400 text-sm">
                         <div className="flex flex-col items-center justify-center space-y-3">
                           <div className="w-8 h-8 border-3 border-red-500 border-t-transparent rounded-full animate-spin"></div>
                           <span className="font-bold text-slate-600 dark:text-slate-300">Loading authentic field reports...</span>
@@ -2167,7 +2140,7 @@ export default function Reports() {
                     </tr>
                   ) : filteredFieldReports.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="py-12 text-center text-slate-400 text-sm">
+                      <td colSpan={9} className="py-12 text-center text-slate-400 text-sm">
                         No field service reports found for the selected date / filters.
                       </td>
                     </tr>
@@ -2214,6 +2187,22 @@ export default function Reports() {
                             <div className="text-[11px] text-slate-400 truncate max-w-[180px]">{report.address}</div>
                           </td>
 
+                          {/* 🛠️ Job Work Status Column */}
+                          <td className="py-4 px-3 align-middle text-center">
+                            <span className={`inline-block px-2.5 py-1 text-[10px] font-black rounded-lg uppercase tracking-wider whitespace-nowrap ${
+                              (report.jobStatus || '').toUpperCase() === 'COMPLETED' || (report.jobStatus || '').toUpperCase() === 'VERIFIED'
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                : (report.jobStatus || '').toUpperCase() === 'IN PROGRESS' || (report.jobStatus || '').toUpperCase() === 'IN_PROGRESS'
+                                ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                                : (report.jobStatus || '').toUpperCase() === 'ON HOLD'
+                                ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                : 'bg-sky-100 text-sky-800 border border-sky-200'
+                            }`}>
+                              {report.jobStatus || 'IN PROGRESS'}
+                            </span>
+                          </td>
+
+                          {/* 🛡️ Report Review Status Column */}
                           <td className="py-4 px-3 align-middle text-center">
                             <span className={`inline-block px-2.5 py-1 text-[10px] font-extrabold rounded-full uppercase tracking-wider whitespace-nowrap ${
                               report.status === 'Verified'
@@ -2313,7 +2302,12 @@ export default function Reports() {
                             e.currentTarget.style.display = 'none';
                           }}
                         />
-                        <p className="p-2 text-[11px] text-slate-600 font-medium bg-white border-t border-slate-100">{p.caption || 'Initial site setup condition'}</p>
+                        <div className="p-2 text-[11px] text-slate-600 font-medium bg-white border-t border-slate-100 flex items-center justify-between gap-1">
+                          <span className="truncate">{p.caption || 'Initial site setup condition'}</span>
+                          <span className="text-[10px] text-slate-500 font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 whitespace-nowrap shrink-0">
+                            🕒 {typeof p === 'object' && p.uploadedAt ? p.uploadedAt : (selectedPhotoModal.time || 'Real-time')}
+                          </span>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -2335,7 +2329,12 @@ export default function Reports() {
                             e.currentTarget.style.display = 'none';
                           }}
                         />
-                        <p className="p-2 text-[11px] text-slate-600 font-medium bg-white border-t border-slate-100">{p.caption || 'Completed equipment setup'}</p>
+                        <div className="p-2 text-[11px] text-slate-600 font-medium bg-white border-t border-slate-100 flex items-center justify-between gap-1">
+                          <span className="truncate">{p.caption || 'Completed equipment setup'}</span>
+                          <span className="text-[10px] text-slate-500 font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 whitespace-nowrap shrink-0">
+                            🕒 {typeof p === 'object' && p.uploadedAt ? p.uploadedAt : (selectedPhotoModal.time || 'Real-time')}
+                          </span>
+                        </div>
                       </div>
                     ))}
                   </div>

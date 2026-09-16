@@ -18,6 +18,7 @@ import {
   X
 } from 'lucide-react';
 import { GeneralReportModal } from './GeneralReportModal';
+import { getApiUrl } from '../../../utils/config';
 
 interface DailyReportsModuleProps {
   jobs: Job[];
@@ -84,7 +85,7 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
     setPunchStatus('PUNCHED_IN');
 
     try {
-      const baseUrl = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
+      const baseUrl = getApiUrl();
       await fetch(`${baseUrl}/api/reports`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -136,7 +137,7 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
 
   const fetchDbReports = async () => {
     try {
-      const baseUrl = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
+      const baseUrl = getApiUrl();
       const url = `${baseUrl}/api/reports?t=${Date.now()}`;
       const res = await fetch(url);
       if (res.ok) {
@@ -184,7 +185,7 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
         ...data
       };
 
-      const baseUrl = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
+      const baseUrl = getApiUrl();
       const res = await fetch(`${baseUrl}/api/reports`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -276,23 +277,25 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
 
   const authUser = JSON.parse(localStorage.getItem('tech_user') || '{}');
   const rawTechName = (authUser.name || localStorage.getItem('user_name') || '').trim().toLowerCase();
-  const currentTechId = authUser.id || authUser._id || localStorage.getItem('user_id') || '';
-  const isGenericTech = !rawTechName || ['admin', 'technician', 'field technician', 'staff'].includes(rawTechName);
+  const currentTechId = String(authUser.id || authUser._id || localStorage.getItem('user_id') || '').trim();
+
+  // Helper filter function for technician ownership
+  const isMyReport = (techName?: string, techId?: string) => {
+    const rName = (techName || '').trim().toLowerCase();
+    const rId = String(techId || '').trim();
+    if (currentTechId && rId && currentTechId === rId) return true;
+    if (rawTechName && rName && (rName.includes(rawTechName) || rawTechName.includes(rName))) return true;
+    if (!rawTechName && !currentTechId) return true; // Fallback only if no technician logged in
+    return false;
+  };
 
   const dbReportsFormatted = (Array.isArray(dbReports) ? dbReports : [])
     .filter((gr) => {
       // Filter out pure Check-In/Attendance logs so only actual work reports are displayed here
       if (gr.activityType === 'Check-In' || (gr.workDescription && gr.workDescription.includes('Punched in'))) return false;
       
-      // Filter strictly to current logged-in technician if specific technician profile is loaded
-      if (!isGenericTech && rawTechName) {
-        const reportTech = (gr.technicianName || gr.technician || '').trim().toLowerCase();
-        const reportTechId = gr.technicianId || '';
-        if (reportTech && !reportTech.includes(rawTechName) && !rawTechName.includes(reportTech) && reportTechId && reportTechId !== currentTechId) {
-          return false;
-        }
-      }
-      return true;
+      // Filter strictly to current logged-in technician
+      return isMyReport(gr.technicianName || gr.technician, gr.technicianId);
     })
     .map((gr) => {
       let timeStr = gr.checkInTime || '';
@@ -329,13 +332,7 @@ export const DailyReportsModule: React.FC<DailyReportsModuleProps> = ({
   const dbReportByCode = new Map(dbReportsFormatted.map(r => [normalizeCode(r.jobCode), r]));
 
   const enrichedJobReports = jobReports
-    .filter(jr => {
-      if (!isGenericTech && rawTechName) {
-        const jrTech = (jr.technician || '').trim().toLowerCase();
-        if (jrTech && !jrTech.includes(rawTechName) && !rawTechName.includes(jrTech)) return false;
-      }
-      return true;
-    })
+    .filter(jr => isMyReport(jr.technician, (jr as any).technicianId))
     .map(jr => {
       const matchingDb = dbReportByCode.get(normalizeCode(jr.jobCode));
       if (matchingDb) {

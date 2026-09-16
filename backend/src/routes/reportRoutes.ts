@@ -18,17 +18,8 @@ router.get('/', async (req: Request, res: Response) => {
 
     const reports = await TechnicianReport.find(query).sort({ updatedAt: -1, createdAt: -1 });
 
-    // Deduplicate by jobCode (keep newest / most complete report)
-    const seenJobCodes = new Set<string>();
-    const uniqueReports: any[] = [];
-    for (const r of reports) {
-      const cleanCode = (r.jobCode || '').replace(/^#/, '').trim().toUpperCase();
-      if (cleanCode && cleanCode !== 'DAILY WORK LOG') {
-        if (seenJobCodes.has(cleanCode)) continue;
-        seenJobCodes.add(cleanCode);
-      }
-      uniqueReports.push(r.toObject());
-    }
+    // Return all submitted daily reports as distinct historical entries
+    const uniqueReports: any[] = reports.map(r => r.toObject());
 
     // Resolve any MongoDB ObjectID photo references to actual URLs
     // The mobile app sometimes stores the photo's ObjectID instead of the URL
@@ -127,30 +118,7 @@ router.post('/', async (req: Request, res: Response) => {
     const cleanJobCode = (jobCode || '').trim();
     const currentSubmissionTime = reqTime || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
-    // ⚡ If a report for this jobCode already exists, UPDATE it instead of creating a duplicate!
-    if (cleanJobCode && cleanJobCode !== 'DAILY WORK LOG') {
-      const existing = await TechnicianReport.findOne({ 
-        jobCode: { $regex: new RegExp(`^#?${cleanJobCode.replace(/^#/, '')}$`, 'i') } 
-      });
-
-      if (existing) {
-        existing.technicianId = finalTechId;
-        existing.technicianName = finalTechName;
-        existing.date = date || new Date().toISOString().split('T')[0];
-        existing.time = currentSubmissionTime;
-        existing.workDescription = workDescription || existing.workDescription;
-        existing.activityType = activityType || existing.activityType;
-        if (customerName) existing.customerName = customerName;
-        if (location) existing.location = location;
-        if (beforePhotos && beforePhotos.length > 0) existing.beforePhotos = beforePhotos;
-        if (afterPhotos && afterPhotos.length > 0) existing.afterPhotos = afterPhotos;
-        if (voiceNoteUrl) existing.voiceNoteUrl = voiceNoteUrl;
-        existing.hasVoiceNote = Boolean(hasVoiceNote || (voiceNoteUrl && voiceNoteUrl.length > 0) || existing.hasVoiceNote);
-        existing.updatedAt = new Date();
-        const saved = await existing.save();
-        return res.status(200).json({ success: true, data: saved, message: 'Report updated successfully' });
-      }
-    }
+    // Every submission creates a distinct, new daily progress report entry
 
     const report = new TechnicianReport({
       technicianId: finalTechId,

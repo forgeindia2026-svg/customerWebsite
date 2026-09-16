@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Job, InspectionSummary, DailyReport } from '../../types/job';
 import { JobsApiService } from '../../services/apiService';
+import { getApiUrl } from '../../../utils/config';
 import { 
   X, 
   Camera, 
@@ -52,9 +53,10 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   const afterCameraInputRef = React.useRef<HTMLInputElement>(null);
   const afterGalleryInputRef = React.useRef<HTMLInputElement>(null);
   
-  // Before & After Photos Arrays
+  // Before & After Photos Arrays & Exact Upload Timestamps
   const [beforePhotos, setBeforePhotos] = useState<string[]>([]);
   const [afterPhotos, setAfterPhotos] = useState<string[]>([]);
+  const [photoUploadTimes, setPhotoUploadTimes] = useState<Record<string, string>>({});
 
   // Hidden File Input Refs for Real Device Photo Uploads / Camera
   const beforeFileInputRef = React.useRef<HTMLInputElement>(null);
@@ -74,66 +76,18 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   const audioChunksRef = React.useRef<Blob[]>([]);
   const audioElementRef = React.useRef<HTMLAudioElement | null>(null);
 
-  // Initialize or update form inputs when modal opens or when job ID changes
+  // Initialize form with fresh clean inputs for every report submission
   React.useEffect(() => {
     if (isOpen && job) {
-      setTaskDescription(job.workProgress?.taskDescription || job.taskDescription || job.fieldNotes || '');
-      setInspectionComments(job.workProgress?.inspectionComments || job.inspectionComments || job.inspection?.notes || '');
-      
-      const rawBefore = (job.workProgress?.beforeWorkPhotos && job.workProgress.beforeWorkPhotos.length > 0)
-        ? job.workProgress.beforeWorkPhotos
-        : (job.beforePhotos || []);
-      const bUrls = rawBefore
-        .map((p: any) => (typeof p === 'string' ? p : (p?.url || p?.imageUrl || '')))
-        .filter((u: string) => typeof u === 'string' && u.trim().length > 0);
-      const uniqueBefore = Array.from(new Set(bUrls));
-      setBeforePhotos(uniqueBefore);
-
-      const aUrls = (job.afterPhotos || [])
-        .map((p: any) => (typeof p === 'string' ? p : (p?.url || p?.imageUrl || '')))
-        .filter((u: string) => typeof u === 'string' && u.trim().length > 0);
-      const uniqueAfter = Array.from(new Set(aUrls));
-      setAfterPhotos(uniqueAfter);
-
-      // If Before Photos are already saved in DB, start directly on Step 2 (After Photos)
-      if (uniqueBefore.length > 0) {
-        setCurrentStep(2);
-      } else {
-        setCurrentStep(1);
-        // Fallback: Check if report has already saved Before Photos for this jobCode
-        const baseUrl = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
-        fetch(`${baseUrl}/api/reports?t=${Date.now()}`)
-          .then(r => r.json())
-          .then(reports => {
-            if (!Array.isArray(reports)) return;
-            const cleanCode = (job.jobCode || '').replace(/^#/, '').trim().toUpperCase();
-            const rep = reports.find((r: any) => {
-              const rCode = (r.jobCode || '').replace(/^#/, '').trim().toUpperCase();
-              return (cleanCode && rCode === cleanCode) || (r.jobId && (r.jobId === job.id || r.jobId === (job as any)._id));
-            });
-            if (rep && Array.isArray(rep.beforePhotos) && rep.beforePhotos.length > 0) {
-              const repBeforeUrls = rep.beforePhotos.filter((u: any) => typeof u === 'string' && u.startsWith('http'));
-              if (repBeforeUrls.length > 0) {
-                setBeforePhotos(Array.from(new Set(repBeforeUrls)));
-                setCurrentStep(2);
-              }
-            }
-            if (rep && Array.isArray(rep.afterPhotos) && rep.afterPhotos.length > 0 && uniqueAfter.length === 0) {
-              const repAfterUrls = rep.afterPhotos.filter((u: any) => typeof u === 'string' && u.startsWith('http'));
-              if (repAfterUrls.length > 0) {
-                setAfterPhotos(Array.from(new Set(repAfterUrls)));
-              }
-            }
-            if (rep && rep.workDescription && !taskDescription) {
-              setTaskDescription(rep.workDescription);
-            }
-          })
-          .catch(() => {});
-      }
-
-      setHasVoiceNote(Boolean(job.hasVoiceNote || job.voiceNoteUrl));
-      setAudioUrl(job.voiceNoteUrl || null);
-      setCompletionStatus(job.status === 'COMPLETED' ? 'Completed' : 'In Progress');
+      setTaskDescription('');
+      setInspectionComments('');
+      setBeforePhotos([]);
+      setAfterPhotos([]);
+      setPhotoUploadTimes({});
+      setHasVoiceNote(false);
+      setAudioUrl(null);
+      setCurrentStep(1);
+      setCompletionStatus(job.status === 'COMPLETED' || job.status === 'VERIFIED' ? 'Completed' : 'In Progress');
       setUploadError(null);
       setSaveSuccessMsg(null);
     }
@@ -253,20 +207,18 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
     setSaveSuccessMsg(null);
 
     for (const file of Array.from(files)) {
+      const uploadTimestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
       try {
         const imgUrl = await JobsApiService.uploadImageToS3(file);
-        if (imgUrl && typeof imgUrl === 'string') {
-          setBeforePhotos((prev) => Array.from(new Set([...prev, imgUrl])));
-        } else {
-          // Reliable fallback
-          const blobUrl = URL.createObjectURL(file);
-          setBeforePhotos((prev) => Array.from(new Set([...prev, blobUrl])));
-        }
+        const finalUrl = (imgUrl && typeof imgUrl === 'string') ? imgUrl : URL.createObjectURL(file);
+        setBeforePhotos((prev) => Array.from(new Set([...prev, finalUrl])));
+        setPhotoUploadTimes((prev) => ({ ...prev, [finalUrl]: uploadTimestamp }));
       } catch (err: any) {
         console.warn('Before photo upload soft fallback:', err);
         try {
           const blobUrl = URL.createObjectURL(file);
           setBeforePhotos((prev) => Array.from(new Set([...prev, blobUrl])));
+          setPhotoUploadTimes((prev) => ({ ...prev, [blobUrl]: uploadTimestamp }));
         } catch {
           setUploadError(`Could not process photo "${file.name}". Please try again.`);
         }
@@ -285,19 +237,18 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
     setIsUploadingAfter(true);
     setUploadError(null);
     for (const file of Array.from(files)) {
+      const uploadTimestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
       try {
         const imgUrl = await JobsApiService.uploadImageToS3(file);
-        if (imgUrl && typeof imgUrl === 'string') {
-          setAfterPhotos((prev) => Array.from(new Set([...prev, imgUrl])));
-        } else {
-          const blobUrl = URL.createObjectURL(file);
-          setAfterPhotos((prev) => Array.from(new Set([...prev, blobUrl])));
-        }
+        const finalUrl = (imgUrl && typeof imgUrl === 'string') ? imgUrl : URL.createObjectURL(file);
+        setAfterPhotos((prev) => Array.from(new Set([...prev, finalUrl])));
+        setPhotoUploadTimes((prev) => ({ ...prev, [finalUrl]: uploadTimestamp }));
       } catch (err: any) {
         console.warn('After photo upload soft fallback:', err);
         try {
           const blobUrl = URL.createObjectURL(file);
           setAfterPhotos((prev) => Array.from(new Set([...prev, blobUrl])));
+          setPhotoUploadTimes((prev) => ({ ...prev, [blobUrl]: uploadTimestamp }));
         } catch {
           setUploadError(`Could not process photo "${file.name}". Please try again.`);
         }
@@ -325,21 +276,29 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
       const authUser = JSON.parse(localStorage.getItem('tech_user') || '{}');
       const techName = authUser.name || localStorage.getItem('user_name') || 'Field Technician';
       const techId = authUser.id || authUser._id || localStorage.getItem('user_id') || 'TECH-01';
-      const baseUrl = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
+      const baseUrl = getApiUrl();
 
-      const formattedBefore = beforePhotos.map((url, i) => ({
-        id: `PHO-BEFORE-${i}-${Date.now()}`,
-        url: url,
-        caption: 'Before Work Site Condition',
-        uploadedAt: new Date().toLocaleTimeString()
-      }));
+      const formattedBefore = beforePhotos.map((url, i) => {
+        const urlStr = typeof url === 'string' ? url : ((url as any)?.url || '');
+        const timestamp = photoUploadTimes[urlStr] || (typeof url === 'object' && (url as any)?.uploadedAt) || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+        return {
+          id: `PHO-BEFORE-${i}-${Date.now()}`,
+          url: urlStr,
+          caption: 'Initial site setup condition',
+          uploadedAt: timestamp
+        };
+      });
 
-      const formattedAfter = afterPhotos.map((url, i) => ({
-        id: `PHO-AFTER-${i}-${Date.now()}`,
-        url: url,
-        caption: 'Completed Equipment Setup',
-        uploadedAt: new Date().toLocaleTimeString()
-      }));
+      const formattedAfter = afterPhotos.map((url, i) => {
+        const urlStr = typeof url === 'string' ? url : ((url as any)?.url || '');
+        const timestamp = photoUploadTimes[urlStr] || (typeof url === 'object' && (url as any)?.uploadedAt) || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+        return {
+          id: `PHO-AFTER-${i}-${Date.now()}`,
+          url: urlStr,
+          caption: 'Completed equipment setup',
+          uploadedAt: timestamp
+        };
+      });
 
       // 1. Save progress in backend Job
       const updatedJob = await JobsApiService.saveJobProgress(job.id, {
@@ -353,7 +312,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
         hasVoiceNote: Boolean(hasVoiceNote)
       });
 
-      // 2. Sync to /api/reports so Admin Reports immediately shows Before Photos
+      // 2. Sync to /api/reports so Admin Reports immediately shows Before Photos with exact upload time
       await fetch(`${baseUrl}/api/reports`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -369,8 +328,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
           jobCode: job.jobCode,
           customerName: job.customer?.name || '',
           location: job.customer?.city || job.customer?.address || '',
-          beforePhotos: beforePhotos,
-          afterPhotos: afterPhotos,
+          beforePhotos: formattedBefore,
+          afterPhotos: formattedAfter,
         })
       }).catch(err => console.warn('POST /api/reports error:', err));
 
@@ -409,24 +368,32 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
       const authUser = JSON.parse(localStorage.getItem('tech_user') || '{}');
       const techName = authUser.name || localStorage.getItem('user_name') || 'Field Technician';
       const techId = authUser.id || authUser._id || localStorage.getItem('user_id') || 'TECH-01';
-      const baseUrl = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
+      const baseUrl = getApiUrl();
 
       const finalVoiceUrl = hasVoiceNote ? (audioUrl || 'recorded-audio-memo') : '';
       const finalHasVoice = Boolean(hasVoiceNote);
 
-      const formattedBefore = beforePhotos.map((url, i) => ({
-        id: `PHO-BEFORE-${i}-${Date.now()}`,
-        url: url,
-        caption: 'Before Work Site Condition',
-        uploadedAt: new Date().toLocaleTimeString()
-      }));
+      const formattedBefore = beforePhotos.map((url, i) => {
+        const urlStr = typeof url === 'string' ? url : ((url as any)?.url || '');
+        const timestamp = photoUploadTimes[urlStr] || (typeof url === 'object' && (url as any)?.uploadedAt) || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+        return {
+          id: `PHO-BEFORE-${i}-${Date.now()}`,
+          url: urlStr,
+          caption: 'Initial site setup condition',
+          uploadedAt: timestamp
+        };
+      });
 
-      const formattedAfter = afterPhotos.map((url, i) => ({
-        id: `PHO-AFTER-${i}-${Date.now()}`,
-        url: url,
-        caption: 'Completed Equipment Setup',
-        uploadedAt: new Date().toLocaleTimeString()
-      }));
+      const formattedAfter = afterPhotos.map((url, i) => {
+        const urlStr = typeof url === 'string' ? url : ((url as any)?.url || '');
+        const timestamp = photoUploadTimes[urlStr] || (typeof url === 'object' && (url as any)?.uploadedAt) || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+        return {
+          id: `PHO-AFTER-${i}-${Date.now()}`,
+          url: urlStr,
+          caption: 'Completed equipment setup',
+          uploadedAt: timestamp
+        };
+      });
 
       if (saveOnly || completionStatus === 'In Progress') {
         const updatedJob = await JobsApiService.saveJobProgress(job.id, {
@@ -455,8 +422,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
             jobCode: job.jobCode,
             customerName: job.customer?.name || '',
             location: job.customer?.city || job.customer?.address || '',
-            beforePhotos: beforePhotos,
-            afterPhotos: afterPhotos,
+            beforePhotos: formattedBefore,
+            afterPhotos: formattedAfter,
             voiceNoteUrl: finalVoiceUrl,
             hasVoiceNote: finalHasVoice
           })
@@ -466,7 +433,14 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
         if (onUpdateStatus) onUpdateStatus(job.id, 'IN_PROGRESS');
 
         window.dispatchEvent(new Event('report_submitted'));
-        setSaveSuccessMsg('Progress saved successfully');
+        setSaveSuccessMsg('Daily progress report submitted successfully');
+        
+        // Reset Step 2 draft form states so it doesn't stay populated next time
+        setAfterPhotos([]);
+        setInspectionComments('');
+        setHasVoiceNote(false);
+        setAudioUrl(null);
+
         setTimeout(() => {
           setIsSubmitting(false);
           onClose();
@@ -505,8 +479,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
           jobCode: job.jobCode,
           customerName: job.customer?.name || '',
           location: job.customer?.city || job.customer?.address || '',
-          beforePhotos: beforePhotos,
-          afterPhotos: afterPhotos,
+          beforePhotos: formattedBefore,
+          afterPhotos: formattedAfter,
           voiceNoteUrl: finalVoiceUrl,
           hasVoiceNote: finalHasVoice
         })
@@ -1044,7 +1018,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 ) : (
                   <>
                     <Send className="w-5 h-5" />
-                    <span>SAVE PROGRESS & CLOSE</span>
+                    <span>SUBMIT DAILY PROGRESS REPORT</span>
                   </>
                 )}
               </button>

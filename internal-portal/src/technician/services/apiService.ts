@@ -248,6 +248,13 @@ export const JobsApiService = {
           }));
         }
 
+        if (normStatus !== 'COMPLETED') {
+          const localSavedStatus = localStorage.getItem(`job_status_${j._id || j.id}`);
+          if (localSavedStatus === 'IN_PROGRESS' || matchingReport || (beforeList && beforeList.length > 0)) {
+            normStatus = 'IN_PROGRESS';
+          }
+        }
+
         return {
           id: j._id || j.id || `job-${Math.random()}`,
           jobCode: j.jobCode || '#SK-JOB',
