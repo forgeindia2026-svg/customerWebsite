@@ -110,7 +110,65 @@ export const AttendanceCard: React.FC = () => {
   const [isUploadingPhoto, setIsUploadingPhoto] = useState<boolean>(false);
   const [showSessionsList, setShowSessionsList] = useState<boolean>(false);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Live Webcam Camera Stream State & Refs
+  const [isLiveCameraOpen, setIsLiveCameraOpen] = useState<boolean>(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+
+  const stopLiveWebcam = () => {
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach(track => track.stop());
+      mediaStreamRef.current = null;
+    }
+    setIsLiveCameraOpen(false);
+  };
+
+  const startLiveWebcam = async () => {
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }
+        });
+        mediaStreamRef.current = stream;
+        setIsLiveCameraOpen(true);
+        setTimeout(() => {
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+          }
+        }, 100);
+      } else {
+        cameraInputRef.current?.click();
+      }
+    } catch (err) {
+      console.warn('Live webcam error, fallback to front camera input:', err);
+      cameraInputRef.current?.click();
+    }
+  };
+
+  const captureWebcamPhoto = () => {
+    if (videoRef.current) {
+      const video = videoRef.current;
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        setPhotoPreview(dataUrl);
+
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const file = new File([blob], `selfie-${Date.now()}.jpg`, { type: 'image/jpeg' });
+            setPhotoFile(file);
+          }
+        }, 'image/jpeg', 0.85);
+      }
+    }
+    stopLiveWebcam();
+  };
 
   const authUser = JSON.parse(localStorage.getItem('tech_user') || '{}');
   const techId = authUser.id || authUser._id || localStorage.getItem('user_id') || 'TECH-01';
@@ -539,11 +597,12 @@ export const AttendanceCard: React.FC = () => {
               </div>
               <button 
                 onClick={() => {
+                  stopLiveWebcam();
                   setShowPunchInModal(false);
                   setPhotoPreview(null);
                   setPhotoFile(null);
                 }}
-                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg"
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -551,16 +610,47 @@ export const AttendanceCard: React.FC = () => {
 
             {/* Photo Capture / Upload Area */}
             <div className="space-y-3">
+              {/* Direct Front Camera File Input */}
               <input
                 type="file"
                 accept="image/*"
                 capture="user"
-                ref={fileInputRef}
+                ref={cameraInputRef}
                 onChange={handlePhotoSelect}
                 className="hidden"
               />
 
-              {photoPreview ? (
+              {/* Gallery File Input */}
+              <input
+                type="file"
+                accept="image/*"
+                ref={galleryInputRef}
+                onChange={handlePhotoSelect}
+                className="hidden"
+              />
+
+              {isLiveCameraOpen ? (
+                <div className="relative rounded-2xl overflow-hidden border-2 border-emerald-500 bg-slate-950 flex flex-col items-center justify-center shadow-lg">
+                  <video ref={videoRef} autoPlay playsInline className="w-full h-56 object-cover" />
+                  <div className="p-3 bg-slate-900/90 w-full flex items-center justify-between gap-2 border-t border-slate-800">
+                    <button
+                      type="button"
+                      onClick={stopLiveWebcam}
+                      className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl cursor-pointer"
+                    >
+                      Close Camera
+                    </button>
+                    <button
+                      type="button"
+                      onClick={captureWebcamPhoto}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 shadow-md shadow-emerald-600/30 cursor-pointer"
+                    >
+                      <Camera className="w-4 h-4" />
+                      <span>📸 Capture Selfie</span>
+                    </button>
+                  </div>
+                </div>
+              ) : photoPreview ? (
                 <div className="relative rounded-2xl overflow-hidden border-2 border-emerald-500 aspect-4/3 bg-slate-950 flex items-center justify-center group shadow-md">
                   <img
                     src={photoPreview}
@@ -570,11 +660,15 @@ export const AttendanceCard: React.FC = () => {
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                     <button
                       type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="px-3 py-1.5 bg-white text-slate-900 font-bold text-xs rounded-xl shadow-lg flex items-center gap-1.5 cursor-pointer"
+                      onClick={() => {
+                        setPhotoPreview(null);
+                        setPhotoFile(null);
+                        startLiveWebcam();
+                      }}
+                      className="px-3.5 py-2 bg-white text-slate-900 font-extrabold text-xs rounded-xl shadow-lg flex items-center gap-1.5 cursor-pointer hover:bg-slate-100"
                     >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                      <span>Retake</span>
+                      <RefreshCw className="w-4 h-4" />
+                      <span>Retake Selfie</span>
                     </button>
                   </div>
                   <div className="absolute top-3 left-3 bg-emerald-600 text-white text-[10px] font-extrabold px-2.5 py-1 rounded-full shadow-md flex items-center gap-1">
@@ -583,10 +677,7 @@ export const AttendanceCard: React.FC = () => {
                   </div>
                 </div>
               ) : (
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-500 p-8 text-center cursor-pointer transition-colors bg-slate-50/50 dark:bg-slate-800/30 flex flex-col items-center justify-center gap-2.5"
-                >
+                <div className="rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 p-6 text-center bg-slate-50/50 dark:bg-slate-800/30 flex flex-col items-center justify-center gap-3">
                   <div className="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center shadow-xs">
                     <Camera className="w-7 h-7" />
                   </div>
@@ -598,12 +689,24 @@ export const AttendanceCard: React.FC = () => {
                       Required for Admin attendance verification
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    className="mt-1 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs"
-                  >
-                    Open Camera / Browse
-                  </button>
+                  <div className="flex flex-col sm:flex-row items-center gap-2 w-full pt-1">
+                    <button
+                      type="button"
+                      onClick={startLiveWebcam}
+                      className="w-full sm:flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md shadow-emerald-600/20 flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Camera className="w-4 h-4" />
+                      <span>📸 Open Live Camera</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => galleryInputRef.current?.click()}
+                      className="w-full sm:flex-1 py-2.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <ImageIcon className="w-4 h-4" />
+                      <span>📁 Browse Gallery</span>
+                    </button>
+                  </div>
                 </div>
               )}
 
