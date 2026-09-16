@@ -76,17 +76,51 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   const audioChunksRef = React.useRef<Blob[]>([]);
   const audioElementRef = React.useRef<HTMLAudioElement | null>(null);
 
-  // Initialize form with fresh clean inputs for every report submission
+  // Initialize form with saved job data when modal opens
   React.useEffect(() => {
     if (isOpen && job) {
-      setTaskDescription('');
-      setInspectionComments('');
-      setBeforePhotos([]);
-      setAfterPhotos([]);
-      setPhotoUploadTimes({});
+      const savedTaskDesc = job.taskDescription || job.workProgress?.taskDescription || '';
+      setTaskDescription(savedTaskDesc);
+
+      const savedComments = job.inspectionComments || job.workProgress?.inspectionComments || '';
+      setInspectionComments(savedComments);
+
+      const rawBefore = (job.beforePhotos && job.beforePhotos.length > 0)
+        ? job.beforePhotos
+        : (job.workProgress?.beforeWorkPhotos || []);
+      const loadedBeforeUrls = rawBefore.map((p: any) => typeof p === 'string' ? p : (p?.url || ''));
+      const cleanBeforeUrls = loadedBeforeUrls.filter(Boolean);
+      setBeforePhotos(cleanBeforeUrls);
+
+      const timesMap: Record<string, string> = {};
+      rawBefore.forEach((p: any) => {
+        if (typeof p === 'object' && p.url && p.uploadedAt) {
+          timesMap[p.url] = p.uploadedAt;
+        }
+      });
+
+      const rawAfter = (job.afterPhotos && job.afterPhotos.length > 0)
+        ? job.afterPhotos
+        : ((job.workProgress as any)?.afterWorkPhotos || []);
+      const loadedAfterUrls = rawAfter.map((p: any) => typeof p === 'string' ? p : (p?.url || ''));
+      const cleanAfterUrls = loadedAfterUrls.filter(Boolean);
+      setAfterPhotos(cleanAfterUrls);
+
+      rawAfter.forEach((p: any) => {
+        if (typeof p === 'object' && p.url && p.uploadedAt) {
+          timesMap[p.url] = p.uploadedAt;
+        }
+      });
+      setPhotoUploadTimes(timesMap);
+
+      if (cleanBeforeUrls.length > 0) {
+        setCurrentStep(2);
+      } else {
+        setCurrentStep(1);
+      }
+
       setHasVoiceNote(false);
       setAudioUrl(null);
-      setCurrentStep(1);
       setCompletionStatus(job.status === 'COMPLETED' || job.status === 'VERIFIED' ? 'Completed' : 'In Progress');
       setUploadError(null);
       setSaveSuccessMsg(null);
@@ -312,29 +346,30 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
         hasVoiceNote: Boolean(hasVoiceNote)
       });
 
-      // 2. Sync to /api/reports ONLY if technician is closing after Step 1 (not advancing to Step 2)
-      if (!advanceToStep2) {
-        await fetch(`${baseUrl}/api/reports`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            technicianId: techId,
-            technicianName: techName,
-            date: new Date().toISOString().split('T')[0],
-            activityType: job.title || 'Customer Job',
-            workDescription: taskDescription.trim() || 'Work started on site. Before photos uploaded.',
-            hoursWorked: 8,
-            status: 'PRESENT',
-            jobStatus: 'IN_PROGRESS',
-            jobId: job.id,
-            jobCode: job.jobCode,
-            customerName: job.customer?.name || '',
-            location: job.customer?.city || job.customer?.address || '',
-            beforePhotos: formattedBefore,
-            afterPhotos: formattedAfter,
-          })
-        }).catch(err => console.warn('POST /api/reports error:', err));
-      }
+      // 2. Sync to /api/reports for real-time visibility in Admin Reports page
+      await fetch(`${baseUrl}/api/reports`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          technicianId: techId,
+          technicianName: techName,
+          date: new Date().toISOString().split('T')[0],
+          activityType: job.title || 'Customer Job',
+          workDescription: taskDescription.trim() || 'Work started on site. Before photos uploaded.',
+          hoursWorked: 8,
+          status: 'PRESENT',
+          jobStatus: 'IN_PROGRESS',
+          jobId: job.id,
+          jobCode: job.jobCode,
+          customerName: job.customer?.name || '',
+          customerPhone: job.customer?.phone || '',
+          location: job.customer?.city || job.customer?.address || '',
+          beforePhotos: formattedBefore,
+          afterPhotos: formattedAfter,
+          voiceNoteUrl: hasVoiceNote ? (audioUrl || '') : '',
+          hasVoiceNote: Boolean(hasVoiceNote)
+        })
+      }).catch(err => console.warn('POST /api/reports error:', err));
 
       if (onJobUpdated) onJobUpdated(updatedJob);
       if (onUpdateStatus) onUpdateStatus(job.id, 'IN_PROGRESS');
