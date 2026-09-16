@@ -13,6 +13,7 @@ export interface ITechnicianReport extends Document {
   status?: string; // 'PRESENT' | 'HALF_DAY' | 'ON_LEAVE' | 'FIELD_JOB'
   jobId?: string; // Optional reference to a Job
   jobCode?: string;
+  jobStatus?: string;
   customerName?: string;
   location?: string;
   isMultiDay?: boolean;
@@ -44,6 +45,7 @@ const TechnicianReportSchema: Schema = new Schema(
     status: { type: String, default: 'PRESENT' },
     jobId: { type: String, default: '' },
     jobCode: { type: String, default: '' },
+    jobStatus: { type: String, default: 'IN_PROGRESS' },
     customerName: { type: String, default: '' },
     location: { type: String, default: '' },
     isMultiDay: { type: Boolean, default: false },

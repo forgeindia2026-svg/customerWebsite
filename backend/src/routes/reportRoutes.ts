@@ -108,7 +108,7 @@ router.post('/', async (req: Request, res: Response) => {
     const { 
       technicianId, technicianName, date, activityType, 
       workDescription, hoursWorked, checkInTime, checkOutTime, 
-      status, jobId, jobCode, customerName, location, 
+      status, jobStatus, jobId, jobCode, customerName, location, 
       isMultiDay, dayNumber, beforePhotos, afterPhotos,
       voiceNoteUrl, hasVoiceNote, time: reqTime
     } = req.body;
@@ -118,7 +118,51 @@ router.post('/', async (req: Request, res: Response) => {
     const cleanJobCode = (jobCode || '').trim();
     const currentSubmissionTime = reqTime || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
-    // Every submission creates a distinct, new daily progress report entry
+    // Determine jobStatus: explicitly provided, or COMPLETED if status is COMPLETED
+    const finalJobStatus = jobStatus || (
+      (status && status.toUpperCase().includes('COMPLET')) ? 'COMPLETED' : 'IN_PROGRESS'
+    );
+
+    // ⚡ If a report for this jobCode already exists, UPDATE it in-place!
+    if (cleanJobCode && cleanJobCode !== 'DAILY WORK LOG') {
+      const existing = await TechnicianReport.findOne({ 
+        jobCode: { $regex: new RegExp(`^#?${cleanJobCode.replace(/^#/, '')}$`, 'i') } 
+      });
+
+      if (existing) {
+        existing.technicianId = finalTechId;
+        existing.technicianName = finalTechName;
+        existing.date = date || new Date().toISOString().split('T')[0];
+        existing.time = currentSubmissionTime;
+        if (workDescription) existing.workDescription = workDescription;
+        if (activityType) existing.activityType = activityType;
+        if (customerName) existing.customerName = customerName;
+        if (location) existing.location = location;
+        if (jobStatus) existing.jobStatus = jobStatus;
+        else if (finalJobStatus === 'COMPLETED') existing.jobStatus = 'COMPLETED';
+
+        // Merge Before Photos (preserve unique URLs)
+        if (beforePhotos && beforePhotos.length > 0) {
+          const beforeSet = new Set(existing.beforePhotos || []);
+          beforePhotos.forEach((p: string) => beforeSet.add(p));
+          existing.beforePhotos = Array.from(beforeSet);
+        }
+
+        // Merge After Photos (preserve unique URLs)
+        if (afterPhotos && afterPhotos.length > 0) {
+          const afterSet = new Set(existing.afterPhotos || []);
+          afterPhotos.forEach((p: string) => afterSet.add(p));
+          existing.afterPhotos = Array.from(afterSet);
+        }
+
+        if (voiceNoteUrl) existing.voiceNoteUrl = voiceNoteUrl;
+        existing.hasVoiceNote = Boolean(hasVoiceNote || (voiceNoteUrl && voiceNoteUrl.length > 0) || existing.hasVoiceNote);
+        existing.updatedAt = new Date();
+
+        const saved = await existing.save();
+        return res.status(200).json({ success: true, data: saved, message: 'Report updated successfully' });
+      }
+    }
 
     const report = new TechnicianReport({
       technicianId: finalTechId,
@@ -133,6 +177,7 @@ router.post('/', async (req: Request, res: Response) => {
       status: status || 'PRESENT',
       jobId: jobId || '',
       jobCode: cleanJobCode || '',
+      jobStatus: finalJobStatus,
       customerName: customerName || '',
       location: location || '',
       isMultiDay: Boolean(isMultiDay),

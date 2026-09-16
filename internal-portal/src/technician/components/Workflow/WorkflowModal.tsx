@@ -312,26 +312,29 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
         hasVoiceNote: Boolean(hasVoiceNote)
       });
 
-      // 2. Sync to /api/reports so Admin Reports immediately shows Before Photos with exact upload time
-      await fetch(`${baseUrl}/api/reports`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          technicianId: techId,
-          technicianName: techName,
-          date: new Date().toISOString().split('T')[0],
-          activityType: job.title || 'Customer Job',
-          workDescription: taskDescription.trim() || 'Work started on site. Before photos uploaded.',
-          hoursWorked: 8,
-          status: 'PRESENT',
-          jobId: job.id,
-          jobCode: job.jobCode,
-          customerName: job.customer?.name || '',
-          location: job.customer?.city || job.customer?.address || '',
-          beforePhotos: formattedBefore,
-          afterPhotos: formattedAfter,
-        })
-      }).catch(err => console.warn('POST /api/reports error:', err));
+      // 2. Sync to /api/reports ONLY if technician is closing after Step 1 (not advancing to Step 2)
+      if (!advanceToStep2) {
+        await fetch(`${baseUrl}/api/reports`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            technicianId: techId,
+            technicianName: techName,
+            date: new Date().toISOString().split('T')[0],
+            activityType: job.title || 'Customer Job',
+            workDescription: taskDescription.trim() || 'Work started on site. Before photos uploaded.',
+            hoursWorked: 8,
+            status: 'PRESENT',
+            jobStatus: 'IN_PROGRESS',
+            jobId: job.id,
+            jobCode: job.jobCode,
+            customerName: job.customer?.name || '',
+            location: job.customer?.city || job.customer?.address || '',
+            beforePhotos: formattedBefore,
+            afterPhotos: formattedAfter,
+          })
+        }).catch(err => console.warn('POST /api/reports error:', err));
+      }
 
       if (onJobUpdated) onJobUpdated(updatedJob);
       if (onUpdateStatus) onUpdateStatus(job.id, 'IN_PROGRESS');
@@ -418,6 +421,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
             workDescription: inspectionComments.trim() || taskDescription.trim() || 'Work in progress.',
             hoursWorked: 8,
             status: 'PRESENT',
+            jobStatus: 'IN_PROGRESS',
             jobId: job.id,
             jobCode: job.jobCode,
             customerName: job.customer?.name || '',
@@ -475,6 +479,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
           workDescription: summaryText,
           hoursWorked: 8,
           status: 'PRESENT',
+          jobStatus: 'COMPLETED',
           jobId: job.id,
           jobCode: job.jobCode,
           customerName: job.customer?.name || '',

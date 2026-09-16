@@ -526,7 +526,11 @@ export default function Reports() {
         address: gr.location || 'Site Location',
         technician: gr.technicianName || gr.technician || 'Field Technician',
         status: gr.approvedByAdmin || localStorage.getItem(`report_approved_${gr.jobCode || gr._id}`) === 'true' ? 'Verified' : 'Under Review',
-        jobStatus: (gr.jobStatus || gr.status || 'IN_PROGRESS').toUpperCase().includes('COMPLET') ? 'COMPLETED' : (gr.jobStatus || gr.status || 'IN_PROGRESS').toUpperCase().includes('HOLD') ? 'ON HOLD' : 'IN PROGRESS',
+        jobStatus: (() => {
+          const js = (gr.jobStatus || (gr.status && gr.status !== 'PRESENT' ? gr.status : '') || '').toUpperCase();
+          if (js === 'COMPLETED' || js === 'APPROVED' || js === 'DELIVERED') return 'COMPLETED';
+          return 'IN PROGRESS';
+        })(),
         checkInTime: gr.checkInTime || '',
         checkOutTime: gr.checkOutTime || '',
         notes: (gr.workDescription || 'Daily report log submitted.').replace(/\[Voice Memo Attached:[^\]]*\]/gi, '').trim(),
@@ -552,24 +556,48 @@ export default function Reports() {
         customer: ord.customerName || ord.customer || '',
         address: ord.location || ord.address || '',
         title: ord.title || ord.serviceType || '',
-        technician: ord.assignedTechnicianName || ord.technicianName || ''
+        technician: ord.assignedTechnicianName || ord.technicianName || '',
+        status: ord.status || ord.jobStatus || ''
       });
     }
   });
 
-  const processedGeneralReports = (generalReportsFormatted || []).map(gr => {
+  // Filter rapid accidental duplicate submissions (same jobCode, tech, date & minute timestamp)
+  const uniqueGeneralReports = [];
+  const seenSubmissionsMap = new Map();
+  (generalReportsFormatted || []).forEach(gr => {
+    const code = (gr.jobCode || '').replace(/^#/, '').trim().toUpperCase();
+    const tech = (gr.technician || '').toLowerCase().trim();
+    const key = `${code}_${tech}_${gr.date}_${gr.time}`;
+    if (code && code !== 'DAILY WORK LOG') {
+      if (seenSubmissionsMap.has(key)) return;
+      seenSubmissionsMap.set(key, true);
+    }
+    uniqueGeneralReports.push(gr);
+  });
+
+  const processedGeneralReports = (uniqueGeneralReports || []).map(gr => {
     const cleanCode = (gr.jobCode || '').replace(/^#/, '').trim().toUpperCase();
     const meta = orderMetadataMap.get(cleanCode);
+
+    const isJobCompletedInOrder = (meta?.status || '').toUpperCase().includes('COMPLET');
+    const isReportCompleted = (gr.jobStatus || gr.status || '').toUpperCase().includes('COMPLET') || (gr.notes || '').toLowerCase().includes('completed');
+    const finalJobStatus = (isJobCompletedInOrder || isReportCompleted) ? 'COMPLETED' : (gr.jobStatus || 'IN PROGRESS');
+
     if (meta) {
       return {
         ...gr,
         customer: (gr.customer && gr.customer !== 'Customer Site' && gr.customer !== 'Customer' && gr.customer !== 'Office / Internal Activity') ? gr.customer : (meta.customer || gr.customer),
         address: (gr.address && gr.address !== 'Site Location' && gr.address !== 'Local' && gr.address !== 'Chennai') ? gr.address : (meta.address || gr.address),
         title: gr.title && gr.title !== 'General Work Activity' ? gr.title : (meta.title || gr.title),
-        technician: (gr.technician && gr.technician !== 'Field Technician' && gr.technician !== 'Unassigned') ? gr.technician : (meta.technician || gr.technician)
+        technician: (gr.technician && gr.technician !== 'Field Technician' && gr.technician !== 'Unassigned') ? gr.technician : (meta.technician || gr.technician),
+        jobStatus: finalJobStatus
       };
     }
-    return gr;
+    return {
+      ...gr,
+      jobStatus: finalJobStatus
+    };
   });
 
   const reportedCodesSet = new Set(processedGeneralReports.map(gr => (gr.jobCode || '').replace(/^#/, '').trim().toUpperCase()).filter(Boolean));
@@ -3089,13 +3117,10 @@ export default function Reports() {
                 <div className="flex items-center justify-between">
                   <span className="text-slate-500 font-medium">Completion Status</span>
                   {(() => {
-                    const hasAfter = (adminFullReportModal.afterPhotos?.length || 0) > 0;
-                    const hasBefore = (adminFullReportModal.beforePhotos?.length || 0) > 0;
                     const isApproved = adminFullReportModal.status === 'Verified' || localStorage.getItem(`report_approved_${adminFullReportModal.jobCode}`) === 'true';
                     if (isApproved) return <span className="font-bold text-emerald-600 flex items-center gap-1"><FiCheckCircle size={12} /> Approved</span>;
-                    if (hasAfter) return <span className="font-bold text-emerald-500">✅ Completed</span>;
-                    if (hasBefore) return <span className="font-bold text-amber-500">🔄 In Progress</span>;
-                    return <span className="font-bold text-slate-400">📋 Submitted</span>;
+                    if (adminFullReportModal.jobStatus === 'COMPLETED') return <span className="font-bold text-emerald-500">✅ Completed</span>;
+                    return <span className="font-bold text-amber-500">🔄 In Progress</span>;
                   })()} 
                 </div>
 
