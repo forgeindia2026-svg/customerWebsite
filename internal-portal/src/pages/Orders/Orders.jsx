@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useSearchParams } from 'react-router-dom';
-import { FiSearch, FiSliders, FiCheckCircle, FiInfo, FiTrash2, FiPlusCircle, FiEye, FiGrid, FiList, FiPlus, FiUser, FiCalendar, FiDollarSign, FiChevronDown, FiCheck, FiEdit, FiShoppingBag, FiClock, FiRefreshCw, FiVideo, FiShield, FiTool, FiCpu, FiPackage, FiAlertCircle } from 'react-icons/fi';
+import { FiSearch, FiSliders, FiCheckCircle, FiInfo, FiTrash2, FiPlusCircle, FiEye, FiGrid, FiList, FiPlus, FiUser, FiCalendar, FiDollarSign, FiChevronDown, FiCheck, FiEdit, FiShoppingBag, FiClock, FiRefreshCw, FiVideo, FiShield, FiTool, FiCpu, FiPackage, FiAlertCircle, FiXCircle } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { approveOrder, approveOrderCompletion, reworkOrder, setOrderStatus, addOrder, assignTechnicianToOrder, editOrder, adminApproveJob, adminReworkJob, fetchDashboardData, createOrderAPI, addPayment } from '../../redux/dashboardSlice';
 import { socket } from '../../socket';
@@ -194,6 +194,14 @@ export default function Orders() {
 
   const getDisplayStatus = (ord) => {
     if (!ord) return 'Pending';
+    if (
+      ord.status === 'Cancelled' || 
+      ord.status === 'CANCELLED' || 
+      ord.rawJobStatus === 'CANCELLED' || 
+      ord.orderStatus === 'CANCELLED'
+    ) {
+      return 'Cancelled';
+    }
     let localApproved = false;
     try {
       const rawStored = JSON.parse(localStorage.getItem('sk_approved_orders') || '[]');
@@ -396,10 +404,17 @@ export default function Orders() {
     }
   };
 
-  const handleSetOrderStatus = (orderId, newStatus) => {
+  const handleSetOrderStatus = async (orderId, newStatus) => {
     setActiveStatusDropdown(null);
     dispatch(setOrderStatus({ id: orderId, status: newStatus }));
-    toast.success(`Order ${orderId} marked as ${newStatus}`);
+    const backendStatus = newStatus === 'Cancelled' ? 'CANCELLED' : (newStatus === 'In Progress' ? 'PROCESSING' : newStatus);
+    await dispatch(updateOrderAPI({ id: orderId, orderStatus: backendStatus, status: newStatus }));
+    dispatch(fetchDashboardData());
+    if (newStatus === 'Cancelled') {
+      toast.error(`Order ${orderId} has been cancelled.`);
+    } else {
+      toast.success(`Order ${orderId} marked as ${newStatus}`);
+    }
   };
 
   // Filter logic
@@ -427,7 +442,10 @@ export default function Orders() {
       case 'WAITING_ADMIN_APPROVAL':
         return 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-300 dark:border-amber-700 font-bold shadow-2xs';
       case 'Rework':
-        return 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300 border border-red-300 dark:border-red-800 font-bold shadow-2xs';
+        return 'bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300 border border-orange-300 dark:border-orange-800 font-bold shadow-2xs';
+      case 'Cancelled':
+      case 'CANCELLED':
+        return 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300 border border-red-300 dark:border-red-800 font-bold shadow-2xs';
       case 'In Progress':
       case 'IN_PROGRESS':
         return 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800 font-bold shadow-2xs';
@@ -745,7 +763,7 @@ export default function Orders() {
             <span className="text-xs text-slate-400 font-semibold flex items-center gap-1 flex-shrink-0">
               Status:
             </span>
-            {['All', 'Pending', 'In Progress', 'Completed', 'Approved'].map(status => (
+            {['All', 'Pending', 'In Progress', 'Completed', 'Approved', 'Cancelled'].map(status => (
               <button
                 key={status}
                 onClick={() => setStatusFilter(status)}
@@ -893,6 +911,14 @@ export default function Orders() {
                             >
                               <FiEdit size={14} />
                               <span>Edit Order Details</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleSetOrderStatus(ord.id, 'Cancelled')}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 cursor-pointer border-t border-slate-100 dark:border-slate-800 mt-1 pt-1.5"
+                            >
+                              <FiXCircle size={14} className="text-rose-500" />
+                              <span>Cancel Order</span>
                             </button>
                           </div>
                         )}
@@ -1094,6 +1120,15 @@ export default function Orders() {
                                   >
                                     <FiClock className="w-3.5 h-3.5" />
                                     <span>Set In Progress</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSetOrderStatus(ord.id, 'Cancelled')}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-left text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 font-bold transition-colors cursor-pointer border-t border-slate-100 dark:border-slate-800"
+                                  >
+                                    <FiXCircle className="w-3.5 h-3.5 text-rose-500" />
+                                    <span>Cancel Order</span>
                                   </button>
 
                                   <button
@@ -2067,6 +2102,7 @@ export default function Orders() {
                 <option value="In Progress">In Progress</option>
                 <option value="Approved">Approved</option>
                 <option value="Completed">Completed</option>
+                <option value="Cancelled">Cancelled</option>
               </select>
             </div>
             <div className="pt-2 flex justify-end gap-2.5">

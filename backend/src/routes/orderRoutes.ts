@@ -277,11 +277,23 @@ router.put('/:id', async (req: Request, res: Response): Promise<any> => {
       ? { $or: [{ _id: cleanId }, { orderNumber: cleanId }, { orderNumber: rawId }, { orderNumber: `#${cleanId}` }] } 
       : { $or: [{ orderNumber: cleanId }, { orderNumber: rawId }, { orderNumber: `#${cleanId}` }, { orderNumber: new RegExp(cleanId + '$', 'i') }] };
 
+    const targetStatusStr = String(req.body.orderStatus || req.body.status || '').toUpperCase();
+    const isApprovedStatus = targetStatusStr === 'DELIVERED' || targetStatusStr === 'APPROVED' || targetStatusStr === 'COMPLETED';
+    const isCancelledStatus = targetStatusStr === 'CANCELLED' || targetStatusStr === 'CANCELED';
+
     const updateFields: any = { ...req.body };
     const techName = req.body.assignedTechnician || req.body.assignedTechnicianName;
     if (techName) {
       updateFields.assignedTechnician = techName;
       updateFields.assignedTechnicianName = techName;
+    }
+
+    if (isCancelledStatus) {
+      updateFields.orderStatus = 'CANCELLED';
+      updateFields.status = 'Cancelled';
+    } else if (isApprovedStatus) {
+      updateFields.orderStatus = 'DELIVERED';
+      updateFields.status = 'Approved';
     }
 
     const updatedOrder = await Order.findOneAndUpdate(query, { $set: updateFields }, {
@@ -291,11 +303,37 @@ router.put('/:id', async (req: Request, res: Response): Promise<any> => {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
-    // Sync status with corresponding Job in MongoDB if status is Approved/Delivered/Completed
-    const targetStatusStr = String(req.body.orderStatus || req.body.status || '').toUpperCase();
-    const isApprovedStatus = targetStatusStr === 'DELIVERED' || targetStatusStr === 'APPROVED' || targetStatusStr === 'COMPLETED';
+    // Sync Dashboard embedded orders if present
+    try {
+      let dashboardData = await Dashboard.findOne();
+      if (dashboardData && Array.isArray(dashboardData.orders)) {
+        const orderInDash = dashboardData.orders.find((o: any) => o.id === updatedOrder.orderNumber || o.orderNumber === updatedOrder.orderNumber || o.id === cleanId || o.id === rawId);
+        if (orderInDash) {
+          if (isCancelledStatus) {
+            orderInDash.status = 'Cancelled';
+          } else if (isApprovedStatus) {
+            orderInDash.status = 'Approved';
+          }
+          await dashboardData.save();
+        }
+      }
+    } catch (dashErr) {
+      console.warn('Could not sync dashboardData orders:', dashErr);
+    }
 
-    if (techName && techName !== 'Unassigned') {
+    if (isCancelledStatus) {
+      await Job.updateMany(
+        {
+          $or: [
+            { jobCode: updatedOrder.orderNumber },
+            { jobCode: `#${updatedOrder.orderNumber}` },
+            { jobCode: cleanId },
+            { jobCode: rawId }
+          ]
+        },
+        { $set: { status: 'CANCELLED', updatedAt: new Date() } }
+      );
+    } else if (techName && techName !== 'Unassigned') {
       const techUser = await User.findOne({ name: new RegExp(`^${techName}$`, 'i'), role: 'TECHNICIAN' });
       const techId = techUser ? techUser._id.toString() : (req.body.assignedTechnicianId || 'temp-id');
 

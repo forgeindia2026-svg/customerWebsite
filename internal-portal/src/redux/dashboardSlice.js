@@ -20,14 +20,18 @@ export const createOrderAPI = createAsyncThunk('dashboard/createOrder', async (o
   }
 });
 export const updateOrderAPI = createAsyncThunk('dashboard/updateOrder', async ({ id, ...data }, { dispatch }) => {
-  const res = await fetch(`${getApiUrl()}/api/orders/${id}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+  const cleanId = String(id || '').replace(/^#/, '').trim();
+  const res = await fetch(`${getApiUrl()}/api/orders/${encodeURIComponent(cleanId)}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+  const json = await res.json();
   dispatch(fetchDashboardData());
-  return res.json();
+  return json;
 });
 export const deleteOrderAPI = createAsyncThunk('dashboard/deleteOrder', async (id, { dispatch }) => {
-  const res = await fetch(`${getApiUrl()}/api/orders/${id}`, { method: 'DELETE' });
+  const cleanId = String(id || '').replace(/^#/, '').trim();
+  const res = await fetch(`${getApiUrl()}/api/orders/${encodeURIComponent(cleanId)}`, { method: 'DELETE' });
+  const json = await res.json();
   dispatch(fetchDashboardData());
-  return res.json();
+  return json;
 });
 
 export const createTechnicianAPI = createAsyncThunk('dashboard/createTechnician', async (techData, { dispatch }) => {
@@ -499,16 +503,29 @@ const dashboardSlice = createSlice({
     },
     setOrderStatus: (state, action) => {
       const { id, status } = action.payload;
-      const order = state.orders.find(o => o.id === id || o.orderNumber === id || (o.jobCode && o.jobCode === id));
+      const cleanId = String(id || '').replace(/^#/, '').trim().toLowerCase();
+      const order = state.orders.find(o => {
+        const oId = String(o.id || '').replace(/^#/, '').trim().toLowerCase();
+        const oNum = String(o.orderNumber || '').replace(/^#/, '').trim().toLowerCase();
+        const oJob = String(o.jobCode || '').replace(/^#/, '').trim().toLowerCase();
+        return oId === cleanId || oNum === cleanId || oJob === cleanId || (cleanId && (oId.endsWith(cleanId) || oNum.endsWith(cleanId)));
+      });
       if (order) {
         order.status = status;
         if (status === 'Completed') {
           order.rawJobStatus = 'COMPLETED';
         } else if (status === 'In Progress' || status === 'Rework') {
           order.rawJobStatus = 'IN_PROGRESS';
+        } else if (status === 'Cancelled') {
+          order.rawJobStatus = 'CANCELLED';
+          order.orderStatus = 'CANCELLED';
         }
       }
-      const project = state.projects.find(p => p.id === id || p.jobCode === id);
+      const project = state.projects.find(p => {
+        const pId = String(p.id || '').replace(/^#/, '').trim().toLowerCase();
+        const pJob = String(p.jobCode || '').replace(/^#/, '').trim().toLowerCase();
+        return pId === cleanId || pJob === cleanId;
+      });
       if (project) {
         project.status = status;
       }

@@ -249,7 +249,9 @@ router.get('/', async (req: Request, res: Response) => {
       const job = jobByCode.get(order.orderNumber);
       const existingDashOrder = Array.isArray(dashboardData.orders) ? dashboardData.orders.find((o: any) => o.id === order.orderNumber || o.orderNumber === order.orderNumber) : null;
       let dashboardStatus = 'Pending';
-      if (job?.status === 'APPROVED' || existingDashOrder?.status === 'Approved') {
+      if (order.orderStatus === 'CANCELLED' || job?.status === 'CANCELLED' || existingDashOrder?.status === 'Cancelled' || String(order.status || '').toLowerCase() === 'cancelled') {
+        dashboardStatus = 'Cancelled';
+      } else if (job?.status === 'APPROVED' || existingDashOrder?.status === 'Approved') {
         dashboardStatus = 'Approved';
       } else if (job?.status === 'COMPLETED' || job?.status === 'WAITING_ADMIN_APPROVAL') {
         dashboardStatus = 'Completed';
@@ -257,8 +259,6 @@ router.get('/', async (req: Request, res: Response) => {
         dashboardStatus = job ? 'Completed' : 'Approved';
       } else if (job?.status === 'IN_PROGRESS' || job?.status === 'ASSIGNED') {
         dashboardStatus = 'In Progress';
-      } else if (order.orderStatus === 'CANCELLED' || job?.status === 'CANCELLED') {
-        dashboardStatus = 'Cancelled';
       } else if (job?.status === 'PENDING') {
         dashboardStatus = (job.assignedTechnicians && job.assignedTechnicians.length > 0) ? 'In Progress' : 'Pending';
       } else if (order.orderStatus === 'PROCESSING') {
