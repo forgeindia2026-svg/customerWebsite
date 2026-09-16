@@ -77,15 +77,18 @@ router.get('/', async (req: Request, res: Response) => {
       rep.afterPhotos = resolvePhotos(rep.afterPhotos || []);
 
       // If the report photos are empty or corrupted (e.g. "[object Object]"), fallback to pulling them directly from the Job
-      const isCorrupted = (photos: any[]) => photos.length === 0 || photos.some(p => p === '[object Object]' || (typeof p === 'string' && p.includes('[object Object]')));
-      
-      if (rep.jobCode && (isCorrupted(rep.beforePhotos) || isCorrupted(rep.afterPhotos))) {
+      // Ensure customerPhone and photos are resolved from matching Job
+      if (rep.jobCode) {
         const cleanCode = rep.jobCode.replace(/^#/, '');
         const matchingJob = await Job.findOne({ 
           $or: [{ jobCode: rep.jobCode }, { jobCode: cleanCode }, { jobCode: `#${cleanCode}` }]
         }).lean();
         
         if (matchingJob) {
+          if (!rep.customerPhone && matchingJob.customer?.phone) {
+            rep.customerPhone = matchingJob.customer.phone;
+          }
+          const isCorrupted = (photos: any[]) => photos.length === 0 || photos.some(p => p === '[object Object]' || (typeof p === 'string' && p.includes('[object Object]')));
           if (isCorrupted(rep.beforePhotos) && matchingJob.beforePhotos && matchingJob.beforePhotos.length > 0) {
             rep.beforePhotos = matchingJob.beforePhotos.map((p: any) => p.url || p);
           }
@@ -108,7 +111,7 @@ router.post('/', async (req: Request, res: Response) => {
     const { 
       technicianId, technicianName, date, activityType, 
       workDescription, hoursWorked, checkInTime, checkOutTime, 
-      status, jobStatus, jobId, jobCode, customerName, location, 
+      status, jobStatus, jobId, jobCode, customerName, customerPhone, location, 
       isMultiDay, dayNumber, beforePhotos, afterPhotos,
       voiceNoteUrl, hasVoiceNote, time: reqTime
     } = req.body;
@@ -137,6 +140,7 @@ router.post('/', async (req: Request, res: Response) => {
         if (workDescription) existing.workDescription = workDescription;
         if (activityType) existing.activityType = activityType;
         if (customerName) existing.customerName = customerName;
+        if (customerPhone) existing.customerPhone = customerPhone;
         if (location) existing.location = location;
         if (jobStatus) existing.jobStatus = jobStatus;
         else if (finalJobStatus === 'COMPLETED') existing.jobStatus = 'COMPLETED';
@@ -179,6 +183,7 @@ router.post('/', async (req: Request, res: Response) => {
       jobCode: cleanJobCode || '',
       jobStatus: finalJobStatus,
       customerName: customerName || '',
+      customerPhone: customerPhone || '',
       location: location || '',
       isMultiDay: Boolean(isMultiDay),
       dayNumber: dayNumber || 1,

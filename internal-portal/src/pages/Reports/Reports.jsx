@@ -886,10 +886,12 @@ export default function Reports() {
       doc.line(14, 30, 196, 30);
 
       // ─── 2. Service & Customer Details Box ───
+      const custPhone = report?.customerPhone || report?.phone || report?.customerMobile || report?.customer?.phone || '';
+
       doc.setFillColor(248, 250, 252);
-      doc.rect(14, 34, 182, 32, 'F');
+      doc.rect(14, 34, 182, 36, 'F');
       doc.setDrawColor(226, 232, 240);
-      doc.rect(14, 34, 182, 32, 'S');
+      doc.rect(14, 34, 182, 36, 'S');
 
       doc.setTextColor(15, 23, 42);
       doc.setFontSize(9);
@@ -900,44 +902,51 @@ export default function Reports() {
       // Column 1 (Left)
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(71, 85, 105);
-      doc.text('Technician:', 18, 49);
+      doc.text('Technician:', 18, 48);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(15, 23, 42);
-      doc.text(String(report?.technician || 'Field Service Engineer'), 44, 49);
+      doc.text(String(report?.technician || 'Field Service Engineer'), 44, 48);
 
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(71, 85, 105);
-      doc.text('Customer:', 18, 57);
+      doc.text('Customer:', 18, 55);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(15, 23, 42);
-      doc.text(String(report?.customer || 'Customer Client'), 44, 57);
+      doc.text(String(report?.customer || 'Customer Client'), 44, 55);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(71, 85, 105);
+      doc.text('Contact No:', 18, 62);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(15, 23, 42);
+      doc.text(custPhone ? String(custPhone) : 'N/A', 44, 62);
 
       // Column 2 (Right)
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(71, 85, 105);
-      doc.text('Service:', 108, 49);
+      doc.text('Service:', 108, 48);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(15, 23, 42);
       const titleLines = doc.splitTextToSize(String(report?.title || 'CCTV Installation & Service'), 80);
-      doc.text(titleLines[0] || '', 126, 49);
+      doc.text(titleLines[0] || '', 126, 48);
 
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(71, 85, 105);
-      doc.text('Location:', 108, 57);
+      doc.text('Location:', 108, 55);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(15, 23, 42);
       const addrLines = doc.splitTextToSize(String(report?.address || 'Site Location, Chennai'), 68);
-      doc.text(addrLines.slice(0, 1), 126, 57);
+      doc.text(addrLines.slice(0, 1), 126, 55);
 
       // ─── 3. Technician Field Narrative & Notes ───
       doc.setTextColor(15, 23, 42);
       doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
-      doc.text('TECHNICIAN FIELD NARRATIVE & SITE COMMENTS', 14, 73);
+      doc.text('TECHNICIAN FIELD NARRATIVE & SITE COMMENTS', 14, 76);
 
       doc.setFillColor(255, 255, 255);
       doc.setDrawColor(226, 232, 240);
-      doc.rect(14, 76, 182, 34, 'S');
+      doc.rect(14, 79, 182, 32, 'S');
 
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
@@ -946,7 +955,7 @@ export default function Reports() {
         report?.notes || 'Technician site service report submitted successfully following standard installation & testing protocols.',
         174
       );
-      doc.text(splitNotes.slice(0, 5), 18, 83);
+      doc.text(splitNotes.slice(0, 5), 18, 86);
 
       // ─── 4. Site Evidence Photos Handling ───
       const beforePhotos = report?.beforePhotos || report?.beforeWorkPhotos || [];
@@ -1051,13 +1060,14 @@ export default function Reports() {
 
         const photoBoxY = 122;
         const pWidth = allPhotos.length === 1 ? 95 : 88;
-        const pHeight = 64;
+        const pHeight = 60;
         const gap = 6;
 
         if (allPhotos.length > 0) {
           let curX = 14;
           for (let i = 0; i < allPhotos.length; i++) {
-            const imgData = await loadImageAsBase64(allPhotos[i]);
+            const photoItem = allPhotos[i];
+            const imgData = await loadImageAsBase64(photoItem);
             doc.setDrawColor(226, 232, 240);
             doc.setFillColor(248, 250, 252);
             doc.rect(curX, photoBoxY, pWidth, pHeight, 'FD');
@@ -1074,6 +1084,19 @@ export default function Reports() {
               doc.setTextColor(148, 163, 184);
               doc.text(`Photo ${i + 1}`, curX + (pWidth / 2) - 6, photoBoxY + (pHeight / 2));
             }
+
+            // Photo Upload Timestamp Caption
+            const photoTime = (typeof photoItem === 'object' && photoItem?.uploadedAt)
+              ? photoItem.uploadedAt
+              : (report?.time || getReportDisplayTime(report) || 'Recorded');
+            const isBefore = beforePhotos.includes(photoItem);
+            const photoLabel = isBefore ? 'BEFORE WORK' : 'AFTER WORK';
+
+            doc.setFontSize(7.5);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(71, 85, 105);
+            doc.text(`${photoLabel} • Uploaded: ${photoTime}`, curX, photoBoxY + pHeight + 5);
+
             curX += pWidth + gap;
           }
         } else {
@@ -1222,11 +1245,17 @@ export default function Reports() {
               doc.text(`Photo ${pIndex * 4 + i + 1}`, x + 35, y + 40);
             }
 
-            // Photo caption
+            // Photo caption with Upload Timestamp
+            const photoTime = (typeof photoItem === 'object' && photoItem?.uploadedAt)
+              ? photoItem.uploadedAt
+              : (report?.time || getReportDisplayTime(report) || 'Recorded');
+            const isBefore = beforePhotos.includes(photoItem);
+            const photoLabel = isBefore ? 'BEFORE WORK' : 'AFTER WORK';
+
             doc.setFontSize(7.5);
             doc.setFont('helvetica', 'bold');
             doc.setTextColor(51, 65, 85);
-            doc.text(`Evidence #${pIndex * 4 + i + 1}: Site Proof`, x, y + h + 5);
+            doc.text(`Evidence #${pIndex * 4 + i + 1}: ${photoLabel} • Uploaded: ${photoTime}`, x, y + h + 5);
           }
 
           // Footer on Photo Page
@@ -2212,6 +2241,11 @@ export default function Reports() {
 
                           <td className="py-4 px-3 align-middle">
                             <div className="font-semibold text-slate-900 dark:text-white">{report.customer}</div>
+                            {(report.customerPhone || report.phone || report.customerMobile || report.customer?.phone) && (
+                              <div className="text-[11px] text-blue-600 dark:text-blue-400 font-mono font-bold">
+                                📞 {report.customerPhone || report.phone || report.customerMobile || report.customer?.phone}
+                              </div>
+                            )}
                             <div className="text-[11px] text-slate-400 truncate max-w-[180px]">{report.address}</div>
                           </td>
 
