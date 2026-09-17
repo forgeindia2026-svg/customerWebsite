@@ -543,6 +543,7 @@ export default function Reports() {
         time: gr.checkInTime || (gr.createdAt ? new Date(gr.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : ''),
         updatedAt: gr.date || gr.createdAt || gr.updatedAt,
         hoursWorked: gr.hoursWorked !== undefined && gr.hoursWorked !== null ? Number(gr.hoursWorked) : 8,
+        technicianRole: gr.technicianRole || (gr.isSubTechnician ? 'SUB' : 'MAIN'),
         isFromTechnicianReport: true
       };
     });
@@ -2147,8 +2148,17 @@ export default function Reports() {
                           <span className={`text-xs font-bold block ${isApproved ? 'text-emerald-600' : 'text-sky-600'}`}>
                             {isApproved ? 'Completed & Approved' : 'In Progress'}
                           </span>
-                          <p className="text-xs text-slate-700 dark:text-slate-200">
-                            Technician: <strong className="text-slate-900 dark:text-white font-extrabold">{report.technician}</strong>
+                          <p className="text-xs text-slate-700 dark:text-slate-200 flex items-center gap-1.5 flex-wrap">
+                            <span>Technician: <strong className="text-slate-900 dark:text-white font-extrabold">{report.technician}</strong></span>
+                            {report.technicianRole === 'SUB' ? (
+                              <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[9px] font-extrabold uppercase tracking-wider">
+                                🟢 Sub Tech
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded text-[9px] font-extrabold uppercase tracking-wider">
+                                🔵 Main Tech
+                              </span>
+                            )}
                           </p>
                           <h4 className="text-xs font-bold text-slate-900 dark:text-white">Task ID: #{report.jobCode}</h4>
                           <p className="text-xs text-slate-600 dark:text-slate-300">Customer: <strong className="text-slate-900 dark:text-white">{report.customer}</strong></p>
@@ -2235,8 +2245,19 @@ export default function Reports() {
                             )}
                           </td>
 
-                          <td className="py-4 px-3 align-middle font-bold text-slate-800 dark:text-slate-200">
-                            {report.technician}
+                          <td className="py-4 px-3 align-middle">
+                            <div className="font-bold text-slate-800 dark:text-slate-200">
+                              {report.technician}
+                            </div>
+                            {report.technicianRole === 'SUB' ? (
+                              <span className="inline-block px-2 py-0.5 mt-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[10px] font-extrabold uppercase tracking-wider whitespace-nowrap">
+                                🟢 Sub Tech
+                              </span>
+                            ) : (
+                              <span className="inline-block px-2 py-0.5 mt-1 bg-blue-50 text-blue-700 border border-blue-200 rounded text-[10px] font-extrabold uppercase tracking-wider whitespace-nowrap">
+                                🔵 Main Tech
+                              </span>
+                            )}
                           </td>
 
                           <td className="py-4 px-3 align-middle">

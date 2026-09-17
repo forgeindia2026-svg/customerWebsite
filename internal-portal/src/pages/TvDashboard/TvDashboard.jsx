@@ -331,16 +331,6 @@ export default function TvDashboard() {
     },
     { 
       id: 2,
-      title: 'URGENT TICKETS', 
-      shortTitle: 'TICKETS',
-      icon: FiTool,
-      activeColor: 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-orange-500/30 border-orange-500',
-      inactiveColor: 'bg-amber-50/80 text-amber-800 hover:bg-amber-100 border border-amber-200/80',
-      iconColor: 'text-amber-600',
-      badgeColor: 'bg-amber-400'
-    },
-    { 
-      id: 3,
       title: 'LEADERBOARD', 
       shortTitle: 'LEADERBOARD',
       icon: FiAward,
@@ -683,92 +673,9 @@ export default function TvDashboard() {
         )}
 
         {/* ══════════════════════════════════════════════════════════════════
-            SLIDE 2: URGENT SERVICE COMPLAINTS & TICKETS (FOCUSED VIEW)
+            SLIDE 2: WEEKLY HALL OF FAME (TOP TECHNICIANS PODIUM)
             ══════════════════════════════════════════════════════════════════ */}
         {currentSlide === 2 && (
-          <div className="flex-1 flex flex-col gap-4 min-h-0">
-            {/* Top Stat Ribbon */}
-            <div className="flex items-center justify-between bg-white px-6 py-3 rounded-2xl border border-slate-200/80 shadow-xs shrink-0">
-              <div className="flex items-center gap-8">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse"></span>
-                  <span className="text-xs font-bold text-slate-500 uppercase">Urgent Complaints:</span>
-                  <span className="text-base font-black text-rose-600">{allTickets.length} Pending</span>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-                  <span className="text-xs font-bold text-slate-500 uppercase">Avg Response Time:</span>
-                  <span className="text-base font-black text-emerald-600">3.2 Hours</span>
-                </div>
-              </div>
-
-              <span className="text-xs font-bold text-rose-600">
-                Priority Helpdesk Queue
-              </span>
-            </div>
-
-            {/* Complaints Cards Grid */}
-            <div className="flex-1 bg-white rounded-3xl border border-slate-200/80 p-5 flex flex-col shadow-xs overflow-hidden">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0 mb-3">
-                <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                  <FiTool className="text-rose-600" size={16} />
-                  ACTIVE SUPPORT TICKETS
-                </h2>
-                <span className="text-xs font-semibold text-slate-400">
-                  Priority resolution queue
-                </span>
-              </div>
-
-              <div className="flex-1 overflow-y-auto no-scrollbar grid grid-cols-3 gap-4">
-                {allTickets.slice(0, 6).map((tkt, idx) => (
-                  <div 
-                    key={tkt.id || idx}
-                    className="bg-rose-50/40 border border-rose-200 rounded-2xl p-4 flex flex-col justify-between hover:bg-rose-50/80 transition-all shadow-2xs"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 text-xs font-mono font-black">
-                          {tkt.id || `TKT-10${idx + 1}`}
-                        </span>
-                        <span className="px-2.5 py-0.5 rounded-full bg-rose-600 text-white text-[11px] font-black uppercase">
-                          {tkt.priority || 'Urgent'} Priority
-                        </span>
-                      </div>
-
-                      <h3 className="text-base font-black text-slate-900 truncate tracking-tight">
-                        {tkt.customer || 'Customer Client'}
-                      </h3>
-
-                      <p className="text-xs font-bold text-rose-700 mt-1 flex items-center gap-1">
-                        <span>⚠️</span>
-                        <span className="truncate">{tkt.type || tkt.issue || 'CCTV Feed Loss'}</span>
-                      </p>
-
-                      <p className="text-xs font-medium text-slate-500 mt-1 flex items-center gap-1 truncate">
-                        <FiMapPin size={12} className="text-slate-400 shrink-0" />
-                        <span className="truncate">{tkt.location || 'Hosur Area'}</span>
-                      </p>
-                    </div>
-
-                    <div className="mt-3 pt-3 border-t border-rose-200/80 flex items-center justify-between">
-                      <span className="text-xs font-semibold text-slate-500">
-                        Status: <strong className="text-rose-700">{tkt.status || 'Pending'}</strong>
-                      </span>
-                      <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-md border border-blue-200">
-                        Dispatching Tech
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ══════════════════════════════════════════════════════════════════
-            SLIDE 3: WEEKLY HALL OF FAME (TOP TECHNICIANS PODIUM)
-            ══════════════════════════════════════════════════════════════════ */}
-        {currentSlide === 3 && (
           <div className="flex-1 flex flex-col gap-4 min-h-0">
             {/* Top Ribbon */}
             <div className="flex items-center justify-between bg-amber-50 px-6 py-3 rounded-2xl border border-amber-200 shadow-xs shrink-0">
@@ -1066,8 +973,6 @@ export default function TvDashboard() {
             <span>👥 ATTENDANCE: <strong className="text-emerald-400">{presentTechniciansList.length} PRESENT</strong> / <strong className="text-rose-400">{absentTechniciansList.length} ABSENT</strong></span>
             <span>•</span>
             <span className="text-blue-300 font-bold">⚡ {allActiveOrders.length} ACTIVE FIELD INSTALLATIONS</span>
-            <span>•</span>
-            <span className="text-amber-300 font-bold">⚠️ {allTickets.length} SERVICE TICKETS IN QUEUE</span>
             <span>•</span>
             <span className="text-yellow-300 font-bold">🏆 WEEKLY LEADER: {rankedTechnicians[0]?.name} ({rankedTechnicians[0]?.completedJobs || 11} JOBS)</span>
             <span>•</span>

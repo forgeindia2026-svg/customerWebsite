@@ -23,6 +23,7 @@ export interface ITechnicianReport extends Document {
   afterPhotos?: string[];
   voiceNoteUrl?: string;
   hasVoiceNote?: boolean;
+  technicianRole?: string; // 'MAIN' | 'SUB'
   approvedByAdmin?: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -56,6 +57,7 @@ const TechnicianReportSchema: Schema = new Schema(
     afterPhotos: [{ type: String }],
     voiceNoteUrl: { type: String, default: '' },
     hasVoiceNote: { type: Boolean, default: false },
+    technicianRole: { type: String, default: 'MAIN' },
     approvedByAdmin: { type: Boolean, default: false },
   },
   { timestamps: true }

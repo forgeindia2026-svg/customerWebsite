@@ -109,7 +109,7 @@ router.get('/', async (req: Request, res: Response) => {
 router.post('/', async (req: Request, res: Response) => {
   try {
     const { 
-      technicianId, technicianName, date, activityType, 
+      technicianId, technicianName, technicianRole: reqRole, isSubTechnician, date, activityType, 
       workDescription, hoursWorked, checkInTime, checkOutTime, 
       status, jobStatus, jobId, jobCode, customerName, customerPhone, location, 
       isMultiDay, dayNumber, beforePhotos, afterPhotos,
@@ -121,15 +121,47 @@ router.post('/', async (req: Request, res: Response) => {
     const cleanJobCode = (jobCode || '').trim();
     const currentSubmissionTime = reqTime || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
-    // Determine jobStatus: explicitly provided, or COMPLETED if status is COMPLETED
-    const finalJobStatus = jobStatus || (
+    // Find linked job if jobCode is present to determine Main vs Sub Technician
+    let isSubTech = Boolean(isSubTechnician) || (typeof reqRole === 'string' && reqRole.toUpperCase() === 'SUB');
+    let matchingJob: any = null;
+
+    if (cleanJobCode && cleanJobCode !== 'DAILY WORK LOG') {
+      const strippedCode = cleanJobCode.replace(/^#/, '');
+      matchingJob = await Job.findOne({
+        $or: [
+          { jobCode: cleanJobCode },
+          { jobCode: strippedCode },
+          { jobCode: `#${strippedCode}` }
+        ]
+      });
+
+      if (matchingJob) {
+        // Check if technician is listed in subTechnicians
+        const isListedSubTech = (matchingJob.subTechnicians || []).some((st: string) => 
+          st.toLowerCase().trim() === finalTechName.toLowerCase().trim() ||
+          st.toLowerCase().trim() === finalTechId.toLowerCase().trim()
+        );
+        if (isListedSubTech) {
+          isSubTech = true;
+        }
+      }
+    }
+
+    const determinedRole = isSubTech ? 'SUB' : (reqRole || 'MAIN');
+
+    // Sub Technicians can submit daily progress reports (IN_PROGRESS), but cannot set jobStatus to COMPLETED.
+    // Only Main Technicians can complete a job.
+    let finalJobStatus = jobStatus || (
       (status && status.toUpperCase().includes('COMPLET')) ? 'COMPLETED' : 'IN_PROGRESS'
     );
 
+    if (isSubTech && finalJobStatus === 'COMPLETED') {
+      finalJobStatus = 'IN_PROGRESS'; // Restrict Sub-Technician completion override
+    }
+
     const targetDate = date || new Date().toISOString().split('T')[0];
 
-    // ⚡ If a report for this jobCode AND date already exists, UPDATE it in-place!
-    // If submitted on a different date (e.g. yesterday vs today), create a NEW historical report entry!
+    // If a report for this jobCode AND date already exists, UPDATE it in-place!
     if (cleanJobCode && cleanJobCode !== 'DAILY WORK LOG') {
       const existing = await TechnicianReport.findOne({ 
         jobCode: { $regex: new RegExp(`^#?${cleanJobCode.replace(/^#/, '')}$`, 'i') },
@@ -139,6 +171,7 @@ router.post('/', async (req: Request, res: Response) => {
       if (existing) {
         existing.technicianId = finalTechId;
         existing.technicianName = finalTechName;
+        existing.technicianRole = determinedRole;
         existing.date = date || new Date().toISOString().split('T')[0];
         existing.time = currentSubmissionTime;
         if (workDescription) existing.workDescription = workDescription;
@@ -146,8 +179,14 @@ router.post('/', async (req: Request, res: Response) => {
         if (customerName) existing.customerName = customerName;
         if (customerPhone) existing.customerPhone = customerPhone;
         if (location) existing.location = location;
-        if (jobStatus) existing.jobStatus = jobStatus;
-        else if (finalJobStatus === 'COMPLETED') existing.jobStatus = 'COMPLETED';
+        
+        // Update jobStatus (Sub Techs stay IN_PROGRESS, Main Tech can set COMPLETED)
+        if (isSubTech) {
+          if (!existing.jobStatus) existing.jobStatus = 'IN_PROGRESS';
+        } else {
+          if (jobStatus) existing.jobStatus = jobStatus;
+          else if (finalJobStatus === 'COMPLETED') existing.jobStatus = 'COMPLETED';
+        }
 
         // Merge Before Photos (preserve unique URLs)
         if (beforePhotos && beforePhotos.length > 0) {
@@ -168,6 +207,14 @@ router.post('/', async (req: Request, res: Response) => {
         existing.updatedAt = new Date();
 
         const saved = await existing.save();
+
+        // If Main Tech marked it as COMPLETED, update Job status as well
+        if (matchingJob && !isSubTech && finalJobStatus === 'COMPLETED') {
+          matchingJob.status = 'COMPLETED';
+          matchingJob.completedAt = new Date();
+          await matchingJob.save();
+        }
+
         return res.status(200).json({ success: true, data: saved, message: 'Report updated successfully' });
       }
     }
@@ -175,6 +222,7 @@ router.post('/', async (req: Request, res: Response) => {
     const report = new TechnicianReport({
       technicianId: finalTechId,
       technicianName: finalTechName,
+      technicianRole: determinedRole,
       date: date || new Date().toISOString().split('T')[0],
       time: currentSubmissionTime,
       activityType: activityType || 'General Work',
@@ -199,6 +247,14 @@ router.post('/', async (req: Request, res: Response) => {
     });
 
     const savedReport = await report.save();
+
+    // If Main Tech marked it as COMPLETED, update Job status as well
+    if (matchingJob && !isSubTech && finalJobStatus === 'COMPLETED') {
+      matchingJob.status = 'COMPLETED';
+      matchingJob.completedAt = new Date();
+      await matchingJob.save();
+    }
+
     res.status(201).json({ success: true, data: savedReport, message: 'Report submitted successfully' });
   } catch (error: any) {
     console.error('Error creating report:', error);
