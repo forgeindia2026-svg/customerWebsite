@@ -126,10 +126,14 @@ router.post('/', async (req: Request, res: Response) => {
       (status && status.toUpperCase().includes('COMPLET')) ? 'COMPLETED' : 'IN_PROGRESS'
     );
 
-    // ⚡ If a report for this jobCode already exists, UPDATE it in-place!
+    const targetDate = date || new Date().toISOString().split('T')[0];
+
+    // ⚡ If a report for this jobCode AND date already exists, UPDATE it in-place!
+    // If submitted on a different date (e.g. yesterday vs today), create a NEW historical report entry!
     if (cleanJobCode && cleanJobCode !== 'DAILY WORK LOG') {
       const existing = await TechnicianReport.findOne({ 
-        jobCode: { $regex: new RegExp(`^#?${cleanJobCode.replace(/^#/, '')}$`, 'i') } 
+        jobCode: { $regex: new RegExp(`^#?${cleanJobCode.replace(/^#/, '')}$`, 'i') },
+        date: targetDate
       });
 
       if (existing) {
