@@ -235,6 +235,46 @@ export default function TvDashboard() {
     });
   }, [technicians, presentTechKeys]);
 
+  // Set of Busy Technician Keys (Technicians assigned to an active field job)
+  const busyTechKeys = useMemo(() => {
+    const set = new Set();
+    (orders || []).forEach(ord => {
+      const status = (ord.status || ord.jobStatus || '').toUpperCase();
+      if (!status.includes('COMPLET') && !status.includes('CANCEL')) {
+        if (ord.technician) set.add(ord.technician.toLowerCase().trim());
+        if (ord.assignedTechnicianName) set.add(ord.assignedTechnicianName.toLowerCase().trim());
+        if (ord.technicianName) set.add(ord.technicianName.toLowerCase().trim());
+        (ord.assignedTechnicians || []).forEach(t => {
+          if (t.id) set.add(String(t.id));
+          if (t.name) set.add(t.name.toLowerCase().trim());
+        });
+        (ord.subTechnicians || []).forEach(st => {
+          if (typeof st === 'string') set.add(st.toLowerCase().trim());
+          else if (st?.name) set.add(st.name.toLowerCase().trim());
+        });
+      }
+    });
+    return set;
+  }, [orders]);
+
+  // Available Technicians List (Present on duty AND no active job assigned)
+  const availableTechniciansList = useMemo(() => {
+    return presentTechniciansList.filter(tech => {
+      const idMatch = tech.id && busyTechKeys.has(String(tech.id));
+      const nameMatch = tech.name && busyTechKeys.has(tech.name.toLowerCase().trim());
+      return !(idMatch || nameMatch);
+    });
+  }, [presentTechniciansList, busyTechKeys]);
+
+  // Busy Technicians List (Present on duty AND has active job assigned)
+  const busyTechniciansList = useMemo(() => {
+    return presentTechniciansList.filter(tech => {
+      const idMatch = tech.id && busyTechKeys.has(String(tech.id));
+      const nameMatch = tech.name && busyTechKeys.has(tech.name.toLowerCase().trim());
+      return idMatch || nameMatch;
+    });
+  }, [presentTechniciansList, busyTechKeys]);
+
   // All active orders list (clean deduped)
   const allActiveOrders = useMemo(() => {
     const list = (orders || []).filter(o => {
@@ -311,7 +351,7 @@ export default function TvDashboard() {
   const slideTabs = [
     { 
       id: 0,
-      title: 'ATTENDANCE & ABSENT', 
+      title: 'ATTENDANCE & AVAILABILITY', 
       shortTitle: 'ATTENDANCE',
       icon: FiUsers,
       activeColor: 'bg-gradient-to-r from-rose-600 to-red-500 text-white shadow-md shadow-rose-500/30 border-rose-600',
@@ -462,129 +502,226 @@ export default function TvDashboard() {
       <main className="flex-1 p-6 min-h-0 overflow-hidden flex flex-col">
 
         {/* ══════════════════════════════════════════════════════════════════
-            SLIDE 0: ATTENDANCE & ABSENT ROSTER (CLEAN, SPACIOUS, 100% VISIBLE)
+            SLIDE 0: TECHNICIAN AVAILABILITY & LIVE STATUS (AVAILABLE / BUSY / ABSENT)
             ══════════════════════════════════════════════════════════════════ */}
         {currentSlide === 0 && (
           <div className="flex-1 flex flex-col gap-4 min-h-0">
             
-            {/* Top Stat Ribbon (Clean & Minimal, 40px) */}
+            {/* Top Stat Ribbon (Live Availability Counts) */}
             <div className="flex items-center justify-between bg-white px-6 py-3 rounded-2xl border border-slate-200/80 shadow-xs shrink-0">
-              <div className="flex items-center gap-8">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-slate-600"></span>
                   <span className="text-xs font-bold text-slate-500 uppercase">Total Team:</span>
-                  <span className="text-base font-black text-slate-900">{(technicians || []).length || 8} Staff</span>
+                  <span className="text-base font-black text-slate-900 font-mono">{(technicians || []).length || 8} Staff</span>
                 </div>
-                <div className="flex items-center gap-2.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-                  <span className="text-xs font-bold text-slate-500 uppercase">Present on Duty:</span>
-                  <span className="text-base font-black text-emerald-600">{presentTechniciansList.length} Technicians</span>
+
+                <div className="w-px h-4 bg-slate-200"></div>
+
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span className="text-xs font-bold text-slate-500 uppercase">Available (Ready):</span>
+                  <span className="text-base font-black text-emerald-600 font-mono">{availableTechniciansList.length} Techs</span>
                 </div>
-                <div className="flex items-center gap-2.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse"></span>
-                  <span className="text-xs font-bold text-slate-500 uppercase">Absent Today:</span>
-                  <span className="text-base font-black text-rose-600">{absentTechniciansList.length} Persons</span>
+
+                <div className="w-px h-4 bg-slate-200"></div>
+
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                  <span className="text-xs font-bold text-slate-500 uppercase">Busy (On Site):</span>
+                  <span className="text-base font-black text-amber-600 font-mono">{busyTechniciansList.length} Techs</span>
+                </div>
+
+                <div className="w-px h-4 bg-slate-200"></div>
+
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                  <span className="text-xs font-bold text-slate-500 uppercase">Absent / Off Duty:</span>
+                  <span className="text-base font-black text-rose-600 font-mono">{absentTechniciansList.length} Staff</span>
                 </div>
               </div>
 
-              <div className="text-xs font-bold text-slate-500">
-                Live Attendance Status • {todayStr}
+              <div className="text-xs font-bold text-slate-500 font-mono">
+                Live Roster Sync • {todayStr}
               </div>
             </div>
 
-            {/* Full-Screen Absent Personnel Command Grid (Present Count shown in Top Ribbon & Header) */}
-            <div className="flex-1 bg-white rounded-3xl border border-rose-200 p-6 flex flex-col shadow-xs overflow-hidden min-h-0">
+            {/* Command Grid: Available, Busy & Absent Roster */}
+            <div className="flex-1 bg-white rounded-3xl border border-slate-200 p-6 flex flex-col shadow-xs overflow-hidden min-h-0">
               
-              {/* Header: Title, Live Status & Quick Counts */}
-              <div className="flex items-center justify-between pb-4 border-b border-rose-100 shrink-0 mb-4">
+              {/* Header: Title & Status Summary Badges */}
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100 shrink-0 mb-4">
                 <div className="flex items-center gap-3">
-                  <span className="w-3.5 h-3.5 rounded-full bg-rose-600 animate-ping"></span>
-                  <h2 className="text-base font-black text-rose-700 uppercase tracking-wider flex items-center gap-2">
-                    ABSENT PERSONNEL ROSTER ({absentTechniciansList.length} NOT PUNCHED IN)
+                  <span className="w-3.5 h-3.5 rounded-full bg-blue-600 animate-ping"></span>
+                  <h2 className="text-base font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                    TECHNICIAN DISPATCH & LIVE AVAILABILITY ROSTER
                   </h2>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   <span className="px-3 py-1 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-black uppercase">
-                    🟢 Present On Duty: {presentTechniciansList.length} Staff
+                    🟢 Available: {availableTechniciansList.length}
                   </span>
-                  <span className="px-3 py-1 rounded-xl bg-rose-600 text-white text-xs font-black uppercase tracking-wider shadow-xs">
-                    🔴 Absent: {absentTechniciansList.length} Persons
+                  <span className="px-3 py-1 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-black uppercase">
+                    🟡 Busy On Site: {busyTechniciansList.length}
+                  </span>
+                  <span className="px-3 py-1 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-black uppercase">
+                    🔴 Absent: {absentTechniciansList.length}
                   </span>
                 </div>
               </div>
 
-              {/* Absent Staff Grid / 100% Attendance Card */}
-              {absentTechniciansList.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center text-center p-12 text-emerald-600">
-                  <div className="w-20 h-20 rounded-3xl bg-emerald-50 border border-emerald-200 flex items-center justify-center mb-4 text-emerald-600 shadow-sm">
-                    <FiCheckCircle size={44} />
-                  </div>
-                  <h3 className="text-2xl font-black text-emerald-800 uppercase tracking-tight">
-                    100% Attendance Today!
-                  </h3>
-                  <p className="text-sm text-slate-600 mt-2 max-w-md">
-                    All {technicians?.length || 8} technicians have reported on duty and verified their live punch-in.
-                  </p>
-                  <div className="mt-4 px-4 py-2 rounded-xl bg-emerald-100 text-emerald-800 font-bold text-xs">
-                    🟢 All {presentTechniciansList.length} Technicians Active on Field
-                  </div>
-                </div>
-              ) : (
-                <div className="flex-1 overflow-y-auto no-scrollbar grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 content-start">
-                  {absentTechniciansList.map((tech, idx) => (
-                    <div 
-                      key={tech.id || idx}
-                      className="bg-slate-50/90 hover:bg-rose-50/50 border-2 border-slate-200/90 hover:border-rose-300 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-xs hover:shadow-sm transition-all"
-                    >
-                      <div className="flex items-center gap-3.5 min-w-0">
-                        {/* Fixed Square Photo / Initials (Guaranteed 64px x 64px, never overflows) */}
-                        <div 
-                          className="shrink-0 rounded-2xl overflow-hidden border-2 border-rose-300 shadow-xs bg-rose-100 flex items-center justify-center"
-                          style={{ width: '64px', height: '64px', minWidth: '64px', minHeight: '64px', maxWidth: '64px', maxHeight: '64px' }}
-                        >
-                          {getTechPhoto(tech) ? (
-                            <img 
-                              src={getTechPhoto(tech)} 
-                              alt={tech.name} 
-                              className="w-full h-full object-cover object-top"
-                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                            />
-                          ) : (
-                            <span className="text-rose-700 font-black text-lg">
-                              {(tech.name || 'TC').slice(0, 2).toUpperCase()}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Name & Phone Details */}
-                        <div className="min-w-0">
-                          <h3 className="text-base font-black text-slate-900 truncate tracking-tight uppercase">
-                            {tech.name}
-                          </h3>
-                          <p className="text-xs font-bold text-slate-600 mt-1 flex items-center gap-1.5 truncate">
-                            <FiPhone size={13} className="text-rose-500 shrink-0" />
-                            <span className="truncate">{tech.phone || 'No phone registered'}</span>
-                          </p>
-                          <span className="text-[11px] font-semibold text-slate-400 mt-0.5 block truncate">
-                            Field Tech • ID: {tech.id || `TC-${100 + idx}`}
+              {/* Roster Grid */}
+              <div className="flex-1 overflow-y-auto no-scrollbar grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 content-start">
+                
+                {/* 1. AVAILABLE TECHNICIANS */}
+                {availableTechniciansList.map((tech, idx) => (
+                  <div 
+                    key={`avail-${tech.id || idx}`}
+                    className="bg-emerald-50/40 hover:bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-2xs hover:shadow-xs transition-all"
+                  >
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div 
+                        className="shrink-0 rounded-2xl overflow-hidden border-2 border-emerald-400 shadow-2xs bg-emerald-100 flex items-center justify-center"
+                        style={{ width: '64px', height: '64px', minWidth: '64px', minHeight: '64px' }}
+                      >
+                        {getTechPhoto(tech) ? (
+                          <img 
+                            src={getTechPhoto(tech)} 
+                            alt={tech.name} 
+                            className="w-full h-full object-cover object-top"
+                          />
+                        ) : (
+                          <span className="text-emerald-800 font-black text-lg">
+                            {(tech.name || 'TC').slice(0, 2).toUpperCase()}
                           </span>
-                        </div>
+                        )}
                       </div>
 
-                      {/* Absent Status Badge */}
-                      <div className="shrink-0 text-right">
-                        <span className="px-2.5 py-1 rounded-lg bg-rose-600 text-white text-xs font-black uppercase tracking-wider inline-block shadow-xs">
-                          ABSENT
-                        </span>
-                        <span className="text-[10px] font-bold text-rose-600 block mt-1">
-                          ● Not Punched In
+                      <div className="min-w-0">
+                        <h3 className="text-base font-black text-slate-900 truncate tracking-tight uppercase">
+                          {tech.name}
+                        </h3>
+                        <p className="text-xs font-bold text-slate-600 mt-0.5 flex items-center gap-1 truncate">
+                          <FiPhone size={12} className="text-emerald-600 shrink-0" />
+                          <span className="truncate">{tech.phone || 'Ready for Call'}</span>
+                        </p>
+                        <span className="text-[11px] font-semibold text-emerald-700 mt-0.5 block truncate">
+                          Punched In • ID: {tech.id || `TC-${100 + idx}`}
                         </span>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
+
+                    <div className="shrink-0 text-right">
+                      <span className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-xs font-black uppercase tracking-wider inline-block shadow-xs">
+                        AVAILABLE
+                      </span>
+                      <span className="text-[10px] font-extrabold text-emerald-700 block mt-1">
+                        ● Ready for Dispatch
+                      </span>
+                    </div>
+                  </div>
+                ))}
+
+                {/* 2. BUSY TECHNICIANS */}
+                {busyTechniciansList.map((tech, idx) => (
+                  <div 
+                    key={`busy-${tech.id || idx}`}
+                    className="bg-amber-50/40 hover:bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-2xs hover:shadow-xs transition-all"
+                  >
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div 
+                        className="shrink-0 rounded-2xl overflow-hidden border-2 border-amber-400 shadow-2xs bg-amber-100 flex items-center justify-center"
+                        style={{ width: '64px', height: '64px', minWidth: '64px', minHeight: '64px' }}
+                      >
+                        {getTechPhoto(tech) ? (
+                          <img 
+                            src={getTechPhoto(tech)} 
+                            alt={tech.name} 
+                            className="w-full h-full object-cover object-top"
+                          />
+                        ) : (
+                          <span className="text-amber-800 font-black text-lg">
+                            {(tech.name || 'TC').slice(0, 2).toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="min-w-0">
+                        <h3 className="text-base font-black text-slate-900 truncate tracking-tight uppercase">
+                          {tech.name}
+                        </h3>
+                        <p className="text-xs font-bold text-slate-600 mt-0.5 flex items-center gap-1 truncate">
+                          <FiPhone size={12} className="text-amber-600 shrink-0" />
+                          <span className="truncate">{tech.phone || 'On Field Job'}</span>
+                        </p>
+                        <span className="text-[11px] font-semibold text-amber-700 mt-0.5 block truncate">
+                          Active Installation Site
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="shrink-0 text-right">
+                      <span className="px-2.5 py-1 rounded-lg bg-amber-500 text-white text-xs font-black uppercase tracking-wider inline-block shadow-xs">
+                        BUSY (ON SITE)
+                      </span>
+                      <span className="text-[10px] font-extrabold text-amber-700 block mt-1">
+                        ● Working on Site
+                      </span>
+                    </div>
+                  </div>
+                ))}
+
+                {/* 3. ABSENT TECHNICIANS */}
+                {absentTechniciansList.map((tech, idx) => (
+                  <div 
+                    key={`abs-${tech.id || idx}`}
+                    className="bg-slate-50/90 hover:bg-rose-50/40 border-2 border-slate-200 hover:border-rose-300 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-2xs hover:shadow-xs transition-all opacity-80 hover:opacity-100"
+                  >
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div 
+                        className="shrink-0 rounded-2xl overflow-hidden border-2 border-rose-300 shadow-2xs bg-rose-100 flex items-center justify-center"
+                        style={{ width: '64px', height: '64px', minWidth: '64px', minHeight: '64px' }}
+                      >
+                        {getTechPhoto(tech) ? (
+                          <img 
+                            src={getTechPhoto(tech)} 
+                            alt={tech.name} 
+                            className="w-full h-full object-cover object-top"
+                          />
+                        ) : (
+                          <span className="text-rose-700 font-black text-lg">
+                            {(tech.name || 'TC').slice(0, 2).toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="min-w-0">
+                        <h3 className="text-base font-black text-slate-900 truncate tracking-tight uppercase">
+                          {tech.name}
+                        </h3>
+                        <p className="text-xs font-bold text-slate-600 mt-0.5 flex items-center gap-1 truncate">
+                          <FiPhone size={12} className="text-rose-500 shrink-0" />
+                          <span className="truncate">{tech.phone || 'No phone registered'}</span>
+                        </p>
+                        <span className="text-[11px] font-semibold text-slate-400 mt-0.5 block truncate">
+                          Field Tech • ID: {tech.id || `TC-${100 + idx}`}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="shrink-0 text-right">
+                      <span className="px-2.5 py-1 rounded-lg bg-rose-600 text-white text-xs font-black uppercase tracking-wider inline-block shadow-xs">
+                        ABSENT
+                      </span>
+                      <span className="text-[10px] font-bold text-rose-600 block mt-1">
+                        ● Not Punched In
+                      </span>
+                    </div>
+                  </div>
+                ))}
+
+              </div>
             </div>
 
           </div>
