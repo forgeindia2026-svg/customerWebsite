@@ -34,6 +34,7 @@ export interface IJob extends Document {
     avatar?: string;
     phone?: string;
   }>;
+  subTechnicians?: string[];
   requiredTechniciansCount?: number;
   orderCategory?: 'Delivery Only' | 'Delivery & Installation';
   customer: {
@@ -157,6 +158,7 @@ const JobSchema: Schema = new Schema(
         phone: { type: String },
       },
     ],
+    subTechnicians: [{ type: String }],
     requiredTechniciansCount: { type: Number, default: 1 },
     orderCategory: { type: String, default: 'Delivery & Installation' },
     customer: {

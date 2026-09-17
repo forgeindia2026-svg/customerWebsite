@@ -290,9 +290,19 @@ const dashboardSlice = createSlice({
         };
       });
 
+      const storedPhoto = localStorage.getItem('admin_avatar') || state.settings?.profilePhoto || '';
+      const mergedSettings = {
+        ...state.settings,
+        ...(payload.settings || {})
+      };
+      if (storedPhoto && !mergedSettings.profilePhoto) {
+        mergedSettings.profilePhoto = storedPhoto;
+      }
+
       return {
         ...state,
         ...payload,
+        settings: mergedSettings,
         orders: normalizedOrders,
         payments: Array.isArray(payload.payments) ? payload.payments : (state.payments || []),
         customers: Array.isArray(payload.customers) ? payload.customers : (state.customers || []),
@@ -774,6 +784,21 @@ const dashboardSlice = createSlice({
     // Settings actions
     updateSettings: (state, action) => {
       state.settings = { ...state.settings, ...action.payload };
+      if (action.payload?.profilePhoto !== undefined) {
+        if (action.payload.profilePhoto) {
+          localStorage.setItem('admin_avatar', action.payload.profilePhoto);
+        } else {
+          localStorage.removeItem('admin_avatar');
+        }
+        try {
+          const user = JSON.parse(localStorage.getItem('internal_user') || '{}');
+          user.avatar = action.payload.profilePhoto || '';
+          localStorage.setItem('internal_user', JSON.stringify(user));
+        } catch (e) {}
+      }
+      try {
+        localStorage.setItem('sk_admin_settings', JSON.stringify(state.settings));
+      } catch (e) {}
     },
     // Service Requests
     updateServiceRequestStatus: (state, action) => {

@@ -235,6 +235,7 @@ router.get('/dashboard-summary', async (req: Request, res: Response) => {
       if (technicianName) {
         techOrMatch.push({ 'assignedTechnicians.name': { $regex: `${technicianName}`, $options: 'i' } });
         techOrMatch.push({ 'assignedTechnician': { $regex: `${technicianName}`, $options: 'i' } });
+        techOrMatch.push({ 'subTechnicians': { $regex: `${technicianName}`, $options: 'i' } });
       }
       if (techOrMatch.length > 0) {
         jobFilter.$or = techOrMatch;
@@ -304,6 +305,7 @@ router.get('/', async (req: Request, res: Response) => {
       if (technicianName) {
         techOrMatch.push({ 'assignedTechnicians.name': { $regex: `^${technicianName}`, $options: 'i' } });
         techOrMatch.push({ 'assignedTechnician': { $regex: `^${technicianName}`, $options: 'i' } });
+        techOrMatch.push({ 'subTechnicians': { $regex: `^${technicianName}`, $options: 'i' } });
       }
 
       if (includeAvailable === 'true') {

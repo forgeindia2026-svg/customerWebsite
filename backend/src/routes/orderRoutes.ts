@@ -337,6 +337,15 @@ router.put('/:id', async (req: Request, res: Response): Promise<any> => {
       const techUser = await User.findOne({ name: new RegExp(`^${techName}$`, 'i'), role: 'TECHNICIAN' });
       const techId = techUser ? techUser._id.toString() : (req.body.assignedTechnicianId || 'temp-id');
 
+      const subTechNames: string[] = Array.isArray(req.body.subTechnicians) 
+        ? req.body.subTechnicians 
+        : (updatedOrder.subTechnicians || []);
+
+      const assignedTechList = [
+        { id: techId, name: techName, phone: techUser?.phone || '' },
+        ...subTechNames.map((subName: string, i: number) => ({ id: `sub-${i}-${Date.now()}`, name: subName }))
+      ];
+
       const existingJob = await Job.findOne({
         $or: [
           { jobCode: updatedOrder.orderNumber },
@@ -346,7 +355,8 @@ router.put('/:id', async (req: Request, res: Response): Promise<any> => {
         ]
       });
       if (existingJob) {
-        existingJob.assignedTechnicians = [{ id: techId, name: techName, phone: techUser?.phone || '' }];
+        existingJob.assignedTechnicians = assignedTechList;
+        existingJob.subTechnicians = subTechNames;
         if (isApprovedStatus) {
           existingJob.status = 'APPROVED';
         } else if (existingJob.status === 'PENDING' || existingJob.status === 'WAITING_FOR_TECH') {
@@ -368,7 +378,8 @@ router.put('/:id', async (req: Request, res: Response): Promise<any> => {
             email: updatedOrder.customerEmail || '',
             address: updatedOrder.shippingAddress || '',
           },
-          assignedTechnicians: [{ id: techId, name: techName, phone: techUser?.phone || '' }]
+          assignedTechnicians: assignedTechList,
+          subTechnicians: subTechNames
         });
       }
     } else if (techName === 'Unassigned') {

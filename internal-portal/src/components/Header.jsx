@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { toggleDarkMode, markNotificationAsRead, markAllNotificationsAsRead } from '../redux/dashboardSlice';
-import { FiSearch, FiBell, FiSun, FiMoon, FiMenu, FiLogOut, FiSettings, FiUser, FiCheck, FiChevronDown, FiX, FiArrowRight, FiTv } from 'react-icons/fi';
+import { toggleDarkMode, markNotificationAsRead, markAllNotificationsAsRead, updateSettings } from '../redux/dashboardSlice';
+import { FiSearch, FiBell, FiSun, FiMoon, FiMenu, FiLogOut, FiSettings, FiUser, FiCheck, FiChevronDown, FiX, FiArrowRight, FiTv, FiCamera, FiUpload } from 'react-icons/fi';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
+import { compressImage } from '../utils/imageUtils';
 
 export default function Header({ toggleMobileSidebar }) {
   const dispatch = useDispatch();
@@ -118,6 +119,37 @@ export default function Header({ toggleMobileSidebar }) {
     }
   })();
   const adminName = user?.name || (settings?.contactPerson && settings.contactPerson !== 'Ramesh Kumar' ? settings.contactPerson : 'SARAN KUMAR');
+  const adminAvatar = settings?.profilePhoto || user?.avatar || localStorage.getItem('admin_avatar') || '';
+  const headerFileInputRef = useRef(null);
+
+  const handleHeaderPhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const base64Image = await compressImage(file, 400, 400, 0.85);
+      dispatch(updateSettings({ profilePhoto: base64Image }));
+      localStorage.setItem('admin_avatar', base64Image);
+      try {
+        const u = JSON.parse(localStorage.getItem('internal_user') || '{}');
+        u.avatar = base64Image;
+        localStorage.setItem('internal_user', JSON.stringify(u));
+      } catch (err) {}
+
+      if (settings?.email || user?.email) {
+        fetch('/api/auth/profile', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: settings?.email || user?.email || 'admin@sktechnology.in',
+            avatar: base64Image
+          })
+        }).catch(() => {});
+      }
+    } catch (err) {
+      console.error('Failed to upload profile photo from header', err);
+    }
+  };
 
   const handleMarkAllRead = () => {
     dispatch(markAllNotificationsAsRead());
@@ -418,17 +450,30 @@ export default function Header({ toggleMobileSidebar }) {
 
         {/* Profile menu */}
         <div className="relative" ref={profileRef}>
+          <input
+            type="file"
+            ref={headerFileInputRef}
+            onChange={handleHeaderPhotoUpload}
+            accept="image/*"
+            className="hidden"
+          />
           <button
+            type="button"
             onClick={() => setShowProfileMenu(!showProfileMenu)}
-            className="flex items-center gap-2.5 pl-2.5 pr-1.5 py-1 rounded-full bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-100 dark:border-slate-800 transition-colors focus:outline-none"
+            className="flex items-center gap-2.5 pl-1.5 pr-2.5 py-1 rounded-full bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-800 transition-colors focus:outline-none cursor-pointer group"
           >
-            {/* Mock profile photo */}
-            <div className="relative">
-              <img
-                src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=120&auto=format&fit=crop"
-                alt="Profile"
-                className="w-7 h-7 rounded-full object-cover object-center ring-2 ring-primary/20"
-              />
+            <div className="relative flex-shrink-0">
+              {adminAvatar ? (
+                <img
+                  src={adminAvatar}
+                  alt={adminName}
+                  className="w-7 h-7 rounded-full object-cover ring-2 ring-primary/30 group-hover:ring-primary transition-all"
+                />
+              ) : (
+                <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-[11px] flex items-center justify-center ring-2 ring-primary/20">
+                  {adminName.slice(0, 2).toUpperCase()}
+                </div>
+              )}
               <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
             </div>
             <span className="hidden sm:inline-block text-xs font-semibold text-slate-800 dark:text-slate-200 pr-1">{adminName}</span>
@@ -436,12 +481,53 @@ export default function Header({ toggleMobileSidebar }) {
 
           {/* Profile Dropdown */}
           {showProfileMenu && (
-            <div className="absolute right-0 mt-2 w-48 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-              <div className="p-3 border-b border-slate-100 dark:border-slate-800">
-                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">{adminName}</p>
-                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium truncate">{settings.email}</p>
+            <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 z-50">
+              <div className="p-3 bg-slate-50/80 dark:bg-slate-800/40 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
+                <div 
+                  onClick={() => headerFileInputRef.current?.click()} 
+                  className="relative group cursor-pointer flex-shrink-0"
+                  title="Click to upload/change profile photo"
+                >
+                  {adminAvatar ? (
+                    <img
+                      src={adminAvatar}
+                      alt={adminName}
+                      className="w-10 h-10 rounded-full object-cover ring-2 ring-primary/30 group-hover:opacity-80 transition-opacity"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-sm flex items-center justify-center ring-2 ring-primary/20">
+                      {adminName.slice(0, 2).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <FiCamera size={14} className="text-white" />
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{adminName}</p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium truncate">{settings.email || user?.email || 'admin@sktechnology.in'}</p>
+                  <button
+                    type="button"
+                    onClick={() => headerFileInputRef.current?.click()}
+                    className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 hover:underline mt-0.5 inline-flex items-center gap-1 cursor-pointer"
+                  >
+                    <FiCamera size={10} /> Upload Photo
+                  </button>
+                </div>
               </div>
+
               <div className="p-1.5 space-y-0.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowProfileMenu(false);
+                    headerFileInputRef.current?.click();
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left cursor-pointer"
+                >
+                  <FiCamera size={14} className="text-slate-400" />
+                  <span>Upload Profile Photo</span>
+                </button>
                 <Link
                   to="/admin/settings"
                   onClick={() => setShowProfileMenu(false)}
@@ -460,7 +546,7 @@ export default function Header({ toggleMobileSidebar }) {
                 </Link>
                 <button
                   onClick={handleLogout}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors cursor-pointer"
                 >
                   <FiLogOut size={14} />
                   <span>Log Out</span>

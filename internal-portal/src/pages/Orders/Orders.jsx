@@ -8,6 +8,27 @@ import { socket } from '../../socket';
 import Modal from '../../components/Modal';
 import { getApiUrl } from '../../utils/config';
 
+const parseSubTechNames = (subTechs) => {
+  if (!subTechs) return [];
+  let list = [];
+  if (typeof subTechs === 'string') {
+    try {
+      const parsed = JSON.parse(subTechs);
+      list = Array.isArray(parsed) ? parsed : [subTechs];
+    } catch {
+      list = subTechs.split(',');
+    }
+  } else if (Array.isArray(subTechs)) {
+    list = subTechs;
+  }
+  return list.map(item => {
+    if (typeof item === 'object' && item !== null) {
+      return item.name || item.technicianName || item.id || '';
+    }
+    return String(item || '').trim();
+  }).filter(Boolean);
+};
+
 export default function Orders() {
   const dispatch = useDispatch();
   const [searchParams] = useSearchParams();
@@ -939,7 +960,7 @@ export default function Orders() {
 
                       <div className="flex items-center justify-between pt-1 text-[11px]">
                         <span className="text-slate-600 dark:text-slate-300 font-semibold">{ord.type}</span>
-                        <span className="text-slate-400 font-medium">Staff: <strong className="text-slate-700 dark:text-slate-200">{ord.assignedTechnician}</strong>{ord.subTechnicians?.length > 0 && <span className="text-blue-500 font-bold"> +{ord.subTechnicians.length}</span>}</span>
+                        <span className="text-slate-400 font-medium">Staff: <strong className="text-slate-700 dark:text-slate-200">{ord.assignedTechnician}</strong>{parseSubTechNames(ord.subTechnicians).length > 0 && <span className="text-indigo-600 dark:text-indigo-400 font-bold ml-1 bg-indigo-50 dark:bg-indigo-950/50 px-1.5 py-0.5 rounded text-[10px] border border-indigo-200/60 dark:border-indigo-800">+{parseSubTechNames(ord.subTechnicians).length} Sub</span>}</span>
                       </div>
                     </div>
                   </div>
@@ -1028,9 +1049,12 @@ export default function Orders() {
                                 <span>Unassigned</span>
                               </span>
                             )}
-                            {ord.subTechnicians?.length > 0 && (
-                              <span className="text-[9px] font-bold text-purple-600 bg-purple-50 dark:bg-purple-950/40 border border-purple-200/60 dark:border-purple-800/50 w-fit px-1.5 py-0.5 rounded">
-                                +{ord.subTechnicians.length}
+                            {parseSubTechNames(ord.subTechnicians).length > 0 && (
+                              <span 
+                                className="text-[10px] font-bold text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200/60 dark:border-indigo-800/50 w-fit px-1.5 py-0.5 rounded shadow-2xs"
+                                title={`Sub Technicians: ${parseSubTechNames(ord.subTechnicians).join(', ')}`}
+                              >
+                                +{parseSubTechNames(ord.subTechnicians).length} Sub
                               </span>
                             )}
                           </div>
@@ -1137,10 +1161,11 @@ export default function Orders() {
                                       setEditingOrder(ord);
                                       setOrderForm({
                                         customer: ord.customer,
-                                        email: ord.email || '',
                                         phone: ord.phone || '',
                                         type: ord.type,
                                         assignedTechnician: ord.assignedTechnician,
+                                        subTechnicians: Array.isArray(ord.subTechnicians) ? [...ord.subTechnicians] : (ord.subTechnicians ? [ord.subTechnicians] : []),
+                                        items: ord.items || ord.taskDescription || '',
                                         amount: ord.amount,
                                         location: ord.location || 'Chennai Area',
                                         status: ord.status
@@ -1620,17 +1645,28 @@ export default function Orders() {
                 <span className="font-semibold text-slate-850 dark:text-slate-205">{selectedOrder.type}</span>
               </div>
               <div>
-                <span className="block text-slate-400 font-semibold mb-0.5">Assigned Technician</span>
-                <span className="font-semibold text-slate-850 dark:text-slate-205">{selectedOrder.assignedTechnician}</span>
-                {selectedOrder.subTechnicians && selectedOrder.subTechnicians.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-1.5">
-                    {selectedOrder.subTechnicians.map((sub, i) => (
-                      <span key={i} className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                        {sub}
-                      </span>
-                    ))}
+                <span className="block text-slate-400 font-semibold mb-0.5">Assigned Technician(s)</span>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-slate-900 dark:text-white text-xs">{selectedOrder.assignedTechnician || 'Unassigned'}</span>
+                    {selectedOrder.assignedTechnician && selectedOrder.assignedTechnician !== 'Unassigned' && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 rounded border border-blue-200 dark:border-blue-800">Main</span>
+                    )}
                   </div>
-                )}
+                  {parseSubTechNames(selectedOrder.subTechnicians).length > 0 && (
+                    <div className="pt-1">
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Sub / Assistant Technicians:</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {parseSubTechNames(selectedOrder.subTechnicians).map((subName, i) => (
+                          <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/60 shadow-2xs">
+                            <FiUser size={11} className="text-indigo-500" />
+                            <span>{subName}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -1936,10 +1972,11 @@ export default function Orders() {
               dispatch(editOrder({
                 id: orderId,
                 customer: orderForm.customer,
-                email: orderForm.email,
                 phone: orderForm.phone,
                 type: orderForm.type,
                 assignedTechnician: assignedTech,
+                subTechnicians: orderForm.subTechnicians || [],
+                items: orderForm.items || '',
                 amount: parseFloat(orderForm.amount) || 0,
                 location: orderForm.location,
                 status: orderForm.status
@@ -1954,11 +1991,12 @@ export default function Orders() {
                 const baseUrl = getApiUrl();
                 const orderPayload = {
                   customerName: orderForm.customer,
-                  customerEmail: orderForm.email,
                   customerPhone: orderForm.phone,
                   shippingAddress: orderForm.location,
                   assignedTechnician: assignedTech,
                   assignedTechnicianName: assignedTech,
+                  subTechnicians: orderForm.subTechnicians || [],
+                  items: orderForm.items || '',
                   totalAmount: parseFloat(orderForm.amount) || 0,
                   orderStatus: (orderForm.status === 'Completed' || orderForm.status === 'Approved' || orderForm.status === 'DELIVERED') ? 'DELIVERED' : 'PROCESSING'
                 };
@@ -1970,11 +2008,16 @@ export default function Orders() {
                 });
 
                 if (assignedTech && assignedTech !== 'Unassigned') {
+                  const mainTech = [{ id: 'main-tech', name: assignedTech }];
+                  const subTechs = (orderForm.subTechnicians || []).map((subName, i) => ({ id: `sub-tech-${i}-${Date.now()}`, name: subName }));
+                  const allAssignedTechs = [...mainTech, ...subTechs];
+
                   await fetch(`${baseUrl}/api/jobs/${encodeURIComponent(cleanId)}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json', 'role': 'admin' },
                     body: JSON.stringify({
-                      assignedTechnicians: [{ id: 'temp-id', name: assignedTech }],
+                      assignedTechnicians: allAssignedTechs,
+                      subTechnicians: orderForm.subTechnicians || [],
                       status: (orderForm.status === 'Completed' || orderForm.status === 'Approved') ? orderForm.status.toUpperCase() : 'ASSIGNED'
                     })
                   });
@@ -1984,6 +2027,7 @@ export default function Orders() {
                     headers: { 'Content-Type': 'application/json', 'role': 'admin' },
                     body: JSON.stringify({
                       assignedTechnicians: [],
+                      subTechnicians: [],
                       status: 'WAITING_FOR_TECH'
                     })
                   });
@@ -2007,29 +2051,24 @@ export default function Orders() {
                 className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
               />
             </div>
+            
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-500 mb-1.5">Phone Number</label>
                 <input 
                   required
-                  type="text" 
+                  type="tel" 
+                  maxLength={10}
+                  placeholder="10-digit mobile number"
                   value={orderForm.phone}
-                  onChange={(e) => setOrderForm({ ...orderForm, phone: e.target.value })}
+                  onChange={(e) => {
+                    const cleaned = e.target.value.replace(/\D/g, '').slice(0, 10);
+                    setOrderForm({ ...orderForm, phone: cleaned });
+                  }}
                   className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1.5">Email Address</label>
-                <input 
-                  required
-                  type="email" 
-                  value={orderForm.email}
-                  onChange={(e) => setOrderForm({ ...orderForm, email: e.target.value })}
-                  className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
+
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="block text-xs font-semibold text-slate-500">Order Type</label>
@@ -2054,8 +2093,11 @@ export default function Orders() {
                   ))}
                 </select>
               </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1.5">Assigned Technician</label>
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5">Main Technician</label>
                 <select 
                   value={orderForm.assignedTechnician}
                   onChange={(e) => setOrderForm({ ...orderForm, assignedTechnician: e.target.value })}
@@ -2067,7 +2109,44 @@ export default function Orders() {
                   ))}
                 </select>
               </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5">Sub Technician (Optional)</label>
+                <select 
+                  value="None"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val !== 'None' && (!orderForm.subTechnicians || !orderForm.subTechnicians.includes(val))) {
+                      setOrderForm({ ...orderForm, subTechnicians: [...(orderForm.subTechnicians || []), val] });
+                    }
+                  }}
+                  className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+                >
+                  <option value="None">-- Select to Add --</option>
+                  {technicians.map(t => (
+                    <option key={`sub-edit-${t.id}`} value={t.name}>{t.name}</option>
+                  ))}
+                </select>
+                {orderForm.subTechnicians && orderForm.subTechnicians.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {orderForm.subTechnicians.map((sub, idx) => (
+                      <span key={idx} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-[10px] font-bold border border-blue-200 dark:border-blue-800/50">
+                        {sub}
+                        <button 
+                          type="button" 
+                          onClick={() => setOrderForm({ ...orderForm, subTechnicians: orderForm.subTechnicians.filter(s => s !== sub) })}
+                          className="text-red-500 hover:text-red-700 font-black text-xs leading-none"
+                        >
+                          &times;
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
+
+
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-500 mb-1.5">Order Amount (₹)</label>
@@ -2090,6 +2169,7 @@ export default function Orders() {
                 />
               </div>
             </div>
+
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1.5">Order Status</label>
               <select
@@ -2105,6 +2185,7 @@ export default function Orders() {
                 <option value="Cancelled">Cancelled</option>
               </select>
             </div>
+
             <div className="pt-2 flex justify-end gap-2.5">
               <button 
                 type="button" 
