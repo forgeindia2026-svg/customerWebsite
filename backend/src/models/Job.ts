@@ -98,6 +98,8 @@ export interface IJob extends Document {
   rejectedTechnicianIds?: string[];
   customerConfirmed?: boolean;
   financials?: {
+    salesValue?: number;
+    purchaseValue?: number;
     totalValue?: number;
     companyProfit?: number;
     technicianEarning?: number;
@@ -234,6 +236,8 @@ const JobSchema: Schema = new Schema(
       updatedBy: { type: String }
     },
     financials: {
+      salesValue: { type: Number, default: 0 },
+      purchaseValue: { type: Number, default: 0 },
       totalValue: { type: Number, default: 0 },
       companyProfit: { type: Number, default: 0 },
       technicianEarning: { type: Number, default: 0 },

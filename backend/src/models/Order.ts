@@ -25,6 +25,8 @@ export interface IOrder extends Document {
   assignedTechnicianId?: string;
   subTechnicians?: string[];
   financials?: {
+    salesValue?: number;
+    purchaseValue?: number;
     totalValue?: number;
     companyProfit?: number;
     technicianEarning?: number;
@@ -70,6 +72,8 @@ const OrderSchema: Schema = new Schema(
     assignedTechnicianId: { type: String },
     subTechnicians: [{ type: String }],
     financials: {
+      salesValue: { type: Number, default: 0 },
+      purchaseValue: { type: Number, default: 0 },
       totalValue: { type: Number, default: 0 },
       companyProfit: { type: Number, default: 0 },
       technicianEarning: { type: Number, default: 0 },
