@@ -105,9 +105,12 @@ export default function Header({ toggleMobileSidebar }) {
   // Determine page title
   const getPageTitle = () => {
     const path = location.pathname;
-    if (path === '/' || path === '/admin' || path === '/admin/dashboard') return 'Admin';
+    const currentRole = (localStorage.getItem('internal_role') || '').toUpperCase();
+    if (path === '/' || path === '/admin' || path === '/admin/dashboard') {
+      return currentRole === 'HR' ? 'HR Operations Dashboard' : 'Operations Dashboard';
+    }
     const parts = path.replace(/^\//, '').split('/');
-    const segment = parts[0] === 'admin' ? parts[1] || 'Admin' : parts[0];
+    const segment = parts[0] === 'admin' ? parts[1] || 'Dashboard' : parts[0];
     return segment.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   };
 
@@ -118,8 +121,9 @@ export default function Header({ toggleMobileSidebar }) {
       return {};
     }
   })();
-  const adminName = user?.name || (settings?.contactPerson && settings.contactPerson !== 'Ramesh Kumar' ? settings.contactPerson : 'SARAN KUMAR');
-  const adminAvatar = settings?.profilePhoto || user?.avatar || localStorage.getItem('admin_avatar') || '';
+  const userRole = (localStorage.getItem('internal_role') || user?.role || 'ADMIN').toUpperCase();
+  const adminName = localStorage.getItem('user_name') || user?.name || (userRole === 'HR' ? 'HR Manager' : (settings?.contactPerson && settings.contactPerson !== 'Ramesh Kumar' ? settings.contactPerson : 'Administrator'));
+  const adminAvatar = user?.avatar || (user?.email === settings?.email ? settings?.profilePhoto : '') || localStorage.getItem('admin_avatar') || '';
   const headerFileInputRef = useRef(null);
 
   const handleHeaderPhotoUpload = async (e) => {
@@ -162,15 +166,14 @@ export default function Header({ toggleMobileSidebar }) {
   };
 
   return (
-    <header className="sticky top-0 z-20 flex items-center justify-between h-20 px-6 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 transition-colors">
+    <header className="sticky top-0 z-20 flex items-center justify-between h-14 sm:h-20 px-3 sm:px-6 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 transition-colors">
       {/* Left section: Mobile Logo & Title */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
         {/* Mobile View Brand Logo + Company Name */}
-        <div className="flex items-center gap-2.5 md:hidden">
-          <img src="/logo.png" alt="SK Technology" className="w-8 h-8 object-contain rounded-lg bg-white p-0.5 shadow-2xs" />
-          <div>
-            <h2 className="text-xs font-black tracking-tight text-slate-900 dark:text-white leading-tight">SK TECHNOLOGY</h2>
-            <p className="text-[9px] font-bold text-red-600 uppercase tracking-widest leading-tight">Your Safety Is Our Priority</p>
+        <div className="flex items-center gap-2 md:hidden min-w-0">
+          <img src="/logo.png" alt="SK Technology" className="w-7 h-7 object-contain rounded-lg bg-white p-0.5 shadow-2xs shrink-0" />
+          <div className="min-w-0">
+            <h2 className="text-xs font-black tracking-tight text-slate-900 dark:text-white leading-tight truncate">SK TECHNOLOGY</h2>
           </div>
         </div>
 
@@ -186,7 +189,7 @@ export default function Header({ toggleMobileSidebar }) {
       </div>
 
       {/* Right section: Quick actions, notifications, dark/light, admin profile */}
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-1.5 sm:gap-2.5">
         {/* Date Filter Dropdown */}
         <div className="relative" ref={dateMenuRef}>
           <button 
@@ -222,8 +225,8 @@ export default function Header({ toggleMobileSidebar }) {
           )}
         </div>
 
-        {/* Global Quick Search */}
-        <div className="relative" ref={searchContainerRef}>
+        {/* Global Quick Search (Desktop / Tablet Only) */}
+        <div className="hidden sm:block relative" ref={searchContainerRef}>
           {isSearchOpen ? (
             <div className="flex items-center animate-in fade-in zoom-in-95 duration-150">
               <form onSubmit={handleSearchSubmit} className="relative flex items-center">
@@ -357,25 +360,25 @@ export default function Header({ toggleMobileSidebar }) {
           )}
         </div>
 
-        {/* Dark/Light mode pill toggle */}
+        {/* Dark/Light mode pill toggle (Desktop / Tablet Only) */}
         <button
           onClick={() => dispatch(toggleDarkMode())}
-          className="px-3 py-1.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-2xs cursor-pointer"
+          className="hidden sm:flex p-2 sm:px-3 sm:py-1.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold items-center gap-1.5 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-2xs cursor-pointer shrink-0"
           title="Toggle Dark/Light Mode"
         >
-          {darkMode ? <FiSun size={14} className="text-amber-500" /> : <FiMoon size={14} className="text-blue-600" />}
-          <span>{darkMode ? 'Light' : 'Dark'}</span>
+          {darkMode ? <FiSun size={15} className="text-amber-500" /> : <FiMoon size={15} className="text-blue-600" />}
+          <span className="hidden sm:inline">{darkMode ? 'Light' : 'Dark'}</span>
         </button>
 
-        {/* TV Mode Command Center Button */}
+        {/* TV Mode Command Center Button (Desktop Only) */}
         <Link
           to="/tv"
           target="_blank"
-          className="px-3 py-1.5 rounded-xl border border-indigo-200/80 dark:border-indigo-800/80 bg-indigo-50/80 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 text-xs font-bold flex items-center gap-1.5 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors shadow-2xs cursor-pointer"
+          className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-200/80 dark:border-indigo-800/80 bg-indigo-50/80 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 text-xs font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors shadow-2xs cursor-pointer shrink-0"
           title="Open Live Operations TV Display (Command Center)"
         >
           <FiTv size={14} className="text-indigo-600 dark:text-indigo-400" />
-          <span className="hidden sm:inline">TV Mode</span>
+          <span>TV Mode</span>
         </Link>
 
         {/* Notification center */}
@@ -460,7 +463,7 @@ export default function Header({ toggleMobileSidebar }) {
           <button
             type="button"
             onClick={() => setShowProfileMenu(!showProfileMenu)}
-            className="flex items-center gap-2.5 pl-1.5 pr-2.5 py-1 rounded-full bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-800 transition-colors focus:outline-none cursor-pointer group"
+            className="flex items-center gap-2.5 p-1 sm:pl-1.5 sm:pr-2.5 rounded-full bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-800 transition-colors focus:outline-none cursor-pointer group shrink-0"
           >
             <div className="relative flex-shrink-0">
               {adminAvatar ? (
@@ -505,7 +508,10 @@ export default function Header({ toggleMobileSidebar }) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{adminName}</p>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium truncate">{settings.email || user?.email || 'admin@sktechnology.in'}</p>
+                  <p className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wider mt-0.5">
+                    {localStorage.getItem('internal_role') === 'HR' ? '🔵 HR Manager' : '⚙️ System Administrator'}
+                  </p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium truncate mt-0.5">{settings.email || user?.email || 'admin@sktechnology.in'}</p>
                   <button
                     type="button"
                     onClick={() => headerFileInputRef.current?.click()}

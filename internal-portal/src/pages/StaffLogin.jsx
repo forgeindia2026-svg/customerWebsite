@@ -20,7 +20,7 @@ export default function StaffLogin() {
     const token = localStorage.getItem('internal_token');
     const role = localStorage.getItem('internal_role');
     if (token) {
-      if (role === 'ADMIN') {
+      if (role === 'ADMIN' || role === 'HR') {
         navigate('/admin');
       } else if (role === 'TECHNICIAN') {
         navigate('/technician');
@@ -49,15 +49,28 @@ export default function StaffLogin() {
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.data) {
-          const userRole = data.data.role || (email.toLowerCase().includes('admin') ? 'ADMIN' : 'TECHNICIAN');
+          const rawRole = (data.data.role || '').toUpperCase();
+          const userRole = (rawRole === 'HR' || rawRole === 'ADMIN' || rawRole === 'TECHNICIAN') 
+            ? rawRole 
+            : (email.toLowerCase().includes('hr') ? 'HR' : (email.toLowerCase().includes('admin') ? 'ADMIN' : 'TECHNICIAN'));
+          const userName = data.data.name || email.split('@')[0];
+          const userEmail = data.data.email || email;
+
           localStorage.setItem('internal_token', data.data.token || 'mock-token');
           localStorage.setItem('internal_role', userRole);
           localStorage.setItem('user_id', data.data.id || data.data._id || '');
-          localStorage.setItem('user_name', data.data.name || email.split('@')[0]);
-          localStorage.setItem('user_email', data.data.email || email);
+          localStorage.setItem('user_name', userName);
+          localStorage.setItem('user_email', userEmail);
+          localStorage.setItem('internal_user', JSON.stringify({
+            id: data.data.id || data.data._id || '',
+            name: userName,
+            email: userEmail,
+            role: userRole,
+            avatar: data.data.avatar || ''
+          }));
           localStorage.setItem('sk_tech_auth', 'true');
 
-          if (userRole === 'ADMIN') {
+          if (userRole === 'ADMIN' || userRole === 'HR') {
             navigate('/admin');
           } else {
             navigate('/technician');

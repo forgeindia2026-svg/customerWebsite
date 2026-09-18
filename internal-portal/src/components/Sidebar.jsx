@@ -86,7 +86,9 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
         {isOpen && (
           <div className="transition-opacity duration-300 text-left flex-1 min-w-0">
             <h1 className="font-black text-white text-sm tracking-wide truncate">SK TECHNOLOGY</h1>
-            <p className="text-[10px] text-[#FDBA2F] font-bold uppercase tracking-widest truncate">ADMIN PORTAL</p>
+            <p className="text-[10px] text-[#FDBA2F] font-bold uppercase tracking-widest truncate">
+              {localStorage.getItem('internal_role') === 'HR' ? 'HR PORTAL' : 'ADMIN PORTAL'}
+            </p>
           </div>
         )}
       </div>
@@ -144,31 +146,40 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
       </nav>
  
       {/* Bottom Profile & Logout Section */}
-      <div className="p-3 border-t border-[#0F2347] bg-[#051124] space-y-2.5">
-        {isOpen && (
-          <div className="flex items-center gap-2.5 px-2 py-1">
-            <div className="w-8 h-8 rounded-full bg-[#13284C] border border-[#1E3A6B] flex items-center justify-center text-[#FDBA2F] font-bold text-xs shrink-0">
-              AD
-            </div>
-            <div className="truncate text-left flex-1 min-w-0">
-              <h4 className="font-bold text-xs text-white leading-tight truncate">Admin</h4>
-              <p className="text-[10px] text-[#8EA5C8] font-medium truncate">Super Administrator</p>
-            </div>
-          </div>
-        )}
+      {(() => {
+        const currentRole = (localStorage.getItem('internal_role') || 'ADMIN').toUpperCase();
+        const currentUserName = localStorage.getItem('user_name') || (currentRole === 'HR' ? 'HR Manager' : 'Administrator');
+        const userInitials = currentUserName.slice(0, 2).toUpperCase();
+        return (
+          <div className="p-3 border-t border-[#0F2347] bg-[#051124] space-y-2.5">
+            {isOpen && (
+              <div className="flex items-center gap-2.5 px-2 py-1">
+                <div className="w-8 h-8 rounded-full bg-[#13284C] border border-[#1E3A6B] flex items-center justify-center text-[#FDBA2F] font-bold text-xs shrink-0">
+                  {userInitials}
+                </div>
+                <div className="truncate text-left flex-1 min-w-0">
+                  <h4 className="font-bold text-xs text-white leading-tight truncate">{currentUserName}</h4>
+                  <p className="text-[10px] text-[#8EA5C8] font-medium truncate">
+                    {currentRole === 'HR' ? 'HR Operations Manager' : 'Super Administrator'}
+                  </p>
+                </div>
+              </div>
+            )}
 
-        {/* Soft Pastel Red Pill Logout Button (Exactly like Image 1) */}
-        <button
-          onClick={handleLogout}
-          className={`w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-[#FEE2E2] hover:bg-[#FCDAD7] text-[#EF4444] font-bold text-xs transition-all shadow-xs active:scale-95 cursor-pointer ${
-            !isOpen ? 'px-2' : ''
-          }`}
-          title="Logout from Admin Portal"
-        >
-          <FiLogOut className="w-4 h-4 shrink-0" />
-          {isOpen && <span>Logout</span>}
-        </button>
-      </div>
+            {/* Soft Pastel Red Pill Logout Button */}
+            <button
+              onClick={handleLogout}
+              className={`w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-[#FEE2E2] hover:bg-[#FCDAD7] text-[#EF4444] font-bold text-xs transition-all shadow-xs active:scale-95 cursor-pointer ${
+                !isOpen ? 'px-2' : ''
+              }`}
+              title="Logout from Portal"
+            >
+              <FiLogOut className="w-4 h-4 shrink-0" />
+              {isOpen && <span>Logout</span>}
+            </button>
+          </div>
+        );
+      })()}
     </aside>
   );
 }

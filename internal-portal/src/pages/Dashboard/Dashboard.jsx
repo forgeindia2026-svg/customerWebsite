@@ -18,6 +18,7 @@ import {
   addOrder, addTechnician, addProduct, approveProject, reworkProject, approveOrder, fetchDashboardData
 } from '../../redux/dashboardSlice';
 import Modal from '../../components/Modal';
+import HrAttendanceCard from '../../components/HrAttendanceCard';
 
 export default function Dashboard() {
   const dispatch = useDispatch();
@@ -430,6 +431,9 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       
+      {/* HR Attendance & Live Punch In / Punch Out Card */}
+      <HrAttendanceCard />
+
       {/* 4 KPI Cards Grid (Matching Image 1 Rich Pastel Card Colors & Round Icons) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         

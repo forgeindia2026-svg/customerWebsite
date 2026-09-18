@@ -16,7 +16,7 @@ export default function DashboardLayout() {
   useEffect(() => {
     let token = localStorage.getItem('internal_token');
     let role = localStorage.getItem('internal_role');
-    if (!token || role !== 'ADMIN') {
+    if (!token) {
       localStorage.setItem('internal_token', 'admin-token');
       localStorage.setItem('internal_role', 'ADMIN');
     }

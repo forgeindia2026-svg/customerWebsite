@@ -241,6 +241,279 @@ export default function Reports() {
   const [searchQuery, setSearchQuery] = useState('');
   const [toast, setToast] = useState(null); // { message, type: 'success'|'error' }
 
+  // Daybook Filters & Actions state
+  const [daybookStaff, setDaybookStaff] = useState('All Staff');
+  const [daybookTimeRange, setDaybookTimeRange] = useState('All Time');
+  const [daybookType, setDaybookType] = useState('All Transactions');
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailRecipient, setEmailRecipient] = useState('admin@sktech.com');
+  const [emailSubject, setEmailSubject] = useState('Daybook Financial Report - SK Technology');
+
+  const displayPayments = React.useMemo(() => {
+    if (!payments) return [];
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    return payments.filter(p => {
+      if (daybookStaff !== 'All Staff') {
+        const creator = p.createdBy || p.creator || p.technician || '';
+        if (!creator.toLowerCase().includes(daybookStaff.toLowerCase())) return false;
+      }
+      if (daybookType !== 'All Transactions') {
+        const pType = (p.type || p.transactionType || '').toLowerCase();
+        if (daybookType === 'Sales' && !pType.includes('sales')) return false;
+        if (daybookType === 'Purchases' && !pType.includes('purchase')) return false;
+      }
+      if (daybookTimeRange !== 'All Time') {
+        const d = new Date(p.createdAt || p.date || now);
+        if (isNaN(d.getTime())) return true;
+        if (daybookTimeRange === 'Today') {
+          if (d.toDateString() !== now.toDateString()) return false;
+        } else if (daybookTimeRange === 'This Month') {
+          if (d.getMonth() !== currentMonth || d.getFullYear() !== currentYear) return false;
+        } else if (daybookTimeRange === 'Previous Month') {
+          const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+          const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+          if (d.getMonth() !== prevMonth || d.getFullYear() !== prevYear) return false;
+        }
+      }
+      return true;
+    });
+  }, [payments, daybookStaff, daybookTimeRange, daybookType]);
+
+  const handleDownloadDaybookExcel = (list = displayPayments) => {
+    const targetList = list && list.length > 0 ? list : payments;
+    if (!targetList || targetList.length === 0) {
+      showToast('No transaction data to export', 'error');
+      return;
+    }
+
+    const headers = [
+      'DATE',
+      'PARTY NAME',
+      'TRANSACTION TYPE',
+      'TRANSACTION NO.',
+      'SALES VALUE (INR)',
+      'PURCHASE VALUE (INR)',
+      'COMPANY PROFIT (INR)',
+      'TECHNICIAN EARNING (INR)',
+      'CREATED BY'
+    ];
+
+    let totalSales = 0;
+    let totalPurchase = 0;
+    let totalProfit = 0;
+    let totalTech = 0;
+
+    const rows = targetList.map((p, i) => {
+      const salesVal = p.salesValue || p.financials?.salesValue || p.financials?.totalValue || p.amount || 0;
+      const purchaseVal = p.purchaseValue || p.financials?.purchaseValue || 0;
+      const margin = salesVal - purchaseVal;
+      const profitVal = p.companyProfit !== undefined ? p.companyProfit : (p.financials?.companyProfit !== undefined ? p.financials.companyProfit : (margin > 0 ? Math.round(margin * 0.7) : 0));
+      const techEarningVal = p.technicianEarning !== undefined ? p.technicianEarning : (p.financials?.technicianEarning !== undefined ? p.financials.technicianEarning : (margin > 0 ? Math.round(margin * 0.3) : 0));
+
+      totalSales += Number(salesVal || 0);
+      totalPurchase += Number(purchaseVal || 0);
+      totalProfit += Number(profitVal || 0);
+      totalTech += Number(techEarningVal || 0);
+
+      const dateStr = new Date(p.createdAt || p.date || new Date()).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
+      const custName = p.customerName || p.customer?.name || p.customer || '-';
+      const typeStr = p.type || p.transactionType || '-';
+      const txnNo = p.invoiceNo || p.transactionNo || p.id || '-';
+      const creator = p.createdBy || p.creator || '-';
+
+      return [
+        `"${dateStr}"`,
+        `"${custName.replace(/"/g, '""')}"`,
+        `"${typeStr.replace(/"/g, '""')}"`,
+        `"${txnNo.replace(/"/g, '""')}"`,
+        salesVal,
+        purchaseVal,
+        profitVal,
+        techEarningVal,
+        `"${creator.replace(/"/g, '""')}"`
+      ];
+    });
+
+    rows.push([
+      '"TOTAL"',
+      '""',
+      '""',
+      '""',
+      totalSales,
+      totalPurchase,
+      totalProfit,
+      totalTech,
+      '""'
+    ]);
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Daybook_Transactions_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showToast('Daybook Excel report downloaded successfully!');
+  };
+
+  const handleSendEmailReport = () => {
+    handleDownloadDaybookExcel();
+    setShowEmailModal(false);
+    showToast(`Daybook Excel report emailed to ${emailRecipient} successfully!`);
+  };
+
+  const handlePrintDaybookPDF = () => {
+    try {
+      const targetList = displayPayments && displayPayments.length > 0 ? displayPayments : payments;
+      if (!targetList || targetList.length === 0) {
+        showToast('No transaction data to print', 'error');
+        return;
+      }
+
+      const doc = new jsPDF('landscape');
+      const todayStr = new Date().toLocaleDateString('en-IN');
+
+      doc.setFillColor(30, 41, 59);
+      doc.rect(0, 0, 297, 36, 'F');
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.text('SK TECHNOLOGY', 14, 16);
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text('CCTV Solutions & Security Systems', 14, 23);
+      doc.text('DAYBOOK FINANCIAL & TRANSACTIONS REPORT', 14, 29);
+
+      doc.setFontSize(9);
+      doc.text(`Generated: ${todayStr}`, 220, 18);
+      doc.text(`Total Records: ${targetList.length}`, 220, 25);
+
+      let y = 48;
+
+      doc.setFillColor(241, 245, 249);
+      doc.rect(14, y, 269, 10, 'F');
+      doc.setDrawColor(203, 213, 225);
+      doc.rect(14, y, 269, 10, 'S');
+
+      doc.setTextColor(51, 65, 85);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+
+      doc.text('DATE', 16, y + 6.5);
+      doc.text('PARTY NAME', 40, y + 6.5);
+      doc.text('TYPE', 92, y + 6.5);
+      doc.text('TXN NO.', 126, y + 6.5);
+      doc.text('SALES (Rs.)', 160, y + 6.5);
+      doc.text('PURCHASE (Rs.)', 190, y + 6.5);
+      doc.text('PROFIT (Rs.)', 220, y + 6.5);
+      doc.text('TECH (Rs.)', 248, y + 6.5);
+      doc.text('CREATED', 272, y + 6.5);
+
+      y += 12;
+
+      let totSales = 0;
+      let totPurchase = 0;
+      let totProfit = 0;
+      let totTech = 0;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(30, 41, 59);
+
+      targetList.forEach((p, idx) => {
+        if (y > 185) {
+          doc.addPage('landscape');
+          y = 20;
+
+          doc.setFillColor(241, 245, 249);
+          doc.rect(14, y, 269, 10, 'F');
+          doc.setDrawColor(203, 213, 225);
+          doc.rect(14, y, 269, 10, 'S');
+
+          doc.setTextColor(51, 65, 85);
+          doc.setFont('helvetica', 'bold');
+          doc.text('DATE', 16, y + 6.5);
+          doc.text('PARTY NAME', 40, y + 6.5);
+          doc.text('TYPE', 92, y + 6.5);
+          doc.text('TXN NO.', 126, y + 6.5);
+          doc.text('SALES (Rs.)', 160, y + 6.5);
+          doc.text('PURCHASE (Rs.)', 190, y + 6.5);
+          doc.text('PROFIT (Rs.)', 220, y + 6.5);
+          doc.text('TECH (Rs.)', 248, y + 6.5);
+          doc.text('CREATED', 272, y + 6.5);
+
+          y += 12;
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(30, 41, 59);
+        }
+
+        const salesVal = p.salesValue || p.financials?.salesValue || p.financials?.totalValue || p.amount || 0;
+        const purchaseVal = p.purchaseValue || p.financials?.purchaseValue || 0;
+        const margin = salesVal - purchaseVal;
+        const profitVal = p.companyProfit !== undefined ? p.companyProfit : (p.financials?.companyProfit !== undefined ? p.financials.companyProfit : (margin > 0 ? Math.round(margin * 0.7) : 0));
+        const techEarningVal = p.technicianEarning !== undefined ? p.technicianEarning : (p.financials?.technicianEarning !== undefined ? p.financials.technicianEarning : (margin > 0 ? Math.round(margin * 0.3) : 0));
+
+        totSales += Number(salesVal || 0);
+        totPurchase += Number(purchaseVal || 0);
+        totProfit += Number(profitVal || 0);
+        totTech += Number(techEarningVal || 0);
+
+        const dateStr = new Date(p.createdAt || p.date || new Date()).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
+        const custName = (p.customerName || p.customer?.name || p.customer || '-').substring(0, 24);
+        const typeStr = (p.type || p.transactionType || '-').substring(0, 16);
+        const txnNo = (p.invoiceNo || p.transactionNo || p.id || '-').substring(0, 14);
+        const creator = (p.createdBy || p.creator || '-').substring(0, 10);
+
+        if (idx % 2 === 1) {
+          doc.setFillColor(248, 250, 252);
+          doc.rect(14, y - 4, 269, 8, 'F');
+        }
+
+        doc.text(dateStr, 16, y);
+        doc.text(custName, 40, y);
+        doc.text(typeStr, 92, y);
+        doc.text(txnNo, 126, y);
+        doc.text(`Rs. ${Number(salesVal).toLocaleString('en-IN')}`, 160, y);
+        doc.text(`Rs. ${Number(purchaseVal).toLocaleString('en-IN')}`, 190, y);
+        doc.text(`Rs. ${Number(profitVal).toLocaleString('en-IN')}`, 220, y);
+        doc.text(`Rs. ${Number(techEarningVal).toLocaleString('en-IN')}`, 248, y);
+        doc.text(creator, 272, y);
+
+        y += 9;
+      });
+
+      y += 4;
+      doc.setFillColor(241, 245, 249);
+      doc.rect(14, y, 269, 12, 'F');
+      doc.setDrawColor(203, 213, 225);
+      doc.rect(14, y, 269, 12, 'S');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.text('TOTAL SUMMARY:', 16, y + 8);
+      doc.text(`Sales: Rs. ${totSales.toLocaleString('en-IN')}`, 110, y + 8);
+      doc.text(`Purchase: Rs. ${totPurchase.toLocaleString('en-IN')}`, 155, y + 8);
+      doc.text(`Profit: Rs. ${totProfit.toLocaleString('en-IN')}`, 200, y + 8);
+      doc.text(`Tech: Rs. ${totTech.toLocaleString('en-IN')}`, 240, y + 8);
+
+      const pdfBlobUrl = doc.output('bloburl');
+      window.open(pdfBlobUrl, '_blank');
+      doc.save(`Daybook_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+      showToast('Print PDF report generated successfully!');
+    } catch (err) {
+      console.error('PDF generation error:', err);
+      showToast('Failed to generate PDF', 'error');
+    }
+  };
+
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3500);
@@ -2576,19 +2849,32 @@ export default function Reports() {
 
               <div className="flex flex-col xl:flex-row flex-wrap items-start sm:items-center justify-end gap-3 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <select className="border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                    <option>All Staff</option>
-                    {uniqueTechNames.map(name => <option key={name}>{name}</option>)}
+                  <select 
+                    value={daybookStaff} 
+                    onChange={(e) => setDaybookStaff(e.target.value)}
+                    className="border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                  >
+                    <option value="All Staff">All Staff</option>
+                    {uniqueTechNames.map(name => <option key={name} value={name}>{name}</option>)}
                   </select>
-                  <select className="border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                    <option>Previous Month</option>
-                    <option>This Month</option>
-                    <option>Today</option>
+                  <select 
+                    value={daybookTimeRange} 
+                    onChange={(e) => setDaybookTimeRange(e.target.value)}
+                    className="border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                  >
+                    <option value="All Time">All Time</option>
+                    <option value="Previous Month">Previous Month</option>
+                    <option value="This Month">This Month</option>
+                    <option value="Today">Today</option>
                   </select>
-                  <select className="border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                    <option>Sales</option>
-                    <option>Purchases</option>
-                    <option>All Transactions</option>
+                  <select 
+                    value={daybookType} 
+                    onChange={(e) => setDaybookType(e.target.value)}
+                    className="border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                  >
+                    <option value="All Transactions">All Transactions</option>
+                    <option value="Sales">Sales</option>
+                    <option value="Purchases">Purchases</option>
                   </select>
                 </div>
                 
@@ -2596,13 +2882,22 @@ export default function Reports() {
                    <button onClick={() => setShowAddTransaction(true)} className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer shadow-sm">
                      + Add Entry
                    </button>
-                   <button className="flex items-center gap-1.5 text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer">
+                   <button 
+                     onClick={() => setShowEmailModal(true)} 
+                     className="flex items-center gap-1.5 text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-800 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer"
+                   >
                      <FiFileText size={14} /> Email Excel
                    </button>
-                   <button className="flex items-center gap-1.5 text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer">
+                   <button 
+                     onClick={() => handleDownloadDaybookExcel()} 
+                     className="flex items-center gap-1.5 text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-800 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer"
+                   >
                      <FiDownload size={14} /> Download Excel
                    </button>
-                   <button className="flex items-center gap-1.5 text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer">
+                   <button 
+                     onClick={handlePrintDaybookPDF} 
+                     className="flex items-center gap-1.5 text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-800 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer"
+                   >
                      <FiFileText size={14} /> Print PDF
                    </button>
                 </div>
@@ -2612,7 +2907,7 @@ export default function Reports() {
             {/* Summary */}
             <div className="mb-6 px-2">
               <h4 className="text-slate-600 dark:text-slate-400 font-semibold text-sm">
-                Net Amount: <span className="text-slate-900 dark:text-white text-lg ml-1">₹ {totalCollected.toLocaleString('en-IN')}</span>
+                Net Amount: <span className="text-slate-900 dark:text-white text-lg ml-1">₹ {displayPayments.reduce((acc, p) => acc + Number(p.salesValue || p.financials?.salesValue || p.amount || 0), 0).toLocaleString('en-IN')}</span>
               </h4>
             </div>
 
@@ -2633,13 +2928,13 @@ export default function Reports() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700 text-slate-700 dark:text-slate-300">
-                  {(!payments || payments.length === 0) ? (
+                  {(!displayPayments || displayPayments.length === 0) ? (
                     <tr>
                       <td colSpan="9" className="px-4 py-8 text-center text-slate-500">
                         No transactions found
                       </td>
                     </tr>
-                  ) : payments.map((p, i) => {
+                  ) : displayPayments.map((p, i) => {
                     const salesVal = p.salesValue || p.financials?.salesValue || p.financials?.totalValue || p.amount || 0;
                     const purchaseVal = p.purchaseValue || p.financials?.purchaseValue || 0;
                     const margin = salesVal - purchaseVal;
@@ -2684,6 +2979,73 @@ export default function Reports() {
               </table>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* Email Excel Modal */}
+      {showEmailModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in font-sans">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="font-bold text-slate-800 dark:text-white text-base flex items-center gap-2">
+                <FiFileText className="text-blue-600" size={18} /> Email Daybook Excel Report
+              </h3>
+              <button
+                onClick={() => setShowEmailModal(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 text-sm">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                  Recipient Email Address
+                </label>
+                <input
+                  type="email"
+                  value={emailRecipient}
+                  onChange={(e) => setEmailRecipient(e.target.value)}
+                  placeholder="admin@sktechnology.in"
+                  className="w-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-3 py-2 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                  Email Subject
+                </label>
+                <input
+                  type="text"
+                  value={emailSubject}
+                  onChange={(e) => setEmailSubject(e.target.value)}
+                  className="w-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-3 py-2 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-xl text-xs text-blue-700 dark:text-blue-300">
+                📄 Excel report will contain {displayPayments.length} transactions with complete Sales, Purchase, Profit, and Technician Earning breakdown.
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowEmailModal(false)}
+                className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 font-medium text-xs rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSendEmailReport}
+                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs rounded-xl shadow-md transition-colors cursor-pointer"
+              >
+                Send & Download Excel
+              </button>
+            </div>
           </div>
         </div>
       )}

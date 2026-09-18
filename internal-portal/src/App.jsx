@@ -28,12 +28,12 @@ import TvDashboard from './pages/TvDashboard/TvDashboard';
 import ToastContainer from './components/Toast';
 import { Toaster } from 'react-hot-toast';
 
-// Route guard for Admin role
+// Route guard for Admin/HR role
 function AdminRoute() {
   let token = localStorage.getItem('internal_token');
   let role = localStorage.getItem('internal_role');
 
-  if (!token || role !== 'ADMIN') {
+  if (!token) {
     localStorage.setItem('internal_token', 'admin-token');
     localStorage.setItem('internal_role', 'ADMIN');
   }
@@ -50,7 +50,7 @@ function TechnicianRoute() {
     return <Navigate to="/login" replace />;
   }
   if (role !== 'TECHNICIAN') {
-    return <Navigate to={role === 'ADMIN' ? '/admin' : '/login'} replace />;
+    return <Navigate to={(role === 'ADMIN' || role === 'HR') ? '/admin' : '/login'} replace />;
   }
   return <Outlet />;
 }
@@ -61,7 +61,7 @@ function RootRoute() {
   const role = localStorage.getItem('internal_role');
 
   if (token) {
-    if (role === 'ADMIN') return <Navigate to="/admin" replace />;
+    if (role === 'ADMIN' || role === 'HR') return <Navigate to="/admin" replace />;
     if (role === 'TECHNICIAN') return <Navigate to="/technician" replace />;
   }
   return <Navigate to="/login" replace />;
