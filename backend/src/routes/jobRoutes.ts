@@ -1239,17 +1239,19 @@ router.post('/:id/admin-approve', async (req: Request, res: Response) => {
     // Update all matching Job & Order documents in MongoDB
     await Job.updateMany(
       { $or: matchConditions },
-      { $set: { status: 'APPROVED', financials: financialData, technicianEarning: parsedEarning, updatedAt: new Date() } }
+      { $set: { status: 'APPROVED', financials: financialData, purchaseValue: parsedPurchase, salesValue: parsedSales, technicianEarning: parsedEarning, updatedAt: new Date() } }
     );
 
     await Order.updateMany(
       { $or: matchConditions },
-      { $set: { orderStatus: 'DELIVERED', status: 'Approved', financials: financialData, technicianEarning: parsedEarning, updatedAt: new Date() } }
+      { $set: { orderStatus: 'DELIVERED', status: 'Approved', financials: financialData, purchaseValue: parsedPurchase, salesValue: parsedSales, technicianEarning: parsedEarning, updatedAt: new Date() } }
     );
 
     if (job) {
       job.status = 'APPROVED';
       job.financials = financialData;
+      (job as any).purchaseValue = parsedPurchase;
+      (job as any).salesValue = parsedSales;
       job.technicianEarning = parsedEarning;
       await job.save();
     }
@@ -1257,6 +1259,8 @@ router.post('/:id/admin-approve', async (req: Request, res: Response) => {
     if (order) {
       order.orderStatus = 'DELIVERED';
       order.financials = financialData;
+      (order as any).purchaseValue = parsedPurchase;
+      (order as any).salesValue = parsedSales;
       order.technicianEarning = parsedEarning;
       await order.save();
     }

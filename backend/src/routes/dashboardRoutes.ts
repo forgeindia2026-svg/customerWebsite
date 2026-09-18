@@ -345,7 +345,26 @@ router.get('/', async (req: Request, res: Response) => {
         inspectionComments: inspectionNotes,
         startedAt,
         updatedAt,
-        financials: job?.financials || order.financials || null,
+        financials: (() => {
+          const rawFin = job?.financials || order.financials || {};
+          const s = Number(rawFin.salesValue || rawFin.totalValue || order.totalAmount || 0);
+          const p = Number(rawFin.companyProfit || 0);
+          const e = Number(rawFin.technicianEarning || job?.technicianEarning || order.technicianEarning || 0);
+          const rawPur = rawFin.purchaseValue ?? (job as any)?.purchaseValue ?? (order as any)?.purchaseValue;
+          const pur = (rawPur !== undefined && rawPur !== null && Number(rawPur) > 0)
+            ? Number(rawPur)
+            : (s > 0 && p > 0 && s > p ? s - p : 0);
+
+          return {
+            salesValue: s,
+            purchaseValue: pur,
+            totalValue: s,
+            companyProfit: p,
+            technicianEarning: e,
+            approvedAt: rawFin.approvedAt || new Date(),
+            approvedBy: rawFin.approvedBy || 'Admin'
+          };
+        })(),
         technicianEarning: job?.technicianEarning || order.technicianEarning || 0
       };
     });

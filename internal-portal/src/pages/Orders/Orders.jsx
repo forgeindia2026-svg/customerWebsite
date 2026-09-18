@@ -1923,28 +1923,45 @@ export default function Orders() {
               </div>
 
               {/* Show Approved Financials breakdown for Admin */}
-              {(selectedOrder.financials || selectedOrder.technicianEarning > 0) && (
-                <div className="mt-3 p-3 bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800/60 rounded-xl grid grid-cols-3 gap-2 text-center">
-                  <div>
-                    <span className="text-[10px] text-slate-400 uppercase font-bold block">Total Job Value</span>
-                    <span className="text-xs font-black font-mono text-slate-900 dark:text-white">
-                      ₹{Number(selectedOrder.financials?.totalValue || selectedOrder.amount || 0).toLocaleString('en-IN')}
-                    </span>
+              {(() => {
+                if (!selectedOrder.financials && !selectedOrder.technicianEarning) return null;
+                const sVal = Number(selectedOrder.financials?.salesValue || selectedOrder.financials?.totalValue || selectedOrder.amount || 0);
+                const pProfit = Number(selectedOrder.financials?.companyProfit || selectedOrder.companyProfit || 0);
+                const tEarning = Number(selectedOrder.financials?.technicianEarning || selectedOrder.technicianEarning || 0);
+                const rawPur = selectedOrder.financials?.purchaseValue ?? selectedOrder.purchaseValue;
+                const pVal = (rawPur !== undefined && rawPur !== null && Number(rawPur) > 0)
+                  ? Number(rawPur)
+                  : (sVal > 0 && pProfit > 0 && sVal > pProfit ? sVal - pProfit : 0);
+
+                return (
+                  <div className="mt-3 p-3 bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800/60 rounded-xl grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase font-bold block">Sales Value</span>
+                      <span className="text-xs font-black font-mono text-slate-900 dark:text-white">
+                        ₹{sVal.toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase font-bold block">Purchase Value</span>
+                      <span className="text-xs font-black font-mono text-purple-600 dark:text-purple-400">
+                        ₹{pVal.toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase font-bold block">Company Profit</span>
+                      <span className="text-xs font-black font-mono text-blue-600 dark:text-blue-400">
+                        ₹{pProfit.toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase font-bold block">Tech Earning</span>
+                      <span className="text-xs font-black font-mono text-emerald-600 dark:text-emerald-400">
+                        ₹{tEarning.toLocaleString('en-IN')}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 uppercase font-bold block">Company Profit</span>
-                    <span className="text-xs font-black font-mono text-blue-600 dark:text-blue-400">
-                      ₹{Number(selectedOrder.financials?.companyProfit || 0).toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 uppercase font-bold block">Tech Earning</span>
-                    <span className="text-xs font-black font-mono text-emerald-600 dark:text-emerald-400">
-                      ₹{Number(selectedOrder.financials?.technicianEarning || selectedOrder.technicianEarning || 0).toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
 
             <div className="pt-3 flex justify-end">
