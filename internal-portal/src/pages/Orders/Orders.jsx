@@ -7,6 +7,7 @@ import { approveOrder, approveOrderCompletion, reworkOrder, setOrderStatus, addO
 import { socket } from '../../socket';
 import Modal from '../../components/Modal';
 import { getApiUrl } from '../../utils/config';
+import { isDateInRange } from '../../utils/dateFilterUtils';
 
 const parseSubTechNames = (subTechs) => {
   if (!subTechs) return [];
@@ -42,6 +43,20 @@ export default function Orders() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState(null);
   const [activeStatusDropdown, setActiveStatusDropdown] = useState(null);
+
+  const [selectedDateRange, setSelectedDateRange] = useState(localStorage.getItem('admin_date_range') || 'All Time');
+
+  useEffect(() => {
+    const handleDateFilterChange = (e) => {
+      if (e?.detail) {
+        setSelectedDateRange(e.detail);
+      }
+    };
+    window.addEventListener('admin_date_filter_change', handleDateFilterChange);
+    return () => {
+      window.removeEventListener('admin_date_filter_change', handleDateFilterChange);
+    };
+  }, []);
 
   // Sync statusFilter whenever searchParams change
   useEffect(() => {
@@ -447,8 +462,9 @@ export default function Orders() {
     
     const displayStatus = getDisplayStatus(order);
     const matchesStatus = statusFilter === 'All' || displayStatus === statusFilter;
+    const matchesDate = isDateInRange(order.createdAt || order.date, selectedDateRange);
 
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && matchesDate;
   });
 
   const getStatusBadge = (status) => {

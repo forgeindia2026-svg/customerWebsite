@@ -19,10 +19,13 @@ import {
 } from '../../redux/dashboardSlice';
 import Modal from '../../components/Modal';
 import HrAttendanceCard from '../../components/HrAttendanceCard';
+import { isDateInRange } from '../../utils/dateFilterUtils';
 
 export default function Dashboard() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+
+  const currentRole = (localStorage.getItem('internal_role') || 'ADMIN').toUpperCase();
 
   // Retrieve states from Redux store
   const orders = useSelector(state => state.dashboard?.orders) || [];
@@ -147,6 +150,21 @@ export default function Dashboard() {
     }
   };
 
+  // Date Range Filter State
+  const [selectedDateRange, setSelectedDateRange] = useState(localStorage.getItem('admin_date_range') || 'This Month');
+
+  useEffect(() => {
+    const handleDateFilterChange = (e) => {
+      if (e?.detail) {
+        setSelectedDateRange(e.detail);
+      }
+    };
+    window.addEventListener('admin_date_filter_change', handleDateFilterChange);
+    return () => {
+      window.removeEventListener('admin_date_filter_change', handleDateFilterChange);
+    };
+  }, []);
+
   useEffect(() => {
     socket.emit('join_role', 'admin');
     dispatch(fetchDashboardData());
@@ -178,31 +196,35 @@ export default function Dashboard() {
     };
   }, [dispatch]);
 
+  // Filter orders and payments by selected date range
+  const filteredOrders = orders.filter(o => isDateInRange(o.createdAt || o.date, selectedDateRange));
+  const filteredPayments = payments.filter(p => isDateInRange(p.createdAt || p.date, selectedDateRange));
+
   // Calculate dynamic stats (with robust fallback matching for MongoDB fields)
-  const completedOrders = orders.filter(o => o.status === 'Completed' || o.status === 'Approved' || o.orderStatus === 'DELIVERED');
+  const completedOrders = filteredOrders.filter(o => o.status === 'Completed' || o.status === 'Approved' || o.orderStatus === 'DELIVERED');
   const completedRevenue = completedOrders.reduce((sum, o) => sum + (parseFloat(o.amount || o.totalAmount) || 0), 0);
-  const totalRevenue = completedRevenue > 0 ? completedRevenue : orders.reduce((sum, o) => sum + (parseFloat(o.amount || o.totalAmount) || 0), 0);
+  const totalRevenue = completedRevenue > 0 ? completedRevenue : filteredOrders.reduce((sum, o) => sum + (parseFloat(o.amount || o.totalAmount) || 0), 0);
   
   const todayStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  const todayOrders = orders.filter(o => {
+  const todayOrders = filteredOrders.filter(o => {
     if (!o) return false;
     const orderDateStr = o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : o.date;
     return orderDateStr === todayStr || o.date?.includes('Today');
   }).length;
 
-  const activeOrders = orders.filter(o => o.status === 'In Progress' || o.status === 'Pending' || o.status === 'Pending Approval' || o.orderStatus === 'PROCESSING' || o.orderStatus === 'PENDING').length;
-  const finishedOrders = orders.filter(o => o.status === 'Completed' || o.status === 'Approved' || o.orderStatus === 'DELIVERED').length;
+  const activeOrders = filteredOrders.filter(o => o.status === 'In Progress' || o.status === 'Pending' || o.status === 'Pending Approval' || o.orderStatus === 'PROCESSING' || o.orderStatus === 'PENDING').length;
+  const finishedOrders = filteredOrders.filter(o => o.status === 'Completed' || o.status === 'Approved' || o.orderStatus === 'DELIVERED').length;
 
   // ⚡ 100% REAL LIVE MONGO DB DATA (STRICT MATCHING, ZERO MOCK FALLBACKS)
-  const upiTotal = (payments.length > 0 ? payments : orders)
+  const upiTotal = (filteredPayments.length > 0 ? filteredPayments : filteredOrders)
     .filter(p => (p.method || p.paymentMethod)?.toString().toLowerCase().includes('upi') || (p.method || p.paymentMethod)?.toString().toLowerCase().includes('razorpay') || (p.method || p.paymentMethod)?.toString().toLowerCase().includes('online'))
     .reduce((sum, p) => sum + (parseFloat(p.amount || p.totalAmount) || 0), 0);
 
-  const codTotal = (payments.length > 0 ? payments : orders)
+  const codTotal = (filteredPayments.length > 0 ? filteredPayments : filteredOrders)
     .filter(p => (p.method || p.paymentMethod)?.toString().toLowerCase().includes('cash') || (p.method || p.paymentMethod)?.toString().toLowerCase().includes('cod'))
     .reduce((sum, p) => sum + (parseFloat(p.amount || p.totalAmount) || 0), 0);
 
-  const bankTotal = (payments.length > 0 ? payments : orders)
+  const bankTotal = (filteredPayments.length > 0 ? filteredPayments : filteredOrders)
     .filter(p => (p.method || p.paymentMethod)?.toString().toLowerCase().includes('bank') || (p.method || p.paymentMethod)?.toString().toLowerCase().includes('neft'))
     .reduce((sum, p) => sum + (parseFloat(p.amount || p.totalAmount) || 0), 0);
 
@@ -269,12 +291,12 @@ export default function Dashboard() {
   const [reportRange, setReportRange] = useState('This Month');
   const [chartType, setChartType] = useState('area'); // 'area' or 'bar'
 
-  // Dynamic calculation of chart data from orders
+  // Dynamic calculation of chart data from filteredOrders
   const getDynamicChartData = () => {
     const revenueByDate = {};
     const dateTimestamps = {};
 
-    orders.forEach(order => {
+    filteredOrders.forEach(order => {
       let d = order.createdAt ? new Date(order.createdAt) : (order.date ? new Date(order.date) : null);
       let label = 'Today';
       let timestamp = Date.now();
@@ -297,13 +319,13 @@ export default function Dashboard() {
 
     if (sortedLabels.length === 0) {
       return [
-        { name: 'Mon', revenue: 18000 },
-        { name: 'Tue', revenue: 32000 },
-        { name: 'Wed', revenue: 24000 },
-        { name: 'Thu', revenue: 45000 },
-        { name: 'Fri', revenue: 62000 },
-        { name: 'Sat', revenue: 54000 },
-        { name: 'Sun', revenue: 78000 }
+        { name: 'Mon', revenue: 0 },
+        { name: 'Tue', revenue: 0 },
+        { name: 'Wed', revenue: 0 },
+        { name: 'Thu', revenue: 0 },
+        { name: 'Fri', revenue: 0 },
+        { name: 'Sat', revenue: 0 },
+        { name: 'Sun', revenue: 0 }
       ];
     }
 
@@ -365,8 +387,8 @@ export default function Dashboard() {
     }
   };
 
-  // List of Recent Orders dynamically calculated from orders state
-  const recentOrdersData = orders.slice(0, 4).map(order => {
+  // List of Recent Orders dynamically calculated from filteredOrders state
+  const recentOrdersData = filteredOrders.slice(0, 4).map(order => {
     const typeStr = (order.type || '').toLowerCase();
     let icon = FiVideo;
     let iconBg = 'bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400';
@@ -431,8 +453,8 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       
-      {/* HR Attendance & Live Punch In / Punch Out Card */}
-      <HrAttendanceCard />
+      {/* HR Attendance & Live Punch In / Punch Out Card (Only for HR role) */}
+      {currentRole === 'HR' && <HrAttendanceCard />}
 
       {/* 4 KPI Cards Grid (Matching Image 1 Rich Pastel Card Colors & Round Icons) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
@@ -768,7 +790,7 @@ export default function Dashboard() {
       </div>
 
       {/* Row 2: Recent Activity (Timeline) & System Summary */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
         {/* Recent Activity Timeline card matching Image 2 */}
         <div className="lg:col-span-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-md hover:shadow-lg transition-all duration-300 p-6 flex flex-col">
@@ -792,46 +814,46 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* System Summary card with 4 cards matching Image 2 */}
-        <div className="lg:col-span-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-md hover:shadow-lg transition-all duration-300 p-6 flex flex-col">
-          <h3 className="font-semibold text-slate-800 dark:text-slate-100 text-sm tracking-tight mb-5">System Summary</h3>
+        {/* System Summary card with 4 proportional cards */}
+        <div className="lg:col-span-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-md hover:shadow-lg transition-all duration-300 p-6">
+          <h3 className="font-semibold text-slate-800 dark:text-slate-100 text-sm tracking-tight mb-4">System Summary</h3>
           
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 flex-1">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             
             {/* Total Users */}
-            <div className="bg-slate-50/50 dark:bg-slate-800/40 rounded-xl p-3 flex flex-col items-center justify-center text-center border border-slate-100/40 dark:border-slate-800">
-              <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mb-2">
-                <FiUsers size={14} />
+            <div className="bg-slate-50/70 dark:bg-slate-800/50 rounded-xl p-4 flex flex-col items-center justify-center text-center border border-slate-100 dark:border-slate-800 hover:border-blue-200 transition-colors">
+              <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-2 shadow-2xs">
+                <FiUsers size={16} />
               </div>
-              <h4 className="text-sm font-semibold text-slate-850 dark:text-white">{(technicians?.length || 0) + (customers?.length || 0) + 1}</h4>
-              <span className="text-xs text-slate-450 dark:text-slate-400 font-medium uppercase tracking-wider mt-0.5 block">Total Users</span>
+              <h4 className="text-xl font-bold text-slate-900 dark:text-white">{(technicians?.length || 0) + (customers?.length || 0) + 1}</h4>
+              <span className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider mt-1 block">Total Users</span>
             </div>
 
             {/* Total Customers */}
-            <div className="bg-slate-50/50 dark:bg-slate-800/40 rounded-xl p-3 flex flex-col items-center justify-center text-center border border-slate-100/40 dark:border-slate-800">
-              <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-2">
-                <FiUsers size={14} />
+            <div className="bg-slate-50/70 dark:bg-slate-800/50 rounded-xl p-4 flex flex-col items-center justify-center text-center border border-slate-100 dark:border-slate-800 hover:border-emerald-200 transition-colors">
+              <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-2 shadow-2xs">
+                <FiUsers size={16} />
               </div>
-              <h4 className="text-sm font-semibold text-slate-850 dark:text-white">{customers?.length || 0}</h4>
-              <span className="text-xs text-slate-450 dark:text-slate-400 font-medium uppercase tracking-wider mt-0.5 block">Total Customers</span>
+              <h4 className="text-xl font-bold text-slate-900 dark:text-white">{customers?.length || 0}</h4>
+              <span className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider mt-1 block">Total Customers</span>
             </div>
 
             {/* Total Products */}
-            <div className="bg-slate-50/50 dark:bg-slate-800/40 rounded-xl p-3 flex flex-col items-center justify-center text-center border border-slate-100/40 dark:border-slate-800">
-              <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mb-2">
-                <FiPackage size={14} />
+            <div className="bg-slate-50/70 dark:bg-slate-800/50 rounded-xl p-4 flex flex-col items-center justify-center text-center border border-slate-100 dark:border-slate-800 hover:border-amber-200 transition-colors">
+              <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-2 shadow-2xs">
+                <FiPackage size={16} />
               </div>
-              <h4 className="text-sm font-semibold text-slate-850 dark:text-white">{products?.length || 0}</h4>
-              <span className="text-xs text-slate-450 dark:text-slate-400 font-medium uppercase tracking-wider mt-0.5 block">Total Products</span>
+              <h4 className="text-xl font-bold text-slate-900 dark:text-white">{products?.length || 0}</h4>
+              <span className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider mt-1 block">Total Products</span>
             </div>
 
             {/* Total Technicians */}
-            <div className="bg-slate-50/50 dark:bg-slate-800/40 rounded-xl p-3 flex flex-col items-center justify-center text-center border border-slate-100/40 dark:border-slate-800">
-              <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center mb-2">
-                <FiTool size={14} />
+            <div className="bg-slate-50/70 dark:bg-slate-800/50 rounded-xl p-4 flex flex-col items-center justify-center text-center border border-slate-100 dark:border-slate-800 hover:border-purple-200 transition-colors">
+              <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-2 shadow-2xs">
+                <FiTool size={16} />
               </div>
-              <h4 className="text-sm font-semibold text-slate-850 dark:text-white">{technicians?.length || 0}</h4>
-              <span className="text-xs text-slate-450 dark:text-slate-400 font-medium uppercase tracking-wider mt-0.5 block">Total Technicians</span>
+              <h4 className="text-xl font-bold text-slate-900 dark:text-white">{technicians?.length || 0}</h4>
+              <span className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider mt-1 block">Total Technicians</span>
             </div>
 
           </div>

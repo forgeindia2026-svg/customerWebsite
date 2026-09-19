@@ -206,7 +206,7 @@ export default function Header({ toggleMobileSidebar }) {
               <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
                 Filter Date Range
               </div>
-              {['Today', 'This Week', 'This Month', 'Last Month', 'This Year', 'All Time'].map(range => (
+              {['Today', 'This Week', 'This Month', 'Last Month', 'This Year', 'Last Year', 'All Time'].map(range => (
                 <button
                   key={range}
                   type="button"

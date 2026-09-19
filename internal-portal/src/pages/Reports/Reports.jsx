@@ -5,6 +5,7 @@ import { addPayment } from '../../redux/dashboardSlice';
 import jsPDF from 'jspdf';
 import LeaderboardModule from '../../technician/components/Leaderboard/LeaderboardModule';
 import { getApiUrl } from '../../utils/config';
+import { isDateInRange } from '../../utils/dateFilterUtils';
 import { 
   FiDownload, FiBarChart2, FiTrendingUp, FiCheckCircle, 
   FiUsers, FiStar, FiClock, FiSettings, FiGrid, FiActivity,
@@ -243,17 +244,26 @@ export default function Reports() {
 
   // Daybook Filters & Actions state
   const [daybookStaff, setDaybookStaff] = useState('All Staff');
-  const [daybookTimeRange, setDaybookTimeRange] = useState('All Time');
+  const [daybookTimeRange, setDaybookTimeRange] = useState(localStorage.getItem('admin_date_range') || 'All Time');
   const [daybookType, setDaybookType] = useState('All Transactions');
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailRecipient, setEmailRecipient] = useState('admin@sktech.com');
   const [emailSubject, setEmailSubject] = useState('Daybook Financial Report - SK Technology');
 
+  useEffect(() => {
+    const handleDateFilterChange = (e) => {
+      if (e?.detail) {
+        setDaybookTimeRange(e.detail);
+      }
+    };
+    window.addEventListener('admin_date_filter_change', handleDateFilterChange);
+    return () => {
+      window.removeEventListener('admin_date_filter_change', handleDateFilterChange);
+    };
+  }, []);
+
   const displayPayments = React.useMemo(() => {
     if (!payments) return [];
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
 
     return payments.filter(p => {
       if (daybookStaff !== 'All Staff') {
@@ -265,18 +275,8 @@ export default function Reports() {
         if (daybookType === 'Sales' && !pType.includes('sales')) return false;
         if (daybookType === 'Purchases' && !pType.includes('purchase')) return false;
       }
-      if (daybookTimeRange !== 'All Time') {
-        const d = new Date(p.createdAt || p.date || now);
-        if (isNaN(d.getTime())) return true;
-        if (daybookTimeRange === 'Today') {
-          if (d.toDateString() !== now.toDateString()) return false;
-        } else if (daybookTimeRange === 'This Month') {
-          if (d.getMonth() !== currentMonth || d.getFullYear() !== currentYear) return false;
-        } else if (daybookTimeRange === 'Previous Month') {
-          const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-          const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
-          if (d.getMonth() !== prevMonth || d.getFullYear() !== prevYear) return false;
-        }
+      if (!isDateInRange(p.createdAt || p.date, daybookTimeRange)) {
+        return false;
       }
       return true;
     });

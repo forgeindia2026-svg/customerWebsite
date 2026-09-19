@@ -69,6 +69,9 @@ export default function HrAttendanceCard({ compact = false }) {
   const fileInputRef = useRef(null);
 
   const role = (localStorage.getItem('internal_role') || 'HR').toUpperCase();
+  if (role === 'ADMIN') {
+    return null;
+  }
   const rawUser = (() => {
     try { return JSON.parse(localStorage.getItem('internal_user') || '{}'); } catch { return {}; }
   })();

@@ -1,14 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { updatePaymentStatus } from '../../redux/dashboardSlice';
 import { FiChevronRight, FiCalendar, FiArrowDown, FiArrowUp, FiPlus, FiX, FiCheckCircle, FiArrowLeft, FiUser } from 'react-icons/fi';
 import { FaWhatsapp, FaRupeeSign } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
+import { isDateInRange } from '../../utils/dateFilterUtils';
 
 export default function Payments() {
-  const payments = useSelector(state => state.dashboard.payments) || [];
+  const rawPayments = useSelector(state => state.dashboard.payments) || [];
   const products = useSelector(state => state.dashboard.products) || [];
   const dispatch = useDispatch();
+
+  const [selectedDateRange, setSelectedDateRange] = useState(localStorage.getItem('admin_date_range') || 'All Time');
+
+  useEffect(() => {
+    const handleDateFilterChange = (e) => {
+      if (e?.detail) {
+        setSelectedDateRange(e.detail);
+      }
+    };
+    window.addEventListener('admin_date_filter_change', handleDateFilterChange);
+    return () => {
+      window.removeEventListener('admin_date_filter_change', handleDateFilterChange);
+    };
+  }, []);
+
+  const payments = rawPayments.filter(p => isDateInRange(p.createdAt || p.date, selectedDateRange));
   
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
@@ -42,9 +59,9 @@ export default function Payments() {
   // Calculate totals from real data
   const paidTotal = payments.filter(p => p.status && p.status.toLowerCase() === 'paid').reduce((s, p) => s + Number(p.amount), 0);
   const pendingTotal = payments.filter(p => p.status && p.status.toLowerCase() === 'pending').reduce((s, p) => s + Number(p.amount), 0);
-  const stockValue = products.reduce((s, p) => s + (Number(p.price) * (Number(p.stock) || 10)), 0); // Assuming stock of 10 if missing
-  const thisWeekSale = paidTotal; // Approximation for demo
-  const totalBalance = paidTotal + 150000; // Cash + Bank approximation
+  const stockValue = products.reduce((s, p) => s + (Number(p.price) * (Number(p.stock) || 10)), 0);
+  const thisWeekSale = paidTotal;
+  const totalBalance = paidTotal + 150000;
   const uniqueCustomers = [...new Set(payments.map(p => p.customer))].filter(Boolean);
 
   return (
