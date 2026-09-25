@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useSearchParams } from 'react-router-dom';
-import { FiSearch, FiSliders, FiCheckCircle, FiInfo, FiTrash2, FiPlusCircle, FiEye, FiGrid, FiList, FiPlus, FiUser, FiCalendar, FiDollarSign, FiChevronDown, FiCheck, FiEdit, FiShoppingBag, FiClock, FiRefreshCw, FiVideo, FiShield, FiTool, FiCpu, FiPackage, FiAlertCircle, FiXCircle } from 'react-icons/fi';
+import { FiSearch, FiSliders, FiCheckCircle, FiInfo, FiTrash2, FiPlusCircle, FiEye, FiGrid, FiList, FiPlus, FiUser, FiCalendar, FiDollarSign, FiChevronDown, FiCheck, FiEdit, FiShoppingBag, FiClock, FiRefreshCw, FiVideo, FiShield, FiTool, FiCpu, FiPackage, FiAlertCircle, FiXCircle, FiMapPin } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { approveOrder, approveOrderCompletion, reworkOrder, setOrderStatus, addOrder, assignTechnicianToOrder, editOrder, adminApproveJob, adminReworkJob, fetchDashboardData, createOrderAPI, addPayment } from '../../redux/dashboardSlice';
 import { socket } from '../../socket';
@@ -39,6 +39,7 @@ export default function Orders() {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'All');
+  const [categoryFilter, setCategoryFilter] = useState(searchParams.get('category') || 'All');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState(null);
@@ -58,11 +59,15 @@ export default function Orders() {
     };
   }, []);
 
-  // Sync statusFilter whenever searchParams change
+  // Sync statusFilter and categoryFilter whenever searchParams change
   useEffect(() => {
     const param = searchParams.get('status');
     if (param) {
       setStatusFilter(param);
+    }
+    const catParam = searchParams.get('category');
+    if (catParam) {
+      setCategoryFilter(catParam);
     }
   }, [searchParams]);
 
@@ -101,6 +106,78 @@ export default function Orders() {
     dueDate: new Date().toISOString().split('T')[0],
     dueTime: '10:00'
   });
+
+  // Client Visit Modal State
+  const [addClientVisitModalOpen, setAddClientVisitModalOpen] = useState(false);
+  const [clientVisitForm, setClientVisitForm] = useState({
+    clientName: '',
+    phone: '',
+    email: '',
+    location: '',
+    visitDate: new Date().toISOString().split('T')[0],
+    visitTimeSlot: '10:00 AM - 01:00 PM',
+    visitPurpose: 'Site Survey & Quotation',
+    estimatedCameras: '4',
+    priority: 'MEDIUM',
+    assignedTechnician: 'Unassigned',
+    subTechnicians: [],
+    notes: '',
+    visitFee: '0'
+  });
+
+  const handleCreateClientVisit = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    
+    try {
+      const clientName = (clientVisitForm.clientName || '').trim() || 'Client Visit';
+      const clientPhone = (clientVisitForm.phone || '').trim() || 'N/A';
+      const location = (clientVisitForm.location || '').trim() || 'Site Visit';
+
+      const orderPayload = {
+        customerName: clientName,
+        customerEmail: clientVisitForm.email || '',
+        customerPhone: clientPhone,
+        shippingAddress: location,
+        serviceType: `Client Visit (${clientVisitForm.visitPurpose})`,
+        customerQuery: `[Client Visit] Purpose: ${clientVisitForm.visitPurpose} | Est. Cameras: ${clientVisitForm.estimatedCameras} | Slot: ${clientVisitForm.visitTimeSlot} | Notes: ${clientVisitForm.notes}`,
+        scheduledDate: clientVisitForm.visitDate,
+        scheduledTimeSlot: clientVisitForm.visitTimeSlot,
+        assignedTechnician: clientVisitForm.assignedTechnician,
+        assignedTechnicianName: clientVisitForm.assignedTechnician,
+        subTechnicians: clientVisitForm.subTechnicians || [],
+        totalAmount: parseFloat(clientVisitForm.visitFee) || 0,
+        items: [{
+          productId: 'SRV-VISIT-01',
+          title: `Client Visit - ${clientVisitForm.visitPurpose}`,
+          price: parseFloat(clientVisitForm.visitFee) || 0,
+          quantity: 1
+        }]
+      };
+
+      await dispatch(createOrderAPI(orderPayload)).unwrap();
+      toast.success('Client Visit scheduled successfully!');
+      setAddClientVisitModalOpen(false);
+      setClientVisitForm({
+        clientName: '',
+        phone: '',
+        email: '',
+        location: '',
+        visitDate: new Date().toISOString().split('T')[0],
+        visitTimeSlot: '10:00 AM - 01:00 PM',
+        visitPurpose: 'Site Survey & Quotation',
+        estimatedCameras: '4',
+        priority: 'MEDIUM',
+        assignedTechnician: 'Unassigned',
+        subTechnicians: [],
+        notes: '',
+        visitFee: '0'
+      });
+      dispatch(fetchDashboardData());
+    } catch (err) {
+      console.error('Failed to create client visit:', err);
+      toast.error('Failed to schedule client visit');
+    }
+  };
 
   // Job Approval & Financials Modal State
   const [approvalModalOpen, setApprovalModalOpen] = useState(false);
@@ -464,7 +541,19 @@ export default function Orders() {
     const matchesStatus = statusFilter === 'All' || displayStatus === statusFilter;
     const matchesDate = isDateInRange(order.createdAt || order.date, selectedDateRange);
 
-    return matchesSearch && matchesStatus && matchesDate;
+    const orderIdUpper = String(order.id || '').toUpperCase();
+    const orderTypeLower = String(order.type || '').toLowerCase();
+    
+    let matchesCategory = true;
+    if (categoryFilter === 'Orders') {
+      matchesCategory = orderIdUpper.includes('SK-ORD') || (!orderIdUpper.includes('SK-VST') && !orderIdUpper.includes('SK-SRV') && !orderTypeLower.includes('visit') && !orderTypeLower.includes('service request'));
+    } else if (categoryFilter === 'ClientVisits') {
+      matchesCategory = orderIdUpper.includes('SK-VST') || orderTypeLower.includes('visit');
+    } else if (categoryFilter === 'ServiceRequests') {
+      matchesCategory = orderIdUpper.includes('SK-SRV') || orderTypeLower.includes('service request') || orderTypeLower.includes('repair');
+    }
+
+    return matchesSearch && matchesStatus && matchesDate && matchesCategory;
   });
 
   const getStatusBadge = (status) => {
@@ -568,7 +657,7 @@ export default function Orders() {
       assignedTechnician: orderForm.assignedTechnician || 'Unassigned',
       subTechnicians: orderForm.subTechnicians || [],
       amount: parseFloat(orderForm.amount) || 0,
-      location: orderForm.location || 'Chennai Area'
+      location: orderForm.location || ord.shippingAddress || ord.address || 'Site Location'
     };
     
     // Optimistically update UI
@@ -682,6 +771,65 @@ export default function Orders() {
 
   return (
     <div className="space-y-6">
+      
+      {/* 🏷️ Category Filter Tabs (All / Product Orders / Client Visits / Service Requests) */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+        <button
+          onClick={() => setCategoryFilter('All')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            categoryFilter === 'All'
+              ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
+              : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+          }`}
+        >
+          <span>🌐 All Items ({orders.length})</span>
+        </button>
+
+        <button
+          onClick={() => setCategoryFilter('Orders')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            categoryFilter === 'Orders'
+              ? 'bg-emerald-600 text-white shadow-xs'
+              : 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/50 hover:bg-emerald-100'
+          }`}
+        >
+          <FiShoppingBag size={14} />
+          <span>Product Orders (#SK-ORD)</span>
+          <span className="text-[10px] bg-emerald-200/60 dark:bg-emerald-900 px-1.5 py-0.5 rounded-full font-mono">
+            {orders.filter(o => String(o.id).includes('SK-ORD') || (!String(o.id).includes('SK-VST') && !String(o.id).includes('SK-SRV') && !String(o.type).toLowerCase().includes('visit'))).length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setCategoryFilter('ClientVisits')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            categoryFilter === 'ClientVisits'
+              ? 'bg-blue-600 text-white shadow-xs'
+              : 'bg-blue-50 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/80 dark:border-blue-800/50 hover:bg-blue-100'
+          }`}
+        >
+          <FiMapPin size={14} />
+          <span>Client Visits (#SK-VST)</span>
+          <span className="text-[10px] bg-blue-200/60 dark:bg-blue-900 px-1.5 py-0.5 rounded-full font-mono">
+            {orders.filter(o => String(o.id).includes('SK-VST') || String(o.type).toLowerCase().includes('visit')).length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setCategoryFilter('ServiceRequests')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            categoryFilter === 'ServiceRequests'
+              ? 'bg-purple-600 text-white shadow-xs'
+              : 'bg-purple-50 text-purple-800 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200/80 dark:border-purple-800/50 hover:bg-purple-100'
+          }`}
+        >
+          <FiTool size={14} />
+          <span>Service Requests (#SK-SRV)</span>
+          <span className="text-[10px] bg-purple-200/60 dark:bg-purple-900 px-1.5 py-0.5 rounded-full font-mono">
+            {orders.filter(o => String(o.id).includes('SK-SRV') || String(o.type).toLowerCase().includes('service request') || String(o.type).toLowerCase().includes('repair')).length}
+          </span>
+        </button>
+      </div>
       
       {/* 📊 Orders KPI Summary Cards Row (5 Cards: Total, Pending, In Progress, Completed, Revenue) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
@@ -835,6 +983,12 @@ export default function Orders() {
             </div>
 
             <button 
+              onClick={() => setAddClientVisitModalOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors cursor-pointer"
+            >
+              <FiMapPin /> Client Visit
+            </button>
+            <button 
               onClick={() => setAddTaskModalOpen(true)}
               className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors cursor-pointer"
             >
@@ -938,7 +1092,7 @@ export default function Orders() {
                                   type: ord.type,
                                   assignedTechnician: ord.assignedTechnician,
                                   amount: ord.amount,
-                                  location: ord.location || 'Chennai Area',
+                                  location: ord.location || ord.shippingAddress || ord.address || 'Site Location',
                                   status: ord.status
                                 });
                                 setEditModalOpen(true);
@@ -1183,7 +1337,7 @@ export default function Orders() {
                                         subTechnicians: Array.isArray(ord.subTechnicians) ? [...ord.subTechnicians] : (ord.subTechnicians ? [ord.subTechnicians] : []),
                                         items: ord.items || ord.taskDescription || '',
                                         amount: ord.amount,
-                                        location: ord.location || 'Chennai Area',
+                                        location: ord.location || ord.shippingAddress || ord.address || 'Site Location',
                                         status: ord.status
                                       });
                                       setEditModalOpen(true);
@@ -1256,7 +1410,7 @@ export default function Orders() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-slate-500 dark:text-slate-400">Location</span>
-                      <span className="font-semibold text-slate-850 dark:text-slate-200 truncate max-w-[100px]">{ord.location || 'Chennai Area'}</span>
+                      <span className="font-semibold text-slate-850 dark:text-slate-200 truncate max-w-[100px]">{ord.location || ord.shippingAddress || ord.address || 'Site Location'}</span>
                     </div>
                     <div className="flex items-center justify-between border-t border-slate-55 dark:border-slate-800/60 pt-2 mt-2">
                       <span className="text-slate-500 dark:text-slate-400 font-semibold">Total Price</span>
@@ -1282,7 +1436,7 @@ export default function Orders() {
                         type: ord.type,
                         assignedTechnician: ord.assignedTechnician,
                         amount: ord.amount,
-                        location: ord.location || 'Chennai Area',
+                        location: ord.location || ord.shippingAddress || ord.address || 'Site Location',
                         status: ord.status
                       });
                       setEditModalOpen(true);
@@ -1450,7 +1604,7 @@ export default function Orders() {
                     ...orderForm,
                     customer: val,
                     phone: match.phone ? match.phone.replace(/\D/g, '').slice(-10) : '',
-                    location: match.location || 'Chennai Area'
+                    location: match.location || ord.shippingAddress || ord.address || 'Site Location'
                   });
                 } else {
                   setOrderForm({ ...orderForm, customer: val });
@@ -1642,7 +1796,7 @@ export default function Orders() {
               </div>
               <div>
                 <span className="block text-slate-400 font-semibold mb-0.5">Location</span>
-                <span className="font-semibold text-slate-850 dark:text-slate-205">{selectedOrder.location || 'Chennai Area'}</span>
+                <span className="font-semibold text-slate-850 dark:text-slate-205">{selectedOrder.location || ord.shippingAddress || ord.address || 'Site Location'}</span>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4 border-b border-slate-105 dark:border-slate-800 pb-3">
@@ -2470,6 +2624,179 @@ export default function Orders() {
             </div>
           </form>
         )}
+      </Modal>
+
+      {/* Client Visit Modal */}
+      <Modal isOpen={addClientVisitModalOpen} onClose={() => setAddClientVisitModalOpen(false)} title="📍 Schedule Client Visit / Site Inspection">
+        <form onSubmit={handleCreateClientVisit} className="space-y-4 text-left">
+          {/* Customer / Client Details */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                Client Name
+              </label>
+              <input 
+                type="text" 
+                placeholder="Client / Customer Name"
+                value={clientVisitForm.clientName}
+                onChange={(e) => setClientVisitForm({ ...clientVisitForm, clientName: e.target.value })}
+                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-100"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                Phone Number
+              </label>
+              <input 
+                type="tel" 
+                maxLength={10}
+                placeholder="10-digit mobile number"
+                value={clientVisitForm.phone}
+                onChange={(e) => {
+                  const cleaned = e.target.value.replace(/\D/g, '').slice(0, 10);
+                  setClientVisitForm({ ...clientVisitForm, phone: cleaned });
+                }}
+                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-100"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+              Site Address / Location
+            </label>
+            <input 
+              type="text" 
+              placeholder="Full site address or landmark"
+              value={clientVisitForm.location}
+              onChange={(e) => setClientVisitForm({ ...clientVisitForm, location: e.target.value })}
+              className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-100"
+            />
+          </div>
+
+          {/* Visit Purpose & Date/Time */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                Purpose of Visit
+              </label>
+              <select
+                value={clientVisitForm.visitPurpose}
+                onChange={(e) => setClientVisitForm({ ...clientVisitForm, visitPurpose: e.target.value })}
+                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800 rounded-xl focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-100"
+              >
+                <option value="Site Survey & Quotation">Site Survey & Quotation</option>
+                <option value="New CCTV Installation Check">New CCTV Installation Check</option>
+                <option value="Maintenance & AMC Inspection">Maintenance & AMC Inspection</option>
+                <option value="Troubleshooting & Repair">Troubleshooting & Repair</option>
+                <option value="Product Demo / Consultation">Product Demo / Consultation</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                Scheduled Visit Date
+              </label>
+              <input 
+                type="date" 
+                value={clientVisitForm.visitDate}
+                onChange={(e) => setClientVisitForm({ ...clientVisitForm, visitDate: e.target.value })}
+                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-100"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                Time Slot
+              </label>
+              <select
+                value={clientVisitForm.visitTimeSlot}
+                onChange={(e) => setClientVisitForm({ ...clientVisitForm, visitTimeSlot: e.target.value })}
+                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800 rounded-xl focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-100"
+              >
+                <option value="09:00 AM - 12:00 PM">09:00 AM - 12:00 PM</option>
+                <option value="10:00 AM - 01:00 PM">10:00 AM - 01:00 PM</option>
+                <option value="02:00 PM - 05:00 PM">02:00 PM - 05:00 PM</option>
+                <option value="05:00 PM - 08:00 PM">05:00 PM - 08:00 PM</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                Estimated Cameras (Optional)
+              </label>
+              <input 
+                type="text" 
+                placeholder="e.g. 4 Cameras, 8 Cameras"
+                value={clientVisitForm.estimatedCameras}
+                onChange={(e) => setClientVisitForm({ ...clientVisitForm, estimatedCameras: e.target.value })}
+                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-100"
+              />
+            </div>
+          </div>
+
+          {/* Staff Allocation & Visit Fee */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                Assigned Staff / Technician
+              </label>
+              <select 
+                value={clientVisitForm.assignedTechnician}
+                onChange={(e) => setClientVisitForm({ ...clientVisitForm, assignedTechnician: e.target.value })}
+                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800 rounded-xl focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-100"
+              >
+                <option value="Unassigned">Unassigned</option>
+                {technicians.map(t => (
+                  <option key={`visit-tech-${t.id}`} value={t.name}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                Visit Charge / Fee (₹)
+              </label>
+              <input 
+                type="number" 
+                min="0"
+                placeholder="0 for Free Visit"
+                value={clientVisitForm.visitFee}
+                onChange={(e) => setClientVisitForm({ ...clientVisitForm, visitFee: e.target.value })}
+                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-100"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+              Visit Notes & Requirements
+            </label>
+            <textarea 
+              rows={3}
+              placeholder="Enter any client requirements, specific questions, or site instructions..."
+              value={clientVisitForm.notes}
+              onChange={(e) => setClientVisitForm({ ...clientVisitForm, notes: e.target.value })}
+              className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 bg-transparent dark:bg-slate-800/50 rounded-xl focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-100 resize-none"
+            />
+          </div>
+
+          <div className="pt-2 flex justify-end gap-2.5 border-t border-slate-100 dark:border-slate-800">
+            <button 
+              type="button" 
+              onClick={() => setAddClientVisitModalOpen(false)}
+              className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-500 text-xs font-semibold rounded-xl cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button 
+              type="button" 
+              onClick={handleCreateClientVisit}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer shadow-sm flex items-center gap-1.5"
+            >
+              <FiMapPin /> Schedule Client Visit
+            </button>
+          </div>
+        </form>
       </Modal>
 
       {/* Add New Custom Order Type Modal */}

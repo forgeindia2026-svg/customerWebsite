@@ -47,6 +47,10 @@ export interface IJob extends Document {
   };
   customerQuery?: string;
   siteImages?: string[];
+  hasVoiceNote?: boolean;
+  voiceNoteUrl?: string;
+  voiceNoteDuration?: string;
+  voiceNoteBase64?: string;
   scopeOfWork?: string[];
   equipmentList?: Array<{ name: string; serialNumber?: string; status?: string }>;
   notes?: string[];
@@ -173,6 +177,10 @@ const JobSchema: Schema = new Schema(
     },
     customerQuery: { type: String, default: '' },
     siteImages: [{ type: String }],
+    hasVoiceNote: { type: Boolean, default: false },
+    voiceNoteUrl: { type: String, default: '' },
+    voiceNoteDuration: { type: String, default: '' },
+    voiceNoteBase64: { type: String, default: '' },
     scopeOfWork: [{ type: String }],
     equipmentList: [
       {

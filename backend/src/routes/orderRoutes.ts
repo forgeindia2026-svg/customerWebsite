@@ -1,3 +1,4 @@
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { Router, Request, Response } from 'express';
 import Order from '../models/Order';
 import Job from '../models/Job';
@@ -56,7 +57,15 @@ function extractCleanCategory(rawCategory: string, rawTitle?: string): string {
 // POST create order (for Customer Website)
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const orderNumber = `SK-ORD-${Math.floor(10000 + Math.random() * 90000)}`;
+    let prefix = 'SK-ORD';
+    const sType = String(req.body.serviceType || '').toLowerCase();
+    const qText = String(req.body.customerQuery || '').toLowerCase();
+    if (sType.includes('visit') || qText.includes('client visit')) {
+      prefix = 'SK-VST';
+    } else if (sType.includes('service') || sType.includes('repair') || qText.includes('service request')) {
+      prefix = 'SK-SRV';
+    }
+    const orderNumber = `${prefix}-${Math.floor(10000 + Math.random() * 90000)}`;
     const customerName = (req.body.customerName && req.body.customerName.trim()) ? req.body.customerName.trim() : 'Customer Client';
     const customerPhone = (req.body.customerPhone && req.body.customerPhone.trim()) ? req.body.customerPhone.trim() : '0000000000';
     const shippingAddress = (req.body.shippingAddress && req.body.shippingAddress.trim()) ? req.body.shippingAddress.trim() : 'Site Location';
@@ -67,6 +76,48 @@ router.post('/', async (req: Request, res: Response) => {
 
     const subTechs = Array.isArray(req.body.subTechnicians) ? req.body.subTechnicians : [];
 
+    let finalVoiceUrl = req.body.voiceNoteUrl || req.body.voiceNoteBase64 || '';
+    if (req.body.voiceNoteBase64 && typeof req.body.voiceNoteBase64 === 'string' && req.body.voiceNoteBase64.startsWith('data:audio') && req.body.voiceNoteBase64.length > 300) {
+      try {
+        const parts = req.body.voiceNoteBase64.split(',');
+        if (parts.length === 2) {
+          const audioBuffer = Buffer.from(parts[1], 'base64');
+          if (audioBuffer.length > 300) {
+            const mimeMatch = req.body.voiceNoteBase64.match(/data:(audio\/[^;]+);/);
+            const mimeType = mimeMatch ? mimeMatch[1] : 'audio/webm';
+            let ext = 'webm';
+            if (mimeType.includes('mp4') || mimeType.includes('m4a') || mimeType.includes('aac')) ext = 'm4a';
+            else if (mimeType.includes('ogg')) ext = 'ogg';
+            else if (mimeType.includes('wav')) ext = 'wav';
+            else if (mimeType.includes('mp3') || mimeType.includes('mpeg')) ext = 'mp3';
+
+            const s3Key = `voice-notes/${orderNumber}-${Date.now()}.${ext}`;
+            const s3 = new S3Client({
+              region: process.env.AWS_REGION || 'ap-south-1',
+              credentials: {
+                accessKeyId: process.env.AWS_ACCESS_KEY_ID as string,
+                secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY as string,
+              },
+            });
+            
+            await s3.send(new PutObjectCommand({
+              Bucket: process.env.AWS_BUCKET_NAME || 'sk-cctv-website',
+              Key: s3Key,
+              Body: audioBuffer,
+              ContentType: mimeType,
+              ContentLength: audioBuffer.length
+            }));
+
+            finalVoiceUrl = `https://${process.env.AWS_BUCKET_NAME || 'sk-cctv-website'}.s3.${process.env.AWS_REGION || 'ap-south-1'}.amazonaws.com/${s3Key}`;
+            console.log('✅ Uploaded REAL Customer Voice Note to AWS S3 Bucket: Size:', audioBuffer.length, 'bytes | MIME:', mimeType, '| URL:', finalVoiceUrl);
+          }
+        }
+      } catch (s3Err: any) {
+        console.error('❌ AWS S3 Voice Upload Error:', s3Err.message);
+        finalVoiceUrl = req.body.voiceNoteBase64 || req.body.voiceNoteUrl || '';
+      }
+    }
+
     const newOrder = new Order({
       ...req.body,
       orderNumber,
@@ -74,23 +125,28 @@ router.post('/', async (req: Request, res: Response) => {
       customerEmail,
       customerPhone,
       shippingAddress,
+      customerQuery: req.body.customerQuery || req.body.problemDescription || '',
+      scheduledDate: req.body.scheduledDate || new Date().toISOString().split('T')[0],
+      scheduledTimeSlot: req.body.scheduledTimeSlot || '02:00 PM',
+      hasVoiceNote: Boolean(finalVoiceUrl && finalVoiceUrl.length > 50),
+      voiceNoteDuration: req.body.voiceNoteDuration || '00:18',
+      voiceNoteUrl: finalVoiceUrl,
+      voiceNoteBase64: finalVoiceUrl,
+      siteImages: req.body.siteImages || req.body.images || [],
       totalAmount,
       subTechnicians: subTechs,
       orderStatus: 'PROCESSING'
     });
 
     const savedOrder = await newOrder.save();
-    
+
     // Always automate the assignment for all orders (Option A requested by user)
     if (true) {
-      // 1. Fetch all active technicians
       const allTechs = await User.find({ role: 'TECHNICIAN', isActive: true });
-      
-      // 2. Find all currently active unfinished jobs to avoid double-booking
       const activeJobs = await Job.find({
         status: { $in: ['IN_PROGRESS', 'ASSIGNED', 'ACCEPTED', 'ASSIGNMENT_PENDING_ACCEPTANCE', 'WAITING_ADMIN_APPROVAL'] }
       } as any);
-      
+
       const busyTechIds = new Set<string>();
       const busyTechNames = new Set<string>();
       activeJobs.forEach((j: any) => {
@@ -100,7 +156,6 @@ router.post('/', async (req: Request, res: Response) => {
         });
       });
 
-      // Truly available technicians with ZERO active jobs
       const freeTechs = allTechs.filter((t: any) => 
         !busyTechIds.has(t._id.toString()) && 
         !busyTechNames.has(t.name.toLowerCase().trim())
@@ -114,7 +169,7 @@ router.post('/', async (req: Request, res: Response) => {
           t.name.toLowerCase().trim() === reqLower || 
           t._id.toString() === requestedTech
         ) || null;
-        
+
         if (!assignedTech) {
           const mongoose = require('mongoose');
           assignedTech = {
@@ -127,7 +182,6 @@ router.post('/', async (req: Request, res: Response) => {
         }
       }
 
-      // Only auto-assign from freeTechs if admin did NOT specify a technician
       if (!assignedTech && (!requestedTech || requestedTech.toLowerCase() === 'unassigned')) {
         assignedTech = freeTechs.length > 0 ? freeTechs[0] : null;
       }
@@ -138,7 +192,6 @@ router.post('/', async (req: Request, res: Response) => {
         newOrder.assignedTechnicianId = assignedTech._id.toString();
         await newOrder.save();
 
-        // Mark tech as unavailable if real User model
         if (typeof assignedTech.save === 'function') {
           assignedTech.isAvailable = false;
           assignedTech.currentJobId = orderNumber;
@@ -149,14 +202,14 @@ router.post('/', async (req: Request, res: Response) => {
         const cleanJobTitle = extractCleanJobTitle(rawItemTitles);
         const cleanJobCat = extractCleanCategory(req.body.category || rawItemTitles, rawItemTitles);
 
-        // 2. Create the Job mapped to this order, assigned to the tech
-        const newJob = await Job.create({
+        await Job.create({
           jobCode: orderNumber,
           title: cleanJobTitle,
           category: cleanJobCat,
-          status: 'ASSIGNMENT_PENDING_ACCEPTANCE', // Admin sees assigned, Customer sees pending
+          status: 'ASSIGNMENT_PENDING_ACCEPTANCE',
           priority: 'MEDIUM',
-          scheduledDate: new Date().toISOString().split('T')[0],
+          scheduledDate: req.body.scheduledDate || new Date().toISOString().split('T')[0],
+          scheduledTimeSlot: req.body.scheduledTimeSlot || '02:00 PM',
           startDate: new Date().toISOString().split('T')[0],
           estimatedDays: 1,
           requiredTechniciansCount: 1,
@@ -171,263 +224,26 @@ router.post('/', async (req: Request, res: Response) => {
           },
           customerQuery: req.body.customerQuery || '',
           siteImages: req.body.siteImages || [],
-          fieldNotes: req.body.customerQuery ? `Customer Query: ${req.body.customerQuery}` : '',
-          assignedTechnicians: [{
-            id: assignedTech._id.toString(),
-            name: assignedTech.name,
-            phone: assignedTech.phone || ''
-          }]
+          hasVoiceNote: Boolean(finalVoiceUrl && finalVoiceUrl.length > 50),
+          voiceNoteDuration: req.body.voiceNoteDuration || '00:18',
+          voiceNoteUrl: finalVoiceUrl,
+          voiceNoteBase64: finalVoiceUrl,
+          assignedTechnicians: [
+            {
+              id: assignedTech._id.toString(),
+              name: assignedTech.name,
+              phone: assignedTech.phone || ''
+            }
+          ],
+          subTechnicians: subTechs
         });
-
-        // 3. Notify Admin via Dashboard model
-        let dashboardData = await Dashboard.findOne();
-        if (!dashboardData) {
-          dashboardData = new Dashboard();
-        }
-        dashboardData.notifications.push({
-          id: `notif-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-          title: 'Automated Job Assignment',
-          message: `Order ${orderNumber} has been automatically assigned to ${assignedTech.name}.`,
-          timestamp: new Date().toISOString(),
-          read: false,
-          type: 'ASSIGNMENT',
-          jobId: orderNumber
-        });
-        await dashboardData.save();
-      } else {
-        const rawItemTitles = req.body.items?.map((item: any) => item.title).join(', ') || 'CCTV Installation';
-        const cleanJobTitle = extractCleanJobTitle(rawItemTitles);
-        const cleanJobCat = extractCleanCategory(req.body.category || rawItemTitles, rawItemTitles);
-
-        // No tech available -> push to waiting queue
-        const newJob = await Job.create({
-          jobCode: orderNumber,
-          title: cleanJobTitle,
-          category: cleanJobCat,
-          status: 'WAITING_FOR_TECH',
-          priority: 'MEDIUM',
-          scheduledDate: new Date().toISOString().split('T')[0],
-          estimatedDays: 1,
-          requiredTechniciansCount: 1,
-          orderCategory: 'Delivery & Installation',
-          customer: {
-            name: customerName,
-            phone: customerPhone,
-            email: customerEmail,
-            address: shippingAddress,
-            city: req.body.city || req.body.customerCity || req.body.state || 'Local',
-            postalCode: req.body.postalCode || req.body.zipcode || req.body.customerPostalCode || '600001'
-          },
-          customerQuery: req.body.customerQuery || '',
-          siteImages: req.body.siteImages || [],
-          fieldNotes: req.body.customerQuery ? `Customer Query: ${req.body.customerQuery}` : '',
-          assignedTechnicians: []
-        });
-
-        // Notify Admin that it's queued
-        let dashboardData = await Dashboard.findOne();
-        if (!dashboardData) {
-          dashboardData = new Dashboard();
-        }
-        dashboardData.notifications.push({
-          id: `notif-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-          title: 'Job Added to Waiting Queue',
-          message: `Order ${orderNumber} is waiting for an available technician.`,
-          timestamp: new Date().toISOString(),
-          read: false,
-          type: 'ASSIGNMENT',
-          jobId: orderNumber
-        });
-        await dashboardData.save();
       }
-    }
-
-    // Emit Socket.io notifications
-    emitToRole('admin', 'order:created', {
-      orderId: savedOrder._id,
-      orderNumber: savedOrder.orderNumber,
-      totalAmount: savedOrder.totalAmount,
-      customerName: savedOrder.customerName,
-    });
-    if (savedOrder.customerEmail) {
-      emitToUser(savedOrder.customerEmail.toLowerCase(), 'order:status_updated', {
-        orderId: savedOrder._id,
-        orderCode: savedOrder.orderNumber,
-        status: savedOrder.orderStatus,
-        paymentStatus: savedOrder.paymentStatus,
-      });
     }
 
     clearDashboardCache();
-
-    res.status(201).json({ success: true, data: savedOrder });
+    res.json({ success: true, order: savedOrder, data: savedOrder });
   } catch (error: any) {
-    console.error('Error creating order:', error);
-    res.status(400).json({ success: false, message: error.message });
-  }
-});
-
-// PUT update order status / technician assignment / details
-router.put('/:id', async (req: Request, res: Response): Promise<any> => {
-  try {
-    const rawId = Array.isArray(req.params.id) ? req.params.id[0] : (req.params.id as string);
-    const cleanId = rawId.replace(/^#/, '').trim();
-    const isMongoId = /^[0-9a-fA-F]{24}$/.test(cleanId);
-    const query = isMongoId 
-      ? { $or: [{ _id: cleanId }, { orderNumber: cleanId }, { orderNumber: rawId }, { orderNumber: `#${cleanId}` }] } 
-      : { $or: [{ orderNumber: cleanId }, { orderNumber: rawId }, { orderNumber: `#${cleanId}` }, { orderNumber: new RegExp(cleanId + '$', 'i') }] };
-
-    const targetStatusStr = String(req.body.orderStatus || req.body.status || '').toUpperCase();
-    const isApprovedStatus = targetStatusStr === 'DELIVERED' || targetStatusStr === 'APPROVED' || targetStatusStr === 'COMPLETED';
-    const isCancelledStatus = targetStatusStr === 'CANCELLED' || targetStatusStr === 'CANCELED';
-
-    const updateFields: any = { ...req.body };
-    const techName = req.body.assignedTechnician || req.body.assignedTechnicianName;
-    if (techName) {
-      updateFields.assignedTechnician = techName;
-      updateFields.assignedTechnicianName = techName;
-    }
-
-    if (isCancelledStatus) {
-      updateFields.orderStatus = 'CANCELLED';
-      updateFields.status = 'Cancelled';
-    } else if (isApprovedStatus) {
-      updateFields.orderStatus = 'DELIVERED';
-      updateFields.status = 'Approved';
-    }
-
-    const updatedOrder = await Order.findOneAndUpdate(query, { $set: updateFields }, {
-      new: true,
-    });
-    if (!updatedOrder) {
-      return res.status(404).json({ success: false, message: 'Order not found' });
-    }
-
-    // Sync Dashboard embedded orders if present
-    try {
-      let dashboardData = await Dashboard.findOne();
-      if (dashboardData && Array.isArray(dashboardData.orders)) {
-        const orderInDash = dashboardData.orders.find((o: any) => o.id === updatedOrder.orderNumber || o.orderNumber === updatedOrder.orderNumber || o.id === cleanId || o.id === rawId);
-        if (orderInDash) {
-          if (isCancelledStatus) {
-            orderInDash.status = 'Cancelled';
-          } else if (isApprovedStatus) {
-            orderInDash.status = 'Approved';
-          }
-          await dashboardData.save();
-        }
-      }
-    } catch (dashErr) {
-      console.warn('Could not sync dashboardData orders:', dashErr);
-    }
-
-    if (isCancelledStatus) {
-      await Job.updateMany(
-        {
-          $or: [
-            { jobCode: updatedOrder.orderNumber },
-            { jobCode: `#${updatedOrder.orderNumber}` },
-            { jobCode: cleanId },
-            { jobCode: rawId }
-          ]
-        },
-        { $set: { status: 'CANCELLED', updatedAt: new Date() } }
-      );
-    } else if (techName && techName !== 'Unassigned') {
-      const techUser = await User.findOne({ name: new RegExp(`^${techName}$`, 'i'), role: 'TECHNICIAN' });
-      const techId = techUser ? techUser._id.toString() : (req.body.assignedTechnicianId || 'temp-id');
-
-      const subTechNames: string[] = Array.isArray(req.body.subTechnicians) 
-        ? req.body.subTechnicians 
-        : (updatedOrder.subTechnicians || []);
-
-      const assignedTechList = [
-        { id: techId, name: techName, phone: techUser?.phone || '' },
-        ...subTechNames.map((subName: string, i: number) => ({ id: `sub-${i}-${Date.now()}`, name: subName }))
-      ];
-
-      const existingJob = await Job.findOne({
-        $or: [
-          { jobCode: updatedOrder.orderNumber },
-          { jobCode: `#${updatedOrder.orderNumber}` },
-          { jobCode: cleanId },
-          { jobCode: rawId }
-        ]
-      });
-      if (existingJob) {
-        existingJob.assignedTechnicians = assignedTechList;
-        existingJob.subTechnicians = subTechNames;
-        if (isApprovedStatus) {
-          existingJob.status = 'APPROVED';
-        } else if (existingJob.status === 'PENDING' || existingJob.status === 'WAITING_FOR_TECH') {
-          existingJob.status = 'ASSIGNED';
-        }
-        existingJob.updatedAt = new Date();
-        await existingJob.save();
-      } else {
-        await Job.create({
-          jobCode: updatedOrder.orderNumber,
-          title: updatedOrder.items?.[0]?.title || 'CCTV Installation',
-          category: 'CCTV Installation',
-          status: isApprovedStatus ? 'APPROVED' : 'ASSIGNED',
-          priority: 'MEDIUM',
-          scheduledDate: new Date().toISOString().split('T')[0],
-          customer: {
-            name: updatedOrder.customerName,
-            phone: updatedOrder.customerPhone || '0000000000',
-            email: updatedOrder.customerEmail || '',
-            address: updatedOrder.shippingAddress || '',
-          },
-          assignedTechnicians: assignedTechList,
-          subTechnicians: subTechNames
-        });
-      }
-    } else if (techName === 'Unassigned') {
-      await Job.updateOne(
-        {
-          $or: [
-            { jobCode: updatedOrder.orderNumber },
-            { jobCode: `#${updatedOrder.orderNumber}` },
-            { jobCode: cleanId },
-            { jobCode: rawId }
-          ]
-        },
-        { $set: { assignedTechnicians: [], status: isApprovedStatus ? 'APPROVED' : 'WAITING_FOR_TECH', updatedAt: new Date() } }
-      );
-    } else if (isApprovedStatus) {
-      await Job.updateMany(
-        {
-          $or: [
-            { jobCode: updatedOrder.orderNumber },
-            { jobCode: `#${updatedOrder.orderNumber}` },
-            { jobCode: cleanId },
-            { jobCode: rawId }
-          ]
-        },
-        { $set: { status: 'APPROVED', updatedAt: new Date() } }
-      );
-    }
-
-    if (updatedOrder.customerEmail) {
-      emitToUser(updatedOrder.customerEmail.toLowerCase(), 'order:status_updated', {
-        orderId: updatedOrder._id,
-        orderCode: updatedOrder.orderNumber,
-        status: updatedOrder.orderStatus,
-        paymentStatus: updatedOrder.paymentStatus,
-      });
-    }
-    emitToRole('admin', 'order:status_updated', {
-      orderId: updatedOrder._id,
-      orderNumber: updatedOrder.orderNumber,
-      status: updatedOrder.orderStatus,
-      assignedTechnician: updatedOrder.assignedTechnician,
-    });
-
-    clearDashboardCache();
-
-    res.json({ success: true, data: updatedOrder });
-  } catch (error: any) {
-    res.status(400).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 

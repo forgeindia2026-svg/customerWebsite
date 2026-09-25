@@ -16,6 +16,13 @@ export interface IOrder extends Document {
   shippingAddress: string;
   customerQuery?: string;
   siteImages?: string[];
+  scheduledDate?: string;
+  scheduledTimeSlot?: string;
+  serviceType?: string;
+  hasVoiceNote?: boolean;
+  voiceNoteUrl?: string;
+  voiceNoteDuration?: string;
+  voiceNoteBase64?: string;
   items: IOrderItem[];
   totalAmount: number;
   paymentStatus: 'PENDING' | 'PAID' | 'FAILED';
@@ -47,6 +54,13 @@ const OrderSchema: Schema = new Schema(
     shippingAddress: { type: String, default: '' },
     customerQuery: { type: String },
     siteImages: [{ type: String }],
+    scheduledDate: { type: String },
+    scheduledTimeSlot: { type: String },
+    serviceType: { type: String },
+    hasVoiceNote: { type: Boolean, default: false },
+    voiceNoteUrl: { type: String, default: '' },
+    voiceNoteDuration: { type: String, default: '' },
+    voiceNoteBase64: { type: String, default: '' },
     items: [
       {
         productId: { type: String, default: 'SRV-01' },

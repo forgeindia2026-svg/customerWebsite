@@ -626,7 +626,10 @@ export default function Reports() {
           window.__activeAudioInstance = null;
         };
         audio.onerror = () => {
-          speakVoiceReport(report);
+          console.error('Voice note audio playback error');
+          setIsPlayingAudio(false);
+          window.__activeAudioInstance = null;
+          alert('Voice recording could not be played.');
         };
         return;
       } catch (err) {
@@ -667,25 +670,8 @@ export default function Reports() {
 
       window.speechSynthesis.speak(utterance);
     } else {
-      // Acoustic Tone Generator
-      try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.frequency.setValueAtTime(520, ctx.currentTime);
-        gain.gain.setValueAtTime(0.15, ctx.currentTime);
-        osc.start();
-        setIsPlayingAudio(true);
-        setTimeout(() => {
-          osc.stop();
-          setIsPlayingAudio(false);
-        }, 3000);
-      } catch (e) {
-        setIsPlayingAudio(true);
-        setTimeout(() => setIsPlayingAudio(false), 3000);
-      }
+      setIsPlayingAudio(false);
+      alert('Voice recording could not be played.');
     }
   };
 
@@ -732,7 +718,11 @@ export default function Reports() {
 
       // Must have actual technician work notes, photos, or submitted dailyReports
       const hasDailyReports = order.dailyReports && order.dailyReports.length > 0;
-      const hasFieldNotes = Boolean(order.fieldNotes && order.fieldNotes.trim().length > 0);
+      const hasFieldNotes = Boolean(
+        order.fieldNotes && 
+        order.fieldNotes.trim().length > 0 && 
+        !order.fieldNotes.toLowerCase().includes('customer query:')
+      );
       const hasPhotos = (order.beforePhotos?.length || 0) + (order.afterPhotos?.length || 0) > 0;
       const isCompletedByTech = order.status?.toUpperCase() === 'COMPLETED' && order.assignedTechnicianName;
       
@@ -1042,7 +1032,7 @@ export default function Reports() {
       r.checkOutTime || '06:00 PM',
       `${r.totalHours || 8} hrs`,
       r.status || 'PRESENT',
-      `"${(r.location || 'Chennai Area').replace(/"/g, '""')}"`,
+      `"${(r.location || r.shippingAddress || r.address || 'Site Location').replace(/"/g, '""')}"`,
       `"${(r.notes || 'Full Day Pay').replace(/"/g, '""')}"`
     ]);
 
@@ -1598,7 +1588,7 @@ export default function Reports() {
         doc.text(`Status: ${isApproved ? 'VERIFIED' : 'COMPLETED'}`, 145, y + 7);
 
         doc.text(`Customer: ${rep.customer}`, 18, y + 14);
-        doc.text(`Location: ${rep.address || 'Chennai Area'}`, 80, y + 14);
+        doc.text(`Location: ${rep.address || rep.location || rep.shippingAddress || 'Site Location'}`, 80, y + 14);
 
         doc.setFontSize(8);
         doc.setTextColor(100, 116, 139);

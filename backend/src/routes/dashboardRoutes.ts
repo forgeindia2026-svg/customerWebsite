@@ -230,7 +230,7 @@ router.get('/', async (req: Request, res: Response) => {
       ...(liveOrders || [])
         .filter((o: any) => !jobCodesSet.has(o.orderNumber))
         .map((order: any) => ({
-          id: order.orderNumber,
+          id: (order.orderNumber || '').replace('SK-ORD-', 'SK-SRV-'),
           name: order.items?.map((item: any) => item.title).join(', ') || 'CCTV Installation',
           technician: 'Unassigned',
           customer: order.customerName,
@@ -627,7 +627,13 @@ router.get('/', async (req: Request, res: Response) => {
         date: order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : (existingReq?.date || 'Today'),
         location: order.shippingAddress || '',
         description: order.customerQuery ? `Customer Query: ${order.customerQuery}` : (existingReq?.description || `Service request booked for ${title}. Contact client at ${order.customerPhone}.`),
-        siteImages: order.siteImages || job?.siteImages || [],
+        siteImages: order.siteImages || order.images || job?.siteImages || job?.images || [],
+        scheduledDate: order.scheduledDate || job?.scheduledDate || '',
+        scheduledTimeSlot: order.scheduledTimeSlot || job?.scheduledTimeSlot || '',
+        hasVoiceNote: Boolean(order.hasVoiceNote === true || order.voiceNoteBase64 || (order.voiceNoteUrl && order.voiceNoteUrl.startsWith("data:audio"))),
+        voiceNoteBase64: order.voiceNoteBase64 || order.voiceNoteUrl || "",
+        voiceNoteUrl: order.voiceNoteUrl || order.voiceNoteBase64 || job?.voiceNoteUrl || '',
+        voiceNoteDuration: order.voiceNoteDuration || job?.voiceNoteDuration || '',
         orderNumber: order.orderNumber,
         createdAt: order.createdAt
       };
