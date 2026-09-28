@@ -660,9 +660,6 @@ export default function Orders() {
       location: orderForm.location || ord.shippingAddress || ord.address || 'Site Location'
     };
     
-    // Optimistically update UI
-    dispatch(addOrder(orderPayload));
-
     // Persist to Production Backend (AWS EC2 / MongoDB)
     dispatch(createOrderAPI({
       customerName: custName,
@@ -697,20 +694,6 @@ export default function Orders() {
 
   const handleCreateTask = (e) => {
     e.preventDefault();
-    const taskPayload = {
-      customer: taskForm.taskName,
-      email: 'internal@cctv.com',
-      phone: taskForm.phone || '-',
-      type: taskForm.description ? `Internal Task: ${taskForm.description}` : 'Internal Task',
-      assignedTechnician: taskForm.assignedTechnician,
-      subTechnicians: taskForm.subTechnicians,
-      amount: 0,
-      location: taskForm.address || 'On-Site',
-      date: `${taskForm.dueDate} ${taskForm.dueTime}`
-    };
-
-    // Optimistically update UI
-    dispatch(addOrder(taskPayload));
 
     // Persist to Production Backend (AWS EC2 / MongoDB)
     dispatch(createOrderAPI({

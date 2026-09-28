@@ -5,7 +5,8 @@ import {
   FileText, 
   Bell, 
   User,
-  History
+  History,
+  MessageSquare
 } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -20,6 +21,7 @@ import { NotificationsModule } from './components/Notifications/NotificationsMod
 import { AnnouncementsModule } from './components/Announcements/AnnouncementsModule';
 import { ProfileModule } from './components/Profile/ProfileModule';
 import { ScannerModule } from './components/Scanner/ScannerModule';
+import { MessagesModule } from './components/Messages/MessagesModule';
 import { WorkflowModal } from './components/Workflow/WorkflowModal';
 import { JobDetailDrawer } from './components/JobDetailDrawer';
 import { LoginScreen } from './components/Auth/LoginScreen';
@@ -561,6 +563,7 @@ export function App() {
                 {activeTab === 'reports' && 'Daily Reports'}
                 {activeTab === 'history' && 'Job History'}
                 {activeTab === 'query' && 'Helpdesk & Support'}
+                {activeTab === 'messages' && 'Team Messages'}
                 {activeTab === 'scanner' && 'QR Scanner'}
                 {activeTab === 'announcements' && 'Announcements'}
                 {activeTab === 'notifications' && 'Notifications'}
@@ -637,6 +640,12 @@ export function App() {
           {activeTab === 'query' && (
             <ModuleErrorBoundary moduleName="Queries">
               <QueryModule />
+            </ModuleErrorBoundary>
+          )}
+
+          {activeTab === 'messages' && (
+            <ModuleErrorBoundary moduleName="Messages">
+              <MessagesModule />
             </ModuleErrorBoundary>
           )}
 
@@ -732,6 +741,16 @@ export function App() {
         >
           <FileText className={`w-5 h-5 ${activeTab === 'reports' ? 'text-blue-600' : 'text-slate-400'}`} />
           <span className="text-[10px] mt-0.5">Reports</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('messages')}
+          className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+            activeTab === 'messages' ? 'text-blue-600 font-bold scale-105' : 'text-slate-400 font-medium'
+          }`}
+        >
+          <MessageSquare className={`w-5 h-5 ${activeTab === 'messages' ? 'text-blue-600' : 'text-slate-400'}`} />
+          <span className="text-[10px] mt-0.5">Chat</span>
         </button>
 
         <button

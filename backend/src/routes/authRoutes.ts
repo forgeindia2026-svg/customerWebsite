@@ -139,6 +139,18 @@ router.get('/technicians', async (req: Request, res: Response) => {
   }
 });
 
+// GET All Employees (TECHNICIAN + ADMIN + HR) — for messaging contacts list
+router.get('/employees', async (req: Request, res: Response) => {
+  try {
+    const employees = await User.find(
+      { role: { $in: ['TECHNICIAN', 'ADMIN', 'HR'] }, isActive: { $ne: false } }
+    ).select('-passwordHash').sort({ role: 1, name: 1 });
+    res.json({ success: true, count: employees.length, data: employees });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // GET Profile — fetch user profile by email
 router.get('/profile', async (req: Request, res: Response) => {
   try {

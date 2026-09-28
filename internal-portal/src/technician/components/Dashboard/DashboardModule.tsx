@@ -42,6 +42,8 @@ interface DashboardModuleProps {
     shiftTarget: number;
     firstTimeFix: number;
     safetyScore: number;
+    totalEarnings?: number;
+    todayEarnings?: number;
   } | null;
   isLoading?: boolean;
   onSelectJob: (job: Job) => void;
@@ -81,6 +83,9 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
   const hoursVal = summaryStats ? summaryStats.hoursLogged : totalHoursLogged;
   const fixRateVal = summaryStats ? summaryStats.firstTimeFix : (completedJobs.length > 0 ? 100.0 : (isLoading ? null : 0.0));
   const safetyVal = summaryStats ? summaryStats.safetyScore : (myAssignedJobs.length > 0 ? 100 : (isLoading ? null : 0));
+  
+  const totalEarningsVal = summaryStats?.totalEarnings ?? 0;
+  const todayEarningsVal = summaryStats?.todayEarnings ?? 0;
 
   const nextJob = activeJob || jobs[0];
 
@@ -158,8 +163,8 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
         </div>
       </div>
 
-      {/* 🚀 Vibrant 4-Card Hero Metric Grid (Matches Image 1 Exactly) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      {/* 🚀 Vibrant 6-Card Hero Metric Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
         {/* 1. TOTAL ASSIGNED (Purple Card) */}
         <div 
           onClick={() => onNavigateTab?.('assigned_jobs', 'ALL')}
@@ -273,6 +278,56 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
 
           <p className="text-xs font-medium text-white/85">
             Finished & signed off
+          </p>
+        </div>
+
+        {/* 5. TOTAL EARNINGS (Indigo Card) */}
+        <div 
+          className="bg-[#4F46E5] hover:bg-[#4338CA] text-white rounded-3xl p-5 sm:p-6 shadow-md shadow-indigo-500/20 hover:shadow-xl hover:shadow-indigo-500/30 hover:scale-[1.01] active:scale-[0.99] transition-all flex flex-col justify-between min-h-[145px] select-none group"
+          title="Total Lifetime Earnings"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] sm:text-xs font-black tracking-wider text-white/90 uppercase">
+              TOTAL EARNINGS
+            </span>
+            <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center text-white shrink-0 group-hover:scale-110 transition-transform">
+              <TrendingUp className="w-5 h-5" />
+            </div>
+          </div>
+
+          <div className="my-2 flex items-center gap-3">
+            <span className="text-3xl sm:text-4xl font-black text-white leading-none font-mono">
+              ₹{totalEarningsVal.toLocaleString('en-IN')}
+            </span>
+          </div>
+
+          <p className="text-xs font-medium text-white/85">
+            All-time wallet balance
+          </p>
+        </div>
+
+        {/* 6. TODAY'S EARNINGS (Pink Card) */}
+        <div 
+          className="bg-[#EC4899] hover:bg-[#DB2777] text-white rounded-3xl p-5 sm:p-6 shadow-md shadow-pink-500/20 hover:shadow-xl hover:shadow-pink-500/30 hover:scale-[1.01] active:scale-[0.99] transition-all flex flex-col justify-between min-h-[145px] select-none group"
+          title="Today's Earnings"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] sm:text-xs font-black tracking-wider text-white/90 uppercase">
+              TODAY'S EARNINGS
+            </span>
+            <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center text-white shrink-0 group-hover:scale-110 transition-transform">
+              <Zap className="w-5 h-5 fill-current" />
+            </div>
+          </div>
+
+          <div className="my-2 flex items-center gap-3">
+            <span className="text-3xl sm:text-4xl font-black text-white leading-none font-mono">
+              ₹{todayEarningsVal.toLocaleString('en-IN')}
+            </span>
+          </div>
+
+          <p className="text-xs font-medium text-white/85">
+            Earned today
           </p>
         </div>
       </div>

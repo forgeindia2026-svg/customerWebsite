@@ -140,7 +140,7 @@ router.get('/', async (req: Request, res: Response) => {
 
     console.log('Starting DB queries...');
     // ⚡ Ultra-Fast Parallel MongoDB Query Execution
-    let [dashboardDoc, liveOrders, liveProducts, liveTechnicians, liveCustomers, liveJobs, liveQueries] = await Promise.all([
+    let [dashboardDoc, rawLiveOrders, liveProducts, liveTechnicians, liveCustomers, liveJobs, liveQueries] = await Promise.all([
       Dashboard.findOne().lean().catch(() => null),
       Order.find().sort({ createdAt: -1 }).lean().catch(() => []),
       Product.find().lean().catch(() => []),
@@ -151,6 +151,39 @@ router.get('/', async (req: Request, res: Response) => {
       Query.find().sort({ updatedAt: -1, createdAt: -1 }).lean().catch(() => [])
     ]);
     console.log('Queries finished');
+
+    // Deduplicate liveOrders: prefer SK- prefix orders over duplicate ORD- prefix orders created by legacy optimistic UI sync
+    const cleanLiveOrders: any[] = [];
+    const seenOrderKeys = new Set<string>();
+    const sortedRawOrders = [...(rawLiveOrders || [])].sort((a: any, b: any) => {
+      const aIsSk = String(a.orderNumber || '').startsWith('SK-');
+      const bIsSk = String(b.orderNumber || '').startsWith('SK-');
+      if (aIsSk && !bIsSk) return -1;
+      if (!aIsSk && bIsSk) return 1;
+      return 0;
+    });
+
+    const duplicateOrdIdsToDelete: any[] = [];
+    for (const order of sortedRawOrders) {
+      const ordNum = String(order.orderNumber || '');
+      const isOrdPrefix = ordNum.startsWith('ORD-');
+      const custName = (order.customerName || '').toLowerCase().trim();
+      const dateStr = order.createdAt ? new Date(order.createdAt).toISOString().split('T')[0] : '';
+      const key = `${custName}_${order.totalAmount}_${dateStr}`;
+
+      if (isOrdPrefix && seenOrderKeys.has(key)) {
+        if (order._id) duplicateOrdIdsToDelete.push(order._id);
+        continue;
+      }
+      if (key) seenOrderKeys.add(key);
+      cleanLiveOrders.push(order);
+    }
+
+    if (duplicateOrdIdsToDelete.length > 0) {
+      Order.deleteMany({ _id: { $in: duplicateOrdIdsToDelete } }).exec().catch(() => {});
+    }
+
+    const liveOrders = cleanLiveOrders;
 
     let dashboardData: any = dashboardDoc;
 
@@ -685,17 +718,19 @@ router.put('/', async (req: Request, res: Response) => {
         const dbStatus = (o.status === 'Completed' || o.status === 'Approved' || o.status === 'DELIVERED') ? 'DELIVERED' : 'PROCESSING';
         const existingOrder = await Order.findOne({ orderNumber: o.id });
         if (!existingOrder) {
-          await Order.create({
-            orderNumber: o.id,
-            customerName: o.customer,
-            customerEmail: o.email || `${o.customer.toLowerCase().replace(/\s+/g, '')}@example.com`,
-            customerPhone: o.phone || '0000000000',
-            shippingAddress: o.location || '',
-            items: [{ productId: 'temp', title: o.type, price: o.amount, quantity: 1 }],
-            totalAmount: o.amount,
-            paymentStatus: 'PAID',
-            orderStatus: dbStatus
-          });
+          if (o.id && !String(o.id).startsWith('ORD-')) {
+            await Order.create({
+              orderNumber: o.id,
+              customerName: o.customer,
+              customerEmail: o.email || `${o.customer.toLowerCase().replace(/\s+/g, '')}@example.com`,
+              customerPhone: o.phone || '0000000000',
+              shippingAddress: o.location || '',
+              items: [{ productId: 'temp', title: o.type, price: o.amount, quantity: 1 }],
+              totalAmount: o.amount,
+              paymentStatus: 'PAID',
+              orderStatus: dbStatus
+            });
+          }
         } else {
           const techName = o.assignedTechnician || o.assignedTechnicianName;
           const updateFields: any = { orderStatus: dbStatus };

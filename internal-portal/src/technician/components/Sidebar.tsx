@@ -13,7 +13,8 @@ import {
   X,
   QrCode,
   Trophy,
-  Megaphone
+  Megaphone,
+  MessageSquare
 } from 'lucide-react';
 import type { TechnicianProfile } from '../types/job';
 import { SKLogoIcon } from './SKLogoIcon';
@@ -46,6 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'reports', label: 'Daily Reports', icon: FileText, color: 'text-emerald-600', iconBg: 'bg-emerald-50 border-emerald-200/70' },
     { id: 'history', label: 'Job History', icon: History, color: 'text-purple-600', iconBg: 'bg-purple-50 border-purple-200/70' },
     { id: 'query', label: 'Helpdesk & Queries', icon: HelpCircle, color: 'text-rose-600', iconBg: 'bg-rose-50 border-rose-200/70' },
+    { id: 'messages', label: 'Team Messages', icon: MessageSquare, color: 'text-blue-500', iconBg: 'bg-blue-50 border-blue-200/70' },
     { id: 'scanner', label: 'QR Scanner', icon: QrCode, color: 'text-teal-600', iconBg: 'bg-teal-50 border-teal-200/70' },
     { id: 'leaderboard', label: 'Leadership Board', icon: Trophy, color: 'text-amber-500', iconBg: 'bg-amber-50 border-amber-200/70', badge: 'TOP' },
     { id: 'announcements', label: 'Announcements', icon: Megaphone, color: 'text-blue-600', iconBg: 'bg-blue-50 border-blue-200/70' },

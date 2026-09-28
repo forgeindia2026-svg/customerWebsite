@@ -15,7 +15,7 @@ import {
   FiVideo, FiShield, FiCpu, FiPlus, FiBarChart2, FiTrendingUp
 } from 'react-icons/fi';
 import { 
-  addOrder, addTechnician, addProduct, approveProject, reworkProject, approveOrder, fetchDashboardData
+  addOrder, addTechnician, addProduct, approveProject, reworkProject, approveOrder, fetchDashboardData, createOrderAPI
 } from '../../redux/dashboardSlice';
 import Modal from '../../components/Modal';
 import HrAttendanceCard from '../../components/HrAttendanceCard';
@@ -340,14 +340,28 @@ export default function Dashboard() {
   // Form Submit Handlers
   const handleCreateOrder = (e) => {
     e.preventDefault();
-    dispatch(addOrder({
-      customer: orderForm.customer,
-      email: orderForm.email,
-      phone: orderForm.phone,
-      type: orderForm.type,
-      assignedTechnician: orderForm.assignedTechnician,
-      amount: parseFloat(orderForm.amount) || 0
+    const custName = (orderForm.customer && orderForm.customer.trim()) ? orderForm.customer.trim() : 'Customer Client';
+    const cleanEmail = (orderForm.email && orderForm.email.trim())
+      ? orderForm.email.trim().toLowerCase()
+      : `${custName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'client'}@sktech.com`;
+
+    dispatch(createOrderAPI({
+      customerName: custName,
+      customerEmail: cleanEmail,
+      customerPhone: orderForm.phone || '',
+      shippingAddress: 'Site Location',
+      totalAmount: parseFloat(orderForm.amount) || 0,
+      serviceType: orderForm.type || 'Cameras Installation',
+      items: [{
+        productId: 'SRV-01',
+        title: orderForm.type || 'Cameras Installation',
+        price: parseFloat(orderForm.amount) || 0,
+        quantity: 1,
+        image: ''
+      }],
+      assignedTechnician: orderForm.assignedTechnician !== 'Unassigned' ? orderForm.assignedTechnician : undefined
     }));
+
     setOrderForm({ customer: '', email: '', phone: '', type: 'Cameras Installation', assignedTechnician: 'Unassigned', amount: '' });
     setModalType(null);
   };

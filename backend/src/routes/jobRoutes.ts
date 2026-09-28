@@ -252,13 +252,14 @@ router.get('/dashboard-summary', async (req: Request, res: Response) => {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    const [totalAssigned, inProgress, pending, totalCompleted, completedToday, techReports] = await Promise.all([
+    const [totalAssigned, inProgress, pending, totalCompleted, completedToday, techReports, completedJobsList] = await Promise.all([
       Job.countDocuments(jobFilter),
       Job.countDocuments({ ...jobFilter, status: { $in: ['IN_PROGRESS', 'ACCEPTED', 'ASSIGNED'] } } as any),
       Job.countDocuments({ ...jobFilter, status: { $in: ['PENDING', 'PENDING APPROVAL'] } } as any),
       Job.countDocuments({ ...jobFilter, status: { $in: ['COMPLETED', 'DELIVERED', 'APPROVED'] } } as any),
       Job.countDocuments({ ...jobFilter, status: { $in: ['COMPLETED', 'DELIVERED', 'APPROVED'] }, updatedAt: { $gte: todayStart } } as any),
-      TechnicianReport.find(reportQuery)
+      TechnicianReport.find(reportQuery),
+      Job.find({ ...jobFilter, status: { $in: ['COMPLETED', 'DELIVERED', 'APPROVED'] } }).lean()
     ]);
 
     // Compute actual hours logged from real reports submitted by this technician
@@ -266,6 +267,17 @@ router.get('/dashboard-summary', async (req: Request, res: Response) => {
       if (r.activityType === 'Check-In' || (r.workDescription && r.workDescription.includes('Punched in'))) return acc;
       return acc + (Number(r.hoursWorked) || 0);
     }, 0);
+
+    let totalEarnings = 0;
+    let todayEarnings = 0;
+    completedJobsList.forEach((j: any) => {
+      const earning = Number(j.financials?.technicianEarning ?? j.technicianEarning ?? 0);
+      totalEarnings += earning;
+      const jobUpdatedAt = new Date(j.financials?.approvedAt || j.updatedAt || j.createdAt);
+      if (jobUpdatedAt >= todayStart) {
+        todayEarnings += earning;
+      }
+    });
 
     const executionTimeMs = Date.now() - startTime;
 
@@ -282,7 +294,9 @@ router.get('/dashboard-summary', async (req: Request, res: Response) => {
         hoursLogged: parseFloat(hoursLogged.toFixed(1)),
         shiftTarget: 8,
         firstTimeFix: totalCompleted > 0 ? 100.0 : 0.0,
-        safetyScore: totalAssigned > 0 ? 100 : 0
+        safetyScore: totalAssigned > 0 ? 100 : 0,
+        totalEarnings,
+        todayEarnings
       }
     });
   } catch (error: any) {
