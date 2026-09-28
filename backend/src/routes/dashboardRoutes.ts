@@ -263,7 +263,7 @@ router.get('/', async (req: Request, res: Response) => {
       ...(liveOrders || [])
         .filter((o: any) => !jobCodesSet.has(o.orderNumber))
         .map((order: any) => ({
-          id: (order.orderNumber || '').replace('SK-ORD-', 'SK-SRV-'),
+          id: order.orderNumber || '',
           name: order.items?.map((item: any) => item.title).join(', ') || 'CCTV Installation',
           technician: 'Unassigned',
           customer: order.customerName,
@@ -610,20 +610,28 @@ router.get('/', async (req: Request, res: Response) => {
       messages: q.messages || []
     }));
 
-    // Map live Service Requests from liveOrders (services / installations) & liveJobs + existing serviceRequests
+    // Map live Service Requests from liveOrders (services / repairs) & liveJobs + existing serviceRequests
     const existingServiceReqs = Array.isArray(dashboardData.serviceRequests) ? dashboardData.serviceRequests : [];
     const serviceOrderMap = new Map<string, any>();
 
     (liveOrders || []).forEach((order: any) => {
-      const isServiceType = order.serviceType === 'DELIVERY_INSTALLATION';
-      const hasServiceItem = (order.items || []).some((item: any) => 
-        item.productId?.toLowerCase().includes('service') ||
-        item.title?.toLowerCase().includes('installation') ||
-        item.title?.toLowerCase().includes('service') ||
-        item.title?.toLowerCase().includes('repair') ||
-        item.title?.toLowerCase().includes('amc')
-      );
-      if (isServiceType || hasServiceItem) {
+      const ordNum = String(order.orderNumber || '');
+      const sType = String(order.serviceType || '').toLowerCase();
+      const qText = String(order.customerQuery || '').toLowerCase();
+      const titleText = (order.items || []).map((i: any) => i.title || '').join(' ').toLowerCase();
+
+      // Only include orders that are explicitly service requests / repairs / AMC (not regular product orders SK-ORD- or client visits SK-VST-)
+      let isExplicitServiceOrder = ordNum.startsWith('SK-SRV-') || 
+        sType === 'service_request' || sType === 'repair' || sType === 'amc' ||
+        qText.includes('service request') || qText.includes('camera not working') || qText.includes('repair') ||
+        titleText.includes('repair') || titleText.includes('amc service');
+
+      // Filter out old installation orders that got SK-SRV- prefix by mistake
+      if ((titleText.includes('installation') || sType === 'delivery_installation') && !titleText.includes('repair')) {
+        isExplicitServiceOrder = false;
+      }
+
+      if (isExplicitServiceOrder && !ordNum.startsWith('SK-ORD-') && !ordNum.startsWith('SK-VST-')) {
         serviceOrderMap.set(order.orderNumber, order);
       }
     });
@@ -672,9 +680,38 @@ router.get('/', async (req: Request, res: Response) => {
       };
     });
 
-    // Merge baseline non-order service requests (such as REQ-8604)
+    // Merge baseline non-order service requests (such as REQ-8604), excluding any product orders (SK-ORD) or client visits (SK-VST)
     const liveIds = new Set(mappedLiveServiceRequests.map(s => s.id));
-    const nonOrderServiceReqs = existingServiceReqs.filter((r: any) => !liveIds.has(r.id) && !liveIds.has(r.orderNumber));
+    const orderNumbersSet = new Set((liveOrders || []).map((o: any) => o.orderNumber));
+
+    const nonOrderServiceReqs = existingServiceReqs.filter((r: any) => {
+      const rId = String(r.id || r.orderNumber || '');
+      if (liveIds.has(rId) || liveIds.has(r.orderNumber)) return false;
+      // Filter out product orders (SK-ORD-, ORD-) or client visits (SK-VST-) that were mistakenly stored in serviceRequests
+      if (rId.startsWith('SK-ORD-') || rId.startsWith('SK-VST-') || rId.startsWith('ORD-')) return false;
+      if (orderNumbersSet.has(rId) && (rId.startsWith('SK-ORD-') || rId.startsWith('SK-VST-') || rId.startsWith('ORD-'))) return false;
+
+      // Filter out converted product installation orders (e.g. SK-SRV-96313 converted from SK-ORD-96313)
+      const cleanNum = rId.replace(/^#/, '').replace(/^SK-SRV-/, '').replace(/^SK-ORD-/, '').replace(/^SK-VST-/, '').replace(/^ORD-/, '').trim();
+      if (cleanNum) {
+        const hasMatchingProductOrder = (liveOrders || []).some((o: any) => {
+          const oNum = String(o.orderNumber || '').replace(/^#/, '').replace(/^SK-ORD-/, '').replace(/^SK-SRV-/, '').replace(/^ORD-/, '').trim();
+          return oNum === cleanNum;
+        });
+        if (hasMatchingProductOrder) return false;
+      }
+
+      const rType = String(r.type || '').toLowerCase();
+      const rDesc = String(r.description || '').toLowerCase();
+      const rTitle = String(r.title || '').toLowerCase();
+      
+      if (rType.includes('installation') || rDesc.includes('installation') || rTitle.includes('installation')) {
+        return false;
+      }
+
+      return true;
+    });
+
     const mappedServiceRequests = [...mappedLiveServiceRequests, ...nonOrderServiceReqs];
 
     console.log('Mapping completed, preparing response...');
