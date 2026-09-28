@@ -301,7 +301,7 @@ export default function Services() {
             },
           ],
           totalAmount: 0,
-          serviceType: "DELIVERY_INSTALLATION",
+          serviceType: "SERVICE_REQUEST",
           paymentMethod: "COD",
         }),
       });

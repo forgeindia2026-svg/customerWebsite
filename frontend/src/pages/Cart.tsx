@@ -379,7 +379,8 @@ export default function Cart() {
           landmark: '',
           items: orderItems,
           totalAmount: total,
-          serviceType: checkoutForm.serviceType,
+          serviceType: "PRODUCT_ORDER",
+          installationRequired: checkoutForm.serviceType === 'DELIVERY_INSTALLATION',
           paymentMethod: "Cash on Delivery",
         })
       });
