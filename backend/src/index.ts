@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import http from 'http';
 import path from 'path';
+import compression from 'compression';
 
 import productRoutes from './routes/productRoutes';
 import jobRoutes from './routes/jobRoutes';
@@ -28,11 +29,12 @@ const server = http.createServer(app);
 initSocket(server);
 
 app.use(cors({
-  origin: true, // Allow all origins, or specify exact domains if needed
+  origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization']
 }));
+app.use(compression()); // ⚡ Gzip all responses - reduces payload size by 70-80%
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use('/images', express.static(path.join(__dirname, '../public/images')));
@@ -70,6 +72,7 @@ app.use('/api/users', usersRoutes);
 app.use('/api/agora', agoraRoutes);
 
 import Job from './models/Job';
+import { clearDashboardCache } from './routes/dashboardRoutes';
 
 // Database connection & Server start
 const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/cctv-ecommerce';
@@ -85,6 +88,15 @@ mongoose
       console.warn('Index sync note:', e.message);
     }
     // await seedDatabase();
+
+    // ⚡ Warm the dashboard cache immediately after DB connects
+    // so the first real user request is instant
+    setTimeout(() => {
+      clearDashboardCache();
+      fetch(`http://localhost:${port}/api/dashboard`)
+        .then(() => console.log('🔥 Dashboard cache warmed on startup'))
+        .catch((e) => console.warn('Cache warm failed:', e.message));
+    }, 2000); // Wait 2s for server to fully start
   })
   .catch((err) => {
     console.error('⚠️ MongoDB Connection Note:', err.message || err);
