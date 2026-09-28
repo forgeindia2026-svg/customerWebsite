@@ -377,7 +377,7 @@ export default function CustomerDashboard() {
     if (!userEmail) return;
     const syncProfile = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/auth/profile?email=${encodeURIComponent(userEmail)}`);
+        const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io'}/api/auth/profile?email=${encodeURIComponent(userEmail)}`);
         const data = await res.json();
         if (data.success && data.data) {
           const u = data.data;
@@ -419,13 +419,13 @@ export default function CustomerDashboard() {
       setIsLoading(true);
       try {
         // Fetch orders filtered by this customer's email (server-side)
-        const ordersRes = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/orders?email=${encodeURIComponent(userEmail)}`);
+        const ordersRes = await fetch(`${import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io'}/api/orders?email=${encodeURIComponent(userEmail)}`);
         const ordersData = await ordersRes.json();
         if (ordersData.success && Array.isArray(ordersData.data)) {
           setDbOrders(ordersData.data);
         }
 
-        const dashRes = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/dashboard`);
+        const dashRes = await fetch(`${import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io'}/api/dashboard`);
         const dashData = await dashRes.json();
         if (dashData.success && dashData.data) {
           const allReqs = dashData.data.serviceRequests || [];
@@ -460,7 +460,7 @@ export default function CustomerDashboard() {
     setServiceSuccessMsg("");
 
     try {
-      const dashRes = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/dashboard`);
+      const dashRes = await fetch(`${import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io'}/api/dashboard`);
       const dashData = await dashRes.json();
       
       if (dashData.success && dashData.data) {
@@ -490,7 +490,7 @@ export default function CustomerDashboard() {
           ...(dashboardState.notifications || [])
         ];
 
-        const updateRes = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/dashboard`, {
+        const updateRes = await fetch(`${import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io'}/api/dashboard`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -595,7 +595,7 @@ export default function CustomerDashboard() {
     ].filter(Boolean).join(', ');
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/auth/profile`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io'}/api/auth/profile`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -676,7 +676,7 @@ export default function CustomerDashboard() {
     }
     setCpSaving(true);
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/auth/change-password`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io'}/api/auth/change-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: userEmail, currentPassword: cpCurrent, newPassword: cpNew })
@@ -771,7 +771,7 @@ export default function CustomerDashboard() {
 
     if (userEmail) {
       try {
-        await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/auth/profile`, {
+        await fetch(`${import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io'}/api/auth/profile`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -934,7 +934,7 @@ export default function CustomerDashboard() {
 
       if (userEmail) {
         try {
-          await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/auth/profile`, {
+          await fetch(`${import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io'}/api/auth/profile`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -1882,7 +1882,7 @@ export default function CustomerDashboard() {
                     <div key={i} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
                       {it.image ? (
                         <img 
-                          src={it.image.startsWith('http') ? it.image : `${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}${it.image}`} 
+                          src={it.image.startsWith('http') ? it.image : `${import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io'}${it.image}`} 
                           alt={it.title || it.name} 
                           className="w-12 h-12 object-cover rounded-xl border border-slate-100 bg-slate-50 shrink-0" 
                         />

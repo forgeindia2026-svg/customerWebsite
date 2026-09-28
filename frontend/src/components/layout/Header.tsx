@@ -104,7 +104,7 @@ export default function Header() {
 
   // Fetch live products for instant search suggestions
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/products`)
+    fetch(`${import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io'}/api/products`)
       .then((res) => res.json())
       .then((data) => {
         if (data?.success && Array.isArray(data.data)) {

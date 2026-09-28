@@ -119,7 +119,7 @@ export default function ProductDetail() {
   useEffect(() => {
     setLoading(true);
     // Attempt live fetch
-    fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/products/${id}`)
+    fetch(`${import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io'}/api/products/${id}`)
       .then((res) => {
         if (!res.ok) throw new Error("Not found");
         return res.json();
@@ -157,7 +157,7 @@ export default function ProductDetail() {
             stockCount: item.stock || 20,
             warranty: (item.warranty || item.specs?.find((s: string) => typeof s === 'string' && s.toLowerCase().includes('warranty')) || '').trim(),
             freeDelivery: true,
-            image: (item.image ? item.image.replace('https://65.0.45.64.sslip.io', import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io') : null) || "https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=600&q=80",
+            image: (item.image ? item.image.replace('https://43.204.218.193.sslip.io', import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io') : null) || "https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=600&q=80",
             resolution: item.specs?.find((s: string) => s.toLowerCase().includes('mp') || s.toLowerCase().includes('p')) || "1080p (2MP)",
             specs: item.specs || ["Full HD Security Tracking", "Infrared Smart Night Vision"],
             description: item.description || "Premium surveillance hardware ensuring peace of mind."

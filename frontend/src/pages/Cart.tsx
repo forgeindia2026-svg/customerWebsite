@@ -355,14 +355,14 @@ export default function Cart() {
       title: item.name,
       price: item.price,
       quantity: item.quantity,
-      image: item.image ? item.image.replace('https://65.0.45.64.sslip.io', import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io') : ''
+      image: item.image ? item.image.replace('https://43.204.218.193.sslip.io', import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io') : ''
     }));
 
     const fullAddress = [activeAddr.flat, activeAddr.locality, activeAddr.city, activeAddr.state].filter(Boolean).join(", ") + ` - ${activeAddr.pincode} [Service: ${checkoutForm.serviceType === 'DELIVERY_INSTALLATION' ? 'DELIVERY + INSTALLATION' : 'ONLY PRODUCT DELIVERY'}]`;
     const userEmail = localStorage.getItem("user_email") || checkoutForm.email || "customer@sktechnology.in";
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/orders`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io'}/api/orders`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

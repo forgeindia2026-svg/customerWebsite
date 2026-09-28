@@ -32,7 +32,7 @@ function ProductCard({ prod, onDelete, onEdit }) {
 
   const images = rawImages.map(img => {
     if (!img || img.startsWith('blob:')) return getFallbackSrc(prod.category);
-    return img.replace('https://65.0.45.64.sslip.io', getApiUrl());
+    return img.replace('https://43.204.218.193.sslip.io', getApiUrl());
   });
 
   const currentImage = images[activeImageIndex] || images[0] || getFallbackSrc(prod.category);
@@ -214,7 +214,7 @@ export default function Products() {
   const [prodTab, setProdTab] = useState('catalog'); // 'catalog', 'categories', 'brands', 'inventory'
 
   React.useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/products`)
+    fetch(`${import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io'}/api/products`)
       .then(res => res.json())
       .then(data => {
         if (data.success && Array.isArray(data.data)) {
@@ -349,7 +349,7 @@ export default function Products() {
     try {
       const formData = new FormData();
       formData.append('image', file);
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io';
 
       fetch(`${apiUrl}/api/upload`, {
         method: 'POST',
@@ -472,7 +472,7 @@ export default function Products() {
       relatedProducts: productForm.relatedProducts || [],
     };
 
-    fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/products`, {
+    fetch(`${import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io'}/api/products`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(dbProduct)
@@ -702,7 +702,7 @@ export default function Products() {
                     dispatch(deleteProduct(id));
                   }
                   
-                  fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/products/${id}`, {
+                  fetch(`${import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io'}/api/products/${id}`, {
                     method: 'DELETE',
                   })
                     .then(res => res.json())
@@ -1143,7 +1143,7 @@ export default function Products() {
                 relatedProducts: productForm.relatedProducts || [],
               };
 
-              fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/products/${editingProduct.id}`, {
+              fetch(`${import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io'}/api/products/${editingProduct.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(dbProduct)

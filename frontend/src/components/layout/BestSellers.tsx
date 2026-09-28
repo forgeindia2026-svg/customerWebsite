@@ -57,7 +57,7 @@ export default function BestSellers() {
   }, []);
 
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/products`)
+    fetch(`${import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io'}/api/products`)
       .then(res => res.json())
       .then(data => {
         if (data.success && data.data) {
@@ -91,7 +91,7 @@ export default function BestSellers() {
                 originalPrice: finalOriginalPrice,
                 rating: item.rating || 4.5,
                 reviews: item.reviewsCount || Math.floor(Math.random() * 50) + 10,
-                image: item.image ? item.image.replace('https://65.0.45.64.sslip.io', import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io') : '/images/cctv_camera.png',
+                image: item.image ? item.image.replace('https://43.204.218.193.sslip.io', import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io') : '/images/cctv_camera.png',
                 badge: badgeStr,
                 isNew: item.isNew,
                 specs: item.specs || []

@@ -114,7 +114,7 @@ export default function FlashDealsSection() {
 
   // Fetch live products to check if any are marked as Flash Deals
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/products`)
+    fetch(`${import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io'}/api/products`)
       .then((res) => res.json())
       .then((data) => {
         if (data.success && Array.isArray(data.data)) {
@@ -149,7 +149,7 @@ export default function FlashDealsSection() {
               discount: item.badge || `-${computedDiscount}%`,
               rating: item.rating || 4.5,
               reviews: item.reviewsCount || 15,
-              image: item.image ? item.image.replace('https://65.0.45.64.sslip.io', import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io') : '/images/cctv_camera.png'
+              image: item.image ? item.image.replace('https://43.204.218.193.sslip.io', import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io') : '/images/cctv_camera.png'
             };
           });
           setDeals(formatted);

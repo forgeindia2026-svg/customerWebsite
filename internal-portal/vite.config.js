@@ -10,7 +10,7 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/api': {
-        target: 'https://65.0.45.64.sslip.io',
+        target: 'https://43.204.218.193.sslip.io',
         changeOrigin: true,
         secure: false,
       },

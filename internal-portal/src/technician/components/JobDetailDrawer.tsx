@@ -60,7 +60,7 @@ export const JobDetailDrawer = ({
         async (position) => {
           const { latitude, longitude } = position.coords;
           try {
-            await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/jobs/${job.id}/location`, {
+            await fetch(`${import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io'}/api/jobs/${job.id}/location`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({

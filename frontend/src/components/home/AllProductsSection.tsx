@@ -78,7 +78,7 @@ export default function AllProductsSection() {
   }, []);
 
   useEffect(() => {
-    const API_URL = import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io';
+    const API_URL = import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io';
     fetch(`${API_URL}/api/products`)
       .then((res) => res.json())
       .then((data) => {
@@ -110,7 +110,7 @@ export default function AllProductsSection() {
               originalPrice: finalOriginalPrice,
               rating: item.rating || 4.5,
               reviews: item.reviewsCount || Math.floor(Math.random() * 50) + 12,
-              image: item.image ? item.image.replace('https://65.0.45.64.sslip.io', API_URL) : '/images/cctv_camera.png',
+              image: item.image ? item.image.replace('https://43.204.218.193.sslip.io', API_URL) : '/images/cctv_camera.png',
               badge: badgeStr,
               isNew: item.isNew,
               inStock: item.stock !== undefined ? item.stock > 0 : true,

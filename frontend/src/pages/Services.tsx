@@ -69,7 +69,7 @@ const uploadSiteImage = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append("image", compressed);
     formData.append("folder", "site-photos");
-    const baseUrl = import.meta.env.VITE_API_URL || "https://65.0.45.64.sslip.io";
+    const baseUrl = import.meta.env.VITE_API_URL || "https://43.204.218.193.sslip.io";
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 12000);
     const res = await fetch(`${baseUrl}/api/upload`, {
@@ -277,7 +277,7 @@ export default function Services() {
     const fullAddress = `${addressParts} [Slot: ${form.preferredDate} (${form.preferredTime}), Setup: ${form.cameraCount}]${queryInfo}${photosInfo}`;
 
     try {
-      const baseUrl = import.meta.env.VITE_API_URL || "https://65.0.45.64.sslip.io";
+      const baseUrl = import.meta.env.VITE_API_URL || "https://43.204.218.193.sslip.io";
       const res = await fetch(`${baseUrl}/api/orders`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

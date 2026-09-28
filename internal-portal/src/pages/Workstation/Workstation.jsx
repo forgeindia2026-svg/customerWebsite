@@ -50,7 +50,7 @@ export default function Workstation() {
     dispatch(fetchDashboardData());
     const fetchLiveReports = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/reports`);
+        const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io'}/api/reports`);
         if (res.ok) {
           const data = await res.json();
           setDbReports(data);
@@ -61,7 +61,7 @@ export default function Workstation() {
     };
     const fetchLiveAttendance = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/attendance/today`);
+        const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io'}/api/attendance/today`);
         if (res.ok) {
           const data = await res.json();
           setLiveAttendance(Array.isArray(data) ? data : []);
@@ -72,7 +72,7 @@ export default function Workstation() {
     };
     const fetchLiveLocations = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/jobs/live-locations`);
+        const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io'}/api/jobs/live-locations`);
         if (res.ok) {
           const data = await res.json();
           if (data.locations && Object.keys(data.locations).length > 0) {

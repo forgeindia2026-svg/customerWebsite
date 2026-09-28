@@ -85,7 +85,7 @@ export default function Technicians() {
 
     setIsSubmittingTech(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/auth/register`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io'}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -158,7 +158,7 @@ export default function Technicians() {
 
     // 2. Persist to MongoDB backend
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/auth/technician/${editingTech.id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io'}/api/auth/technician/${editingTech.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedPayload)
@@ -180,7 +180,7 @@ export default function Technicians() {
     if (e) e.stopPropagation();
     if (window.confirm("Are you sure you want to delete this technician permanently?")) {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/auth/technician/${id}`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io'}/api/auth/technician/${id}`, {
           method: 'DELETE'
         });
         const data = await response.json();
@@ -201,7 +201,7 @@ export default function Technicians() {
     const newStatus = !currentStatus;
     if (window.confirm(`Are you sure you want to ${newStatus ? 'activate' : 'deactivate'} this technician?`)) {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://65.0.45.64.sslip.io'}/api/auth/technician/${id}/deactivate`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io'}/api/auth/technician/${id}/deactivate`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ isActive: newStatus })
