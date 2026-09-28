@@ -54,9 +54,38 @@ export const initSocket = (server: HttpServer) => {
       }
     });
 
+    // ── Agora Call Signaling ──────────────────────────────────────────────
+    // Caller initiates → notify callee
+    socket.on('call:initiate', (data: { from: string; fromName: string; fromRole: string; to: string; channel: string; withVideo: boolean }) => {
+      if (io && data.to) {
+        io.to(`user:${data.to}`).emit('call:incoming', data);
+      }
+    });
+
+    // Callee accepts
+    socket.on('call:accepted', (data: { from: string; to: string }) => {
+      if (io && data.to) io.to(`user:${data.to}`).emit('call:accepted', data);
+    });
+
+    // Callee rejects
+    socket.on('call:rejected', (data: { from: string; to: string }) => {
+      if (io && data.to) io.to(`user:${data.to}`).emit('call:rejected', data);
+    });
+
+    // Caller cancels before pickup
+    socket.on('call:cancelled', (data: { from: string; to: string }) => {
+      if (io && data.to) io.to(`user:${data.to}`).emit('call:cancelled', data);
+    });
+
+    // Either side ends call
+    socket.on('call:ended', (data: { from: string; to: string }) => {
+      if (io && data.to) io.to(`user:${data.to}`).emit('call:ended', data);
+    });
+
     socket.on('disconnect', () => {
       console.log(`❌ Socket disconnected: ${socket.id}`);
     });
+
   });
 
   return io;

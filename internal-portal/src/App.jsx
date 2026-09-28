@@ -18,6 +18,7 @@ import Notifications from './pages/Notifications/Notifications';
 import Settings from './pages/Settings/Settings';
 import Queries from './pages/Queries/Queries';
 import Announcements from './pages/Announcements/Announcements';
+import AdminChat from './pages/Chat/AdminChat';
 import Banners from './pages/Banners/Banners';
 import Brands from './pages/Brands/Brands';
 import Categories from './pages/Categories/Categories';
@@ -82,6 +83,7 @@ export default function App() {
             <Route path="orders" element={<Orders />} />
             <Route path="technicians" element={<Technicians />} />
             <Route path="projects" element={<Navigate to="/admin/workstation" replace />} />
+            <Route path="chat" element={<AdminChat />} />
             <Route path="service-requests" element={<ServiceRequests />} />
             <Route path="products" element={<Products />} />
             <Route path="banners" element={<Banners />} />
@@ -111,6 +113,7 @@ export default function App() {
         <Route path="/brands" element={<Navigate to="/admin/brands" replace />} />
         <Route path="/categories" element={<Navigate to="/admin/categories" replace />} />
         <Route path="/inventory" element={<Navigate to="/admin/inventory" replace />} />
+        <Route path="/chat" element={<Navigate to="/admin/chat" replace />} />
         <Route path="/payments" element={<Navigate to="/admin/payments" replace />} />
         <Route path="/reports" element={<Navigate to="/admin/reports" replace />} />
         <Route path="/notifications" element={<Navigate to="/admin/notifications" replace />} />

@@ -20,7 +20,8 @@ import {
   FiImage,
   FiAward,
   FiActivity,
-  FiLogOut
+  FiLogOut,
+  FiMessageSquare
 } from 'react-icons/fi';
 import { useSelector } from 'react-redux';
 
@@ -53,6 +54,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
     {
       title: 'OPERATIONS',
       items: [
+        { name: 'Chat', path: '/admin/chat', icon: FiMessageSquare },
         { name: 'Orders', path: '/admin/orders', icon: FiShoppingCart },
         { name: 'Service Requests', path: '/admin/service-requests', icon: FiTool },
         { name: 'Reports', path: '/admin/reports', icon: FiBarChart2 },

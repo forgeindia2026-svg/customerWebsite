@@ -48,6 +48,7 @@ import qrRoutes from './routes/qrRoutes';
 import orderTypeRoutes from './routes/orderTypeRoutes';
 import messagesRoutes from './routes/messagesRoutes';
 import usersRoutes from './routes/usersRoutes';
+import agoraRoutes from './routes/agoraRoutes';
 
 // API Routes
 app.use('/api/products', productRoutes);
@@ -66,6 +67,7 @@ app.use('/api/qrcodes', qrRoutes);
 app.use('/api/order-types', orderTypeRoutes);
 app.use('/api/messages', messagesRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/agora', agoraRoutes);
 
 import Job from './models/Job';
 
