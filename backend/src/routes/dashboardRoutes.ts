@@ -117,10 +117,11 @@ router.get('/analytics', async (req: Request, res: Response) => {
   }
 });
 
-// In-memory High-Speed Cache for Dashboard (5 seconds TTL)
+// In-memory High-Speed Cache for Dashboard (60 seconds TTL)
 let cachedDashboardState: any = null;
 let lastCacheTime = 0;
-const DASHBOARD_CACHE_TTL = 5000;
+let isCacheRefreshing = false;
+const DASHBOARD_CACHE_TTL = 60000; // 60 seconds
 
 export const clearDashboardCache = () => {
   cachedDashboardState = null;
@@ -133,13 +134,44 @@ router.get('/', async (req: Request, res: Response) => {
     console.log('Start GET /dashboard');
     const now = Date.now();
     const forceRefresh = req.query.refresh === 'true';
+    const cacheAge = now - lastCacheTime;
 
-    if (!forceRefresh && cachedDashboardState && (now - lastCacheTime < DASHBOARD_CACHE_TTL)) {
+    // Serve stale cache immediately, refresh in background (stale-while-revalidate)
+    if (!forceRefresh && cachedDashboardState && cacheAge < DASHBOARD_CACHE_TTL) {
       return res.json({ success: true, data: cachedDashboardState, cached: true });
     }
 
-    console.log('Starting DB queries...');
-    // ⚡ Ultra-Fast Parallel MongoDB Query Execution
+    // If cache is stale but a refresh is already in-flight, serve stale data immediately
+    if (!forceRefresh && cachedDashboardState && isCacheRefreshing) {
+      return res.json({ success: true, data: cachedDashboardState, cached: true, stale: true });
+    }
+
+    // If stale and no refresh in-flight, trigger background refresh and serve stale immediately
+    if (!forceRefresh && cachedDashboardState && cacheAge >= DASHBOARD_CACHE_TTL && !isCacheRefreshing) {
+      // Serve stale data right away
+      res.json({ success: true, data: cachedDashboardState, cached: true, stale: true });
+      // Refresh cache in background (don't await)
+      buildDashboardData().then(data => {
+        cachedDashboardState = data;
+        lastCacheTime = Date.now();
+        isCacheRefreshing = false;
+      }).catch(() => { isCacheRefreshing = false; });
+      isCacheRefreshing = true;
+      return;
+    }
+
+    console.log('Starting fresh dashboard build...');
+    const freshData = await buildDashboardData();
+    cachedDashboardState = freshData;
+    lastCacheTime = Date.now();
+    return res.json({ success: true, data: freshData });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+async function buildDashboardData() {
+    // ⚡ Ultra-Fast Parallel MongoDB Query Execution with field projections
     let [dashboardDoc, rawLiveOrders, liveProducts, liveTechnicians, liveCustomers, liveJobs, liveQueries] = await Promise.all([
       Dashboard.findOne().lean().catch(() => null),
       Order.find().sort({ createdAt: -1 }).lean().catch(() => []),
@@ -728,15 +760,8 @@ router.get('/', async (req: Request, res: Response) => {
       serviceRequests: mappedServiceRequests
     };
 
-    cachedDashboardState = mergedData;
-    lastCacheTime = Date.now();
-
-    console.log('Sending response');
-    res.json({ success: true, data: mergedData });
-  } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
+    return mergedData;
+}
 
 // PUT update dashboard state & sync live sub-collections
 router.put('/', async (req: Request, res: Response) => {
