@@ -6,6 +6,7 @@ import {
 } from 'react-icons/fi';
 import { io } from 'socket.io-client';
 import AgoraRTC from 'agora-rtc-sdk-ng';
+import { toneGenerator } from '../../utils/ToneGenerator';
 
 const API_BASE = (() => {
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
@@ -256,6 +257,7 @@ export default function AdminChat() {
         setCallContact({ _id: data.from, name: data.fromName, role: data.fromRole });
         setCallWithVideo(data.withVideo || false);
         setCallState('incoming');
+        toneGenerator.playIncomingRing();
       }
     });
 
@@ -349,13 +351,16 @@ export default function AdminChat() {
       }
 
       setCallState('active');
+      toneGenerator.stop();
     } catch (err) {
+      alert('Call failed: ' + (err.message || 'Check microphone/camera permissions'));
       console.error('Agora join error:', err);
-      endCallCleanup();
+      endCall();
     }
   };
 
   const endCallCleanup = async () => {
+    toneGenerator.stop();
     // Stop and close tracks
     if (localTracks.current.audio) { localTracks.current.audio.stop(); localTracks.current.audio.close(); localTracks.current.audio = null; }
     if (localTracks.current.video) { localTracks.current.video.stop(); localTracks.current.video.close(); localTracks.current.video = null; }
@@ -375,6 +380,7 @@ export default function AdminChat() {
     setCallContact(contact);
     setCallWithVideo(withVideo);
     setCallState('outgoing');
+    toneGenerator.playOutgoingRing();
 
     // Signal via Socket
     socketRef.current?.emit('call:initiate', {

@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { io } from 'socket.io-client';
 import AgoraRTC from 'agora-rtc-sdk-ng';
+import { toneGenerator } from '../../../utils/ToneGenerator';
 
 const API_BASE = (() => {
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
@@ -251,6 +252,7 @@ export const MessagesModule: React.FC = () => {
         setCallContact({ _id: data.from, name: data.fromName, role: data.fromRole });
         setCallWithVideo(data.withVideo || false);
         setCallState('incoming');
+        toneGenerator.playIncomingRing();
       }
     });
 
@@ -339,12 +341,16 @@ export const MessagesModule: React.FC = () => {
         await agoraClient.current.publish([localTracks.current.video]);
       }
       setCallState('active');
-    } catch (err) {
-      endCallCleanup();
+      toneGenerator.stop();
+    } catch (err: any) {
+      alert('Call failed: ' + (err.message || 'Check microphone/camera permissions'));
+      console.error(err);
+      endCall();
     }
   };
 
   const endCallCleanup = async () => {
+    toneGenerator.stop();
     if (localTracks.current.audio) { localTracks.current.audio.stop(); localTracks.current.audio.close(); localTracks.current.audio = null; }
     if (localTracks.current.video) { localTracks.current.video.stop(); localTracks.current.video.close(); localTracks.current.video = null; }
     if (agoraClient.current) { try { await agoraClient.current.leave(); } catch (_) {} agoraClient.current = null; }
@@ -355,6 +361,7 @@ export const MessagesModule: React.FC = () => {
     if (!contact?._id) return;
     const channel = `call_${makeRoomId(myId, contact._id)}_${Date.now()}`;
     setCallContact(contact); setCallWithVideo(withVideo); setCallState('outgoing');
+    toneGenerator.playOutgoingRing();
     socketRef.current?.emit('call:initiate', { from: myId, fromName: myName, fromRole: myRole, to: contact._id, channel, withVideo });
     await joinAgoraChannel(channel, withVideo);
   };
