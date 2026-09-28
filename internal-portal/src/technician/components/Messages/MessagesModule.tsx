@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Search, Send, Users, ShieldAlert, Phone, ChevronLeft, Loader2, MessageSquare,
-  PhoneOff, Mic, MicOff, Video, VideoOff
+  PhoneOff, Mic, MicOff, Video, VideoOff, Volume2, VolumeX
 } from 'lucide-react';
 import { io } from 'socket.io-client';
 import AgoraRTC from 'agora-rtc-sdk-ng';
@@ -49,6 +49,22 @@ function CallOverlay({ callState, localVideoRef, remoteVideoRef, contact, onEndC
   const isIncoming = callState === 'incoming';
   const isOutgoing = callState === 'outgoing';
   const isActive   = callState === 'active';
+  const [callDuration, setCallDuration] = React.useState(0);
+  const [isSpeakerOn, setIsSpeakerOn] = React.useState(true);
+
+  React.useEffect(() => {
+    let interval: any;
+    if (isActive) {
+      interval = setInterval(() => setCallDuration(p => p + 1), 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isActive]);
+
+  const formatTime = (secs: number) => {
+    const m = Math.floor(secs / 60).toString().padStart(2, '0');
+    const s = (secs % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/95 backdrop-blur-md">
@@ -70,7 +86,7 @@ function CallOverlay({ callState, localVideoRef, remoteVideoRef, contact, onEndC
             <div className="text-center">
               <h3 className="text-white text-3xl font-black tracking-tight">{contact?.name}</h3>
               <p className="text-slate-400 text-base font-medium mt-2">
-                {isIncoming ? (callWithVideo ? '🎥 Incoming video call...' : '📞 Incoming audio call...') : isOutgoing ? '📡 Calling...' : '00:00'}
+                {isIncoming ? (callWithVideo ? '🎥 Incoming video call...' : '📞 Incoming audio call...') : isOutgoing ? '📡 Calling...' : formatTime(callDuration)}
               </p>
             </div>
           </div>
@@ -111,15 +127,18 @@ function CallOverlay({ callState, localVideoRef, remoteVideoRef, contact, onEndC
           )}
 
           {isActive && (
-            <div className="flex items-center gap-6 bg-slate-900/60 p-4 rounded-full backdrop-blur-md border border-slate-700/50">
-              <button onClick={onToggleMute} className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 ${isMuted ? 'bg-white text-slate-900' : 'bg-slate-700/80 text-white hover:bg-slate-600'}`}>
+            <div className="flex items-center gap-4 bg-slate-900/60 p-4 rounded-[2rem] backdrop-blur-md border border-slate-700/50">
+              <button onClick={() => setIsSpeakerOn(!isSpeakerOn)} className={`w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 ${isSpeakerOn ? 'bg-white text-slate-900' : 'bg-slate-700/80 text-white hover:bg-slate-600'}`}>
+                {isSpeakerOn ? <Volume2 className="w-6 h-6" /> : <VolumeX className="w-6 h-6" />}
+              </button>
+              <button onClick={onToggleMute} className={`w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 ${isMuted ? 'bg-white text-slate-900' : 'bg-slate-700/80 text-white hover:bg-slate-600'}`}>
                 {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
               </button>
-              <button onClick={onEndCall} className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-[0_0_20px_rgba(239,68,68,0.4)] transition-all active:scale-95">
+              <button onClick={onEndCall} className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-[0_0_20px_rgba(239,68,68,0.4)] transition-all active:scale-95">
                 <PhoneOff className="w-7 h-7" />
               </button>
               {callWithVideo && (
-                <button onClick={onToggleVideo} className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 ${isVideoOff ? 'bg-white text-slate-900' : 'bg-slate-700/80 text-white hover:bg-slate-600'}`}>
+                <button onClick={onToggleVideo} className={`w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 ${isVideoOff ? 'bg-white text-slate-900' : 'bg-slate-700/80 text-white hover:bg-slate-600'}`}>
                   {isVideoOff ? <VideoOff className="w-6 h-6" /> : <Video className="w-6 h-6" />}
                 </button>
               )}
