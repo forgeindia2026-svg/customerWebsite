@@ -52,7 +52,7 @@ function CallOverlay({ callState, localVideoRef, remoteVideoRef, contact, onEndC
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/95 backdrop-blur-md">
-      <div className="relative w-full max-w-md mx-4 bg-slate-800 rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col" style={{ minHeight: '65vh' }}>
+      <div className="relative w-full h-full md:h-auto md:max-w-md md:mx-4 bg-slate-800 md:rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col md:min-h-[65vh]">
 
         {isActive && callWithVideo ? (
           <>
@@ -265,6 +265,13 @@ export const MessagesModule: React.FC = () => {
       }
     });
 
+    socket.on('call:accepted', (data) => {
+      if (data.to === myId) {
+        toneGenerator.stop();
+        setCallState('active');
+      }
+    });
+
     socket.on('call:cancelled', (data) => {
       if (data.to === myId && callState === 'incoming') endCallCleanup();
     });
@@ -327,7 +334,7 @@ export const MessagesModule: React.FC = () => {
     return { token: data.token, appId: data.appId, uid };
   };
 
-  const joinAgoraChannel = async (channel: string, withVideo: boolean) => {
+  const joinAgoraChannel = async (channel: string, withVideo: boolean, isCaller: boolean = false) => {
     try {
       const { token, appId, uid } = await getAgoraToken(channel);
       agoraClient.current = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
@@ -349,8 +356,11 @@ export const MessagesModule: React.FC = () => {
         if (localVideoRef.current) localTracks.current.video.play(localVideoRef.current);
         await agoraClient.current.publish([localTracks.current.video]);
       }
-      setCallState('active');
-      toneGenerator.stop();
+      
+      if (!isCaller) {
+        setCallState('active');
+        toneGenerator.stop();
+      }
     } catch (err: any) {
       alert('Call failed: ' + (err.message || 'Check microphone/camera permissions'));
       console.error(err);
@@ -372,13 +382,13 @@ export const MessagesModule: React.FC = () => {
     setCallContact(contact); setCallWithVideo(withVideo); setCallState('outgoing');
     toneGenerator.playOutgoingRing();
     socketRef.current?.emit('call:initiate', { from: myId, fromName: myName, fromRole: myRole, to: contact._id, channel, withVideo });
-    await joinAgoraChannel(channel, withVideo);
+    await joinAgoraChannel(channel, withVideo, true);
   };
 
   const acceptCall = async (withVideo: boolean) => {
     if (!incomingCallData) return;
     socketRef.current?.emit('call:accepted', { from: myId, to: incomingCallData.from });
-    await joinAgoraChannel(incomingCallData.channel, withVideo);
+    await joinAgoraChannel(incomingCallData.channel, withVideo, false);
   };
 
   const rejectCall = () => {

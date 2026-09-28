@@ -43,7 +43,7 @@ function CallOverlay({ callState, localVideoRef, remoteVideoRef, contact, onEndC
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/95 backdrop-blur-md">
-      <div className="relative w-full max-w-md mx-4 bg-slate-800 rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col" style={{ minHeight: '65vh' }}>
+      <div className="relative w-full h-full md:h-auto md:max-w-md md:mx-4 bg-slate-800 md:rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col md:min-h-[65vh]">
 
         {isActive && callWithVideo ? (
           <>
@@ -253,6 +253,13 @@ export default function AdminChat() {
       }
     });
 
+    socket.on('call:accepted', (data) => {
+      if (data.to === myId) {
+        toneGenerator.stop();
+        setCallState('active');
+      }
+    });
+
     socket.on('call:cancelled', (data) => {
       if (data.to === myId && callState === 'incoming') {
         endCallCleanup();
@@ -314,7 +321,7 @@ export default function AdminChat() {
     return { token: data.token, appId: data.appId, uid };
   };
 
-  const joinAgoraChannel = async (channel, withVideo) => {
+  const joinAgoraChannel = async (channel, withVideo, isCaller = false) => {
     try {
       const { token, appId, uid } = await getAgoraToken(channel);
       callChannelRef.current = channel;
@@ -342,8 +349,10 @@ export default function AdminChat() {
         await agoraClient.current.publish([localTracks.current.video]);
       }
 
-      setCallState('active');
-      toneGenerator.stop();
+      if (!isCaller) {
+        setCallState('active');
+        toneGenerator.stop();
+      }
     } catch (err) {
       alert('Call failed: ' + (err.message || 'Check microphone/camera permissions'));
       console.error('Agora join error:', err);
@@ -381,14 +390,14 @@ export default function AdminChat() {
     });
 
     // Join channel optimistically
-    await joinAgoraChannel(channel, withVideo);
+    await joinAgoraChannel(channel, withVideo, true);
   };
 
   // ── Accept Incoming Call ──────────────────────────────────────────────────
   const acceptCall = async (withVideo) => {
     if (!incomingCallData) return;
     socketRef.current?.emit('call:accepted', { from: myId, to: incomingCallData.from });
-    await joinAgoraChannel(incomingCallData.channel, withVideo);
+    await joinAgoraChannel(incomingCallData.channel, withVideo, false);
   };
 
   // ── Reject Incoming Call ──────────────────────────────────────────────────
