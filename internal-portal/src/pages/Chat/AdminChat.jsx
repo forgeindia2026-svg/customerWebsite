@@ -376,7 +376,7 @@ export default function AdminChat() {
   // ── Initiate Call ──────────────────────────────────────────────────────────
   const startCall = async (contact, withVideo = false) => {
     if (!contact?._id) return;
-    const channel = `call_${makeRoomId(myId, contact._id)}_${Date.now()}`;
+    const channel = `c_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
     setCallContact(contact);
     setCallWithVideo(withVideo);
     setCallState('outgoing');
