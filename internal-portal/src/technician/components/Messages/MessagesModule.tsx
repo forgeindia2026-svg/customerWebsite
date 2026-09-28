@@ -45,78 +45,83 @@ const roleColor = (role: string) => {
 const getInitials = (name: string) => name?.trim().split(/\s+/).map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
 
 // ─── Call Overlay Component ───────────────────────────────────────────────────
-function CallOverlay({ callState, localVideoRef, remoteVideoRef, contact, onEndCall, onAccept, onReject, isMuted, isVideoOff, onToggleMute, onToggleVideo }: any) {
+function CallOverlay({ callState, localVideoRef, remoteVideoRef, contact, onEndCall, onAccept, onReject, isMuted, isVideoOff, onToggleMute, onToggleVideo, callWithVideo }: any) {
   const isIncoming = callState === 'incoming';
   const isOutgoing = callState === 'outgoing';
   const isActive   = callState === 'active';
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/95 backdrop-blur-sm">
-      <div className="relative w-full max-w-lg mx-4 bg-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/95 backdrop-blur-md">
+      <div className="relative w-full max-w-md mx-4 bg-slate-800 rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col" style={{ minHeight: '65vh' }}>
 
-        {isActive && (
-          <div ref={remoteVideoRef} className="w-full h-80 bg-slate-900 flex items-center justify-center text-slate-500 text-sm">
+        {isActive && callWithVideo ? (
+          <div ref={remoteVideoRef} className="absolute inset-0 bg-slate-900 flex items-center justify-center text-slate-500 text-sm">
             <span>Connecting video...</span>
           </div>
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center gap-6 py-12 relative z-10">
+            <div className={`w-36 h-36 rounded-full bg-gradient-to-br ${roleColor(contact?.role)} flex items-center justify-center text-white text-5xl font-black shadow-2xl ${isActive ? 'animate-pulse' : ''} border-4 border-slate-700 ring-8 ring-slate-800`}>
+              {contact?.avatar ? <img src={contact.avatar} alt={contact.name} className="w-full h-full rounded-full object-cover" /> : getInitials(contact?.name || '')}
+            </div>
+            <div className="text-center">
+              <h3 className="text-white text-3xl font-black tracking-tight">{contact?.name}</h3>
+              <p className="text-slate-400 text-base font-medium mt-2">
+                {isIncoming ? (callWithVideo ? '🎥 Incoming video call...' : '📞 Incoming audio call...') : isOutgoing ? '📡 Calling...' : '00:00'}
+              </p>
+            </div>
+          </div>
         )}
 
-        <div className={`flex flex-col items-center gap-3 py-8 px-6 ${isActive ? 'py-4' : 'py-10'}`}>
-          <div className={`w-20 h-20 rounded-full bg-gradient-to-br ${roleColor(contact?.role)} flex items-center justify-center text-white text-2xl font-black shadow-xl`}>
-            {contact?.avatar ? <img src={contact.avatar} alt={contact.name} className="w-full h-full rounded-full object-cover" /> : getInitials(contact?.name || '')}
-          </div>
-          <div className="text-center">
-            <h3 className="text-white text-xl font-black">{contact?.name}</h3>
-            <p className="text-slate-400 text-sm font-medium mt-1">
-              {isIncoming ? '📞 Incoming call...' : isOutgoing ? '📡 Calling...' : '🔴 Live Call'}
-            </p>
-          </div>
-        </div>
-
-        {isActive && (
-          <div ref={localVideoRef} className="absolute top-4 right-4 w-24 h-32 rounded-xl overflow-hidden bg-slate-700 border-2 border-slate-600 shadow-lg" />
+        {isActive && callWithVideo && (
+          <div ref={localVideoRef} className="absolute top-6 right-6 w-28 h-40 rounded-2xl overflow-hidden bg-slate-700 border-2 border-slate-500 shadow-xl z-20" />
         )}
 
-        <div className="flex items-center justify-center gap-4 pb-8 px-6">
+        <div className="relative z-20 flex flex-col items-center justify-end pb-12 px-6 mt-auto">
           {isIncoming && (
-            <>
-              <button onClick={onReject} className="w-14 h-14 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg transition-all active:scale-95">
-                <PhoneOff className="w-6 h-6" />
-              </button>
-              <button onClick={() => onAccept(false)} className="w-14 h-14 rounded-full bg-green-500 hover:bg-green-600 text-white flex items-center justify-center shadow-lg transition-all active:scale-95">
-                <Phone className="w-6 h-6" />
-              </button>
-              <button onClick={() => onAccept(true)} className="w-14 h-14 rounded-full bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center shadow-lg transition-all active:scale-95">
-                <Video className="w-6 h-6" />
-              </button>
-            </>
+            <div className="w-full flex justify-between items-center px-4 max-w-[280px]">
+              <div className="flex flex-col items-center gap-2">
+                <button onClick={onReject} className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-[0_0_20px_rgba(239,68,68,0.4)] transition-all active:scale-95">
+                  <PhoneOff className="w-7 h-7" />
+                </button>
+                <span className="text-slate-400 text-xs font-semibold">Decline</span>
+              </div>
+              <div className="flex flex-col items-center gap-2">
+                <button onClick={() => onAccept(false)} className="w-16 h-16 rounded-full bg-green-500 hover:bg-green-600 text-white flex items-center justify-center shadow-[0_0_20px_rgba(34,197,94,0.4)] transition-all active:scale-95">
+                  <Phone className="w-7 h-7" />
+                </button>
+                <span className="text-slate-400 text-xs font-semibold">Audio</span>
+              </div>
+              <div className="flex flex-col items-center gap-2">
+                <button onClick={() => onAccept(true)} className="w-16 h-16 rounded-full bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center shadow-[0_0_20px_rgba(59,130,246,0.4)] transition-all active:scale-95">
+                  <Video className="w-7 h-7" />
+                </button>
+                <span className="text-slate-400 text-xs font-semibold">Video</span>
+              </div>
+            </div>
           )}
 
           {isOutgoing && (
-            <button onClick={onEndCall} className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg transition-all active:scale-95 animate-pulse">
-              <PhoneOff className="w-7 h-7" />
+            <button onClick={onEndCall} className="w-20 h-20 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-[0_0_30px_rgba(239,68,68,0.5)] transition-all active:scale-95 animate-pulse mt-4">
+              <PhoneOff className="w-8 h-8" />
             </button>
           )}
 
           {isActive && (
-            <>
-              <button onClick={onToggleMute} className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 ${isMuted ? 'bg-red-500 text-white' : 'bg-slate-600 text-slate-200 hover:bg-slate-500'}`}>
-                {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+            <div className="flex items-center gap-6 bg-slate-900/60 p-4 rounded-full backdrop-blur-md border border-slate-700/50">
+              <button onClick={onToggleMute} className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 ${isMuted ? 'bg-white text-slate-900' : 'bg-slate-700/80 text-white hover:bg-slate-600'}`}>
+                {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
               </button>
-              <button onClick={onEndCall} className="w-14 h-14 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg transition-all active:scale-95">
-                <PhoneOff className="w-6 h-6" />
+              <button onClick={onEndCall} className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-[0_0_20px_rgba(239,68,68,0.4)] transition-all active:scale-95">
+                <PhoneOff className="w-7 h-7" />
               </button>
-              <button onClick={onToggleVideo} className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 ${isVideoOff ? 'bg-red-500 text-white' : 'bg-slate-600 text-slate-200 hover:bg-slate-500'}`}>
-                {isVideoOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
-              </button>
-            </>
+              {callWithVideo && (
+                <button onClick={onToggleVideo} className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 ${isVideoOff ? 'bg-white text-slate-900' : 'bg-slate-700/80 text-white hover:bg-slate-600'}`}>
+                  {isVideoOff ? <VideoOff className="w-6 h-6" /> : <Video className="w-6 h-6" />}
+                </button>
+              )}
+            </div>
           )}
         </div>
-
-        {isIncoming && (
-          <div className="flex justify-center gap-8 pb-4 text-xs text-slate-400 font-medium">
-            <span>Decline</span><span>Audio</span><span>Video</span>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -419,7 +424,7 @@ export const MessagesModule: React.FC = () => {
     <>
       {callState && (
         <CallOverlay callState={callState} contact={callContact} localVideoRef={localVideoRef} remoteVideoRef={remoteVideoRef}
-          isMuted={isMuted} isVideoOff={isVideoOff} onEndCall={endCall} onAccept={acceptCall} onReject={rejectCall} onToggleMute={toggleMute} onToggleVideo={toggleVideo} />
+          isMuted={isMuted} isVideoOff={isVideoOff} onEndCall={endCall} onAccept={acceptCall} onReject={rejectCall} onToggleMute={toggleMute} onToggleVideo={toggleVideo} callWithVideo={callWithVideo} />
       )}
       <div className="flex h-[calc(100vh-140px)] md:h-[calc(100vh-160px)] bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
         
