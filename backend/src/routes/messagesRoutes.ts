@@ -16,7 +16,7 @@ router.get('/', async (req: Request, res: Response) => {
       ? rolesParam.split(',').map(r => r.trim().toUpperCase())
       : ['TECHNICIAN', 'ADMIN', 'HR'];
     
-    const users = await User.find({ role: { $in: roles }, isActive: { $ne: false } })
+    const users = await User.find({ role: { $in: roles }, isActive: { $ne: false } } as any)
       .select('name email phone role avatar isAvailable rating')
       .sort({ role: 1, name: 1 })
       .lean();
