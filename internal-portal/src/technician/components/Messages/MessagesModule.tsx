@@ -55,9 +55,13 @@ function CallOverlay({ callState, localVideoRef, remoteVideoRef, contact, onEndC
       <div className="relative w-full max-w-md mx-4 bg-slate-800 rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col" style={{ minHeight: '65vh' }}>
 
         {isActive && callWithVideo ? (
-          <div ref={remoteVideoRef} className="absolute inset-0 bg-slate-900 flex items-center justify-center text-slate-500 text-sm">
-            <span>Connecting video...</span>
-          </div>
+          <>
+            <div className="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center z-0">
+               <div className="w-16 h-16 border-4 border-slate-600 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+               <span className="text-slate-400 font-medium tracking-wide animate-pulse text-lg">Connecting video...</span>
+            </div>
+            <div ref={remoteVideoRef} className="absolute inset-0 z-10 [&>div]:!h-full [&>div]:!w-full [&_video]:!object-cover" />
+          </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center gap-6 py-12 relative z-10">
             <div className={`w-36 h-36 rounded-full bg-gradient-to-br ${roleColor(contact?.role)} flex items-center justify-center text-white text-5xl font-black shadow-2xl ${isActive ? 'animate-pulse' : ''} border-4 border-slate-700 ring-8 ring-slate-800`}>
@@ -73,7 +77,7 @@ function CallOverlay({ callState, localVideoRef, remoteVideoRef, contact, onEndC
         )}
 
         {isActive && callWithVideo && (
-          <div ref={localVideoRef} className="absolute top-6 right-6 w-28 h-40 rounded-2xl overflow-hidden bg-slate-700 border-2 border-slate-500 shadow-xl z-20" />
+          <div ref={localVideoRef} className="absolute top-6 right-6 w-28 h-40 rounded-2xl overflow-hidden bg-slate-700 border-2 border-slate-500 shadow-xl z-20 [&>div]:!h-full [&>div]:!w-full [&_video]:!object-cover" />
         )}
 
         <div className="relative z-20 flex flex-col items-center justify-end pb-12 px-6 mt-auto">
