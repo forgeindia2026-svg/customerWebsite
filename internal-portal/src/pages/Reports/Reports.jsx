@@ -2094,7 +2094,7 @@ export default function Reports() {
                             <div>{att.technician}</div>
                           </td>
                           <td className="py-2 px-3 align-middle text-center">
-                            {att.punchInPhoto ? (
+                          {att.punchInPhoto && typeof att.punchInPhoto === 'string' && att.punchInPhoto.trim().length > 5 ? (
                               <div className="inline-flex flex-col items-center justify-center group relative">
                                 <img
                                   src={att.punchInPhoto}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useSearchParams } from 'react-router-dom';
-import { FiSearch, FiSliders, FiCheckCircle, FiInfo, FiTrash2, FiPlusCircle, FiEye, FiGrid, FiList, FiPlus, FiUser, FiCalendar, FiDollarSign, FiChevronDown, FiCheck, FiEdit, FiShoppingBag, FiClock, FiRefreshCw, FiVideo, FiShield, FiTool, FiCpu, FiPackage, FiAlertCircle, FiXCircle, FiMapPin } from 'react-icons/fi';
+import { FiSearch, FiSliders, FiCheckCircle, FiInfo, FiTrash2, FiPlusCircle, FiEye, FiGrid, FiList, FiPlus, FiUser, FiCalendar, FiDollarSign, FiChevronDown, FiCheck, FiEdit, FiShoppingBag, FiClock, FiRefreshCw, FiVideo, FiShield, FiTool, FiCpu, FiPackage, FiAlertCircle, FiXCircle, FiMapPin, FiBriefcase } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { approveOrder, approveOrderCompletion, reworkOrder, setOrderStatus, addOrder, assignTechnicianToOrder, editOrder, adminApproveJob, adminReworkJob, fetchDashboardData, createOrderAPI, addPayment } from '../../redux/dashboardSlice';
 import { socket } from '../../socket';
@@ -544,13 +544,26 @@ export default function Orders() {
     const orderIdUpper = String(order.id || '').toUpperCase();
     const orderTypeLower = String(order.type || '').toLowerCase();
     
+    // Helper: is this an internal admin-created task?
+    const isInternalTask = orderTypeLower.includes('internal task') || 
+      String(order.serviceType || '').toLowerCase().includes('internal task') ||
+      String(order.serviceType || '') === 'INTERNAL_TASK';
+    // Helper: is this a client visit?
+    const isClientVisit = orderIdUpper.includes('SK-VST') || orderTypeLower.includes('client visit') || orderTypeLower.includes('site visit');
+    // Helper: is this a service request?
+    const isServiceRequest = orderIdUpper.includes('SK-SRV') || orderTypeLower.includes('service request') || orderTypeLower.includes('repair');
+    // Helper: is this a product order (from app/website/admin Add Order)?
+    const isProductOrder = (orderIdUpper.includes('SK-ORD') || (!isClientVisit && !isServiceRequest && !isInternalTask));
+
     let matchesCategory = true;
     if (categoryFilter === 'Orders') {
-      matchesCategory = orderIdUpper.includes('SK-ORD') || (!orderIdUpper.includes('SK-VST') && !orderIdUpper.includes('SK-SRV') && !orderTypeLower.includes('visit') && !orderTypeLower.includes('service request'));
+      // Product Orders: SK-ORD prefix OR admin-created orders, but NOT tasks, visits, or service requests
+      matchesCategory = isProductOrder && !isInternalTask;
     } else if (categoryFilter === 'ClientVisits') {
-      matchesCategory = orderIdUpper.includes('SK-VST') || orderTypeLower.includes('visit');
-    } else if (categoryFilter === 'ServiceRequests') {
-      matchesCategory = orderIdUpper.includes('SK-SRV') || orderTypeLower.includes('service request') || orderTypeLower.includes('repair');
+      matchesCategory = isClientVisit;
+    } else if (categoryFilter === 'AssignedTasks') {
+      // Assigned Tasks: only admin-created internal tasks (via Add Task button)
+      matchesCategory = isInternalTask;
     }
 
     return matchesSearch && matchesStatus && matchesDate && matchesCategory;
@@ -702,10 +715,10 @@ export default function Orders() {
       customerPhone: taskForm.phone || '+91 99999 99999',
       shippingAddress: taskForm.address || 'On-Site',
       totalAmount: 0,
-      serviceType: taskForm.description ? `Internal Task: ${taskForm.description}` : 'Internal Task',
+      serviceType: 'INTERNAL_TASK',
       items: [{
         productId: 'TSK-01',
-        title: taskForm.description ? `Internal Task: ${taskForm.description}` : 'Internal Task',
+        title: taskForm.taskName || 'Internal Task',
         price: 0,
         quantity: 1,
         image: ''
@@ -765,7 +778,7 @@ export default function Orders() {
               : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
           }`}
         >
-          <span>🌐 All Items ({orders.length})</span>
+          <span>🌐 All Items ({orders.filter(o => isDateInRange(o.createdAt || o.date, selectedDateRange)).length})</span>
         </button>
 
         <button
@@ -779,7 +792,16 @@ export default function Orders() {
           <FiShoppingBag size={14} />
           <span>Product Orders (#SK-ORD)</span>
           <span className="text-[10px] bg-emerald-200/60 dark:bg-emerald-900 px-1.5 py-0.5 rounded-full font-mono">
-            {orders.filter(o => String(o.id).includes('SK-ORD') || (!String(o.id).includes('SK-VST') && !String(o.id).includes('SK-SRV') && !String(o.type).toLowerCase().includes('visit'))).length}
+            {orders.filter(o => {
+              if (!isDateInRange(o.createdAt || o.date, selectedDateRange)) return false;
+              const idU = String(o.id || '').toUpperCase();
+              const typeL = String(o.type || '').toLowerCase();
+              const svcL = String(o.serviceType || '').toLowerCase();
+              const isTask = typeL.includes('internal task') || svcL.includes('internal task') || svcL === 'internal_task';
+              const isVisit = idU.includes('SK-VST') || typeL.includes('client visit') || typeL.includes('site visit');
+              const isSrv = idU.includes('SK-SRV') || typeL.includes('service request') || typeL.includes('repair');
+              return !isTask && !isVisit && !isSrv;
+            }).length}
           </span>
         </button>
 
@@ -794,22 +816,32 @@ export default function Orders() {
           <FiMapPin size={14} />
           <span>Client Visits (#SK-VST)</span>
           <span className="text-[10px] bg-blue-200/60 dark:bg-blue-900 px-1.5 py-0.5 rounded-full font-mono">
-            {orders.filter(o => String(o.id).includes('SK-VST') || String(o.type).toLowerCase().includes('visit')).length}
+            {orders.filter(o => {
+              if (!isDateInRange(o.createdAt || o.date, selectedDateRange)) return false;
+              const idU = String(o.id || '').toUpperCase();
+              const typeL = String(o.type || '').toLowerCase();
+              return idU.includes('SK-VST') || typeL.includes('client visit') || typeL.includes('site visit');
+            }).length}
           </span>
         </button>
 
         <button
-          onClick={() => setCategoryFilter('ServiceRequests')}
+          onClick={() => setCategoryFilter('AssignedTasks')}
           className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            categoryFilter === 'ServiceRequests'
-              ? 'bg-purple-600 text-white shadow-xs'
-              : 'bg-purple-50 text-purple-800 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200/80 dark:border-purple-800/50 hover:bg-purple-100'
+            categoryFilter === 'AssignedTasks'
+              ? 'bg-amber-500 text-white shadow-xs'
+              : 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/50 hover:bg-amber-100'
           }`}
         >
-          <FiTool size={14} />
-          <span>Service Requests (#SK-SRV)</span>
-          <span className="text-[10px] bg-purple-200/60 dark:bg-purple-900 px-1.5 py-0.5 rounded-full font-mono">
-            {orders.filter(o => String(o.id).includes('SK-SRV') || String(o.type).toLowerCase().includes('service request') || String(o.type).toLowerCase().includes('repair')).length}
+          <FiBriefcase size={14} />
+          <span>Assigned Tasks</span>
+          <span className="text-[10px] bg-amber-200/60 dark:bg-amber-900 px-1.5 py-0.5 rounded-full font-mono">
+            {orders.filter(o => {
+              if (!isDateInRange(o.createdAt || o.date, selectedDateRange)) return false;
+              const typeL = String(o.type || '').toLowerCase();
+              const svcL = String(o.serviceType || '').toLowerCase();
+              return typeL.includes('internal task') || svcL.includes('internal task') || svcL === 'internal_task';
+            }).length}
           </span>
         </button>
       </div>

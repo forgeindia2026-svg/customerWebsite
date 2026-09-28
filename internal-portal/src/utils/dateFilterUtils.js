@@ -13,7 +13,8 @@ export const isDateInRange = (dateInput, range) => {
         return false;
       }
     }
-    d = new Date(dateInput);
+    const cleanDateStr = dateInput.replace(/Sept/gi, 'Sep').replace(/July/gi, 'Jul').replace(/June/gi, 'Jun');
+    d = new Date(cleanDateStr);
   } else if (typeof dateInput === 'number') {
     d = new Date(dateInput);
   } else if (dateInput instanceof Date) {

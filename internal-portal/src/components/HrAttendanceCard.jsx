@@ -198,6 +198,11 @@ export default function HrAttendanceCard({ compact = false }) {
   };
 
   const handleConfirmPunchIn = async () => {
+    if (!photoPreview && !photoFile) {
+      alert('Please take a selfie or upload a photo before Punching In!');
+      return;
+    }
+
     setLocationStatus('Detecting location via GPS...');
     try {
       setIsPunching(true);
@@ -208,6 +213,17 @@ export default function HrAttendanceCard({ compact = false }) {
         coordsData = { locationName: 'SK Technology HQ, Chennai', lat: 13.0827, lng: 80.2707 };
       }
 
+      let finalPhotoUrl = photoPreview || '';
+      if (photoFile) {
+        try {
+          const { JobsApiService } = await import('../technician/services/apiService');
+          const uploadedUrl = await JobsApiService.uploadImageToS3(photoFile);
+          if (uploadedUrl) finalPhotoUrl = uploadedUrl;
+        } catch (uploadErr) {
+          console.warn('Photo upload to S3 failed, using preview:', uploadErr);
+        }
+      }
+
       const now = new Date();
       const today = now.toISOString().split('T')[0];
       const checkInTimeStr = now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true });
@@ -215,7 +231,7 @@ export default function HrAttendanceCard({ compact = false }) {
       const newPunch = {
         punchInTime: checkInTimeStr,
         punchInTimestamp: now.toISOString(),
-        punchInPhoto: photoPreview || '',
+        punchInPhoto: finalPhotoUrl,
         punchInLocation: coordsData.locationName,
         notes: notes || `HR Session ${punches.length + 1}`
       };
@@ -229,7 +245,7 @@ export default function HrAttendanceCard({ compact = false }) {
         }),
         checkInTime: attendance?.checkInTime || checkInTimeStr,
         checkInTimestamp: attendance?.checkInTimestamp || now.toISOString(),
-        punchInPhoto: photoPreview || attendance?.punchInPhoto || '',
+        punchInPhoto: finalPhotoUrl || attendance?.punchInPhoto || '',
         checkOutTime: '',
         checkOutTimestamp: undefined,
         status: 'PRESENT',
@@ -257,7 +273,7 @@ export default function HrAttendanceCard({ compact = false }) {
           location: coordsData.locationName,
           latitude: coordsData.lat,
           longitude: coordsData.lng,
-          photo: photoPreview || '',
+          photo: finalPhotoUrl,
           notes: notes || `HR Punch In Session ${punches.length + 1}`
         })
       }).catch(err => console.warn('Punch in backend sync fallback:', err));
@@ -406,7 +422,7 @@ export default function HrAttendanceCard({ compact = false }) {
             {/* Photo Verification Section */}
             <div>
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 block">
-                Verification Photo / Selfie (Optional)
+                Verification Photo / Selfie <span className="text-red-500 font-bold">* Required</span>
               </label>
 
               {isLiveCameraOpen ? (
