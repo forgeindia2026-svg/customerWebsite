@@ -541,7 +541,7 @@ export default function AdminChat() {
         />
       )}
 
-      <div className="flex h-[calc(100vh-160px)] md:h-[calc(100vh-220px)] bg-slate-50 border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+      <div className="flex h-full w-full bg-slate-50 overflow-hidden">
         
         {/* ─── CONTACTS LIST ─── */}
         <div className={`w-full sm:w-80 bg-white border-r border-slate-200 flex flex-col ${activeContact ? 'hidden sm:flex' : 'flex'}`}>

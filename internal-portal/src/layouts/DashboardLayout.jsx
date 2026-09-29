@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { setDashboardData } from '../redux/dashboardSlice';
 import Sidebar from '../components/Sidebar';
@@ -11,6 +11,10 @@ export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const darkMode = useSelector(state => state.dashboard.darkMode);
+  const location = useLocation();
+
+  // Check if current route is chat
+  const isChatPage = location.pathname.includes('/chat');
 
   // Auth check guard with auto-init
   useEffect(() => {
@@ -89,9 +93,9 @@ export default function DashboardLayout() {
       )}
 
       {/* Main content pane */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         <Header toggleMobileSidebar={toggleMobileSidebar} />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 sm:p-6 md:p-8">
+        <main className={`flex-1 overflow-x-hidden overflow-y-auto ${isChatPage ? 'p-0' : 'p-4 sm:p-6 md:p-8'}`}>
           {/* Outlet wraps actual page contents */}
           <Outlet />
         </main>

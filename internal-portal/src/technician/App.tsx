@@ -535,7 +535,7 @@ export function App() {
       />
 
       {/* Main Content Layout */}
-      <div className="flex-1 flex flex-col h-screen overflow-y-auto min-w-0 bg-[#F1F3F6]">
+      <div className={`flex-1 flex flex-col h-screen min-w-0 bg-[#F1F3F6] ${activeTab === 'messages' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
         <OfflineBanner
           isOnline={isOnline}
           queuedCount={queuedReportsCount}
@@ -552,10 +552,11 @@ export function App() {
           onNavigateToNotifications={() => setActiveTab('notifications')}
         />
 
-        <main className="flex-1 px-3.5 py-4 sm:px-6 lg:px-8 lg:py-8 pb-24 lg:pb-10 max-w-7xl w-full mx-auto space-y-4">
+        <main className={`flex-1 w-full mx-auto flex flex-col ${activeTab === 'messages' ? 'p-0 max-w-none overflow-hidden' : 'px-3.5 py-4 sm:px-6 lg:px-8 lg:py-8 pb-24 lg:pb-10 max-w-7xl space-y-4'}`}>
           {/* Module Title Banner */}
-          <div className="hidden md:flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 pb-5">
-            <div>
+          {activeTab !== 'messages' && (
+            <div className="hidden md:flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 pb-5 shrink-0">
+              <div>
               <h1 className="text-2xl font-bold tracking-tight text-zinc-900 capitalize">
                 {activeTab === 'dashboard' && 'Dashboard Overview'}
                 {activeTab === 'assigned_jobs' && 'Assigned Jobs'}
@@ -573,8 +574,8 @@ export function App() {
                 Field service daily activity logs and customer work reports.
               </p>
             </div>
-
           </div>
+          )}
 
           {/* Module Views Routing */}
           {activeTab === 'dashboard' && (

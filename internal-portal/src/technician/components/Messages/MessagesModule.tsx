@@ -8,8 +8,8 @@ import AgoraRTC from 'agora-rtc-sdk-ng';
 import { toneGenerator } from '../../../utils/ToneGenerator';
 
 const API_BASE = (() => {
-  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-  return 'https://43.204.218.193.sslip.io';
+  let url = import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io';
+  return url.replace(/\/$/, '');
 })();
 
 const makeRoomId = (a: string, b: string) => [a, b].sort().join('_');
@@ -494,7 +494,7 @@ export const MessagesModule: React.FC = () => {
           onToggleMute={toggleMute} onToggleVideo={toggleVideo} onToggleSpeaker={toggleSpeaker}
           callWithVideo={callWithVideo} />
       )}
-      <div className="flex h-[calc(100vh-140px)] md:h-[calc(100vh-160px)] bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+      <div className="flex h-full w-full bg-white overflow-hidden">
         
         {/* CONTACTS LIST */}
         <div className={`w-full md:w-[320px] bg-slate-50 border-r border-slate-200 flex flex-col ${activeContact ? 'hidden md:flex' : 'flex'}`}>
