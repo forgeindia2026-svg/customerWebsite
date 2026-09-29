@@ -644,39 +644,38 @@ export default function AdminChat() {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-5 no-scrollbar">
+            <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4 bg-[#efeae2] no-scrollbar">
               {isLoadingMessages ? (
                 <div className="flex items-center justify-center h-full"><FiLoader className="w-8 h-8 animate-spin text-blue-500" /></div>
               ) : groupedMessages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-400">
-                  <div className="w-16 h-16 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center shadow-sm">
+                  <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center shadow-sm">
                     <FiMessageSquare className="w-7 h-7 text-slate-300" />
                   </div>
                   <div className="text-center">
                     <p className="text-sm font-semibold text-slate-600">No messages yet</p>
-                    <p className="text-xs text-slate-400 mt-1">Send a message to start the conversation with {activeContact.name}</p>
+                    <p className="text-xs text-slate-400 mt-1">Send a message to start the conversation</p>
                   </div>
                 </div>
               ) : (
                 groupedMessages.map(group => (
-                  <div key={group.date} className="space-y-3">
-                    <div className="text-center my-3 relative">
-                      <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-100"></div></div>
-                      <div className="relative flex justify-center">
-                        <span className="text-[10px] font-bold text-slate-400 bg-white px-3 py-0.5 border border-slate-100 rounded-full shadow-sm">{group.date}</span>
-                      </div>
+                  <div key={group.date} className="space-y-2">
+                    <div className="text-center my-3">
+                      <span className="text-[10px] font-bold text-slate-500 bg-white/60 backdrop-blur-sm px-3 py-1 rounded-lg shadow-sm inline-block">{group.date}</span>
                     </div>
-                    <div className="space-y-2.5">
+                    <div className="space-y-1">
                       {group.msgs.map((msg, i) => {
                         const isMe = msg.senderId === myId;
                         return (
-                          <div key={msg._id || i} className={`flex items-end gap-2 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                          <div key={msg._id || i} className={`flex items-end gap-1.5 ${isMe ? 'justify-end' : 'justify-start'}`}>
                             {!isMe && (
-                              <div className={`w-6 h-6 rounded-full bg-gradient-to-br ${roleColor(activeContact.role)} flex items-center justify-center text-white font-bold text-[9px] shrink-0 mb-1 shadow-sm`}>{getInitials(activeContact.name)}</div>
+                              <div className={`w-6 h-6 rounded-full bg-gradient-to-br ${roleColor(activeContact.role)} flex items-center justify-center text-white font-bold text-[9px] shrink-0 shadow-sm`}>{getInitials(activeContact.name)}</div>
                             )}
-                            <div className="flex flex-col gap-1 max-w-[75%] sm:max-w-md">
-                              <div className={`px-4 py-2.5 text-sm shadow-sm ${isMe ? 'bg-blue-600 text-white rounded-2xl rounded-br-sm' : 'bg-slate-50 border border-slate-200 text-slate-800 rounded-2xl rounded-bl-sm'}`}>{msg.text}</div>
-                              <span className={`text-[9px] font-medium text-slate-400 px-1 ${isMe ? 'text-right' : 'text-left'}`}>{formatTime(msg.createdAt)}</span>
+                            <div className={`relative max-w-[75%] sm:max-w-md px-3 pt-2 pb-5 text-[15px] shadow-sm leading-relaxed ${isMe ? 'bg-blue-500 text-white rounded-2xl rounded-br-sm' : 'bg-white text-slate-800 rounded-2xl rounded-bl-sm'}`}>
+                              <span className="break-words">{msg.text}</span>
+                              <span className={`absolute bottom-1 right-2.5 text-[9px] font-medium tracking-wide ${isMe ? 'text-blue-100' : 'text-slate-400'}`}>
+                                {formatTime(msg.createdAt)}
+                              </span>
                             </div>
                           </div>
                         );
@@ -689,14 +688,14 @@ export default function AdminChat() {
             </div>
 
             {/* Message Input */}
-            <div className="p-4 bg-white border-t border-slate-200 shrink-0">
-              <form onSubmit={handleSend} className="flex items-center gap-3 max-w-4xl mx-auto">
+            <div className="p-2.5 bg-[#efeae2] shrink-0">
+              <form onSubmit={handleSend} className="flex items-center gap-2 max-w-4xl mx-auto">
                 <input type="text" value={messageText} onChange={e => setMessageText(e.target.value)}
-                  placeholder={`Message ${activeContact.name}...`}
-                  className="flex-1 bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-full px-5 py-3 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all placeholder:text-slate-400" />
+                  placeholder="Type a message..."
+                  className="flex-1 bg-white border-none rounded-full px-5 py-3 text-sm focus:outline-none shadow-sm transition-all placeholder:text-slate-400" />
                 <button type="submit" disabled={!messageText.trim() || isSending}
-                  className="w-12 h-12 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-full flex items-center justify-center transition-all shrink-0 shadow-md active:scale-95">
-                  {isSending ? <FiLoader className="w-5 h-5 animate-spin" /> : <FiSend className="w-5 h-5 -ml-0.5" />}
+                  className="w-11 h-11 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white rounded-full flex items-center justify-center transition-all shrink-0 shadow-md active:scale-95">
+                  {isSending ? <FiLoader className="w-5 h-5 animate-spin" /> : <FiSend className="w-4 h-4 -ml-0.5" />}
                 </button>
               </form>
             </div>
