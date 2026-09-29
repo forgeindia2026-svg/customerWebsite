@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Search, Send, Users, ShieldAlert, Phone, ChevronLeft, Loader2, MessageSquare,
   PhoneOff, Mic, MicOff, Video, VideoOff, Volume2, VolumeX, Plus, Paperclip, Image as ImageIcon, FileText, X
+} from 'lucide-react';
 import { io } from 'socket.io-client';
 import AgoraRTC from 'agora-rtc-sdk-ng';
 import { toneGenerator } from '../../../utils/ToneGenerator';
