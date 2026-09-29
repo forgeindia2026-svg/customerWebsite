@@ -495,6 +495,18 @@ export const MessagesModule: React.FC = () => {
     }
   };
 
+  const handleGroupCreated = (group: any) => {
+    const newGroupContact: Contact = {
+      _id: group._id,
+      name: group.name,
+      role: 'GROUP',
+      avatar: group.avatar || '',
+      isAvailable: true,
+      isGroup: true
+    };
+    setContacts(prev => [newGroupContact, ...prev]);
+  };
+
   const filteredContacts = contacts.filter(c =>
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
