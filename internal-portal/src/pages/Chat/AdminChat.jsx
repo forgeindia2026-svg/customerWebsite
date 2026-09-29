@@ -36,12 +36,11 @@ const roleColor = (role) => {
 const getInitials = (name) => name?.trim().split(/\s+/).map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
 
 // ─── Call Overlay Component ───────────────────────────────────────────────────
-function CallOverlay({ callState, localVideoRef, remoteVideoRef, contact, onEndCall, onAccept, onReject, isMuted, isVideoOff, onToggleMute, onToggleVideo, callWithVideo }) {
+function CallOverlay({ callState, localVideoRef, remoteVideoRef, contact, onEndCall, onAccept, onReject, isMuted, isVideoOff, onToggleMute, onToggleVideo, callWithVideo, isSpeakerOn, onToggleSpeaker }) {
   const isIncoming = callState === 'incoming';
   const isOutgoing = callState === 'outgoing';
   const isActive   = callState === 'active';
   const [callDuration, setCallDuration] = React.useState(0);
-  const [isSpeakerOn, setIsSpeakerOn] = React.useState(true);
 
   React.useEffect(() => {
     let interval;
@@ -118,8 +117,13 @@ function CallOverlay({ callState, localVideoRef, remoteVideoRef, contact, onEndC
           )}
 
           {isActive && (
+            <div className="flex flex-col items-center gap-3">
+              {/* Speaker label */}
+              <span className="text-xs text-slate-400 font-semibold tracking-wide">
+                {isSpeakerOn ? '🔊 Speaker' : '🔇 Earpiece'}
+              </span>
             <div className="flex items-center gap-4 bg-slate-900/60 p-4 rounded-[2rem] backdrop-blur-md border border-slate-700/50">
-              <button onClick={() => setIsSpeakerOn(!isSpeakerOn)} className={`w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 ${isSpeakerOn ? 'bg-white text-slate-900' : 'bg-slate-700/80 text-white hover:bg-slate-600'}`}>
+              <button onClick={onToggleSpeaker} className={`w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 ${isSpeakerOn ? 'bg-white text-slate-900' : 'bg-slate-700/80 text-white hover:bg-slate-600'}`}>
                 {isSpeakerOn ? <FiVolume2 className="w-6 h-6" /> : <FiVolumeX className="w-6 h-6" />}
               </button>
               <button onClick={onToggleMute} className={`w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 ${isMuted ? 'bg-white text-slate-900' : 'bg-slate-700/80 text-white hover:bg-slate-600'}`}>
@@ -133,6 +137,7 @@ function CallOverlay({ callState, localVideoRef, remoteVideoRef, contact, onEndC
                   {isVideoOff ? <FiVideoOff className="w-6 h-6" /> : <FiVideo className="w-6 h-6" />}
                 </button>
               )}
+            </div>
             </div>
           )}
         </div>
@@ -163,6 +168,7 @@ export default function AdminChat() {
   const [callWithVideo, setCallWithVideo] = useState(false);
   const [isMuted, setIsMuted]       = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
+  const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [incomingCallData, setIncomingCallData] = useState(null);
 
   const bottomRef    = useRef(null);
@@ -452,6 +458,39 @@ export default function AdminChat() {
     }
   };
 
+  // ── Toggle Speaker ────────────────────────────────────────────────────────
+  const toggleSpeaker = async () => {
+    const newSpeakerOn = !isSpeakerOn;
+    setIsSpeakerOn(newSpeakerOn);
+
+    // Try setSinkId on all audio/video elements for remote audio routing
+    try {
+      const audioElements = document.querySelectorAll('audio, video');
+      for (const el of audioElements) {
+        if (typeof el.setSinkId === 'function') {
+          // 'communications' = earpiece on mobile, '' = default speaker
+          await el.setSinkId(newSpeakerOn ? '' : 'communications').catch(() => {});
+        } else {
+          // Fallback: just mute/unmute the element volume
+          el.volume = newSpeakerOn ? 1 : 0;
+        }
+      }
+      // Also try on Agora remote tracks via remoteVideoRef
+      if (remoteVideoRef.current) {
+        const els = remoteVideoRef.current.querySelectorAll('audio, video');
+        for (const el of els) {
+          if (typeof el.setSinkId === 'function') {
+            await el.setSinkId(newSpeakerOn ? '' : 'communications').catch(() => {});
+          } else {
+            el.volume = newSpeakerOn ? 1 : 0;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Speaker toggle error:', err);
+    }
+  };
+
   // ── Filter & Group ────────────────────────────────────────────────────────
   const filteredContacts = contacts.filter(c =>
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -491,11 +530,13 @@ export default function AdminChat() {
           remoteVideoRef={remoteVideoRef}
           isMuted={isMuted}
           isVideoOff={isVideoOff}
+          isSpeakerOn={isSpeakerOn}
           onEndCall={endCall}
           onAccept={acceptCall}
           onReject={rejectCall}
           onToggleMute={toggleMute}
           onToggleVideo={toggleVideo}
+          onToggleSpeaker={toggleSpeaker}
           callWithVideo={callWithVideo}
         />
       )}

@@ -45,12 +45,11 @@ const roleColor = (role: string) => {
 const getInitials = (name: string) => name?.trim().split(/\s+/).map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
 
 // ─── Call Overlay Component ───────────────────────────────────────────────────
-function CallOverlay({ callState, localVideoRef, remoteVideoRef, contact, onEndCall, onAccept, onReject, isMuted, isVideoOff, onToggleMute, onToggleVideo, callWithVideo }: any) {
+function CallOverlay({ callState, localVideoRef, remoteVideoRef, contact, onEndCall, onAccept, onReject, isMuted, isVideoOff, onToggleMute, onToggleVideo, callWithVideo, isSpeakerOn, onToggleSpeaker }: any) {
   const isIncoming = callState === 'incoming';
   const isOutgoing = callState === 'outgoing';
   const isActive   = callState === 'active';
   const [callDuration, setCallDuration] = React.useState(0);
-  const [isSpeakerOn, setIsSpeakerOn] = React.useState(true);
 
   React.useEffect(() => {
     let interval: any;
@@ -127,8 +126,12 @@ function CallOverlay({ callState, localVideoRef, remoteVideoRef, contact, onEndC
           )}
 
           {isActive && (
+            <div className="flex flex-col items-center gap-3">
+              <span className="text-xs text-slate-400 font-semibold tracking-wide">
+                {isSpeakerOn ? '🔊 Speaker' : '🔇 Earpiece'}
+              </span>
             <div className="flex items-center gap-4 bg-slate-900/60 p-4 rounded-[2rem] backdrop-blur-md border border-slate-700/50">
-              <button onClick={() => setIsSpeakerOn(!isSpeakerOn)} className={`w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 ${isSpeakerOn ? 'bg-white text-slate-900' : 'bg-slate-700/80 text-white hover:bg-slate-600'}`}>
+              <button onClick={onToggleSpeaker} className={`w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 ${isSpeakerOn ? 'bg-white text-slate-900' : 'bg-slate-700/80 text-white hover:bg-slate-600'}`}>
                 {isSpeakerOn ? <Volume2 className="w-6 h-6" /> : <VolumeX className="w-6 h-6" />}
               </button>
               <button onClick={onToggleMute} className={`w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 ${isMuted ? 'bg-white text-slate-900' : 'bg-slate-700/80 text-white hover:bg-slate-600'}`}>
@@ -142,6 +145,7 @@ function CallOverlay({ callState, localVideoRef, remoteVideoRef, contact, onEndC
                   {isVideoOff ? <VideoOff className="w-6 h-6" /> : <Video className="w-6 h-6" />}
                 </button>
               )}
+            </div>
             </div>
           )}
         </div>
@@ -172,6 +176,7 @@ export const MessagesModule: React.FC = () => {
   const [callWithVideo, setCallWithVideo] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
+  const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [incomingCallData, setIncomingCallData] = useState<any>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -437,6 +442,33 @@ export const MessagesModule: React.FC = () => {
     }
   };
 
+  const toggleSpeaker = async () => {
+    const newSpeakerOn = !isSpeakerOn;
+    setIsSpeakerOn(newSpeakerOn);
+    try {
+      const audioElements = document.querySelectorAll('audio, video');
+      for (const el of audioElements as any) {
+        if (typeof el.setSinkId === 'function') {
+          await el.setSinkId(newSpeakerOn ? '' : 'communications').catch(() => {});
+        } else {
+          el.volume = newSpeakerOn ? 1 : 0;
+        }
+      }
+      if (remoteVideoRef.current) {
+        const els = remoteVideoRef.current.querySelectorAll('audio, video');
+        for (const el of els as any) {
+          if (typeof el.setSinkId === 'function') {
+            await el.setSinkId(newSpeakerOn ? '' : 'communications').catch(() => {});
+          } else {
+            el.volume = newSpeakerOn ? 1 : 0;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Speaker toggle error:', err);
+    }
+  };
+
   const filteredContacts = contacts.filter(c =>
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -457,7 +489,10 @@ export const MessagesModule: React.FC = () => {
     <>
       {callState && (
         <CallOverlay callState={callState} contact={callContact} localVideoRef={localVideoRef} remoteVideoRef={remoteVideoRef}
-          isMuted={isMuted} isVideoOff={isVideoOff} onEndCall={endCall} onAccept={acceptCall} onReject={rejectCall} onToggleMute={toggleMute} onToggleVideo={toggleVideo} callWithVideo={callWithVideo} />
+          isMuted={isMuted} isVideoOff={isVideoOff} isSpeakerOn={isSpeakerOn}
+          onEndCall={endCall} onAccept={acceptCall} onReject={rejectCall}
+          onToggleMute={toggleMute} onToggleVideo={toggleVideo} onToggleSpeaker={toggleSpeaker}
+          callWithVideo={callWithVideo} />
       )}
       <div className="flex h-[calc(100vh-140px)] md:h-[calc(100vh-160px)] bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
         
