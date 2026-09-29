@@ -63,7 +63,7 @@ function CallOverlay({ callState, localVideoRef, remoteVideoRef, contact, onEndC
       <div className="relative w-full h-full md:h-auto md:max-w-md md:mx-4 bg-slate-800 md:rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col md:min-h-[65vh]">
 
         {/* Always render remote video container to ensure ref exists for Agora, but hide if not active */}
-        <div ref={remoteVideoRef} className={`absolute inset-0 z-10 [&>div]:!h-full [&>div]:!w-full [&_video]:!object-cover ${!(isActive && callWithVideo) ? 'hidden' : ''}`} />
+        <div ref={remoteVideoRef} className={`absolute inset-0 z-10 [&>div]:!h-full [&>div]:!w-full [&_video]:!object-cover ${!(isActive && callWithVideo) ? 'opacity-0 pointer-events-none' : ''}`} />
 
         {isActive && callWithVideo ? (
           <div className="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center z-0">
@@ -85,7 +85,7 @@ function CallOverlay({ callState, localVideoRef, remoteVideoRef, contact, onEndC
         )}
 
         {/* Always render local video container but hide if not active */}
-        <div ref={localVideoRef} className={`absolute top-6 right-6 w-28 h-40 rounded-2xl overflow-hidden bg-slate-700 border-2 border-slate-500 shadow-xl z-20 [&>div]:!h-full [&>div]:!w-full [&_video]:!object-cover ${!(isActive && callWithVideo) ? 'hidden' : ''}`} />
+        <div ref={localVideoRef} className={`absolute top-6 right-6 w-28 h-40 rounded-2xl overflow-hidden bg-slate-700 border-2 border-slate-500 shadow-xl z-20 [&>div]:!h-full [&>div]:!w-full [&_video]:!object-cover ${!(isActive && callWithVideo) ? 'opacity-0 pointer-events-none' : ''}`} />
 
         <div className="relative z-20 flex flex-col items-center justify-end pb-12 px-6 mt-auto">
           {isIncoming && (
