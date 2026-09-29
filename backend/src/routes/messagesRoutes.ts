@@ -51,12 +51,12 @@ router.get('/:roomId', async (req: Request, res: Response) => {
 // POST /api/messages   — send a new message
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { senderId, senderName, senderRole, recipientId, recipientName, text } = req.body;
+    const { senderId, senderName, senderRole, recipientId, recipientName, text, isGroupMessage } = req.body;
     if (!senderId || !recipientId || !text?.trim()) {
       return res.status(400).json({ success: false, message: 'senderId, recipientId, and text required.' });
     }
 
-    const roomId = makeRoomId(senderId, recipientId);
+    const roomId = isGroupMessage ? recipientId : makeRoomId(senderId, recipientId);
     const message = new Message({
       senderId,
       senderName,
@@ -65,6 +65,7 @@ router.post('/', async (req: Request, res: Response) => {
       recipientName,
       roomId,
       text: text.trim(),
+      isGroupMessage: !!isGroupMessage,
       readBy: [senderId]
     });
     await message.save();
@@ -72,11 +73,29 @@ router.post('/', async (req: Request, res: Response) => {
     // Real-time push to recipient's socket room
     try {
       const io = getIO();
-      io.to(`user:${recipientId}`).emit('message:new', {
-        ...message.toObject(),
-        roomId
-      });
-    } catch (_) {}
+      if (isGroupMessage) {
+        import('../models/ChatGroup').then(async (mod) => {
+          const group = await mod.default.findById(recipientId).lean();
+          if (group) {
+            group.members.forEach(memberId => {
+              if (memberId !== senderId) {
+                io.to(`user:${memberId}`).emit('message:new', {
+                  ...message.toObject(),
+                  roomId
+                });
+              }
+            });
+          }
+        });
+      } else {
+        io.to(`user:${recipientId}`).emit('message:new', {
+          ...message.toObject(),
+          roomId
+        });
+      }
+    } catch (e) {
+      console.error('Socket emit error:', e);
+    }
 
     res.status(201).json({ success: true, data: message });
   } catch (err: any) {

@@ -536,23 +536,27 @@ export function App() {
 
       {/* Main Content Layout */}
       <div className={`flex-1 flex flex-col h-screen min-w-0 bg-[#F1F3F6] ${activeTab === 'messages' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
-        <OfflineBanner
-          isOnline={isOnline}
-          queuedCount={queuedReportsCount}
-          isAutoSyncing={isAutoSyncing}
-        />
+        {activeTab !== 'messages' && (
+          <>
+            <OfflineBanner
+              isOnline={isOnline}
+              queuedCount={queuedReportsCount}
+              isAutoSyncing={isAutoSyncing}
+            />
 
-        <Header
-          searchQuery={globalSearchQuery}
-          onSearchChange={setGlobalSearchQuery}
-          currentTechnician={profile}
-          onToggleSidebar={() => setIsMobileSidebarOpen(true)}
-          notifications={notifications}
-          onMarkRead={handleMarkNotificationRead}
-          onNavigateToNotifications={() => setActiveTab('notifications')}
-        />
+            <Header
+              searchQuery={globalSearchQuery}
+              onSearchChange={setGlobalSearchQuery}
+              currentTechnician={profile}
+              onToggleSidebar={() => setIsMobileSidebarOpen(true)}
+              notifications={notifications}
+              onMarkRead={handleMarkNotificationRead}
+              onNavigateToNotifications={() => setActiveTab('notifications')}
+            />
+          </>
+        )}
 
-        <main className={`flex-1 w-full mx-auto flex flex-col ${activeTab === 'messages' ? 'p-0 max-w-none overflow-hidden' : 'px-3.5 py-4 sm:px-6 lg:px-8 lg:py-8 pb-24 lg:pb-10 max-w-7xl space-y-4'}`}>
+        <main className={`flex-1 w-full mx-auto flex flex-col ${activeTab === 'messages' ? 'p-0 max-w-none overflow-hidden pb-[70px] md:pb-0' : 'px-3.5 py-4 sm:px-6 lg:px-8 lg:py-8 pb-24 lg:pb-10 max-w-7xl space-y-4'}`}>
           {/* Module Title Banner */}
           {activeTab !== 'messages' && (
             <div className="hidden md:flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 pb-5 shrink-0">

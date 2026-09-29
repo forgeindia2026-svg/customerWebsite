@@ -52,6 +52,8 @@ import messagesRoutes from './routes/messagesRoutes';
 import usersRoutes from './routes/usersRoutes';
 import agoraRoutes from './routes/agoraRoutes';
 
+import groupRoutes from './routes/groupRoutes';
+
 // API Routes
 app.use('/api/products', productRoutes);
 app.use('/api/jobs', jobRoutes);
@@ -70,6 +72,7 @@ app.use('/api/order-types', orderTypeRoutes);
 app.use('/api/messages', messagesRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/agora', agoraRoutes);
+app.use('/api/groups', groupRoutes);
 
 import Job from './models/Job';
 import { clearDashboardCache } from './routes/dashboardRoutes';

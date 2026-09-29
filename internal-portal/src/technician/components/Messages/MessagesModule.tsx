@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Search, Send, Users, ShieldAlert, Phone, ChevronLeft, Loader2, MessageSquare,
-  PhoneOff, Mic, MicOff, Video, VideoOff, Volume2, VolumeX
+  PhoneOff, Mic, MicOff, Video, VideoOff, Volume2, VolumeX, Plus
 } from 'lucide-react';
 import { io } from 'socket.io-client';
 import AgoraRTC from 'agora-rtc-sdk-ng';
 import { toneGenerator } from '../../../utils/ToneGenerator';
+import CreateGroupModal from './CreateGroupModal';
 
 const API_BASE = (() => {
   let url = import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io';
@@ -22,6 +23,7 @@ interface Contact {
   role: string;
   avatar?: string;
   isAvailable?: boolean;
+  isGroup?: boolean;
 }
 
 const roleBadgeColor = (role: string) => {
@@ -169,6 +171,7 @@ export const MessagesModule: React.FC = () => {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [isSending, setIsSending] = useState(false);
+  const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
 
   // Call state
   const [callState, setCallState] = useState<string | null>(null);
@@ -217,7 +220,27 @@ export const MessagesModule: React.FC = () => {
       }
 
       const myNameLower = myName?.toLowerCase().trim();
-      setContacts(allUsers.filter(c => c.name?.toLowerCase().trim() !== myNameLower));
+      const users = allUsers.filter(c => c.name?.toLowerCase().trim() !== myNameLower);
+
+      let groupContacts: Contact[] = [];
+      try {
+        if (myId) {
+          const gRes = await fetch(`${API_BASE}/api/groups/${myId}`);
+          const gData = await gRes.json();
+          if (gData.success && Array.isArray(gData.data)) {
+            groupContacts = gData.data.map((g: any) => ({
+              _id: g._id,
+              name: g.name,
+              role: 'GROUP',
+              avatar: g.avatar || '',
+              isAvailable: true,
+              isGroup: true
+            }));
+          }
+        }
+      } catch (_) {}
+
+      setContacts([...groupContacts, ...users]);
     } catch (e) {
       setContacts([]);
     } finally {
@@ -238,7 +261,7 @@ export const MessagesModule: React.FC = () => {
     setIsLoadingMessages(true);
     setMessages([]);
     try {
-      const roomId = makeRoomId(myId, contact._id);
+      const roomId = contact.isGroup ? contact._id : makeRoomId(myId, contact._id);
       const res = await fetch(`${API_BASE}/api/messages/${roomId}?myId=${myId}`);
       const data = await res.json();
       if (data.success) {
@@ -271,7 +294,8 @@ export const MessagesModule: React.FC = () => {
       });
 
       setActiveContact(active => {
-        if (!active || makeRoomId(myId, active._id) !== msg.roomId) {
+        const expectedRoomId = active?.isGroup ? active._id : (active ? makeRoomId(myId, active._id) : null);
+        if (!active || expectedRoomId !== msg.roomId) {
           setUnreadCounts(counts => ({ ...counts, [msg.roomId]: (counts[msg.roomId] || 0) + 1 }));
         }
         return active;
@@ -322,11 +346,13 @@ export const MessagesModule: React.FC = () => {
     if (!messageText.trim() || !activeContact || isSending || !myId) return;
 
     setIsSending(true);
+    const roomId = activeContact.isGroup ? activeContact._id : makeRoomId(myId, activeContact._id);
     const optimisticMsg = {
       senderId: myId, senderName: myName, senderRole: myRole,
       recipientId: activeContact._id, recipientName: activeContact.name,
-      roomId: makeRoomId(myId, activeContact._id),
+      roomId: roomId,
       text: messageText.trim(), readBy: [myId], createdAt: new Date().toISOString(),
+      isGroupMessage: !!activeContact.isGroup
     };
 
     setMessages(prev => [...prev, optimisticMsg]);
@@ -503,7 +529,10 @@ export const MessagesModule: React.FC = () => {
               <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
                 <MessageSquare className="w-5 h-5 text-blue-600" /> Team Messages
               </h2>
-              {totalUnread > 0 && <span className="bg-blue-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">{totalUnread}</span>}
+              <div className="flex items-center gap-2">
+                {totalUnread > 0 && <span className="bg-blue-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">{totalUnread}</span>}
+                <button onClick={() => setIsGroupModalOpen(true)} className="p-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-full" title="New Group"><Plus className="w-4 h-4" /></button>
+              </div>
             </div>
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -518,7 +547,7 @@ export const MessagesModule: React.FC = () => {
               <div className="text-center p-6 text-slate-500 text-sm font-medium">No contacts found</div>
             ) : (
               filteredContacts.map(contact => {
-                const roomId = makeRoomId(myId, contact._id);
+                const roomId = contact.isGroup ? contact._id : makeRoomId(myId, contact._id);
                 const unread = unreadCounts[roomId] || 0;
                 const isActive = activeContact?._id === contact._id;
                 return (
@@ -542,22 +571,21 @@ export const MessagesModule: React.FC = () => {
 
         {/* CHAT AREA */}
         {activeContact ? (
-          <div className="flex-1 flex flex-col min-w-0 bg-white">
-            <div className="h-16 border-b border-slate-200 bg-white flex items-center justify-between px-4 shrink-0">
-              <div className="flex items-center gap-3">
-                <button onClick={() => setActiveContact(null)} className="md:hidden p-1.5 -ml-1 text-slate-500 hover:text-slate-900"><ChevronLeft className="w-5 h-5" /></button>
-                {activeContact.avatar ? <img src={activeContact.avatar} alt={activeContact.name} className="w-9 h-9 rounded-full object-cover hidden sm:block" /> : <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${roleColor(activeContact.role)} items-center justify-center text-white font-bold text-xs hidden sm:flex`}>{getInitials(activeContact.name)}</div>}
-                <div>
-                  <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">{activeContact.name} {(activeContact.role === 'ADMIN' || activeContact.role === 'HR') && <ShieldAlert className="w-3.5 h-3.5 text-blue-600" />}</h3>
-                  <div className="flex items-center gap-1.5">
-                    <span className={`inline-block text-[9px] font-bold px-1.5 py-0.5 rounded border ${roleBadgeColor(activeContact.role)}`}>{activeContact.role}</span>
-                    <span className={`text-[10px] font-medium ${activeContact.isAvailable ? 'text-green-600' : 'text-slate-400'}`}>• {activeContact.isAvailable ? 'Active' : 'Away'}</span>
+          <div className="fixed inset-0 z-[100] md:static md:z-auto md:flex-1 flex flex-col min-w-0 bg-white w-full h-[100dvh] md:h-auto md:w-auto">
+            <div className="h-16 border-b border-slate-200 bg-[#f0f2f5] flex items-center justify-between px-3 md:px-4 shrink-0">
+              <div className="flex items-center gap-2 md:gap-3 cursor-pointer">
+                <button onClick={() => setActiveContact(null)} className="md:hidden p-1 -ml-1 text-slate-600 hover:text-slate-900"><ChevronLeft className="w-6 h-6" /></button>
+                {activeContact.avatar ? <img src={activeContact.avatar} alt={activeContact.name} className="w-10 h-10 rounded-full object-cover" /> : <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${roleColor(activeContact.role)} flex items-center justify-center text-white font-bold text-sm`}>{getInitials(activeContact.name)}</div>}
+                <div className="ml-1 md:ml-0">
+                  <h3 className="text-[15px] font-semibold text-[#111b21] flex items-center gap-1.5">{activeContact.name}</h3>
+                  <div className="text-[13px] text-[#667781] font-medium leading-tight mt-0.5">
+                    {activeContact.role} • {activeContact.isAvailable ? <span className="text-emerald-600 font-semibold">Online</span> : <span>offline</span>}
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => startCall(activeContact, false)} className="w-9 h-9 rounded-full bg-green-50 border border-green-200 hover:bg-green-100 text-green-600 flex items-center justify-center"><Phone className="w-4 h-4" /></button>
-                <button onClick={() => startCall(activeContact, true)} className="w-9 h-9 rounded-full bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-600 flex items-center justify-center"><Video className="w-4 h-4" /></button>
+              <div className="flex items-center gap-4 text-[#54656f]">
+                <button onClick={() => startCall(activeContact, true)} className="hover:text-slate-800 transition-colors"><Video className="w-[22px] h-[22px]" /></button>
+                <button onClick={() => startCall(activeContact, false)} className="hover:text-slate-800 transition-colors"><Phone className="w-5 h-5" /></button>
               </div>
             </div>
 
@@ -614,6 +642,14 @@ export const MessagesModule: React.FC = () => {
           </div>
         )}
       </div>
+
+      <CreateGroupModal
+        isOpen={isGroupModalOpen}
+        onClose={() => setIsGroupModalOpen(false)}
+        contacts={contacts.filter(c => !c.isGroup)}
+        myId={myId}
+        onGroupCreated={handleGroupCreated}
+      />
     </>
   );
 };
