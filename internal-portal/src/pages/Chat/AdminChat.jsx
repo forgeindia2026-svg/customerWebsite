@@ -165,6 +165,11 @@ export default function AdminChat() {
   const [isSending, setIsSending]       = useState(false);
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [attachmentType, setAttachmentType] = useState(null);
+  const fileInputRef = useRef(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorder = useRef(null);
+  const audioChunks = useRef([]);
 
   // ── Call State ────────────────────────────────────────────────────────────
   const [callState, setCallState]   = useState(null); // null | 'outgoing' | 'incoming' | 'active'
@@ -359,6 +364,101 @@ export default function AdminChat() {
       const data = await res.json();
       if (data.success) setMessages(prev => prev.map(m => m === optimistic ? data.data : m));
     } catch (e) {} finally { setIsSending(false); }
+  };
+
+  const handleAttachMenuClick = (type) => {
+    setAttachmentType(type);
+    setShowAttachMenu(false);
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeContact || !myId || !attachmentType) return;
+    setIsSending(true);
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('folder', 'chat');
+    try {
+      const uploadRes = await fetch(`${API_BASE}/api/upload`, { method: 'POST', body: formData });
+      const uploadData = await uploadRes.json();
+      if (uploadData.success) {
+        const roomId = activeContact.isGroup ? activeContact._id : makeRoomId(myId, activeContact._id);
+        const msgData = {
+          senderId: myId, senderName: myName, senderRole: myRole,
+          recipientId: activeContact._id, recipientName: activeContact.name,
+          roomId: roomId,
+          attachmentUrl: uploadData.url, attachmentType,
+          readBy: [myId], createdAt: new Date().toISOString(),
+          isGroupMessage: !!activeContact.isGroup
+        };
+        const res = await fetch(`${API_BASE}/api/messages`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(msgData)
+        });
+        const data = await res.json();
+        if (data.success) {
+          setMessages(prev => [...prev, data.data]);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSending(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      setAttachmentType(null);
+    }
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder.current = new MediaRecorder(stream);
+      audioChunks.current = [];
+      mediaRecorder.current.ondataavailable = e => audioChunks.current.push(e.data);
+      mediaRecorder.current.onstop = async () => {
+        const audioBlob = new Blob(audioChunks.current, { type: 'audio/webm' });
+        const file = new File([audioBlob], 'voice-message.webm', { type: 'audio/webm' });
+        const formData = new FormData();
+        formData.append('image', file);
+        formData.append('folder', 'chat');
+        setIsSending(true);
+        try {
+          const uploadRes = await fetch(`${API_BASE}/api/upload`, { method: 'POST', body: formData });
+          const uploadData = await uploadRes.json();
+          if (uploadData.success && activeContact) {
+            const roomId = activeContact.isGroup ? activeContact._id : makeRoomId(myId, activeContact._id);
+            const msgData = {
+              senderId: myId, senderName: myName, senderRole: myRole,
+              recipientId: activeContact._id, recipientName: activeContact.name,
+              roomId: roomId,
+              attachmentUrl: uploadData.url, attachmentType: 'audio',
+              readBy: [myId], createdAt: new Date().toISOString(),
+              isGroupMessage: !!activeContact.isGroup
+            };
+            const res = await fetch(`${API_BASE}/api/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(msgData) });
+            const data = await res.json();
+            if (data.success) setMessages(prev => [...prev, data.data]);
+          }
+        } catch (err) {
+          console.error(err);
+        } finally {
+          setIsSending(false);
+        }
+      };
+      mediaRecorder.current.start();
+      setIsRecording(true);
+    } catch (err) {
+      alert('Microphone access denied');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorder.current && mediaRecorder.current.state !== 'inactive') {
+      mediaRecorder.current.stop();
+      setIsRecording(false);
+      mediaRecorder.current.stream.getTracks().forEach(track => track.stop());
+    }
   };
 
   // ── Agora Helpers ─────────────────────────────────────────────────────────
@@ -714,7 +814,21 @@ export default function AdminChat() {
                               <div className={`w-6 h-6 rounded-full bg-gradient-to-br ${roleColor(activeContact.role)} flex items-center justify-center text-white font-bold text-[9px] shrink-0 shadow-sm`}>{getInitials(activeContact.name)}</div>
                             )}
                             <div className={`relative max-w-[75%] sm:max-w-md px-3 pt-2 pb-5 text-[15px] shadow-sm leading-relaxed ${isMe ? 'bg-blue-500 text-white rounded-2xl rounded-br-sm' : 'bg-white text-slate-800 rounded-2xl rounded-bl-sm'}`}>
-                              <span className="break-words">{msg.text}</span>
+                              {msg.text && <span className="break-words">{msg.text}</span>}
+                              {msg.attachmentUrl && (
+                                <div className="mt-1">
+                                  {msg.attachmentType === 'image' ? (
+                                    <img src={msg.attachmentUrl} alt="attachment" className="rounded-xl max-w-full max-h-64 object-contain cursor-pointer" onClick={() => window.open(msg.attachmentUrl, '_blank')} />
+                                  ) : msg.attachmentType === 'document' ? (
+                                    <a href={msg.attachmentUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-black/10 p-2 rounded-lg hover:bg-black/20 transition-colors text-white">
+                                      <FiFileText className="w-6 h-6 shrink-0" />
+                                      <span className="text-sm font-medium underline truncate">Document</span>
+                                    </a>
+                                  ) : msg.attachmentType === 'audio' ? (
+                                    <audio controls src={msg.attachmentUrl} className="max-w-[200px] h-10" />
+                                  ) : null}
+                                </div>
+                              )}
                               <span className={`absolute bottom-1 right-2.5 text-[9px] font-medium tracking-wide ${isMe ? 'text-blue-100' : 'text-slate-400'}`}>
                                 {formatTime(msg.createdAt)}
                               </span>
@@ -735,17 +849,19 @@ export default function AdminChat() {
                 {/* Attachment Menu Popup */}
                 {showAttachMenu && (
                   <div className="absolute bottom-14 left-2 bg-white rounded-2xl shadow-xl border border-slate-100 p-4 flex gap-4 z-50 animate-in fade-in slide-in-from-bottom-2">
-                    <button type="button" onClick={() => { setShowAttachMenu(false); alert('Document sharing coming soon!'); }} className="flex flex-col items-center gap-2 group">
+                    <button type="button" onClick={() => handleAttachMenuClick('document')} className="flex flex-col items-center gap-2 group">
                       <div className="w-12 h-12 rounded-full bg-indigo-500 flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform"><FiFileText className="w-5 h-5" /></div>
                       <span className="text-xs font-medium text-slate-600">Document</span>
                     </button>
-                    <button type="button" onClick={() => { setShowAttachMenu(false); alert('Image sharing coming soon!'); }} className="flex flex-col items-center gap-2 group">
+                    <button type="button" onClick={() => handleAttachMenuClick('image')} className="flex flex-col items-center gap-2 group">
                       <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform"><FiImage className="w-5 h-5" /></div>
                       <span className="text-xs font-medium text-slate-600">Gallery</span>
                     </button>
                   </div>
                 )}
                 
+                <input type="file" ref={fileInputRef} className="hidden" accept={attachmentType === 'image' ? 'image/*' : '*/*'} onChange={handleFileChange} />
+
                 <form onSubmit={handleSend} className="flex-1 bg-white rounded-3xl flex items-center shadow-sm">
                   <button type="button" onClick={() => setShowAttachMenu(!showAttachMenu)} className={`p-3 ml-1 rounded-full transition-colors ${showAttachMenu ? 'bg-slate-100 text-slate-700' : 'text-slate-500 hover:bg-slate-50'}`}>
                     {showAttachMenu ? <FiX className="w-6 h-6" /> : <FiPaperclip className="w-6 h-6" />}
@@ -760,8 +876,10 @@ export default function AdminChat() {
                       {isSending ? <FiLoader className="w-5 h-5 animate-spin" /> : <FiSend className="w-5 h-5 -ml-0.5" />}
                     </button>
                   ) : (
-                    <button onClick={() => alert('Voice messages coming soon!')} className="w-12 h-12 bg-[#00a884] hover:bg-[#029676] text-white rounded-full flex items-center justify-center transition-all shadow-md">
-                      <FiMic className="w-5 h-5" />
+                    <button 
+                      onClick={isRecording ? stopRecording : startRecording} 
+                      className={`w-12 h-12 text-white rounded-full flex items-center justify-center transition-all shadow-md ${isRecording ? 'bg-red-500 hover:bg-red-600 animate-pulse' : 'bg-[#00a884] hover:bg-[#029676]'}`}>
+                      {isRecording ? <FiLoader className="w-5 h-5 animate-spin" /> : <FiMic className="w-5 h-5" />}
                     </button>
                   )}
                 </div>

@@ -51,9 +51,9 @@ router.get('/:roomId', async (req: Request, res: Response) => {
 // POST /api/messages   — send a new message
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { senderId, senderName, senderRole, recipientId, recipientName, text, isGroupMessage } = req.body;
-    if (!senderId || !recipientId || !text?.trim()) {
-      return res.status(400).json({ success: false, message: 'senderId, recipientId, and text required.' });
+    const { senderId, senderName, senderRole, recipientId, recipientName, text, isGroupMessage, attachmentUrl, attachmentType } = req.body;
+    if (!senderId || !recipientId || (!text?.trim() && !attachmentUrl)) {
+      return res.status(400).json({ success: false, message: 'senderId, recipientId, and either text or attachment required.' });
     }
 
     const roomId = isGroupMessage ? recipientId : makeRoomId(senderId, recipientId);
@@ -64,7 +64,9 @@ router.post('/', async (req: Request, res: Response) => {
       recipientId,
       recipientName,
       roomId,
-      text: text.trim(),
+      text: text ? text.trim() : undefined,
+      attachmentUrl,
+      attachmentType,
       isGroupMessage: !!isGroupMessage,
       readBy: [senderId]
     });

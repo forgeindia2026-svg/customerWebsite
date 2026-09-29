@@ -7,7 +7,9 @@ export interface IMessage extends Document {
   recipientId: string;
   recipientName?: string;
   roomId: string; // sorted "senderId_recipientId" or "groupId"
-  text: string;
+  text?: string;
+  attachmentUrl?: string;
+  attachmentType?: 'image' | 'document' | 'audio';
   isGroupMessage: boolean;
   readBy: string[];
   createdAt: Date;
@@ -22,7 +24,9 @@ const MessageSchema: Schema = new Schema(
     recipientId: { type: String, required: true },
     recipientName: { type: String, required: false },
     roomId: { type: String, required: true, index: true },
-    text: { type: String, required: true },
+    text: { type: String, required: false }, // Made optional so a message can be just an attachment
+    attachmentUrl: { type: String, required: false },
+    attachmentType: { type: String, enum: ['image', 'document', 'audio'], required: false },
     isGroupMessage: { type: Boolean, default: false },
     readBy: [{ type: String }],
   },
