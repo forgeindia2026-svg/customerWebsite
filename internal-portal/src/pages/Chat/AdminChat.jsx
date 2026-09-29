@@ -62,14 +62,14 @@ function CallOverlay({ callState, localVideoRef, remoteVideoRef, contact, onEndC
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/95 backdrop-blur-md">
       <div className="relative w-full h-full md:h-auto md:max-w-md md:mx-4 bg-slate-800 md:rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col md:min-h-[65vh]">
 
+        {/* Always render remote video container to ensure ref exists for Agora, but hide if not active */}
+        <div ref={remoteVideoRef} className={`absolute inset-0 z-10 [&>div]:!h-full [&>div]:!w-full [&_video]:!object-cover ${!(isActive && callWithVideo) ? 'hidden' : ''}`} />
+
         {isActive && callWithVideo ? (
-          <>
-            <div className="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center z-0">
-               <div className="w-16 h-16 border-4 border-slate-600 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-               <span className="text-slate-400 font-medium tracking-wide animate-pulse text-lg">Connecting video...</span>
-            </div>
-            <div ref={remoteVideoRef} className="absolute inset-0 z-10 [&>div]:!h-full [&>div]:!w-full [&_video]:!object-cover" />
-          </>
+          <div className="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center z-0">
+             <div className="w-16 h-16 border-4 border-slate-600 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+             <span className="text-slate-400 font-medium tracking-wide animate-pulse text-lg">Connecting video...</span>
+          </div>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center gap-6 py-12 relative z-10">
             <div className={`w-36 h-36 rounded-full bg-gradient-to-br ${roleColor(contact?.role)} flex items-center justify-center text-white text-5xl font-black shadow-2xl ${isActive ? 'animate-pulse' : ''} border-4 border-slate-700 ring-8 ring-slate-800`}>
@@ -84,9 +84,8 @@ function CallOverlay({ callState, localVideoRef, remoteVideoRef, contact, onEndC
           </div>
         )}
 
-        {isActive && callWithVideo && (
-          <div ref={localVideoRef} className="absolute top-6 right-6 w-28 h-40 rounded-2xl overflow-hidden bg-slate-700 border-2 border-slate-500 shadow-xl z-20 [&>div]:!h-full [&>div]:!w-full [&_video]:!object-cover" />
-        )}
+        {/* Always render local video container but hide if not active */}
+        <div ref={localVideoRef} className={`absolute top-6 right-6 w-28 h-40 rounded-2xl overflow-hidden bg-slate-700 border-2 border-slate-500 shadow-xl z-20 [&>div]:!h-full [&>div]:!w-full [&_video]:!object-cover ${!(isActive && callWithVideo) ? 'hidden' : ''}`} />
 
         <div className="relative z-20 flex flex-col items-center justify-end pb-12 px-6 mt-auto">
           {isIncoming && (
@@ -548,14 +547,14 @@ export default function AdminChat() {
   // ── Accept Incoming Call ──────────────────────────────────────────────────
   const acceptCall = async (withVideo) => {
     if (!incomingCallData) return;
-    socketRef.current?.emit('call:accepted', { from: myId, to: incomingCallData.from });
+    socketRef.current?.emit('call:accepted', { from: myId, to: incomingCallData.from, isGroup: incomingCallData.isGroup });
     await joinAgoraChannel(incomingCallData.channel, withVideo, false);
   };
 
   // ── Reject Incoming Call ──────────────────────────────────────────────────
   const rejectCall = () => {
     if (incomingCallData) {
-      socketRef.current?.emit('call:rejected', { from: myId, to: incomingCallData.from });
+      socketRef.current?.emit('call:rejected', { from: myId, to: incomingCallData.from, isGroup: incomingCallData.isGroup });
     }
     endCallCleanup();
   };
@@ -563,7 +562,14 @@ export default function AdminChat() {
   // ── End Active Call ───────────────────────────────────────────────────────
   const endCall = async () => {
     const target = callContact?._id || incomingCallData?.from;
-    if (target) socketRef.current?.emit('call:ended', { from: myId, to: target });
+    const isGroup = callContact?.isGroup || incomingCallData?.isGroup;
+    if (target) {
+      if (callState === 'outgoing') {
+        socketRef.current?.emit('call:cancelled', { from: myId, to: target, isGroup: !!isGroup });
+      } else {
+        socketRef.current?.emit('call:ended', { from: myId, to: target, isGroup: !!isGroup });
+      }
+    }
     await endCallCleanup();
   };
 

@@ -76,23 +76,75 @@ export const initSocket = (server: HttpServer) => {
     });
 
     // Callee accepts
-    socket.on('call:accepted', (data: { from: string; to: string }) => {
-      if (io && data.to) io.to(`user:${data.to}`).emit('call:accepted', data);
+    socket.on('call:accepted', (data: { from: string; to: string; isGroup?: boolean }) => {
+      if (io && data.to) {
+        if (data.isGroup) {
+          import('./models/ChatGroup').then(async (mod) => {
+            const group = await mod.default.findById(data.to).lean();
+            if (group) {
+              group.members.forEach((memberId: string) => {
+                if (memberId !== data.from) io!.to(`user:${memberId}`).emit('call:accepted', data);
+              });
+            }
+          }).catch(console.error);
+        } else {
+          io.to(`user:${data.to}`).emit('call:accepted', data);
+        }
+      }
     });
 
     // Callee rejects
-    socket.on('call:rejected', (data: { from: string; to: string }) => {
-      if (io && data.to) io.to(`user:${data.to}`).emit('call:rejected', data);
+    socket.on('call:rejected', (data: { from: string; to: string; isGroup?: boolean }) => {
+      if (io && data.to) {
+        if (data.isGroup) {
+          import('./models/ChatGroup').then(async (mod) => {
+            const group = await mod.default.findById(data.to).lean();
+            if (group) {
+              group.members.forEach((memberId: string) => {
+                if (memberId !== data.from) io!.to(`user:${memberId}`).emit('call:rejected', data);
+              });
+            }
+          }).catch(console.error);
+        } else {
+          io.to(`user:${data.to}`).emit('call:rejected', data);
+        }
+      }
     });
 
     // Caller cancels before pickup
-    socket.on('call:cancelled', (data: { from: string; to: string }) => {
-      if (io && data.to) io.to(`user:${data.to}`).emit('call:cancelled', data);
+    socket.on('call:cancelled', (data: { from: string; to: string; isGroup?: boolean }) => {
+      if (io && data.to) {
+        if (data.isGroup) {
+          import('./models/ChatGroup').then(async (mod) => {
+            const group = await mod.default.findById(data.to).lean();
+            if (group) {
+              group.members.forEach((memberId: string) => {
+                if (memberId !== data.from) io!.to(`user:${memberId}`).emit('call:cancelled', data);
+              });
+            }
+          }).catch(console.error);
+        } else {
+          io.to(`user:${data.to}`).emit('call:cancelled', data);
+        }
+      }
     });
 
     // Either side ends call
-    socket.on('call:ended', (data: { from: string; to: string }) => {
-      if (io && data.to) io.to(`user:${data.to}`).emit('call:ended', data);
+    socket.on('call:ended', (data: { from: string; to: string; isGroup?: boolean }) => {
+      if (io && data.to) {
+        if (data.isGroup) {
+          import('./models/ChatGroup').then(async (mod) => {
+            const group = await mod.default.findById(data.to).lean();
+            if (group) {
+              group.members.forEach((memberId: string) => {
+                if (memberId !== data.from) io!.to(`user:${memberId}`).emit('call:ended', data);
+              });
+            }
+          }).catch(console.error);
+        } else {
+          io.to(`user:${data.to}`).emit('call:ended', data);
+        }
+      }
     });
 
     socket.on('disconnect', () => {
