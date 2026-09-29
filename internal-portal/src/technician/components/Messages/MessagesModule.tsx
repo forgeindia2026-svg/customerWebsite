@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Search, Send, Users, ShieldAlert, Phone, ChevronLeft, Loader2, MessageSquare,
-  PhoneOff, Mic, MicOff, Video, VideoOff, Volume2, VolumeX, Plus
-} from 'lucide-react';
+  PhoneOff, Mic, MicOff, Video, VideoOff, Volume2, VolumeX, Plus, Paperclip, Image as ImageIcon, FileText, X
 import { io } from 'socket.io-client';
 import AgoraRTC from 'agora-rtc-sdk-ng';
 import { toneGenerator } from '../../../utils/ToneGenerator';
@@ -172,6 +171,7 @@ export const MessagesModule: React.FC = () => {
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [isSending, setIsSending] = useState(false);
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
 
   // Call state
   const [callState, setCallState] = useState<string | null>(null);
@@ -636,14 +636,42 @@ export const MessagesModule: React.FC = () => {
               <div ref={bottomRef} />
             </div>
 
-            <div className="p-2.5 bg-[#efeae2] shrink-0">
-              <form onSubmit={handleSend} className="flex items-center gap-2 max-w-4xl mx-auto">
-                <input type="text" value={messageText} onChange={e => setMessageText(e.target.value)} placeholder="Type a message..."
-                  className="flex-1 bg-white border-none rounded-full px-5 py-3 text-sm focus:outline-none shadow-sm transition-all placeholder:text-slate-400" />
-                <button type="submit" disabled={!messageText.trim() || isSending} className="w-11 h-11 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white rounded-full flex items-center justify-center transition-all shrink-0 shadow-md">
-                  {isSending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-4 h-4 -ml-0.5" />}
-                </button>
-              </form>
+            <div className="p-2.5 bg-[#efeae2] shrink-0 relative">
+              <div className="max-w-4xl mx-auto flex items-end gap-2 relative">
+                {/* Attachment Menu Popup */}
+                {showAttachMenu && (
+                  <div className="absolute bottom-14 left-2 bg-white rounded-2xl shadow-xl border border-slate-100 p-4 flex gap-4 z-50 animate-in fade-in slide-in-from-bottom-2">
+                    <button type="button" onClick={() => { setShowAttachMenu(false); alert('Document sharing coming soon!'); }} className="flex flex-col items-center gap-2 group">
+                      <div className="w-12 h-12 rounded-full bg-indigo-500 flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform"><FileText className="w-5 h-5" /></div>
+                      <span className="text-xs font-medium text-slate-600">Document</span>
+                    </button>
+                    <button type="button" onClick={() => { setShowAttachMenu(false); alert('Image sharing coming soon!'); }} className="flex flex-col items-center gap-2 group">
+                      <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform"><ImageIcon className="w-5 h-5" /></div>
+                      <span className="text-xs font-medium text-slate-600">Gallery</span>
+                    </button>
+                  </div>
+                )}
+                
+                <form onSubmit={handleSend} className="flex-1 bg-white rounded-3xl flex items-center shadow-sm">
+                  <button type="button" onClick={() => setShowAttachMenu(!showAttachMenu)} className={`p-3 ml-1 rounded-full transition-colors ${showAttachMenu ? 'bg-slate-100 text-slate-700' : 'text-slate-500 hover:bg-slate-50'}`}>
+                    {showAttachMenu ? <X className="w-6 h-6" /> : <Paperclip className="w-6 h-6" />}
+                  </button>
+                  <input type="text" value={messageText} onChange={e => setMessageText(e.target.value)} placeholder="Type a message..."
+                    className="flex-1 bg-transparent border-none py-3.5 px-2 text-[15px] focus:outline-none placeholder:text-slate-400" />
+                </form>
+                
+                <div className="shrink-0 flex items-center">
+                  {messageText.trim() ? (
+                    <button onClick={handleSend} disabled={isSending} className="w-12 h-12 bg-[#00a884] hover:bg-[#029676] disabled:bg-emerald-300 text-white rounded-full flex items-center justify-center transition-all shadow-md">
+                      {isSending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5 -ml-0.5" />}
+                    </button>
+                  ) : (
+                    <button onClick={() => alert('Voice messages coming soon!')} className="w-12 h-12 bg-[#00a884] hover:bg-[#029676] text-white rounded-full flex items-center justify-center transition-all shadow-md">
+                      <Mic className="w-5 h-5" />
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         ) : (
