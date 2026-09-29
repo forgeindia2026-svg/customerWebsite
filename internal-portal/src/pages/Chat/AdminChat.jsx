@@ -298,8 +298,8 @@ export default function AdminChat() {
 
     // ── Incoming call signal from remote peer ──────────────────────────────
     socket.on('call:incoming', (data) => {
-      // data = { from, fromName, fromRole, to, channel, withVideo }
-      if (data.to === myId) {
+      // data = { from, fromName, fromRole, to, channel, withVideo, isGroup }
+      if (data.to === myId || data.isGroup) {
         setIncomingCallData(data);
         setCallContact({ _id: data.from, name: data.fromName, role: data.fromRole });
         setCallWithVideo(data.withVideo || false);
@@ -309,26 +309,26 @@ export default function AdminChat() {
     });
 
     socket.on('call:accepted', (data) => {
-      if (data.to === myId) {
+      if (data.to === myId || data.isGroup) {
         toneGenerator.stop();
         setCallState('active');
       }
     });
 
     socket.on('call:cancelled', (data) => {
-      if (data.to === myId && callState === 'incoming') {
+      if ((data.to === myId || data.isGroup) && callState === 'incoming') {
         endCallCleanup();
       }
     });
 
     socket.on('call:rejected', (data) => {
-      if (data.to === myId) {
+      if (!data.isGroup && data.to === myId) {
         endCallCleanup();
       }
     });
 
     socket.on('call:ended', (data) => {
-      if (data.to === myId) {
+      if (data.to === myId || data.isGroup) {
         endCallCleanup();
       }
     });
