@@ -72,17 +72,30 @@ router.get('/', async (req: Request, res: Response) => {
         })
         .filter(Boolean);
 
+    // Fetch all jobs associated with these reports in one go to avoid N+1 query problem
+    const jobCodes = [...new Set(uniqueReports.filter(r => r.jobCode).map(r => r.jobCode.replace(/^#/, '')))];
+    let jobMap: Record<string, any> = {};
+    if (jobCodes.length > 0) {
+      const jobs = await Job.find({
+        $or: [
+          { jobCode: { $in: jobCodes } },
+          { jobCode: { $in: jobCodes.map(c => `#${c}`) } }
+        ]
+      }).lean();
+      
+      for (const job of jobs) {
+        const cleanCode = job.jobCode.replace(/^#/, '');
+        jobMap[cleanCode] = job;
+      }
+    }
+
     for (const rep of uniqueReports) {
       rep.beforePhotos = resolvePhotos(rep.beforePhotos || []);
       rep.afterPhotos = resolvePhotos(rep.afterPhotos || []);
 
-      // If the report photos are empty or corrupted (e.g. "[object Object]"), fallback to pulling them directly from the Job
-      // Ensure customerPhone and photos are resolved from matching Job
       if (rep.jobCode) {
         const cleanCode = rep.jobCode.replace(/^#/, '');
-        const matchingJob = await Job.findOne({ 
-          $or: [{ jobCode: rep.jobCode }, { jobCode: cleanCode }, { jobCode: `#${cleanCode}` }]
-        }).lean();
+        const matchingJob = jobMap[cleanCode];
         
         if (matchingJob) {
           if (!rep.customerPhone && matchingJob.customer?.phone) {
