@@ -538,7 +538,7 @@ export default function AdminChat() {
     // Signal via Socket
     socketRef.current?.emit('call:initiate', {
       from: myId, fromName: myName, fromRole: myRole,
-      to: contact._id, channel, withVideo
+      to: contact._id, channel, withVideo, isGroup: !!contact.isGroup
     });
 
     // Join channel optimistically

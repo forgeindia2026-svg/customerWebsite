@@ -56,9 +56,22 @@ export const initSocket = (server: HttpServer) => {
 
     // ── Agora Call Signaling ──────────────────────────────────────────────
     // Caller initiates → notify callee
-    socket.on('call:initiate', (data: { from: string; fromName: string; fromRole: string; to: string; channel: string; withVideo: boolean }) => {
+    socket.on('call:initiate', (data: { from: string; fromName: string; fromRole: string; to: string; channel: string; withVideo: boolean; isGroup?: boolean }) => {
       if (io && data.to) {
-        io.to(`user:${data.to}`).emit('call:incoming', data);
+        if (data.isGroup) {
+          import('./models/ChatGroup').then(async (mod) => {
+            const group = await mod.default.findById(data.to).lean();
+            if (group) {
+              group.members.forEach((memberId: string) => {
+                if (memberId !== data.from) {
+                  io!.to(`user:${memberId}`).emit('call:incoming', data);
+                }
+              });
+            }
+          }).catch(console.error);
+        } else {
+          io.to(`user:${data.to}`).emit('call:incoming', data);
+        }
       }
     });
 

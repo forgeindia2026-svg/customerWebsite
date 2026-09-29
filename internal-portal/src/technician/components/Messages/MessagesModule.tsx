@@ -532,7 +532,7 @@ export const MessagesModule: React.FC = () => {
     const channel = `c_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
     setCallContact(contact); setCallWithVideo(withVideo); setCallState('outgoing');
     toneGenerator.playOutgoingRing();
-    socketRef.current?.emit('call:initiate', { from: myId, fromName: myName, fromRole: myRole, to: contact._id, channel, withVideo });
+    socketRef.current?.emit('call:initiate', { from: myId, fromName: myName, fromRole: myRole, to: contact._id, channel, withVideo, isGroup: !!contact.isGroup });
     await joinAgoraChannel(channel, withVideo, true);
   };
 
