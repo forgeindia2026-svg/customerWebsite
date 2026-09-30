@@ -38,11 +38,12 @@ export function useWebPush() {
           }
           
           const userId = localStorage.getItem('user_id');
-          if (userId) {
+          const userName = localStorage.getItem('user_name');
+          if (userId || userName) {
             await fetch(`${API_URL}/api/users/push/subscribe`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ userId, subscription })
+              body: JSON.stringify({ userId, userName, subscription })
             });
           }
         } catch (error) {

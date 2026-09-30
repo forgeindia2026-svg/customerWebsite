@@ -208,6 +208,12 @@ router.post('/', async (req: Request, res: Response) => {
           jobId: newOrder._id,
           jobCode: orderNumber
         });
+        if (assignedTech.name) {
+          require('../socket').emitToUser(assignedTech.name, 'job:assigned_to_you', {
+            jobId: newOrder._id,
+            jobCode: orderNumber
+          });
+        }
 
         const rawItemTitles = req.body.items?.map((item: any) => item.title).join(', ') || 'CCTV Installation';
         const cleanJobTitle = extractCleanJobTitle(rawItemTitles);

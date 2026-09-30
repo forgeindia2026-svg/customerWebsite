@@ -213,6 +213,12 @@ router.post('/auto-dispatch-complete', async (req: Request, res: Response) => {
       jobId: job._id,
       jobCode: job.jobCode || job.title
     });
+    if (technician && technician.name) {
+      require('../socket').emitToUser(technician.name, 'job:assigned_to_you', {
+        jobId: job._id,
+        jobCode: job.jobCode || job.title
+      });
+    }
 
     // Broadcast to Sockets
     broadcastEvent('job:auto_assigned', {
@@ -736,6 +742,10 @@ router.put('/:id', async (req: Request, res: Response) => {
                 jobId: job._id,
                 jobCode: job.jobCode || job.title
               });
+              require('../socket').emitToUser(tech.name, 'job:assigned_to_you', {
+                jobId: job._id,
+                jobCode: job.jobCode || job.title
+              });
             }
           }
         }
@@ -876,6 +886,12 @@ router.post('/:id/accept', async (req: Request, res: Response) => {
         jobId: job._id,
         jobCode: job.jobCode || job.title
       });
+      if (technician.name) {
+        require('../socket').emitToUser(technician.name, 'job:assigned_to_you', {
+          jobId: job._id,
+          jobCode: job.jobCode || job.title
+        });
+      }
     }
     
     job.status = 'IN_PROGRESS';

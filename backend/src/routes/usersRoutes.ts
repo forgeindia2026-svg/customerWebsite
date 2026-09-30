@@ -7,11 +7,22 @@ const router = Router();
 // POST /api/users/push/subscribe
 router.post('/push/subscribe', async (req: Request, res: Response) => {
   try {
-    const { userId, subscription } = req.body;
-    if (!userId || !subscription) return res.status(400).json({ success: false, message: 'Missing data' });
+    const { userId, userName, subscription } = req.body;
+    if (!subscription) return res.status(400).json({ success: false, message: 'Missing subscription data' });
+    if (!userId && !userName) return res.status(400).json({ success: false, message: 'Missing user identifier' });
     
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    let user;
+    if (userName) {
+      user = await User.findOne({ name: new RegExp(`^${userName}$`, 'i') });
+    }
+    if (!user && userId && userId.length === 24) {
+      user = await User.findById(userId);
+    }
+    
+    if (!user) {
+      // If we can't find them in DB, we can't store push subs.
+      return res.status(404).json({ success: false, message: 'User not found in DB' });
+    }
     
     if (!user.pushSubscriptions) user.pushSubscriptions = [];
     

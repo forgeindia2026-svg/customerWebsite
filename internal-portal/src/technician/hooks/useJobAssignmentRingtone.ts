@@ -5,7 +5,8 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io
 export function useJobAssignmentRingtone() {
   useEffect(() => {
     const userId = localStorage.getItem('user_id');
-    if (!userId) return;
+    const userName = localStorage.getItem('user_name');
+    if (!userId && !userName) return;
 
     // Connect to global socket
     const socket = io(API_URL, {
@@ -14,7 +15,8 @@ export function useJobAssignmentRingtone() {
     });
 
     socket.on('connect', () => {
-      socket.emit('join_user', userId);
+      if (userId) socket.emit('join_user', userId);
+      if (userName) socket.emit('join_user', userName);
       socket.emit('join_role', 'technician');
     });
 
