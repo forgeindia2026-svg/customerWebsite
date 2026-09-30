@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, Wallet, CheckCircle, Clock } from 'lucide-react';
 import { getApiUrl } from '../../../utils/config';
-import { formatDate } from '../../../services/dateUtils';
+import { formatDate } from '../../services/dateUtils';
 
 interface EarningsHistoryModalProps {
   isOpen: boolean;
