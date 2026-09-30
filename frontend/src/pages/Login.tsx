@@ -184,9 +184,9 @@ export default function Login() {
         localStorage.setItem("user_amc_expires", data.data.amcExpires || "May 20, 2026");
 
         if (userRole === "ADMIN") {
-          window.location.href = "http://localhost:5175/";
+          window.location.href = "https://customer-website-j1qd.vercel.app/admin";
         } else if (userRole === "TECHNICIAN") {
-          window.location.href = "http://localhost:5175/";
+          window.location.href = "https://customer-website-j1qd.vercel.app/technician";
         } else {
           window.dispatchEvent(new Event("storage"));
           if (redirectTarget) {
