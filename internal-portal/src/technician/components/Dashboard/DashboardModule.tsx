@@ -43,6 +43,7 @@ interface DashboardModuleProps {
     firstTimeFix: number;
     safetyScore: number;
     totalEarnings?: number;
+    monthlyEarnings?: number;
     todayEarnings?: number;
   } | null;
   isLoading?: boolean;
@@ -50,6 +51,8 @@ interface DashboardModuleProps {
   onOpenWorkflow: (job: Job) => void;
   onNavigateTab?: (tab: string, statusFilter?: any) => void;
 }
+
+import { EarningsHistoryModal } from './EarningsHistoryModal';
 
 export const DashboardModule: React.FC<DashboardModuleProps> = ({
   jobs,
@@ -85,6 +88,7 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
   const safetyVal = summaryStats ? summaryStats.safetyScore : (myAssignedJobs.length > 0 ? 100 : (isLoading ? null : 0));
   
   const totalEarningsVal = summaryStats?.totalEarnings ?? 0;
+  const monthlyEarningsVal = summaryStats?.monthlyEarnings ?? totalEarningsVal;
   const todayEarningsVal = summaryStats?.todayEarnings ?? 0;
 
   const nextJob = activeJob || jobs[0];
@@ -98,6 +102,7 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
   const [rating, setRating] = useState(5);
   const [feedbackCategory, setFeedbackCategory] = useState('Safety & Parts');
   const [noteText, setNoteText] = useState('');
+  const [showEarningsHistory, setShowEarningsHistory] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
   const handleSubmitFeedback = (e: React.FormEvent) => {
@@ -281,14 +286,15 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
           </p>
         </div>
 
-        {/* 5. TOTAL EARNINGS (Indigo Card) */}
+        {/* 5. MONTHLY EARNINGS (Indigo Card) */}
         <div 
-          className="bg-[#4F46E5] hover:bg-[#4338CA] text-white rounded-3xl p-5 sm:p-6 shadow-md shadow-indigo-500/20 hover:shadow-xl hover:shadow-indigo-500/30 hover:scale-[1.01] active:scale-[0.99] transition-all flex flex-col justify-between min-h-[145px] select-none group"
-          title="Total Lifetime Earnings"
+          onClick={() => setShowEarningsHistory(true)}
+          className="bg-[#4F46E5] hover:bg-[#4338CA] text-white rounded-3xl p-5 sm:p-6 shadow-md shadow-indigo-500/20 hover:shadow-xl hover:shadow-indigo-500/30 hover:scale-[1.01] active:scale-[0.99] transition-all flex flex-col justify-between min-h-[145px] select-none group cursor-pointer"
+          title="Monthly Earnings"
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] sm:text-xs font-black tracking-wider text-white/90 uppercase">
-              TOTAL EARNINGS
+              THIS MONTH'S EARNINGS
             </span>
             <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center text-white shrink-0 group-hover:scale-110 transition-transform">
               <TrendingUp className="w-5 h-5" />
@@ -297,18 +303,20 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
 
           <div className="my-2 flex items-center gap-3">
             <span className="text-3xl sm:text-4xl font-black text-white leading-none font-mono">
-              ₹{totalEarningsVal.toLocaleString('en-IN')}
+              ₹{monthlyEarningsVal.toLocaleString('en-IN')}
             </span>
           </div>
 
-          <p className="text-xs font-medium text-white/85">
-            All-time wallet balance
+          <p className="text-xs font-medium text-white/85 flex items-center justify-between">
+            <span>Earned this month</span>
+            <span className="opacity-0 group-hover:opacity-100 transition-opacity">View history &rarr;</span>
           </p>
         </div>
 
         {/* 6. TODAY'S EARNINGS (Pink Card) */}
         <div 
-          className="bg-[#EC4899] hover:bg-[#DB2777] text-white rounded-3xl p-5 sm:p-6 shadow-md shadow-pink-500/20 hover:shadow-xl hover:shadow-pink-500/30 hover:scale-[1.01] active:scale-[0.99] transition-all flex flex-col justify-between min-h-[145px] select-none group"
+          onClick={() => setShowEarningsHistory(true)}
+          className="bg-[#EC4899] hover:bg-[#DB2777] text-white rounded-3xl p-5 sm:p-6 shadow-md shadow-pink-500/20 hover:shadow-xl hover:shadow-pink-500/30 hover:scale-[1.01] active:scale-[0.99] transition-all flex flex-col justify-between min-h-[145px] select-none group cursor-pointer"
           title="Today's Earnings"
         >
           <div className="flex items-center justify-between">
@@ -491,6 +499,12 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
+
+      {/* Earnings History Modal */}
+      <EarningsHistoryModal 
+        isOpen={showEarningsHistory} 
+        onClose={() => setShowEarningsHistory(false)} 
+      />
     </div>
   );
 };

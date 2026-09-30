@@ -286,12 +286,40 @@ router.get('/dashboard-summary', async (req: Request, res: Response) => {
       return acc + (Number(r.hoursWorked) || 0);
     }, 0);
 
+    const currentMonthStart = new Date();
+    currentMonthStart.setDate(1);
+    currentMonthStart.setHours(0, 0, 0, 0);
+
     let totalEarnings = 0;
+    let monthlyEarnings = 0;
     let todayEarnings = 0;
+    
     completedJobsList.forEach((j: any) => {
-      const earning = Number(j.financials?.technicianEarning ?? j.technicianEarning ?? 0);
+      let earning = 0;
+      
+      const isMainTech = 
+        (j.assignedTechnician && j.assignedTechnician.toLowerCase().includes(technicianName?.toString().toLowerCase() || '')) ||
+        (j.assignedTechnicians && j.assignedTechnicians.some((t: any) => t.name?.toLowerCase().includes(technicianName?.toString().toLowerCase() || '')));
+        
+      if (isMainTech) {
+        earning = Number(j.mainTechnicianEarning || j.financials?.technicianEarning || j.technicianEarning || 0);
+      } else {
+        const subTechMatch = (j.subTechnicianEarnings || []).find((st: any) => 
+          st.technicianName?.toLowerCase().includes(technicianName?.toString().toLowerCase() || '')
+        );
+        if (subTechMatch) {
+          earning = Number(subTechMatch.amount || 0);
+        } else {
+          // Fallback if listed as sub tech but no specific split found
+          earning = Number(j.technicianEarning || 0);
+        }
+      }
+
       totalEarnings += earning;
       const jobUpdatedAt = new Date(j.financials?.approvedAt || j.updatedAt || j.createdAt);
+      if (jobUpdatedAt >= currentMonthStart) {
+        monthlyEarnings += earning;
+      }
       if (jobUpdatedAt >= todayStart) {
         todayEarnings += earning;
       }
@@ -314,6 +342,7 @@ router.get('/dashboard-summary', async (req: Request, res: Response) => {
         firstTimeFix: totalCompleted > 0 ? 100.0 : 0.0,
         safetyScore: totalAssigned > 0 ? 100 : 0,
         totalEarnings,
+        monthlyEarnings,
         todayEarnings
       }
     });
