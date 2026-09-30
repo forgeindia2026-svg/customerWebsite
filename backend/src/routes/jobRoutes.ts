@@ -1303,7 +1303,7 @@ router.post('/:id/admin-approve', async (req: Request, res: Response) => {
 
     const targetCode = job?.jobCode || order?.orderNumber || req.params.id;
 
-    const { salesValue, purchaseValue, totalValue, companyProfit, technicianEarning, approvedBy } = req.body || {};
+    const { salesValue, purchaseValue, totalValue, companyProfit, technicianEarning, mainTechnicianEarning, subTechnicianEarnings, approvedBy } = req.body || {};
     const parsedSales = Number(salesValue ?? totalValue) || (order?.totalAmount || 0);
     const parsedPurchase = Number(purchaseValue) || 0;
     const parsedTotal = parsedSales;
@@ -1316,6 +1316,8 @@ router.post('/:id/admin-approve', async (req: Request, res: Response) => {
       totalValue: parsedTotal,
       companyProfit: parsedProfit,
       technicianEarning: parsedEarning,
+      mainTechnicianEarning: mainTechnicianEarning !== undefined ? Number(mainTechnicianEarning) : parsedEarning,
+      subTechnicianEarnings: subTechnicianEarnings || {},
       approvedAt: new Date(),
       approvedBy: approvedBy || 'Admin'
     };

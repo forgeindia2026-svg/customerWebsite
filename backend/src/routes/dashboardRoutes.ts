@@ -427,7 +427,9 @@ async function buildDashboardData() {
             companyProfit: p,
             technicianEarning: e,
             approvedAt: rawFin.approvedAt || new Date(),
-            approvedBy: rawFin.approvedBy || 'Admin'
+            approvedBy: rawFin.approvedBy || 'Admin',
+            mainTechnicianEarning: rawFin.mainTechnicianEarning,
+            subTechnicianEarnings: rawFin.subTechnicianEarnings || {}
           };
         })(),
         technicianEarning: job?.technicianEarning || order.technicianEarning || 0

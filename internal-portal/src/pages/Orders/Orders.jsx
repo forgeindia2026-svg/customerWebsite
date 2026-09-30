@@ -386,13 +386,16 @@ export default function Orders() {
     const sales = Number(ord.financials?.salesValue || ord.financials?.totalValue || ord.amount || ord.totalAmount || 0);
     const purchase = Number(ord.financials?.purchaseValue || 0);
     const profit = ord.financials?.companyProfit !== undefined ? ord.financials.companyProfit : '';
-    const earning = ord.financials?.technicianEarning !== undefined ? ord.financials.technicianEarning : (ord.technicianEarning !== undefined ? ord.technicianEarning : '');
+    
+    let mainEarning = ord.financials?.mainTechnicianEarning !== undefined ? ord.financials.mainTechnicianEarning : (ord.financials?.technicianEarning !== undefined ? ord.financials.technicianEarning : (ord.technicianEarning !== undefined ? ord.technicianEarning : ''));
+    let subsObj = ord.financials?.subTechnicianEarnings || {};
 
     setApprovalForm({
       salesValue: sales > 0 ? String(sales) : '',
       purchaseValue: purchase > 0 ? String(purchase) : '',
       companyProfit: profit !== '' ? String(profit) : '',
-      technicianEarning: earning !== '' ? String(earning) : ''
+      mainTechnicianEarning: mainEarning !== '' ? String(mainEarning) : '',
+      subTechnicianEarnings: subsObj
     });
     setApprovalModalOpen(true);
   };
@@ -411,7 +414,19 @@ export default function Orders() {
     const salesVal = parseFloat(approvalForm.salesValue) || 0;
     const purchaseVal = parseFloat(approvalForm.purchaseValue) || 0;
     const profitVal = parseFloat(approvalForm.companyProfit) || 0;
-    const earningVal = parseFloat(approvalForm.technicianEarning) || 0;
+    const mainEarningVal = parseFloat(approvalForm.mainTechnicianEarning) || 0;
+    
+    let totalSubEarning = 0;
+    const parsedSubs = {};
+    if (approvalTargetOrder.subTechnicians && approvalTargetOrder.subTechnicians.length > 0) {
+       const subTechs = Array.isArray(approvalTargetOrder.subTechnicians) ? approvalTargetOrder.subTechnicians : parseSubTechNames(approvalTargetOrder.subTechnicians);
+       subTechs.forEach(sub => {
+          const val = parseFloat(approvalForm.subTechnicianEarnings?.[sub]) || 0;
+          parsedSubs[sub] = val;
+          totalSubEarning += val;
+       });
+    }
+    const earningVal = mainEarningVal + totalSubEarning;
 
     setApprovalSubmitting(true);
     try {
@@ -433,7 +448,9 @@ export default function Orders() {
       purchaseValue: purchaseVal,
       totalValue: salesVal,
       companyProfit: profitVal,
-      technicianEarning: earningVal
+      technicianEarning: earningVal,
+      mainTechnicianEarning: mainEarningVal,
+      subTechnicianEarnings: parsedSubs
     }));
 
     const techName = approvalTargetOrder.assignedTechnician || 'Staff';
@@ -467,6 +484,8 @@ export default function Orders() {
         totalValue: salesVal,
         companyProfit: profitVal,
         technicianEarning: earningVal,
+        mainTechnicianEarning: mainEarningVal,
+        subTechnicianEarnings: parsedSubs,
         approvedBy: 'Admin'
       })).unwrap();
       toast.success(`Job ${orderId} approved with ₹${earningVal.toLocaleString('en-IN')} technician earning!`);
@@ -2119,31 +2138,49 @@ export default function Orders() {
                   : (sVal > 0 && pProfit > 0 && sVal > pProfit ? sVal - pProfit : 0);
 
                 return (
-                  <div className="mt-3 p-3 bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800/60 rounded-xl grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase font-bold block">Sales Value</span>
-                      <span className="text-xs font-black font-mono text-slate-900 dark:text-white">
-                        ₹{sVal.toLocaleString('en-IN')}
-                      </span>
+                  <div className="mt-3 p-3 bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800/60 rounded-xl space-y-3 text-center">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Sales Value</span>
+                        <span className="text-xs font-black font-mono text-slate-900 dark:text-white">
+                          ₹{sVal.toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Purchase Value</span>
+                        <span className="text-xs font-black font-mono text-purple-600 dark:text-purple-400">
+                          ₹{pVal.toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Company Profit</span>
+                        <span className="text-xs font-black font-mono text-blue-600 dark:text-blue-400">
+                          ₹{pProfit.toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Total Tech Earning</span>
+                        <span className="text-xs font-black font-mono text-emerald-600 dark:text-emerald-400">
+                          ₹{tEarning.toLocaleString('en-IN')}
+                        </span>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase font-bold block">Purchase Value</span>
-                      <span className="text-xs font-black font-mono text-purple-600 dark:text-purple-400">
-                        ₹{pVal.toLocaleString('en-IN')}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase font-bold block">Company Profit</span>
-                      <span className="text-xs font-black font-mono text-blue-600 dark:text-blue-400">
-                        ₹{pProfit.toLocaleString('en-IN')}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase font-bold block">Tech Earning</span>
-                      <span className="text-xs font-black font-mono text-emerald-600 dark:text-emerald-400">
-                        ₹{tEarning.toLocaleString('en-IN')}
-                      </span>
-                    </div>
+                    {(selectedOrder.financials?.mainTechnicianEarning !== undefined || (selectedOrder.financials?.subTechnicianEarnings && Object.keys(selectedOrder.financials.subTechnicianEarnings).length > 0)) && (
+                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-3 justify-center items-center">
+                        {selectedOrder.financials?.mainTechnicianEarning !== undefined && (
+                          <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/50 px-2 py-1 rounded-md">
+                            <span className="text-[10px] font-semibold text-slate-500">Main ({selectedOrder.assignedTechnician || 'Staff'}):</span>
+                            <span className="text-[11px] font-black font-mono text-emerald-600 dark:text-emerald-400">₹{Number(selectedOrder.financials.mainTechnicianEarning).toLocaleString('en-IN')}</span>
+                          </div>
+                        )}
+                        {selectedOrder.financials?.subTechnicianEarnings && Object.entries(selectedOrder.financials.subTechnicianEarnings).map(([sub, amt]) => (
+                          <div key={sub} className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/50 px-2 py-1 rounded-md">
+                            <span className="text-[10px] font-semibold text-slate-500">Sub ({sub}):</span>
+                            <span className="text-[11px] font-black font-mono text-emerald-600 dark:text-emerald-400">₹{Number(amt).toLocaleString('en-IN')}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })()}
@@ -2591,23 +2628,62 @@ export default function Orders() {
                 />
               </div>
 
-              {/* 4. Technician Earning */}
-              <div>
+              {/* 4. Technician Earnings Breakdown */}
+              <div className="space-y-2">
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  4. Technician Earning (₹) *
+                  4. Technician Earnings (₹) *
                 </label>
-                <input
-                  type="number"
-                  required
-                  min="0"
-                  step="any"
-                  value={approvalForm.technicianEarning}
-                  onChange={(e) => setApprovalForm({ ...approvalForm, technicianEarning: e.target.value })}
-                  placeholder="Technician earning payout"
-                  className="w-full text-xs font-mono font-bold p-2.5 border border-emerald-300 dark:border-emerald-700/60 bg-emerald-50/30 dark:bg-emerald-950/20 rounded-xl focus:outline-none focus:border-emerald-600 text-emerald-800 dark:text-emerald-300"
-                />
+                
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl space-y-3 border border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 w-28 shrink-0 truncate" title={approvalTargetOrder?.assignedTechnician || 'Main Staff'}>
+                      Main: <span className="font-bold text-slate-800 dark:text-slate-200">{approvalTargetOrder?.assignedTechnician || 'Staff'}</span>
+                    </span>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      step="any"
+                      value={approvalForm.mainTechnicianEarning}
+                      onChange={(e) => setApprovalForm({ ...approvalForm, mainTechnicianEarning: e.target.value })}
+                      placeholder="Main Tech Earning"
+                      className="w-full text-xs font-mono font-bold p-2 border border-emerald-300 dark:border-emerald-700/60 bg-emerald-50/30 dark:bg-emerald-950/20 rounded-xl focus:outline-none focus:border-emerald-600 text-emerald-800 dark:text-emerald-300"
+                    />
+                  </div>
+
+                  {approvalTargetOrder && (Array.isArray(approvalTargetOrder.subTechnicians) ? approvalTargetOrder.subTechnicians : parseSubTechNames(approvalTargetOrder.subTechnicians)).map((sub, idx) => (
+                    <div key={`sub-${idx}`} className="flex items-center gap-3">
+                      <span className="text-xs font-semibold text-slate-500 w-28 shrink-0 truncate" title={sub}>
+                        Sub: <span className="font-bold text-slate-700 dark:text-slate-300">{sub}</span>
+                      </span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={approvalForm.subTechnicianEarnings?.[sub] || ''}
+                        onChange={(e) => setApprovalForm({ 
+                          ...approvalForm, 
+                          subTechnicianEarnings: { 
+                             ...(approvalForm.subTechnicianEarnings || {}), 
+                             [sub]: e.target.value 
+                          } 
+                        })}
+                        placeholder={`Sub Tech Earning`}
+                        className="w-full text-xs font-mono font-bold p-2 border border-slate-200 dark:border-slate-700 bg-transparent rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+                      />
+                    </div>
+                  ))}
+                  
+                  <div className="flex justify-between items-center pt-2 border-t border-slate-200 dark:border-slate-700">
+                    <span className="text-[11px] font-bold text-slate-500">Total Tech Payout:</span>
+                    <span className="font-mono text-sm font-black text-emerald-600 dark:text-emerald-400">
+                      ₹{((parseFloat(approvalForm.mainTechnicianEarning) || 0) + 
+                         Object.values(approvalForm.subTechnicianEarnings || {}).reduce((acc, val) => acc + (parseFloat(val) || 0), 0)
+                        ).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                </div>
               </div>
-            </div>
 
             {/* Confidentiality Alert */}
             <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-800/40 rounded-xl text-[11px] text-amber-900 dark:text-amber-300 space-y-1">
