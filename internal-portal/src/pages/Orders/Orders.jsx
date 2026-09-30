@@ -2200,7 +2200,8 @@ export default function Orders() {
                   subTechnicians: orderForm.subTechnicians || [],
                   items: orderForm.items || '',
                   totalAmount: parseFloat(orderForm.amount) || 0,
-                  orderStatus: (orderForm.status === 'Completed' || orderForm.status === 'Approved' || orderForm.status === 'DELIVERED') ? 'DELIVERED' : 'PROCESSING'
+                  orderStatus: (orderForm.status === 'Completed' || orderForm.status === 'Approved' || orderForm.status === 'DELIVERED') ? 'DELIVERED' : 'PROCESSING',
+                  serviceType: orderForm.type
                 };
 
                 await fetch(`${baseUrl}/api/orders/${encodeURIComponent(cleanId)}`, {

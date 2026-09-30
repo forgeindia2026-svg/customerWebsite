@@ -264,4 +264,40 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
+// PUT update order details (for admin dashboard edit)
+router.put('/:id', async (req: Request, res: Response) => {
+  try {
+    const orderId = req.params.id;
+    let query: any = { _id: orderId };
+    
+    if (orderId.startsWith('SK-')) {
+      query = { orderNumber: orderId };
+    }
+
+    const updatedOrder = await Order.findOneAndUpdate(
+      query,
+      { $set: req.body },
+      { new: true }
+    );
+
+    if (!updatedOrder) {
+      // Also try fallback
+      const fallbackOrder = await Order.findOneAndUpdate(
+        { orderNumber: orderId },
+        { $set: req.body },
+        { new: true }
+      );
+      if (!fallbackOrder) {
+        return res.status(404).json({ success: false, message: 'Order not found' });
+      }
+    }
+
+    clearDashboardCache();
+    broadcastEvent('dashboard:updated');
+    res.json({ success: true, data: updatedOrder });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 export default router;
