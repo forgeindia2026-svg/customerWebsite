@@ -130,6 +130,24 @@ router.post('/', async (req: Request, res: Response) => {
     } = req.body;
     
     const finalTechId = technicianId || 'TECH-01';
+    
+    let parsedBefore = beforePhotos;
+    let parsedAfter = afterPhotos;
+    
+    if (typeof beforePhotos === 'string') {
+      try { parsedBefore = JSON.parse(beforePhotos); } catch (e) { parsedBefore = []; }
+    }
+    if (typeof afterPhotos === 'string') {
+      try { parsedAfter = JSON.parse(afterPhotos); } catch (e) { parsedAfter = []; }
+    }
+    
+    // Extract URLs if the array contains objects with 'url' property
+    if (Array.isArray(parsedBefore)) {
+      parsedBefore = parsedBefore.map(p => (typeof p === 'object' && p.url) ? p.url : String(p));
+    }
+    if (Array.isArray(parsedAfter)) {
+      parsedAfter = parsedAfter.map(p => (typeof p === 'object' && p.url) ? p.url : String(p));
+    }
     const finalTechName = technicianName || 'Field Technician';
     const cleanJobCode = (jobCode || '').trim();
     const currentSubmissionTime = reqTime || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
@@ -202,16 +220,16 @@ router.post('/', async (req: Request, res: Response) => {
         }
 
         // Merge Before Photos (preserve unique URLs)
-        if (beforePhotos && beforePhotos.length > 0) {
+        if (parsedBefore && parsedBefore.length > 0) {
           const beforeSet = new Set(existing.beforePhotos || []);
-          beforePhotos.forEach((p: string) => beforeSet.add(p));
+          parsedBefore.forEach((p: string) => beforeSet.add(p));
           existing.beforePhotos = Array.from(beforeSet);
         }
 
         // Merge After Photos (preserve unique URLs)
-        if (afterPhotos && afterPhotos.length > 0) {
+        if (parsedAfter && parsedAfter.length > 0) {
           const afterSet = new Set(existing.afterPhotos || []);
-          afterPhotos.forEach((p: string) => afterSet.add(p));
+          parsedAfter.forEach((p: string) => afterSet.add(p));
           existing.afterPhotos = Array.from(afterSet);
         }
 
@@ -252,8 +270,8 @@ router.post('/', async (req: Request, res: Response) => {
       location: location || '',
       isMultiDay: Boolean(isMultiDay),
       dayNumber: dayNumber || 1,
-      beforePhotos: beforePhotos || [],
-      afterPhotos: afterPhotos || [],
+      beforePhotos: parsedBefore || [],
+      afterPhotos: parsedAfter || [],
       voiceNoteUrl: voiceNoteUrl || '',
       hasVoiceNote: Boolean(hasVoiceNote || (voiceNoteUrl && voiceNoteUrl.length > 0)),
       approvedByAdmin: false
