@@ -2684,6 +2684,7 @@ export default function Orders() {
                   </div>
                 </div>
               </div>
+            </div>
 
             {/* Confidentiality Alert */}
             <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-800/40 rounded-xl text-[11px] text-amber-900 dark:text-amber-300 space-y-1">
