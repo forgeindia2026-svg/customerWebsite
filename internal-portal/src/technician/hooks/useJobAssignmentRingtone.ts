@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
-import { getApiUrl } from '../../../utils/config';
+const API_URL = import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io';
 
 export function useJobAssignmentRingtone() {
   useEffect(() => {
@@ -8,7 +8,7 @@ export function useJobAssignmentRingtone() {
     if (!userId) return;
 
     // Connect to global socket
-    const socket = io(getApiUrl(), {
+    const socket = io(API_URL, {
       withCredentials: true,
       transports: ['websocket', 'polling']
     });

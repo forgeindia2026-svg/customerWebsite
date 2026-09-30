@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Megaphone, X } from 'lucide-react';
-import { getApiUrl } from '../../../utils/config';
+const API_URL = import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io';
 
 interface Announcement {
   id: string;
@@ -16,7 +16,7 @@ export function AnnouncementPopupModal() {
   useEffect(() => {
     const fetchAnnouncements = async () => {
       try {
-        const res = await fetch(`${getApiUrl()}/api/dashboard?refresh=true`);
+        const res = await fetch(`${API_URL}/api/dashboard?refresh=true`);
         if (res.ok) {
           const data = await res.json();
           const allAnns = data.announcements || [];
