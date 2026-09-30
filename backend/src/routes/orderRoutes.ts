@@ -267,7 +267,7 @@ router.post('/', async (req: Request, res: Response) => {
 // PUT update order details (for admin dashboard edit)
 router.put('/:id', async (req: Request, res: Response) => {
   try {
-    const orderId = req.params.id;
+    const orderId = String(req.params.id);
     let query: any = { _id: orderId };
     
     if (orderId.startsWith('SK-')) {
@@ -293,7 +293,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     }
 
     clearDashboardCache();
-    broadcastEvent('dashboard:updated');
+    broadcastEvent('dashboard:updated', {});
     res.json({ success: true, data: updatedOrder });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
