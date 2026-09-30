@@ -2178,7 +2178,7 @@ export default function Orders() {
                 type: orderForm.type,
                 assignedTechnician: assignedTech,
                 subTechnicians: orderForm.subTechnicians || [],
-                items: orderForm.items || '',
+                items: orderForm.items || [{ productId: 'SRV-01', title: orderForm.type, price: parseFloat(orderForm.amount) || 0, quantity: 1, image: '' }],
                 amount: parseFloat(orderForm.amount) || 0,
                 location: orderForm.location,
                 status: orderForm.status
@@ -2198,7 +2198,7 @@ export default function Orders() {
                   assignedTechnician: assignedTech,
                   assignedTechnicianName: assignedTech,
                   subTechnicians: orderForm.subTechnicians || [],
-                  items: orderForm.items || '',
+                  items: orderForm.items || [{ productId: 'SRV-01', title: orderForm.type, price: parseFloat(orderForm.amount) || 0, quantity: 1, image: '' }],
                   totalAmount: parseFloat(orderForm.amount) || 0,
                   orderStatus: (orderForm.status === 'Completed' || orderForm.status === 'Approved' || orderForm.status === 'DELIVERED') ? 'DELIVERED' : 'PROCESSING',
                   serviceType: orderForm.type

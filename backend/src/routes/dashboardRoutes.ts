@@ -388,7 +388,7 @@ async function buildDashboardData() {
         customer: order.customerName,
         email: order.customerEmail,
         phone: order.customerPhone,
-        type: order.items?.map((item: any) => item.title).join(', ') || 'CCTV Installation',
+        type: order.serviceType || (order.items && order.items.length > 0 ? order.items.map((item: any) => item.title).join(', ') : '') || 'CCTV Installation',
         location: order.shippingAddress || '',
         assignedTechnician: techName,
         assignedTechnicianName: techName,
