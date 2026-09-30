@@ -24,6 +24,7 @@ interface Contact {
   avatar?: string;
   isAvailable?: boolean;
   isGroup?: boolean;
+  members?: string[];
 }
 
 const roleBadgeColor = (role: string) => {
@@ -171,6 +172,7 @@ export const MessagesModule: React.FC = () => {
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [isSending, setIsSending] = useState(false);
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
+  const [showGroupInfo, setShowGroupInfo] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [attachmentType, setAttachmentType] = useState<'image' | 'document' | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -224,8 +226,7 @@ export const MessagesModule: React.FC = () => {
         } catch (_) {}
       }
 
-      const myNameLower = myName?.toLowerCase().trim();
-      const users = allUsers.filter(c => c.name?.toLowerCase().trim() !== myNameLower);
+      const users = allUsers.filter(c => c._id !== myId);
 
       let groupContacts: Contact[] = [];
       try {
@@ -239,7 +240,8 @@ export const MessagesModule: React.FC = () => {
               role: 'GROUP',
               avatar: g.avatar || '',
               isAvailable: true,
-              isGroup: true
+              isGroup: true,
+              members: g.members || []
             }));
           }
         }
@@ -284,6 +286,9 @@ export const MessagesModule: React.FC = () => {
   }, [myId]);
 
   useEffect(() => {
+    if (typeof Notification !== 'undefined' && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+      Notification.requestPermission();
+    }
     const socket = io(API_BASE, { transports: ['websocket', 'polling'] });
     socketRef.current = socket;
 
@@ -305,6 +310,15 @@ export const MessagesModule: React.FC = () => {
         }
         return active;
       });
+
+      if (msg.senderId !== myId) {
+        if (toneGenerator.playMessageTone) toneGenerator.playMessageTone();
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+          const title = msg.isGroupMessage ? `${msg.senderName} (Group)` : msg.senderName;
+          const body = msg.text || (msg.attachmentType ? `Sent a ${msg.attachmentType}` : 'New message');
+          new Notification(title, { body });
+        }
+      }
     });
 
     // Call events
@@ -692,8 +706,11 @@ export const MessagesModule: React.FC = () => {
         {activeContact ? (
           <div className="fixed inset-0 z-[100] md:static md:z-auto md:flex-1 flex flex-col min-w-0 bg-white w-full h-[100dvh] md:h-auto md:w-auto">
             <div className="h-16 border-b border-slate-200 bg-[#f0f2f5] flex items-center justify-between px-3 md:px-4 shrink-0">
-              <div className="flex items-center gap-2 md:gap-3 cursor-pointer">
-                <button onClick={() => setActiveContact(null)} className="md:hidden p-1 -ml-1 text-slate-600 hover:text-slate-900"><ChevronLeft className="w-6 h-6" /></button>
+              <div 
+                className="flex items-center gap-2 md:gap-3 cursor-pointer" 
+                onClick={() => { if (activeContact.isGroup) setShowGroupInfo(true); }}
+              >
+                <button onClick={(e) => { e.stopPropagation(); setActiveContact(null); }} className="md:hidden p-1 -ml-1 text-slate-600 hover:text-slate-900"><ChevronLeft className="w-6 h-6" /></button>
                 {activeContact.avatar ? <img src={activeContact.avatar} alt={activeContact.name} className="w-10 h-10 rounded-full object-cover" /> : <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${roleColor(activeContact.role)} flex items-center justify-center text-white font-bold text-sm`}>{getInitials(activeContact.name)}</div>}
                 <div className="ml-1 md:ml-0">
                   <h3 className="text-[15px] font-semibold text-[#111b21] flex items-center gap-1.5">{activeContact.name}</h3>
@@ -726,8 +743,20 @@ export const MessagesModule: React.FC = () => {
                         const isMe = msg.senderId === myId;
                         return (
                           <div key={msg._id || i} className={`flex items-end gap-1.5 ${isMe ? 'justify-end' : 'justify-start'}`}>
-                            {!isMe && <div className={`w-6 h-6 rounded-full bg-gradient-to-br ${roleColor(activeContact.role)} flex items-center justify-center text-white font-bold text-[9px] shrink-0 shadow-sm`}>{getInitials(activeContact.name)}</div>}
+                            {!isMe && (
+                              <div 
+                                className={`w-6 h-6 rounded-full bg-gradient-to-br ${roleColor(msg.senderRole || activeContact.role)} flex items-center justify-center text-white font-bold text-[9px] shrink-0 shadow-sm`}
+                                title={msg.senderName || activeContact.name}
+                              >
+                                {getInitials(msg.senderName || activeContact.name)}
+                              </div>
+                            )}
                             <div className={`relative max-w-[75%] sm:max-w-md px-3 pt-2 pb-5 text-[15px] shadow-sm leading-relaxed ${isMe ? 'bg-blue-500 text-white rounded-2xl rounded-br-sm' : 'bg-white text-slate-800 rounded-2xl rounded-bl-sm'}`}>
+                              {!isMe && activeContact.isGroup && msg.senderName && (
+                                <div className={`text-xs font-bold mb-1 ${roleColor(msg.senderRole || 'TECHNICIAN').split(' ')[0].replace('from-', 'text-')}`}>
+                                  {msg.senderName}
+                                </div>
+                              )}
                               {msg.text && <span className="break-words">{msg.text}</span>}
                               {msg.attachmentUrl && (
                                 <div className="mt-1">
@@ -815,6 +844,44 @@ export const MessagesModule: React.FC = () => {
         myId={myId}
         onGroupCreated={handleGroupCreated}
       />
+
+      {showGroupInfo && activeContact?.isGroup && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95">
+            <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50">
+              <h3 className="font-bold text-slate-800 text-lg">Group Info</h3>
+              <button onClick={() => setShowGroupInfo(false)} className="p-1 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-200"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-6 flex flex-col items-center border-b border-slate-100">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-3xl font-black shadow-lg mb-3">
+                {getInitials(activeContact.name)}
+              </div>
+              <h4 className="text-xl font-bold text-slate-800">{activeContact.name}</h4>
+              <p className="text-sm text-slate-500 mt-1">{activeContact.members?.length || 0} participants</p>
+            </div>
+            <div className="max-h-60 overflow-y-auto p-4 space-y-3">
+              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Members</div>
+              {activeContact.members?.map(memberId => {
+                const isMe = memberId === myId;
+                const memberContact = contacts.find(c => c._id === memberId);
+                const name = isMe ? 'You' : (memberContact?.name || 'Unknown');
+                const role = isMe ? myRole : (memberContact?.role || '');
+                return (
+                  <div key={memberId} className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${roleColor(role)} flex items-center justify-center text-white font-bold text-sm shrink-0`}>
+                      {getInitials(name)}
+                    </div>
+                    <div>
+                      <div className="font-bold text-slate-700 text-sm">{name}</div>
+                      <div className="text-xs text-slate-500">{role}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

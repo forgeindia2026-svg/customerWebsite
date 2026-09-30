@@ -198,6 +198,17 @@ router.post('/', async (req: Request, res: Response) => {
           await assignedTech.save();
         }
 
+        require('../utils/pushHelper').sendPushToUser(assignedTech._id.toString(), {
+          title: 'New Order Assigned!',
+          body: `You have been assigned to order: ${orderNumber}`,
+          url: '/technician'
+        });
+
+        require('../socket').emitToUser(assignedTech._id.toString(), 'job:assigned_to_you', {
+          jobId: newOrder._id,
+          jobCode: orderNumber
+        });
+
         const rawItemTitles = req.body.items?.map((item: any) => item.title).join(', ') || 'CCTV Installation';
         const cleanJobTitle = extractCleanJobTitle(rawItemTitles);
         const cleanJobCat = extractCleanCategory(req.body.category || rawItemTitles, rawItemTitles);

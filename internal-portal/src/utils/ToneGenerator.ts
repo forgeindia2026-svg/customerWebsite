@@ -67,6 +67,28 @@ export class ToneGenerator {
     this.intervalId = setInterval(playRing, 3500);
   }
 
+  playMessageTone() {
+    this.init();
+    if (!this.audioCtx) return;
+
+    const oscillator = this.audioCtx.createOscillator();
+    const gainNode = this.audioCtx.createGain();
+    
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(600, this.audioCtx.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(1200, this.audioCtx.currentTime + 0.1);
+    
+    gainNode.gain.setValueAtTime(0, this.audioCtx.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.3, this.audioCtx.currentTime + 0.02);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioCtx.currentTime + 0.3);
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(this.audioCtx.destination);
+    
+    oscillator.start(this.audioCtx.currentTime);
+    oscillator.stop(this.audioCtx.currentTime + 0.3);
+  }
+
   stop() {
     if (this.intervalId) clearInterval(this.intervalId);
     if (this.oscillator) {

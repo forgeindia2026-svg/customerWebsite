@@ -770,6 +770,18 @@ router.put('/', async (req: Request, res: Response) => {
     if (!dashboardData) {
       dashboardData = new Dashboard(req.body);
     } else {
+      if (req.body.announcements) {
+        const oldLen = dashboardData.announcements?.length || 0;
+        const newLen = req.body.announcements.length;
+        if (newLen > oldLen) {
+          const newAnnouncement = req.body.announcements[0]; // Assuming new ones are unshifted or we just take the first/last
+          require('../utils/pushHelper').sendPushToAllTechnicians({
+            title: 'New Announcement: ' + (newAnnouncement.title || 'Update'),
+            body: newAnnouncement.description || newAnnouncement.content || 'Please check the portal for details.',
+            url: '/technician'
+          });
+        }
+      }
       Object.assign(dashboardData, req.body);
     }
     const saved = await dashboardData.save();

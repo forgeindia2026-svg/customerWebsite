@@ -202,6 +202,18 @@ router.post('/auto-dispatch-complete', async (req: Request, res: Response) => {
     });
     await dashboardData.save();
 
+    // Send push notification
+    require('../utils/pushHelper').sendPushToUser(techId, {
+      title: 'New Job Assigned!',
+      body: `You have been assigned to: ${job.title}`,
+      url: '/technician'
+    });
+
+    require('../socket').emitToUser(techId, 'job:assigned_to_you', {
+      jobId: job._id,
+      jobCode: job.jobCode || job.title
+    });
+
     // Broadcast to Sockets
     broadcastEvent('job:auto_assigned', {
       jobCode,
@@ -702,6 +714,36 @@ router.put('/:id', async (req: Request, res: Response) => {
     delete req.body.afterPhotos;
     delete req.body.workProgress;
 
+    // Fix temp-id from Admin edit and send push notification
+    if (req.body.assignedTechnicians && Array.isArray(req.body.assignedTechnicians)) {
+      try {
+        const User = require('../models/User').default;
+        for (let i = 0; i < req.body.assignedTechnicians.length; i++) {
+          const tech = req.body.assignedTechnicians[i];
+          if (tech.id === 'temp-id' && tech.name) {
+            const actualUser = await User.findOne({ name: new RegExp(`^${tech.name}$`, 'i'), role: 'TECHNICIAN' });
+            if (actualUser) {
+              tech.id = actualUser._id.toString();
+              // Trigger Push Notification for the edit!
+              require('../utils/pushHelper').sendPushToUser(tech.id, {
+                title: 'New Job Assigned!',
+                body: `You have been assigned to: ${job.jobCode || job.title}`,
+                url: '/technician'
+              });
+
+              // Broadcast direct socket event for frontend ringing
+              require('../socket').emitToUser(tech.id, 'job:assigned_to_you', {
+                jobId: job._id,
+                jobCode: job.jobCode || job.title
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to lookup technician ID for manual assignment:', err);
+      }
+    }
+
     Object.assign(job, req.body);
     const updatedJob = await job.save();
 
@@ -821,6 +863,18 @@ router.post('/:id/accept', async (req: Request, res: Response) => {
         name: technician.name,
         avatar: technician.avatarUrl || '',
         phone: technician.phone || ''
+      });
+
+      // Send push notification
+      require('../utils/pushHelper').sendPushToUser(technician.id, {
+        title: 'New Job Assigned!',
+        body: `You have been manually assigned to: ${job.title}`,
+        url: '/technician'
+      });
+
+      require('../socket').emitToUser(technician.id, 'job:assigned_to_you', {
+        jobId: job._id,
+        jobCode: job.jobCode || job.title
       });
     }
     

@@ -3,6 +3,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 export type UserRole = 'CUSTOMER' | 'TECHNICIAN' | 'ADMIN' | 'HR';
 
 export interface IUser extends Document {
+  pushSubscriptions?: any[];
   name: string;
   email: string;
   passwordHash: string;

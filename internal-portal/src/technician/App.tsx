@@ -44,6 +44,9 @@ import { OfflineBanner } from './components/OfflineBanner';
 
 import { AttendanceCard } from './components/Attendance/AttendanceCard';
 import { AttendanceLogModule } from './components/Attendance/AttendanceLogModule';
+import { useWebPush } from './hooks/useWebPush';
+import { useJobAssignmentRingtone } from './hooks/useJobAssignmentRingtone';
+import { AnnouncementPopupModal } from './components/Announcements/AnnouncementPopupModal';
 
 class ModuleErrorBoundary extends React.Component<{ children: React.ReactNode; moduleName?: string }, { hasError: boolean; error: any }> {
   constructor(props: any) {
@@ -96,6 +99,9 @@ export function App() {
   });
   const [assignedJobsFilter, setAssignedJobsFilter] = useState<JobStatus | 'ALL'>('ALL');
   const [globalSearchQuery, setGlobalSearchQuery] = useState<string>('');
+
+  useWebPush();
+  useJobAssignmentRingtone();
 
   const handleNavigateTab = (tab: string, statusFilter?: JobStatus | 'ALL') => {
     if (statusFilter) {
@@ -832,6 +838,8 @@ export function App() {
           setActiveTab('jobs');
         }}
       />
+      
+      <AnnouncementPopupModal />
     </div>
   );
 }
