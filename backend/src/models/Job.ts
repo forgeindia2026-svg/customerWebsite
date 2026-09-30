@@ -249,6 +249,8 @@ const JobSchema: Schema = new Schema(
       totalValue: { type: Number, default: 0 },
       companyProfit: { type: Number, default: 0 },
       technicianEarning: { type: Number, default: 0 },
+      mainTechnicianEarning: { type: Number },
+      subTechnicianEarnings: { type: mongoose.Schema.Types.Mixed, default: {} },
       approvedAt: { type: Date },
       approvedBy: { type: String }
     },

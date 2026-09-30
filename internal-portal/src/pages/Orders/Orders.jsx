@@ -467,7 +467,7 @@ export default function Orders() {
       salesValue: salesVal,
       purchaseValue: purchaseVal,
       companyProfit: profitVal,
-      technicianEarning: earningVal,
+      technicianEarning: mainEarningVal,
       amount: salesVal,
       createdBy: techName,
       creator: techName,
@@ -475,6 +475,30 @@ export default function Orders() {
       createdAt: new Date().toISOString(),
       date: new Date().toISOString().split('T')[0]
     }));
+
+    Object.entries(parsedSubs).forEach(([subName, subEarning], idx) => {
+      if (subEarning > 0) {
+        dispatch(addPayment({
+          id: `PAY-${orderId}-SUB-${idx}`,
+          invoiceNo: `${orderId}-SUB-${idx}`,
+          transactionNo: `${orderId}-SUB-${idx}`,
+          customerName: custName,
+          customer: custName,
+          type: 'Sales Invoices',
+          transactionType: 'Sales Invoices',
+          salesValue: 0,
+          purchaseValue: 0,
+          companyProfit: 0,
+          technicianEarning: subEarning,
+          amount: 0,
+          createdBy: subName,
+          creator: subName,
+          status: 'Paid',
+          createdAt: new Date().toISOString(),
+          date: new Date().toISOString().split('T')[0]
+        }));
+      }
+    });
 
     try {
       await dispatch(adminApproveJob({
