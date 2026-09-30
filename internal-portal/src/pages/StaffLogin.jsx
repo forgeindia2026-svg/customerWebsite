@@ -43,7 +43,7 @@ export default function StaffLogin() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-      const API_URL = 'https://43.204.218.193.sslip.io';
+      const API_URL = '';
       const response = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

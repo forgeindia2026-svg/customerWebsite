@@ -9,6 +9,7 @@ const router = Router();
 
 // POST Login with Role-based Authentication
 router.post('/login', async (req: Request, res: Response) => {
+  console.log(`[AUTH] Login attempt received for: ${req.body?.email}`);
   try {
     const { email, password } = req.body;
     
