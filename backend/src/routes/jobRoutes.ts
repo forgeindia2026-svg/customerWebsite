@@ -213,8 +213,8 @@ router.post('/auto-dispatch-complete', async (req: Request, res: Response) => {
       jobId: job._id,
       jobCode: job.jobCode || job.title
     });
-    if (technician && technician.name) {
-      require('../socket').emitToUser(technician.name, 'job:assigned_to_you', {
+    if (techName) {
+      require('../socket').emitToUser(techName, 'job:assigned_to_you', {
         jobId: job._id,
         jobCode: job.jobCode || job.title
       });
