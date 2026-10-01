@@ -44,6 +44,7 @@ export default function Orders() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState(null);
   const [activeStatusDropdown, setActiveStatusDropdown] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [selectedDateRange, setSelectedDateRange] = useState(localStorage.getItem('admin_date_range') || 'All Time');
 
@@ -127,6 +128,8 @@ export default function Orders() {
 
   const handleCreateClientVisit = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     
     try {
       const clientName = (clientVisitForm.clientName || '').trim() || 'Client Visit';
@@ -176,6 +179,8 @@ export default function Orders() {
     } catch (err) {
       console.error('Failed to create client visit:', err);
       toast.error('Failed to schedule client visit');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -2917,11 +2922,11 @@ export default function Orders() {
               Cancel
             </button>
             <button 
-              type="button" 
-              onClick={handleCreateClientVisit}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer shadow-sm flex items-center gap-1.5"
+              type="submit" 
+              disabled={isSubmitting}
+              className={`px-4 py-2 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer shadow-sm flex items-center gap-1.5 ${isSubmitting ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
             >
-              <FiMapPin /> Schedule Client Visit
+              <FiMapPin /> {isSubmitting ? 'Scheduling...' : 'Schedule Client Visit'}
             </button>
           </div>
         </form>

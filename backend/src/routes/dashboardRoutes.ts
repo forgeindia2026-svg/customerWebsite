@@ -198,7 +198,7 @@ async function buildDashboardData() {
     const duplicateOrdIdsToDelete: any[] = [];
     for (const order of sortedRawOrders) {
       const ordNum = String(order.orderNumber || '');
-      const isOrdPrefix = ordNum.startsWith('ORD-');
+      const isOrdPrefix = ordNum.startsWith('ORD-') || ordNum.startsWith('SK-');
       const custName = (order.customerName || '').toLowerCase().trim();
       const dateStr = order.createdAt ? new Date(order.createdAt).toISOString().split('T')[0] : '';
       const key = `${custName}_${order.totalAmount}_${dateStr}`;
