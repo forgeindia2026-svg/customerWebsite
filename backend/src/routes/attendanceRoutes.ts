@@ -166,7 +166,7 @@ router.post('/check-in', async (req: Request, res: Response) => {
 // POST Check-Out (Punch Out)
 router.post('/check-out', async (req: Request, res: Response) => {
   try {
-    const { technicianId, location, latitude, longitude, notes } = req.body;
+    const { technicianId, location, latitude, longitude, notes, voiceNoteUrl } = req.body;
     if (!technicianId) {
       return res.status(400).json({ message: 'Technician ID is required' });
     }
@@ -201,6 +201,7 @@ router.post('/check-out', async (req: Request, res: Response) => {
       if (latitude) session.punchOutLatitude = latitude;
       if (longitude) session.punchOutLongitude = longitude;
       if (notes) session.notes = notes;
+      if (voiceNoteUrl) session.voiceNoteUrl = voiceNoteUrl;
 
       const diffMs = now.getTime() - new Date(session.punchInTimestamp).getTime();
       const sessionHours = Math.max(0, Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100);
@@ -214,7 +215,8 @@ router.post('/check-out', async (req: Request, res: Response) => {
         punchOutTime: checkOutTimeStr,
         punchOutTimestamp: now,
         durationHours: sessionHours,
-        notes: notes || 'Single Session'
+        notes: notes || 'Single Session',
+        voiceNoteUrl: voiceNoteUrl || ''
       });
     }
 
@@ -231,6 +233,7 @@ router.post('/check-out', async (req: Request, res: Response) => {
     if (longitude) record.checkOutLongitude = longitude;
     else if (record.longitude) record.checkOutLongitude = record.longitude;
     if (notes) record.notes = notes;
+    if (voiceNoteUrl) record.voiceNoteUrl = voiceNoteUrl;
 
     await record.save();
 

@@ -11,6 +11,7 @@ export interface IPunchSession {
   punchOutTime?: string; // e.g. "01:30 PM"
   punchOutTimestamp?: Date;
   punchOutPhoto?: string;
+  voiceNoteUrl?: string; // Audio recording for end of day report
   punchOutLocation?: string;
   punchOutLatitude?: number;
   punchOutLongitude?: number;
@@ -36,6 +37,7 @@ export interface ITechnicianAttendance extends Document {
   checkOutLatitude?: number;
   checkOutLongitude?: number;
   notes?: string;
+  voiceNoteUrl?: string;
   punches: IPunchSession[]; // Array of all punch-in and punch-out sessions for the day
   createdAt: Date;
   updatedAt: Date;
@@ -51,6 +53,7 @@ const PunchSessionSchema = new Schema({
   punchOutTime: { type: String, default: '' },
   punchOutTimestamp: { type: Date },
   punchOutPhoto: { type: String, default: '' },
+  voiceNoteUrl: { type: String, default: '' },
   punchOutLocation: { type: String, default: '' },
   punchOutLatitude: { type: Number },
   punchOutLongitude: { type: Number },
@@ -81,6 +84,7 @@ const TechnicianAttendanceSchema: Schema = new Schema(
     checkOutLatitude: { type: Number },
     checkOutLongitude: { type: Number },
     notes: { type: String, default: '' },
+    voiceNoteUrl: { type: String, default: '' },
     punches: { type: [PunchSessionSchema], default: [] }
   },
   { timestamps: true }

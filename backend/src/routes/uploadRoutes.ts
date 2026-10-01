@@ -40,6 +40,15 @@ router.post('/', upload.single('image'), (req: Request, res: Response): any => {
   res.json({ success: true, imageUrl: file.location, url: file.location, key: file.key });
 });
 
+router.post('/file', upload.single('file'), (req: Request, res: Response): any => {
+  const reqAny = req as any;
+  if (!reqAny.file) {
+    return res.status(400).json({ success: false, message: 'No file uploaded' });
+  }
+  const file: any = reqAny.file;
+  res.json({ success: true, fileUrl: file.location, url: file.location, key: file.key });
+});
+
 // Proxy Image endpoint to bypass browser CORS when embedding S3 photos in jsPDF reports
 router.get('/proxy-image', async (req: Request, res: Response): Promise<any> => {
   try {

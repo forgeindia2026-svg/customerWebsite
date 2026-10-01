@@ -2269,6 +2269,19 @@ export default function Orders() {
               const cleanId = String(orderId || '').replace(/^#/, '').trim();
               const assignedTech = orderForm.assignedTechnician;
               
+              // Optimistic local update to instantly reflect changes in the UI
+              dispatch(editOrder({
+                id: orderId,
+                customer: orderForm.customer,
+                phone: orderForm.phone,
+                type: orderForm.type,
+                assignedTechnician: assignedTech,
+                subTechnicians: orderForm.subTechnicians || [],
+                amount: parseFloat(orderForm.amount) || 0,
+                location: orderForm.location,
+                status: orderForm.status
+              }));
+
               dispatch(updateOrderAPI({
                 id: orderId,
                 customer: orderForm.customer,
