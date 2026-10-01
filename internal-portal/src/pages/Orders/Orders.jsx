@@ -2338,6 +2338,9 @@ export default function Orders() {
 
                 // Immediately re-fetch fresh state from backend
                 dispatch(fetchDashboardData(true));
+                setEditModalOpen(false);
+                setEditingOrder(null);
+                toast.success('Order details & technician updated!');
               } catch (err) {
                 console.warn('Direct order API sync warning:', err);
               }
