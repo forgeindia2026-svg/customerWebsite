@@ -798,15 +798,16 @@ export default function Orders() {
     setOrderToScope(null);
   };
 
-  // KPI Metrics Calculations
-  const totalOrdersCount = orders.length;
-  const pendingOrdersCount = orders.filter(o => getDisplayStatus(o) === 'Pending').length;
-  const inProgressOrdersCount = orders.filter(o => getDisplayStatus(o) === 'In Progress').length;
-  const completedOrdersCount = orders.filter(o => {
+  // KPI Metrics Calculations (Filtered by Date Range)
+  const dateFilteredOrders = orders.filter(o => isDateInRange(o.createdAt || o.date, selectedDateRange));
+  const totalOrdersCount = dateFilteredOrders.length;
+  const pendingOrdersCount = dateFilteredOrders.filter(o => getDisplayStatus(o) === 'Pending').length;
+  const inProgressOrdersCount = dateFilteredOrders.filter(o => getDisplayStatus(o) === 'In Progress').length;
+  const completedOrdersCount = dateFilteredOrders.filter(o => {
     const s = getDisplayStatus(o);
     return s === 'Completed' || s === 'Approved';
   }).length;
-  const totalRevenue = orders.reduce((sum, o) => sum + (Number(o.amount) || 0), 0);
+  const totalRevenue = dateFilteredOrders.reduce((sum, o) => sum + (Number(o.amount) || Number(o.totalAmount) || 0), 0);
 
   return (
     <div className="space-y-6">
