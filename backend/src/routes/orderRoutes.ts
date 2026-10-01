@@ -299,5 +299,30 @@ router.put('/:id', async (req: Request, res: Response) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
+// DELETE /api/orders/:id
+router.delete('/:id', async (req: Request, res: Response) => {
+  try {
+    const orderId = req.params.id;
+    let deletedOrder = await Order.findOneAndDelete({ orderNumber: orderId });
+    if (!deletedOrder) {
+      if (mongoose.Types.ObjectId.isValid(orderId)) {
+        deletedOrder = await Order.findByIdAndDelete(orderId);
+      }
+    }
+
+    if (!deletedOrder) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    // Also delete any associated jobs
+    await Job.findOneAndDelete({ jobCode: deletedOrder.orderNumber }).catch(() => {});
+
+    clearDashboardCache();
+    broadcastEvent('dashboard:updated', {});
+    res.json({ success: true, message: 'Order deleted successfully' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 
 export default router;
