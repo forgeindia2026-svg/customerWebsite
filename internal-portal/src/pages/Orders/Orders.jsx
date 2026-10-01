@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useSearchParams } from 'react-router-dom';
 import { FiSearch, FiSliders, FiCheckCircle, FiInfo, FiTrash2, FiPlusCircle, FiEye, FiGrid, FiList, FiPlus, FiUser, FiCalendar, FiDollarSign, FiChevronDown, FiCheck, FiEdit, FiShoppingBag, FiClock, FiRefreshCw, FiVideo, FiShield, FiTool, FiCpu, FiPackage, FiAlertCircle, FiXCircle, FiMapPin, FiBriefcase } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
-import { approveOrder, approveOrderCompletion, reworkOrder, setOrderStatus, addOrder, assignTechnicianToOrder, editOrder, adminApproveJob, adminReworkJob, fetchDashboardData, createOrderAPI, addPayment } from '../../redux/dashboardSlice';
+import { approveOrder, approveOrderCompletion, reworkOrder, setOrderStatus, addOrder, assignTechnicianToOrder, editOrder, adminApproveJob, adminReworkJob, fetchDashboardData, createOrderAPI, updateOrderAPI, deleteOrderAPI, addPayment } from '../../redux/dashboardSlice';
 import { socket } from '../../socket';
 import Modal from '../../components/Modal';
 import { getApiUrl } from '../../utils/config';
@@ -2242,7 +2242,7 @@ export default function Orders() {
               const cleanId = String(orderId || '').replace(/^#/, '').trim();
               const assignedTech = orderForm.assignedTechnician;
               
-              dispatch(editOrder({
+              dispatch(updateOrderAPI({
                 id: orderId,
                 customer: orderForm.customer,
                 phone: orderForm.phone,
@@ -2253,7 +2253,7 @@ export default function Orders() {
                 amount: parseFloat(orderForm.amount) || 0,
                 location: orderForm.location,
                 status: orderForm.status
-              }));
+              })).then(() => dispatch(fetchDashboardData()));
 
               setEditModalOpen(false);
               setEditingOrder(null);
