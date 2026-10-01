@@ -1290,22 +1290,32 @@ export default function Orders() {
 
                         {/* 6. Colorful Amount */}
                         <td className="py-3 px-2.5 align-middle whitespace-nowrap text-right w-24">
-                          {parseFloat(ord.amount || ord.totalAmount || 0) > 0 ? (
-                            <div className="inline-flex flex-col items-end">
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-mono font-black text-xs border border-emerald-200/80 dark:border-emerald-800/60 shadow-2xs">
-                                ₹{(parseFloat(ord.amount || ord.totalAmount) || 0).toLocaleString('en-IN')}
+                          {(() => {
+                            const salesVal = parseFloat(ord.financials?.salesValue || ord.amount || ord.totalAmount || 0);
+                            const mainTechEarn = Number(ord.mainTechnicianEarning || ord.financials?.technicianEarning || ord.technicianEarning || 0);
+                            const subTechEarn = Array.isArray(ord.subTechnicianEarnings) ? ord.subTechnicianEarnings.reduce((sum, s) => sum + Number(s.amount || 0), 0) : 0;
+                            const totalTechEarn = mainTechEarn + subTechEarn;
+
+                            if (salesVal > 0 || totalTechEarn > 0) {
+                              return (
+                                <div className="inline-flex flex-col items-end">
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-mono font-black text-xs border border-emerald-200/80 dark:border-emerald-800/60 shadow-2xs" title="Total Order Sales Value">
+                                    ₹{salesVal.toLocaleString('en-IN')}
+                                  </span>
+                                  {totalTechEarn > 0 && (
+                                    <span className="text-[9.5px] font-bold text-teal-600 dark:text-teal-400 mt-1" title="Total Technician Payout (Main + Sub)">
+                                      Tech: ₹{totalTechEarn.toLocaleString('en-IN')}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            }
+                            return (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-mono font-bold text-[11px] border border-slate-200/70 dark:border-slate-700">
+                                ₹0
                               </span>
-                              {ord.financials?.technicianEarning > 0 && (
-                                <span className="text-[9px] font-bold text-teal-600 dark:text-teal-400 mt-0.5">
-                                  Tech: ₹{Number(ord.financials.technicianEarning).toLocaleString('en-IN')}
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-mono font-bold text-[11px] border border-slate-200/70 dark:border-slate-700">
-                              ₹0
-                            </span>
-                          )}
+                            );
+                          })()}
                         </td>
 
                         {/* 7. Colorful Status & Actions */}
