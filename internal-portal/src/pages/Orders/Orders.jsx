@@ -2282,24 +2282,11 @@ export default function Orders() {
                 status: orderForm.status
               }));
 
-              dispatch(updateOrderAPI({
-                id: orderId,
-                customer: orderForm.customer,
-                phone: orderForm.phone,
-                type: orderForm.type,
-                assignedTechnician: assignedTech,
-                subTechnicians: orderForm.subTechnicians || [],
-                items: orderForm.items || [{ productId: 'SRV-01', title: orderForm.type, price: parseFloat(orderForm.amount) || 0, quantity: 1, image: '' }],
-                amount: parseFloat(orderForm.amount) || 0,
-                location: orderForm.location,
-                status: orderForm.status
-              })).then(() => dispatch(fetchDashboardData()));
-
               setEditModalOpen(false);
               setEditingOrder(null);
               toast.success('Order details & technician updated!');
 
-              // Direct API sync to guarantee 100% permanent MongoDB database persistence
+              // Direct API sync with correct schema fields
               try {
                 const baseUrl = getApiUrl();
                 const orderPayload = {
@@ -2315,12 +2302,14 @@ export default function Orders() {
                   serviceType: orderForm.type
                 };
 
+                // 1. Update Order Collection
                 await fetch(`${baseUrl}/api/orders/${encodeURIComponent(cleanId)}`, {
                   method: 'PUT',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify(orderPayload)
                 });
 
+                // 2. Update Job Collection
                 if (assignedTech && assignedTech !== 'Unassigned') {
                   const mainTech = [{ id: 'main-tech', name: assignedTech }];
                   const subTechs = (orderForm.subTechnicians || []).map((subName, i) => ({ id: `sub-tech-${i}-${Date.now()}`, name: subName }));
@@ -2348,7 +2337,7 @@ export default function Orders() {
                 }
 
                 // Immediately re-fetch fresh state from backend
-                dispatch(fetchDashboardData());
+                dispatch(fetchDashboardData(true));
               } catch (err) {
                 console.warn('Direct order API sync warning:', err);
               }
