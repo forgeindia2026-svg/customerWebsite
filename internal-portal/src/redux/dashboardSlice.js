@@ -946,7 +946,7 @@ const dashboardSlice = createSlice({
       }
     },
     editOrder: (state, action) => {
-      const { id, customer, email, phone, location, type, assignedTechnician, amount, status } = action.payload;
+      const { id, customer, email, phone, location, type, assignedTechnician, subTechnicians, amount, status } = action.payload;
       const cleanId = String(id || '').replace(/^#/, '').trim().toLowerCase();
       const order = state.orders.find(o => {
         const oId = String(o.id || '').replace(/^#/, '').trim().toLowerCase();
@@ -964,6 +964,7 @@ const dashboardSlice = createSlice({
           order.assignedTechnician = assignedTechnician;
           order.assignedTechnicianName = assignedTechnician;
         }
+        if (subTechnicians !== undefined) order.subTechnicians = subTechnicians;
         if (amount !== undefined) order.amount = amount;
         if (status !== undefined) order.status = status;
       }
