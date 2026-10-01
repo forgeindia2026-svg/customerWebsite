@@ -578,6 +578,18 @@ export default function Orders() {
     }
   };
 
+  const handleDeleteOrder = async (orderId) => {
+    if (window.confirm(`Are you sure you want to permanently delete order ${orderId}? This cannot be undone.`)) {
+      setActiveStatusDropdown(null);
+      try {
+        await dispatch(deleteOrderAPI(orderId)).unwrap();
+        toast.success(`Order ${orderId} has been deleted.`);
+      } catch (err) {
+        toast.error('Failed to delete order.');
+      }
+    }
+  };
+
   // Filter logic
   const filteredOrders = orders.filter(order => {
     const matchesSearch = 
@@ -1397,6 +1409,15 @@ export default function Orders() {
                                   >
                                     <FiXCircle className="w-3.5 h-3.5 text-rose-500" />
                                     <span>Cancel Order</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteOrder(ord.id)}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-left text-red-700 hover:bg-red-100 dark:hover:bg-red-900/30 font-bold transition-colors cursor-pointer border-t border-slate-100 dark:border-slate-800"
+                                  >
+                                    <FiTrash2 className="w-3.5 h-3.5 text-red-600" />
+                                    <span>Delete Order</span>
                                   </button>
 
                                   <button
