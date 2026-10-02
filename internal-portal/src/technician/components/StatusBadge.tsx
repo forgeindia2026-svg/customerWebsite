@@ -69,6 +69,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, priority, size
       case 'AFTER_PHOTOS_DONE':
         statusConfig = { bg: 'bg-emerald-600 text-white border-emerald-700 font-black shadow-xs', dot: 'bg-white', label: 'After Photos Ready' };
         break;
+      case 'APPROVED':
       case 'COMPLETED':
         statusConfig = { bg: 'bg-emerald-500 text-white border-emerald-600 font-black shadow-xs', dot: 'bg-emerald-100', label: 'Completed' };
         break;

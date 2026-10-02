@@ -97,6 +97,7 @@ const getJobCardBg = (status: JobStatus, isAssignedToMe: boolean) => {
     case 'WORKING':
     case 'BEFORE_PHOTOS_DONE':
       return 'bg-gradient-to-br from-blue-50/90 via-indigo-50/80 to-[#f0f4ff] border-2 border-blue-400/80 shadow-md shadow-blue-500/10';
+    case 'APPROVED':
     case 'COMPLETED':
       return 'bg-gradient-to-br from-emerald-50/90 via-teal-50/80 to-[#f0fdf4] border-2 border-emerald-400/80 shadow-sm';
     case 'ACCEPTED':
@@ -133,7 +134,7 @@ export const AssignedJobsTable: React.FC<AssignedJobsTableProps> = ({
     e.stopPropagation();
     
     // Check if technician already has an active job in progress
-    const activeJob = jobs.find(j => j.isAssignedToMe && j.status !== 'COMPLETED' && j.status !== 'CANCELLED');
+    const activeJob = jobs.find(j => j.isAssignedToMe && j.status !== 'COMPLETED' && j.status !== 'APPROVED' && j.status !== 'CANCELLED');
     if (newStatus === 'ACCEPTED' && activeJob && activeJob.id !== jobId) {
       alert(`⚠️ Active Job in Progress:\nYou are currently working on active job "${activeJob.jobCode} - ${activeJob.title}". Please complete your current job before accepting new work orders!`);
       return;
@@ -279,9 +280,9 @@ export const AssignedJobsTable: React.FC<AssignedJobsTableProps> = ({
             {/* Footer Action Bar */}
             <div className="flex items-center justify-between pt-1" onClick={(e) => e.stopPropagation()}>
               <div 
-                className={job.isAssignedToMe && job.status !== 'COMPLETED' ? "cursor-pointer active:scale-95 transition-transform" : ""} 
+                className={job.isAssignedToMe && job.status !== 'COMPLETED' && job.status !== 'APPROVED' ? "cursor-pointer active:scale-95 transition-transform" : ""} 
                 onClick={() => {
-                  if (job.isAssignedToMe && job.status !== 'COMPLETED' && onOpenWorkflow) {
+                  if (job.isAssignedToMe && job.status !== 'COMPLETED' && job.status !== 'APPROVED' && onOpenWorkflow) {
                     onOpenWorkflow(job);
                   }
                 }}
@@ -289,7 +290,7 @@ export const AssignedJobsTable: React.FC<AssignedJobsTableProps> = ({
                 <StatusBadge status={job.status} size="sm" />
               </div>
 
-              {job.status === 'COMPLETED' ? (
+              {job.status === 'COMPLETED' || job.status === 'APPROVED' ? (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -431,9 +432,9 @@ export const AssignedJobsTable: React.FC<AssignedJobsTableProps> = ({
                   {/* Status */}
                   <td className="py-4 px-4 align-middle text-center" onClick={(e) => e.stopPropagation()}>
                     <div 
-                      className={job.isAssignedToMe && job.status !== 'COMPLETED' ? "cursor-pointer active:scale-95 transition-transform inline-block" : "inline-block"} 
+                      className={job.isAssignedToMe && job.status !== 'COMPLETED' && job.status !== 'APPROVED' ? "cursor-pointer active:scale-95 transition-transform inline-block" : "inline-block"} 
                       onClick={() => {
-                        if (job.isAssignedToMe && job.status !== 'COMPLETED' && onOpenWorkflow) {
+                        if (job.isAssignedToMe && job.status !== 'COMPLETED' && job.status !== 'APPROVED' && onOpenWorkflow) {
                           onOpenWorkflow(job);
                         }
                       }}
@@ -445,7 +446,7 @@ export const AssignedJobsTable: React.FC<AssignedJobsTableProps> = ({
                   {/* Guided Workflow Buttons */}
                   <td className="py-4 px-4 align-middle" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center space-x-2">
-                      {job.status === 'COMPLETED' ? (
+                      {job.status === 'COMPLETED' || job.status === 'APPROVED' ? (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
