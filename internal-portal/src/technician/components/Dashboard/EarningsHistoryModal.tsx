@@ -91,15 +91,25 @@ export const EarningsHistoryModal: React.FC<EarningsHistoryModalProps> = ({ isOp
                 (job.assignedTechnicians && job.assignedTechnicians.some((t: any) => t.name?.toLowerCase().includes(techName.toLowerCase())));
                 
               if (isMainTech) {
-                earning = Number(job.mainTechnicianEarning || job.financials?.technicianEarning || job.technicianEarning || 0);
+                earning = Number(job.financials?.mainTechnicianEarning ?? job.mainTechnicianEarning ?? job.financials?.technicianEarning ?? job.technicianEarning ?? 0);
               } else {
-                const subTechMatch = (job.subTechnicianEarnings || []).find((st: any) => 
-                  st.technicianName?.toLowerCase().includes(techName.toLowerCase())
-                );
-                if (subTechMatch) {
-                  earning = Number(subTechMatch.amount || 0);
+                let subTechAmount = 0;
+                const subs = job.financials?.subTechnicianEarnings || job.subTechnicianEarnings || {};
+                
+                if (Array.isArray(subs)) {
+                  const subTechMatch = subs.find((st: any) => 
+                    st.technicianName?.toLowerCase().includes(techName.toLowerCase())
+                  );
+                  if (subTechMatch) subTechAmount = Number(subTechMatch.amount || 0);
                 } else {
-                  earning = Number(job.technicianEarning || 0);
+                  const key = Object.keys(subs).find(k => k.toLowerCase().includes(techName.toLowerCase()));
+                  if (key) subTechAmount = Number(subs[key]);
+                }
+                
+                if (subTechAmount > 0) {
+                  earning = subTechAmount;
+                } else {
+                  earning = Number(job.financials?.technicianEarning ?? job.technicianEarning ?? 0);
                 }
               }
 

@@ -302,16 +302,25 @@ router.get('/dashboard-summary', async (req: Request, res: Response) => {
         (j.assignedTechnicians && j.assignedTechnicians.some((t: any) => t.name?.toLowerCase().includes(technicianName?.toString().toLowerCase() || '')));
         
       if (isMainTech) {
-        earning = Number(j.mainTechnicianEarning || j.financials?.technicianEarning || j.technicianEarning || 0);
+        earning = Number(j.financials?.mainTechnicianEarning ?? j.mainTechnicianEarning ?? j.financials?.technicianEarning ?? j.technicianEarning ?? 0);
       } else {
-        const subTechMatch = (j.subTechnicianEarnings || []).find((st: any) => 
-          st.technicianName?.toLowerCase().includes(technicianName?.toString().toLowerCase() || '')
-        );
-        if (subTechMatch) {
-          earning = Number(subTechMatch.amount || 0);
+        let subTechAmount = 0;
+        const subs = j.financials?.subTechnicianEarnings || j.subTechnicianEarnings || {};
+        
+        if (Array.isArray(subs)) {
+          const subTechMatch = subs.find((st: any) => 
+            st.technicianName?.toLowerCase().includes(technicianName?.toString().toLowerCase() || '')
+          );
+          if (subTechMatch) subTechAmount = Number(subTechMatch.amount || 0);
         } else {
-          // Fallback if listed as sub tech but no specific split found
-          earning = Number(j.technicianEarning || 0);
+          const key = Object.keys(subs).find(k => k.toLowerCase().includes((technicianName?.toString() || '').toLowerCase()));
+          if (key) subTechAmount = Number(subs[key]);
+        }
+        
+        if (subTechAmount > 0) {
+          earning = subTechAmount;
+        } else {
+          earning = Number(j.financials?.technicianEarning ?? j.technicianEarning ?? 0);
         }
       }
 
