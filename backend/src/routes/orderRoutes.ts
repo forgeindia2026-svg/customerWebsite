@@ -305,6 +305,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
     const orderId = req.params.id;
     let deletedOrder = await Order.findOneAndDelete({ orderNumber: orderId });
     if (!deletedOrder) {
+      const mongoose = require('mongoose');
       if (mongoose.Types.ObjectId.isValid(orderId)) {
         deletedOrder = await Order.findByIdAndDelete(orderId);
       }
