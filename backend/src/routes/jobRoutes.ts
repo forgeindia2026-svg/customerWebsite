@@ -421,6 +421,8 @@ router.get('/', async (req: Request, res: Response) => {
           ...j,
           financials: {
             technicianEarning: j.financials.technicianEarning || j.technicianEarning || 0,
+            mainTechnicianEarning: j.financials.mainTechnicianEarning,
+            subTechnicianEarnings: j.financials.subTechnicianEarnings,
             approvedAt: j.financials.approvedAt
           }
         };
