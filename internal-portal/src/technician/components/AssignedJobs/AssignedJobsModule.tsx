@@ -75,6 +75,8 @@ export const AssignedJobsModule: React.FC<AssignedJobsModuleProps> = ({
       if (filters.status && filters.status !== 'ALL') {
         if (filters.status === 'IN_PROGRESS') {
           filtered = filtered.filter((j) => j.status === 'IN_PROGRESS' || j.status === 'ACCEPTED');
+        } else if (filters.status === 'COMPLETED') {
+          filtered = filtered.filter((j) => j.status === 'COMPLETED' || j.status === 'APPROVED');
         } else {
           filtered = filtered.filter((j) => j.status === filters.status);
         }
@@ -171,7 +173,11 @@ export const AssignedJobsModule: React.FC<AssignedJobsModuleProps> = ({
   const rawJobList = (response && response.data && response.data.length > 0) ? response.data : (jobs || []);
 
   const filteredJobs = rawJobList.filter((job) => {
-    if (filters.status && filters.status !== 'ALL' && job.status !== filters.status) return false;
+    if (filters.status && filters.status !== 'ALL') {
+      if (filters.status === 'IN_PROGRESS' && job.status !== 'IN_PROGRESS' && job.status !== 'ACCEPTED') return false;
+      else if (filters.status === 'COMPLETED' && job.status !== 'COMPLETED' && job.status !== 'APPROVED') return false;
+      else if (filters.status !== 'IN_PROGRESS' && filters.status !== 'COMPLETED' && job.status !== filters.status) return false;
+    }
     if (filters.priority && filters.priority !== 'ALL' && job.priority !== filters.priority) return false;
     if (filters.searchQuery) {
       const q = filters.searchQuery.toLowerCase().trim();
