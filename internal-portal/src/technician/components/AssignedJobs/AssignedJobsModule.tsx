@@ -170,7 +170,7 @@ export const AssignedJobsModule: React.FC<AssignedJobsModuleProps> = ({
   const completedCountVal = response?.stats?.completedCount ?? summaryStats?.completedToday ?? (jobs && jobs.length > 0 ? jobs.filter((j) => j.status === 'COMPLETED').length : (isLoading ? null : 0));
 
   // Combine passed jobs or response data with active filter options
-  const rawJobList = (response && response.data && response.data.length > 0) ? response.data : (jobs || []);
+  const rawJobList = (jobs && jobs.length > 0) ? jobs : (response?.data || []);
 
   const filteredJobs = rawJobList.filter((job) => {
     if (filters.status && filters.status !== 'ALL') {

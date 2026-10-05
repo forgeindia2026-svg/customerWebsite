@@ -388,7 +388,16 @@ router.get('/', async (req: Request, res: Response) => {
     }
 
     if (status && status !== 'ALL') {
-      filter.status = status;
+      const s = (status as string).toUpperCase();
+      if (s === 'COMPLETED') {
+        filter.status = { $in: ['COMPLETED', 'APPROVED', 'DELIVERED', 'WAITING_ADMIN_APPROVAL'] };
+      } else if (s === 'PENDING') {
+        filter.status = { $in: ['PENDING', 'ASSIGNED', 'WAITING_FOR_TECH', 'PENDING APPROVAL', 'ASSIGNMENT_PENDING_ACCEPTANCE'] };
+      } else if (s === 'IN_PROGRESS') {
+        filter.status = { $in: ['IN_PROGRESS', 'ACCEPTED', 'BEFORE_PHOTOS_DONE', 'AFTER_PHOTOS_DONE', 'INSPECTED', 'DAILY_REPORTED'] };
+      } else {
+        filter.status = status;
+      }
     }
     if (priority && priority !== 'ALL') {
       filter.priority = priority;
