@@ -50,9 +50,13 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
   currentTechProfile 
 }) => {
   const [timeframe, setTimeframe] = useState<'MONTH' | 'WEEK' | 'ALL_TIME'>('MONTH');
+  const [selectedMonth, setSelectedMonth] = useState<string>('CURRENT'); // 'CURRENT', 'PREVIOUS', '2026-08', 'ALL'
   const [divisionFilter, setDivisionFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [techniciansList, setTechniciansList] = useState<LeaderboardTechnician[]>([]);
+  
+  const [rawTechs, setRawTechs] = useState<any[]>([]);
+  const [rawOrders, setRawOrders] = useState<any[]>([]);
+  const [rawJobs, setRawJobs] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [showRewardModal, setShowRewardModal] = useState<boolean>(false);
 
@@ -63,25 +67,24 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
       try {
         setIsLoading(true);
         const baseUrl = getApiUrl();
-        let liveTechs: any[] = [];
+        let fetchedTechs: any[] = [];
+        let fetchedOrders: any[] = [];
+        let fetchedJobs: any[] = [];
 
-        let allOrders: any[] = [];
-        let allJobs: any[] = [];
-
-        // 1. Fetch live dashboard data (to get all orders with technician earnings, technicians, and jobs)
+        // 1. Fetch live dashboard data (orders, jobs, technicians)
         try {
           const dashRes = await fetch(`${baseUrl}/api/dashboard?refresh=true`);
           if (dashRes.ok) {
             const dashJson = await dashRes.json();
             if (dashJson.success && dashJson.data) {
               if (Array.isArray(dashJson.data.orders)) {
-                allOrders = dashJson.data.orders;
+                fetchedOrders = dashJson.data.orders;
               }
               if (Array.isArray(dashJson.data.jobs)) {
-                allJobs = dashJson.data.jobs;
+                fetchedJobs = dashJson.data.jobs;
               }
               if (Array.isArray(dashJson.data.technicians) && dashJson.data.technicians.length > 0) {
-                liveTechs = dashJson.data.technicians;
+                fetchedTechs = dashJson.data.technicians;
               }
             }
           }
@@ -95,10 +98,10 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
           if (res.ok) {
             const json = await res.json();
             if (json.success && Array.isArray(json.data?.techPerformance) && json.data.techPerformance.length > 0) {
-              if (liveTechs.length === 0) {
-                liveTechs = json.data.techPerformance;
+              if (fetchedTechs.length === 0) {
+                fetchedTechs = json.data.techPerformance;
               } else {
-                liveTechs = liveTechs.map((lt: any) => {
+                fetchedTechs = fetchedTechs.map((lt: any) => {
                   const perf = json.data.techPerformance.find((tp: any) => 
                     tp.id === lt.id || tp.name?.toLowerCase().trim() === lt.name?.toLowerCase().trim()
                   );
@@ -111,14 +114,14 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
           console.warn('Analytics fetch error:', e);
         }
 
-        // 3. Merge local cached orders if available (catches immediate admin approvals)
+        // 3. Merge local cached orders if available
         try {
           const cached = JSON.parse(localStorage.getItem('sk_admin_dashboard_cache') || '{}');
           if (Array.isArray(cached?.orders)) {
             cached.orders.forEach((co: any) => {
-              const existing = allOrders.find((o: any) => o.id === co.id || o.orderNumber === co.orderNumber);
+              const existing = fetchedOrders.find((o: any) => o.id === co.id || o.orderNumber === co.orderNumber);
               if (!existing) {
-                allOrders.push(co);
+                fetchedOrders.push(co);
               } else if (co.financials?.technicianEarning && !existing.financials?.technicianEarning) {
                 existing.financials = co.financials;
                 existing.technicianEarning = co.technicianEarning;
@@ -127,9 +130,9 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
           }
         } catch (e) {}
 
-        // 4. If no backend technicians found, fallback to logged-in technician only
-        if (liveTechs.length === 0) {
-          liveTechs = [{
+        // Fallback technician if list empty
+        if (fetchedTechs.length === 0) {
+          fetchedTechs = [{
             id: currentTechProfile?.id || 'TECH-CURRENT',
             name: currentUserName,
             badgeNumber: currentTechProfile?.badgeNumber || 'SK-TECH-9042',
@@ -141,153 +144,9 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
           }];
         }
 
-        const currentTechCompletedJobs = jobs.filter(j => j.status === 'COMPLETED' || j.status === 'APPROVED');
-        const currentTechCompletedCount = currentTechCompletedJobs.length;
-        const currentTechJobsEarnings = currentTechCompletedJobs.reduce((sum, j) => {
-          const earningVal = Number((j as any).technicianEarning || (j as any).financials?.technicianEarning || 0);
-          return sum + earningVal;
-        }, 0);
-
-        // Map live technicians to LeaderboardTechnician objects using real database values & order earnings
-        const mappedList: LeaderboardTechnician[] = liveTechs.map((bt: any, idx: number) => {
-          const techName = bt.name || `Technician ${idx + 1}`;
-          const techNameLower = techName.toLowerCase().trim();
-          const isCurrent = techNameLower === currentUserName.toLowerCase().trim() ||
-                            currentUserName.toLowerCase().includes(techNameLower) ||
-                            techNameLower.includes(currentUserName.toLowerCase());
-
-          // 1. Calculate earnings from all assigned orders
-          const techOrders = allOrders.filter((o: any) => {
-            const assigned = (o.assignedTechnician || o.assignedTechnicianName || o.technician || '').toLowerCase().trim();
-            const assignedId = (o.assignedTechnicianId || '').toString();
-            const matchesId = bt.id && assignedId === bt.id.toString();
-            const matchesName = assigned && (assigned === techNameLower || assigned.includes(techNameLower) || techNameLower.includes(assigned));
-            return matchesId || matchesName;
-          });
-
-          const techOrdersEarnings = techOrders.reduce((sum: number, o: any) => {
-            const val = Number(o.financials?.technicianEarning ?? o.technicianEarning ?? 0);
-            return sum + (isNaN(val) ? 0 : val);
-          }, 0);
-
-          // 2. Calculate earnings from all assigned jobs
-          const techJobs = allJobs.filter((j: any) => {
-            return (j.assignedTechnicians || []).some((at: any) => {
-              const atId = (at.id || '').toString();
-              const atName = (at.name || '').toLowerCase().trim();
-              return (bt.id && atId === bt.id.toString()) || (atName && (atName === techNameLower || atName.includes(techNameLower) || techNameLower.includes(atName)));
-            });
-          });
-
-          const techJobsEarnings = techJobs.reduce((sum: number, j: any) => {
-            const val = Number(j.financials?.technicianEarning ?? j.technicianEarning ?? 0);
-            return sum + (isNaN(val) ? 0 : val);
-          }, 0);
-
-          let techEarnings = Math.max(
-            Number(bt.totalEarnings) || 0,
-            Number(bt.earnings) || 0,
-            techOrdersEarnings + techJobsEarnings
-          );
-
-          if (isCurrent && currentTechJobsEarnings > techEarnings) {
-            techEarnings = currentTechJobsEarnings;
-          }
-
-          const completedOrdersCount = techOrders.filter((o: any) => 
-            o.orderStatus === 'DELIVERED' || o.orderStatus === 'SHIPPED' || o.status === 'Approved' || o.status === 'Completed'
-          ).length;
-          const completedJobsCount = techJobs.filter((j: any) => 
-            j.status === 'COMPLETED' || j.status === 'APPROVED'
-          ).length;
-
-          let completedCount = Math.max(
-            Number(bt.completedJobs) || 0,
-            Number(bt.completedJobsCount) || 0,
-            completedOrdersCount + completedJobsCount
-          );
-          if (isCurrent && currentTechCompletedCount > completedCount) {
-            completedCount = currentTechCompletedCount;
-          }
-
-          const totalJobsCount = Math.max(
-            completedCount, 
-            Number(bt.totalJobs) || 0, 
-            techOrders.length + techJobs.length
-          );
-          const ratingVal = Number(bt.rating) || 5.0;
-          
-          // Realistic SLA & Fix rates based on completed jobs
-          const onTimeVal = completedCount > 0 ? Math.min(100, 92 + (completedCount % 8)) : 100;
-          const fixRateVal = completedCount > 0 ? Math.min(100, 90 + (completedCount % 9)) : 100;
-          
-          // Real points formula based on actual completed jobs, ratings and earnings
-          const pointsVal = (completedCount * 250) + Math.round(ratingVal * 100) + (totalJobsCount * 40) + Math.round(techEarnings * 0.5);
-
-          // Performance badges based on real achievements
-          const badgesList: string[] = [];
-          if (completedCount >= 5) {
-            badgesList.push('Senior Field Tech', 'High Achiever');
-          } else if (completedCount > 0) {
-            badgesList.push('Field Verified');
-          } else {
-            badgesList.push('Field Ready');
-          }
-          if (ratingVal >= 4.9) {
-            badgesList.push('Top Rated');
-          }
-
-          let avatarUrl = bt.avatar || bt.avatarUrl || '';
-          if (isCurrent && currentTechProfile?.avatarUrl) {
-            avatarUrl = currentTechProfile.avatarUrl;
-          }
-          if (!avatarUrl) {
-            avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(techName)}&background=2874F0&color=fff&size=150`;
-          }
-
-          const badgeNum = bt.badgeNumber || `SK-TECH-${techName.replace(/[^A-Za-z0-9]/g, '').slice(0, 4).toUpperCase() || '0000'}`;
-
-          return {
-            id: String(bt.id || bt._id || `TECH-${idx}`),
-            name: techName,
-            badgeNumber: badgeNum,
-            avatar: avatarUrl,
-            specialization: bt.specialization || 'CCTV & Field Service',
-            completedJobs: completedCount,
-            totalJobs: totalJobsCount,
-            rating: ratingVal,
-            earnings: techEarnings,
-            onTimeRate: onTimeVal,
-            firstTimeFixRate: fixRateVal,
-            points: pointsVal,
-            badges: badgesList,
-            isCurrentUser: isCurrent
-          };
-        });
-
-        // Ensure current technician is in the list if missing
-        const foundCurrent = mappedList.some(t => t.isCurrentUser);
-        if (!foundCurrent) {
-          const cJobs = currentTechCompletedCount;
-          mappedList.push({
-            id: currentTechProfile?.id || 'TECH-CURRENT',
-            name: currentUserName,
-            badgeNumber: currentTechProfile?.badgeNumber || 'SK-TECH-9042',
-            avatar: currentTechProfile?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUserName)}&background=2874F0&color=fff&size=150`,
-            specialization: 'CCTV & Field Service',
-            completedJobs: cJobs,
-            totalJobs: Math.max(cJobs, jobs.length),
-            rating: currentTechProfile?.rating || 5.0,
-            earnings: currentTechJobsEarnings,
-            onTimeRate: 98,
-            firstTimeFixRate: 95,
-            points: (cJobs * 250) + 500 + (Math.max(cJobs, jobs.length) * 40),
-            badges: cJobs >= 5 ? ['Senior Field Tech', 'Top Rated'] : ['Field Verified'],
-            isCurrentUser: true
-          });
-        }
-
-        setTechniciansList(mappedList);
+        setRawTechs(fetchedTechs);
+        setRawOrders(fetchedOrders);
+        setRawJobs(fetchedJobs.length > 0 ? fetchedJobs : jobs);
       } catch (err) {
         console.warn('Could not fetch leaderboard data:', err);
       } finally {
@@ -298,22 +157,157 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
     fetchLeaderboardData();
   }, [jobs, currentUserName, currentTechProfile]);
 
-  // Adjust rankings and scores based on timeframe
+  // Dynamically calculate rankings & scores filtered strictly by selected Month / Timeframe
   const rankedTechnicians = useMemo(() => {
-    const multiplier = timeframe === 'WEEK' ? 0.35 : timeframe === 'ALL_TIME' ? 3.2 : 1.0;
+    const isItemInPeriod = (dateVal: any) => {
+      if (timeframe === 'ALL_TIME' || selectedMonth === 'ALL') return true;
+      if (!dateVal) return true;
+      const d = new Date(dateVal);
+      if (isNaN(d.getTime())) return true;
 
-    let list = techniciansList.map(tech => {
-      const calculatedEarnings = Math.round(tech.earnings * multiplier);
-      const calculatedPoints = Math.round(tech.points * multiplier);
-      const isCurrent = tech.name.toLowerCase() === currentUserName.toLowerCase();
+      const now = new Date();
+
+      if (timeframe === 'WEEK') {
+        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        return d >= oneWeekAgo;
+      }
+
+      if (selectedMonth === 'CURRENT' || (timeframe === 'MONTH' && selectedMonth === 'CURRENT')) {
+        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+      }
+
+      if (selectedMonth === 'PREVIOUS') {
+        const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        return d.getFullYear() === prevMonth.getFullYear() && d.getMonth() === prevMonth.getMonth();
+      }
+
+      if (selectedMonth.includes('-')) {
+        const [yStr, mStr] = selectedMonth.split('-');
+        const y = parseInt(yStr, 10);
+        const m = parseInt(mStr, 10) - 1;
+        return d.getFullYear() === y && d.getMonth() === m;
+      }
+
+      return true;
+    };
+
+    let list = rawTechs.map((bt: any, idx: number) => {
+      const techName = bt.name || `Technician ${idx + 1}`;
+      const techNameLower = techName.toLowerCase().trim();
+      const isCurrent = techNameLower === currentUserName.toLowerCase().trim() ||
+                        currentUserName.toLowerCase().includes(techNameLower) ||
+                        techNameLower.includes(currentUserName.toLowerCase());
+
+      // 1. Filter assigned orders in selected month
+      const techOrders = rawOrders.filter((o: any) => {
+        const assigned = (o.assignedTechnician || o.assignedTechnicianName || o.technician || '').toLowerCase().trim();
+        const assignedId = (o.assignedTechnicianId || '').toString();
+        const matchesId = bt.id && assignedId === bt.id.toString();
+        const matchesName = assigned && (assigned === techNameLower || assigned.includes(techNameLower) || techNameLower.includes(assigned));
+        const matchesDate = isItemInPeriod(o.createdAt || o.orderDate || o.updatedAt);
+        return (matchesId || matchesName) && matchesDate;
+      });
+
+      const techOrdersEarnings = techOrders.reduce((sum: number, o: any) => {
+        const val = Number(o.financials?.technicianEarning ?? o.technicianEarning ?? 0);
+        return sum + (isNaN(val) ? 0 : val);
+      }, 0);
+
+      // 2. Filter assigned jobs in selected month
+      const techJobs = rawJobs.filter((j: any) => {
+        const isAssigned = (j.assignedTechnicians || []).some((at: any) => {
+          const atId = (at.id || '').toString();
+          const atName = (at.name || '').toLowerCase().trim();
+          return (bt.id && atId === bt.id.toString()) || (atName && (atName === techNameLower || atName.includes(techNameLower) || techNameLower.includes(atName)));
+        });
+        const matchesDate = isItemInPeriod(j.createdAt || j.scheduledDate || j.updatedAt);
+        return isAssigned && matchesDate;
+      });
+
+      const techJobsEarnings = techJobs.reduce((sum: number, j: any) => {
+        const val = Number(j.financials?.technicianEarning ?? j.technicianEarning ?? 0);
+        return sum + (isNaN(val) ? 0 : val);
+      }, 0);
+
+      const completedOrdersCount = techOrders.filter((o: any) => 
+        o.orderStatus === 'DELIVERED' || o.orderStatus === 'SHIPPED' || o.status === 'Approved' || o.status === 'Completed'
+      ).length;
+      const completedJobsCount = techJobs.filter((j: any) => 
+        j.status === 'COMPLETED' || j.status === 'APPROVED'
+      ).length;
+
+      let completedCount = completedOrdersCount + completedJobsCount;
+      let techEarnings = techOrdersEarnings + techJobsEarnings;
+
+      if (selectedMonth === 'ALL' || timeframe === 'ALL_TIME') {
+        completedCount = Math.max(Number(bt.completedJobs || bt.completedJobsCount || 0), completedCount);
+        techEarnings = Math.max(Number(bt.totalEarnings || bt.earnings || 0), techEarnings);
+      }
+
+      const totalJobsCount = Math.max(completedCount, techOrders.length + techJobs.length);
+      const ratingVal = Number(bt.rating) || 5.0;
+
+      const onTimeVal = completedCount > 0 ? Math.min(100, 92 + (completedCount % 8)) : 100;
+      const fixRateVal = completedCount > 0 ? Math.min(100, 90 + (completedCount % 9)) : 100;
+      const pointsVal = (completedCount * 250) + Math.round(ratingVal * 100) + Math.round(techEarnings * 0.5);
+
+      const badgesList: string[] = [];
+      if (completedCount >= 5) {
+        badgesList.push('Senior Field Tech', 'High Achiever');
+      } else if (completedCount > 0) {
+        badgesList.push('Field Verified');
+      } else {
+        badgesList.push('Field Ready');
+      }
+
+      let avatarUrl = bt.avatar || bt.avatarUrl || '';
+      if (isCurrent && currentTechProfile?.avatarUrl) {
+        avatarUrl = currentTechProfile.avatarUrl;
+      }
+      if (!avatarUrl) {
+        avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(techName)}&background=2874F0&color=fff&size=150`;
+      }
+
+      const badgeNum = bt.badgeNumber || `SK-TECH-${techName.replace(/[^A-Za-z0-9]/g, '').slice(0, 4).toUpperCase() || '0000'}`;
+
       return {
-        ...tech,
-        earnings: calculatedEarnings,
-        points: calculatedPoints,
-        completedJobs: Math.round(tech.completedJobs * multiplier),
+        id: String(bt.id || bt._id || `TECH-${idx}`),
+        name: techName,
+        badgeNumber: badgeNum,
+        avatar: avatarUrl,
+        specialization: bt.specialization || 'CCTV & Field Service',
+        completedJobs: completedCount,
+        totalJobs: totalJobsCount,
+        rating: ratingVal,
+        earnings: techEarnings,
+        onTimeRate: onTimeVal,
+        firstTimeFixRate: fixRateVal,
+        points: pointsVal,
+        badges: badgesList,
         isCurrentUser: isCurrent
       };
     });
+
+    // Ensure current technician is in the list
+    const foundCurrent = list.some(t => t.isCurrentUser);
+    if (!foundCurrent) {
+      list.push({
+        id: currentTechProfile?.id || 'TECH-CURRENT',
+        name: currentUserName,
+        badgeNumber: currentTechProfile?.badgeNumber || 'SK-TECH-9042',
+        avatar: currentTechProfile?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUserName)}&background=2874F0&color=fff&size=150`,
+        specialization: 'CCTV & Field Service',
+        completedJobs: 0,
+        totalJobs: 0,
+        rating: currentTechProfile?.rating || 5.0,
+        earnings: 0,
+        onTimeRate: 98,
+        firstTimeFixRate: 95,
+        points: 500,
+        badges: ['Field Verified'],
+        isCurrentUser: true
+      });
+    }
 
     // Apply division filter
     if (divisionFilter !== 'ALL') {
@@ -343,7 +337,7 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
       ...tech,
       rank: idx + 1
     }));
-  }, [techniciansList, timeframe, divisionFilter, searchQuery, currentUserName]);
+  }, [rawTechs, rawOrders, rawJobs, timeframe, selectedMonth, divisionFilter, searchQuery, currentUserName, currentTechProfile]);
 
   // Find current technician's standing
   const myStanding = rankedTechnicians.find(t => t.isCurrentUser) || rankedTechnicians[0];
@@ -377,11 +371,39 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
             </p>
           </div>
 
-          {/* Timeframe Filter Buttons & Info Button */}
+          {/* Timeframe & Month Filter Controls */}
           <div className="flex items-center flex-wrap gap-2">
+            {/* Month Select Dropdown */}
+            <div className="flex items-center bg-slate-100/90 px-2.5 py-1 rounded-xl border border-slate-200/80 space-x-1.5">
+              <Calendar className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+              <select
+                value={selectedMonth}
+                onChange={(e) => {
+                  setSelectedMonth(e.target.value);
+                  if (e.target.value === 'ALL') {
+                    setTimeframe('ALL_TIME');
+                  } else {
+                    setTimeframe('MONTH');
+                  }
+                }}
+                className="bg-transparent text-[11px] sm:text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+              >
+                <option value="CURRENT">This Month (October 2026)</option>
+                <option value="PREVIOUS">Last Month (September 2026)</option>
+                <option value="2026-08">August 2026</option>
+                <option value="2026-07">July 2026</option>
+                <option value="2026-06">June 2026</option>
+                <option value="ALL">All Time</option>
+              </select>
+            </div>
+
+            {/* Quick Timeframe Buttons */}
             <div className="flex items-center bg-slate-100/90 p-0.5 sm:p-1 rounded-xl border border-slate-200/80">
               <button
-                onClick={() => setTimeframe('WEEK')}
+                onClick={() => {
+                  setTimeframe('WEEK');
+                  setSelectedMonth('CURRENT');
+                }}
                 className={`px-2.5 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer ${
                   timeframe === 'WEEK'
                     ? 'bg-white text-blue-700 shadow-xs'
@@ -391,9 +413,12 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
                 Week
               </button>
               <button
-                onClick={() => setTimeframe('MONTH')}
+                onClick={() => {
+                  setTimeframe('MONTH');
+                  setSelectedMonth('CURRENT');
+                }}
                 className={`px-2.5 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                  timeframe === 'MONTH'
+                  timeframe === 'MONTH' && selectedMonth === 'CURRENT'
                     ? 'bg-white text-blue-700 shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
@@ -401,9 +426,12 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
                 Month
               </button>
               <button
-                onClick={() => setTimeframe('ALL_TIME')}
+                onClick={() => {
+                  setTimeframe('ALL_TIME');
+                  setSelectedMonth('ALL');
+                }}
                 className={`px-2.5 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                  timeframe === 'ALL_TIME'
+                  timeframe === 'ALL_TIME' || selectedMonth === 'ALL'
                     ? 'bg-white text-blue-700 shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
@@ -475,7 +503,7 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
         )}
       </div>
 
-      {/* TOP 3 PODIUM STAGE - 3-Column Olympic Stage on Mobile to prevent taking full screen */}
+      {/* TOP 3 PODIUM STAGE */}
       <div className="grid grid-cols-3 gap-1.5 sm:gap-6 items-end">
         {/* Rank 2 (Silver - Left) */}
         {top2 && (
@@ -798,28 +826,12 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
                   <span>5-Star Customer Rating</span>
                   <span className="font-bold text-amber-600">+100 XP</span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span>On-Time Arrival (Before SLA)</span>
-                  <span className="font-bold text-blue-600">+50 XP</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Photo & Report Submission on Same Day</span>
-                  <span className="font-bold text-indigo-600">+25 XP</span>
-                </div>
               </div>
             </div>
-
-            <button
-              onClick={() => setShowRewardModal(false)}
-              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs transition-colors cursor-pointer"
-            >
-              Got It, Keep Competing!
-            </button>
           </div>
         </div>
       )}
     </div>
   );
 };
-
 export default LeaderboardModule;
