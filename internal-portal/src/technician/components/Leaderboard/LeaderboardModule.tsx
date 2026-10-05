@@ -62,6 +62,29 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
 
   const currentUserName = currentTechProfile?.name || localStorage.getItem('user_name') || 'SARAN';
 
+  // Dynamically generate the last 6 months options from current date
+  const monthOptions = useMemo(() => {
+    const options: Array<{ value: string; label: string }> = [];
+    const now = new Date();
+    options.push({
+      value: 'CURRENT',
+      label: `This Month (${now.toLocaleString('en-US', { month: 'long', year: 'numeric' })})`
+    });
+    const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    options.push({
+      value: 'PREVIOUS',
+      label: `Last Month (${prevDate.toLocaleString('en-US', { month: 'long', year: 'numeric' })})`
+    });
+    for (let i = 2; i <= 6; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const lbl = d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+      options.push({ value: val, label: lbl });
+    }
+    options.push({ value: 'ALL', label: 'All Time' });
+    return options;
+  }, []);
+
   useEffect(() => {
     const fetchLeaderboardData = async () => {
       try {
@@ -388,12 +411,11 @@ export const LeaderboardModule: React.FC<LeaderboardModuleProps> = ({
                 }}
                 className="bg-transparent text-[11px] sm:text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
               >
-                <option value="CURRENT">This Month (October 2026)</option>
-                <option value="PREVIOUS">Last Month (September 2026)</option>
-                <option value="2026-08">August 2026</option>
-                <option value="2026-07">July 2026</option>
-                <option value="2026-06">June 2026</option>
-                <option value="ALL">All Time</option>
+                {monthOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
               </select>
             </div>
 

@@ -155,7 +155,7 @@ export const JobsApiService = {
       const baseUrl = getApiUrl();
       const searchVal = options.searchQuery || '';
       const statusVal = options.status && options.status !== 'ALL' ? options.status : '';
-      const url = `${baseUrl}/api/jobs?technicianId=${techId}&technicianName=${encodeURIComponent(techName)}&includeAvailable=true&status=${statusVal}&search=${encodeURIComponent(searchVal)}`;
+      const url = `${baseUrl}/api/jobs?technicianId=${techId}&technicianName=${encodeURIComponent(techName)}&status=${statusVal}&search=${encodeURIComponent(searchVal)}`;
       const res = await fetch(url);
       const resData = await res.json();
       let rawJobs = resData.data || [];
