@@ -2282,10 +2282,6 @@ export default function Orders() {
                 status: orderForm.status
               }));
 
-              setEditModalOpen(false);
-              setEditingOrder(null);
-              toast.success('Order details & technician updated!');
-
               // Direct API sync with correct schema fields
               try {
                 const baseUrl = getApiUrl();
@@ -2302,7 +2298,7 @@ export default function Orders() {
                   serviceType: orderForm.type
                 };
 
-                // 1. Update Order Collection
+                // 1. Update Order Collection & Dashboard Collection Sync
                 await fetch(`${baseUrl}/api/orders/${encodeURIComponent(cleanId)}`, {
                   method: 'PUT',
                   headers: { 'Content-Type': 'application/json' },
@@ -2337,12 +2333,14 @@ export default function Orders() {
                 }
 
                 // Immediately re-fetch fresh state from backend
-                dispatch(fetchDashboardData(true));
+                await dispatch(fetchDashboardData(true));
                 setEditModalOpen(false);
                 setEditingOrder(null);
                 toast.success('Order details & technician updated!');
               } catch (err) {
                 console.warn('Direct order API sync warning:', err);
+                setEditModalOpen(false);
+                setEditingOrder(null);
               }
             }} 
             className="space-y-4 text-left"

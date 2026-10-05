@@ -270,26 +270,125 @@ router.put('/:id', async (req: Request, res: Response) => {
     const orderId = String(req.params.id);
     let query: any = { _id: orderId };
     
-    if (orderId.startsWith('SK-')) {
+    if (orderId.startsWith('SK-') || orderId.startsWith('ORD-')) {
       query = { orderNumber: orderId };
     }
 
-    const updatedOrder = await Order.findOneAndUpdate(
+    let updatedOrder = await Order.findOneAndUpdate(
       query,
       { $set: req.body },
       { new: true }
     );
 
     if (!updatedOrder) {
-      // Also try fallback
-      const fallbackOrder = await Order.findOneAndUpdate(
+      // Fallback find by orderNumber or MongoId
+      updatedOrder = await Order.findOneAndUpdate(
         { orderNumber: orderId },
         { $set: req.body },
         { new: true }
       );
-      if (!fallbackOrder) {
-        return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    if (!updatedOrder) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    const ordNum = updatedOrder.orderNumber || orderId;
+    const cleanId = ordNum.replace(/^#/, '').replace(/^SK-/, '').replace(/^ORD-/, '').trim();
+
+    // 1. Sync Job Collection in MongoDB
+    try {
+      const jobFields: any = {};
+      if (req.body.customerName || req.body.customerPhone || req.body.shippingAddress) {
+        jobFields.customer = {
+          name: req.body.customerName || updatedOrder.customerName,
+          phone: req.body.customerPhone || updatedOrder.customerPhone,
+          email: updatedOrder.customerEmail || '',
+          address: req.body.shippingAddress || updatedOrder.shippingAddress
+        };
       }
+      if (req.body.assignedTechnician) {
+        jobFields.assignedTechnicians = [{ id: 'main-tech', name: req.body.assignedTechnician }];
+      }
+      if (req.body.subTechnicians) {
+        jobFields.subTechnicians = req.body.subTechnicians;
+      }
+      if (req.body.totalAmount !== undefined) {
+        jobFields.financials = { totalValue: Number(req.body.totalAmount) || 0 };
+      }
+      if (req.body.orderStatus === 'DELIVERED') {
+        jobFields.status = 'APPROVED';
+      }
+
+      if (Object.keys(jobFields).length > 0) {
+        await Job.updateMany(
+          {
+            $or: [
+              { jobCode: ordNum },
+              { jobCode: `#${ordNum}` },
+              { jobCode: `SK-${ordNum}` },
+              { jobCode: `SK-ORD-${cleanId}` },
+              { jobCode: `ORD-${cleanId}` },
+              { jobCode: cleanId }
+            ]
+          },
+          { $set: jobFields }
+        );
+      }
+    } catch (jobSyncErr) {
+      console.warn('Job sync error in order PUT:', jobSyncErr);
+    }
+
+    // 2. Sync Dashboard collection document in MongoDB
+    try {
+      const Dashboard = require('../models/Dashboard').default;
+      const dashboardDoc = await Dashboard.findOne();
+      if (dashboardDoc) {
+        let dashChanged = false;
+        
+        if (Array.isArray(dashboardDoc.orders)) {
+          dashboardDoc.orders.forEach((o: any) => {
+            const isMatch = (o.id && (o.id === ordNum || o.id === cleanId || o.id.includes(cleanId))) ||
+                            (o.customerName && updatedOrder.customerName && o.customerName.toLowerCase().trim() === updatedOrder.customerName?.toLowerCase().trim());
+            if (isMatch) {
+              if (req.body.customerName) o.customerName = req.body.customerName;
+              if (req.body.customerPhone) o.customerPhone = req.body.customerPhone;
+              if (req.body.shippingAddress) o.shippingAddress = req.body.shippingAddress;
+              if (req.body.totalAmount !== undefined) o.totalAmount = req.body.totalAmount;
+              if (req.body.assignedTechnician) o.assignedTechnician = req.body.assignedTechnician;
+              if (req.body.subTechnicians) o.subTechnicians = req.body.subTechnicians;
+              if (req.body.serviceType) o.serviceType = req.body.serviceType;
+              if (req.body.orderStatus) {
+                o.orderStatus = req.body.orderStatus;
+                o.status = req.body.orderStatus === 'DELIVERED' ? 'Approved' : (o.status || 'Processing');
+              }
+              dashChanged = true;
+            }
+          });
+        }
+
+        if (Array.isArray(dashboardDoc.projects)) {
+          dashboardDoc.projects.forEach((p: any) => {
+            const isMatch = (p.id && (p.id === ordNum || p.id === cleanId || p.id.includes(cleanId)));
+            if (isMatch) {
+              if (req.body.customerName) p.customer = req.body.customerName;
+              if (req.body.shippingAddress) p.location = req.body.shippingAddress;
+              if (req.body.assignedTechnician) p.technician = req.body.assignedTechnician;
+              if (req.body.serviceType) p.name = req.body.serviceType;
+              if (req.body.orderStatus === 'DELIVERED') p.status = 'Approved';
+              dashChanged = true;
+            }
+          });
+        }
+
+        if (dashChanged) {
+          dashboardDoc.markModified('orders');
+          dashboardDoc.markModified('projects');
+          await dashboardDoc.save();
+        }
+      }
+    } catch (dashSyncErr) {
+      console.warn('Dashboard sync error in order PUT:', dashSyncErr);
     }
 
     clearDashboardCache();
