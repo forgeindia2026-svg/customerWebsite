@@ -298,6 +298,9 @@ export const JobsApiService = {
 
       // Filter priority manually if needed
       let filtered = mappedJobs.filter((j: any) => j.isAssignedToMe);
+      if (filtered.length === 0 && mappedJobs.length > 0) {
+        filtered = mappedJobs;
+      }
       
       if (options.priority && options.priority !== 'ALL') {
         filtered = filtered.filter((j: any) => j.priority === options.priority);
