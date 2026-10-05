@@ -65,6 +65,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
     {
       title: 'MANAGEMENT',
       items: [
+        { name: 'Recruitment Control', path: '/admin/recruitment', icon: FiBriefcase },
         { name: 'Customers', path: '/admin/customers', icon: FiUsers },
         { name: 'Products', path: '/admin/products', icon: FiBox },
         { name: 'Payments', path: '/admin/payments', icon: FiCreditCard },

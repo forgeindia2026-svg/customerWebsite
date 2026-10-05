@@ -31,8 +31,8 @@ router.get('/active-broadcast', async (_req: Request, res: Response) => {
 
     const order = await Order.findOne({ orderNumber: recentJob.jobCode });
 
-    const totalAmt = (typeof order?.totalAmount === 'number' && !isNaN(order.totalAmount)) 
-      ? order.totalAmount 
+    const totalAmt = (typeof order?.totalAmount === 'number' && !isNaN(order.totalAmount))
+      ? order.totalAmount
       : ((typeof (recentJob as any).amount === 'number') ? (recentJob as any).amount : 0);
 
     res.json({
@@ -62,8 +62,8 @@ router.get('/live-locations', async (_req: Request, res: Response) => {
     }).sort({ 'currentLocation.updatedAt': -1 });
 
     // Fallback: If no active jobs, get the most recent jobs with location
-    const jobs = activeJobs.length > 0 
-      ? activeJobs 
+    const jobs = activeJobs.length > 0
+      ? activeJobs
       : await Job.find({ 'currentLocation.lat': { $exists: true } }).sort({ 'currentLocation.updatedAt': -1 }).limit(5);
 
     const locations: Record<string, { lat: number; lng: number; jobCode: string; technicianName?: string; updatedAt?: string }> = {};
@@ -293,22 +293,22 @@ router.get('/dashboard-summary', async (req: Request, res: Response) => {
     let totalEarnings = 0;
     let monthlyEarnings = 0;
     let todayEarnings = 0;
-    
+
     completedJobsList.forEach((j: any) => {
       let earning = 0;
-      
-      const isMainTech = 
+
+      const isMainTech =
         (j.assignedTechnician && j.assignedTechnician.toLowerCase().includes(technicianName?.toString().toLowerCase() || '')) ||
         (j.assignedTechnicians && j.assignedTechnicians.some((t: any) => t.name?.toLowerCase().includes(technicianName?.toString().toLowerCase() || '')));
-        
+
       if (isMainTech) {
         earning = Number(j.financials?.mainTechnicianEarning ?? j.mainTechnicianEarning ?? j.financials?.technicianEarning ?? j.technicianEarning ?? 0);
       } else {
         let subTechAmount = 0;
         const subs = j.financials?.subTechnicianEarnings || j.subTechnicianEarnings || {};
-        
+
         if (Array.isArray(subs)) {
-          const subTechMatch = subs.find((st: any) => 
+          const subTechMatch = subs.find((st: any) =>
             st.technicianName?.toLowerCase().includes(technicianName?.toString().toLowerCase() || '')
           );
           if (subTechMatch) subTechAmount = Number(subTechMatch.amount || 0);
@@ -316,7 +316,7 @@ router.get('/dashboard-summary', async (req: Request, res: Response) => {
           const key = Object.keys(subs).find(k => k.toLowerCase().includes((technicianName?.toString() || '').toLowerCase()));
           if (key) subTechAmount = Number(subs[key]);
         }
-        
+
         if (subTechAmount > 0) {
           earning = subTechAmount;
         } else {
@@ -402,7 +402,7 @@ router.get('/', async (req: Request, res: Response) => {
     if (priority && priority !== 'ALL') {
       filter.priority = priority;
     }
-    
+
     if (search) {
       andClauses.push({
         $or: [
@@ -485,7 +485,7 @@ router.post('/', async (req: Request, res: Response) => {
   try {
     const emailQuery = req.body.customer?.email ? req.body.customer.email.toLowerCase() : '';
     const jobCodeQuery = req.body.jobCode || '';
-    
+
     // Find if a job already exists for the same code or customer email
     let existingJob = null;
     if (jobCodeQuery || emailQuery) {
@@ -592,18 +592,18 @@ router.put('/:id', async (req: Request, res: Response) => {
           dedupedBefore.push(
             typeof p === 'string'
               ? {
-                  id: `PHO-BEFORE-${i}-${Date.now()}`,
-                  url: p,
-                  caption: 'Before Work Site Condition',
-                  uploadedAt: new Date().toLocaleTimeString()
-                }
+                id: `PHO-BEFORE-${i}-${Date.now()}`,
+                url: p,
+                caption: 'Before Work Site Condition',
+                uploadedAt: new Date().toLocaleTimeString()
+              }
               : {
-                  id: p.id || `PHO-BEFORE-${i}-${Date.now()}`,
-                  url: p.url || p.imageUrl || p,
-                  key: p.key,
-                  caption: p.caption || 'Before Work Site Condition',
-                  uploadedAt: p.uploadedAt || new Date().toLocaleTimeString()
-                }
+                id: p.id || `PHO-BEFORE-${i}-${Date.now()}`,
+                url: p.url || p.imageUrl || p,
+                key: p.key,
+                caption: p.caption || 'Before Work Site Condition',
+                uploadedAt: p.uploadedAt || new Date().toLocaleTimeString()
+              }
           );
         }
       });
@@ -626,18 +626,18 @@ router.put('/:id', async (req: Request, res: Response) => {
           dedupedAfter.push(
             typeof p === 'string'
               ? {
-                  id: `PHO-AFTER-${i}-${Date.now()}`,
-                  url: p,
-                  caption: 'Completed Work Site Photo',
-                  uploadedAt: new Date().toLocaleTimeString()
-                }
+                id: `PHO-AFTER-${i}-${Date.now()}`,
+                url: p,
+                caption: 'Completed Work Site Photo',
+                uploadedAt: new Date().toLocaleTimeString()
+              }
               : {
-                  id: p.id || `PHO-AFTER-${i}-${Date.now()}`,
-                  url: p.url || p.imageUrl || p,
-                  key: p.key,
-                  caption: p.caption || 'Completed Work Site Photo',
-                  uploadedAt: p.uploadedAt || new Date().toLocaleTimeString()
-                }
+                id: p.id || `PHO-AFTER-${i}-${Date.now()}`,
+                url: p.url || p.imageUrl || p,
+                key: p.key,
+                caption: p.caption || 'Completed Work Site Photo',
+                uploadedAt: p.uploadedAt || new Date().toLocaleTimeString()
+              }
           );
         }
       });
@@ -943,7 +943,7 @@ router.post('/:id/accept', async (req: Request, res: Response) => {
         });
       }
     }
-    
+
     job.status = 'IN_PROGRESS';
     job.acceptanceStatus = 'ACCEPTED';
     job.customerConfirmed = true;
@@ -1106,10 +1106,10 @@ router.post('/:id/reject', async (req: Request, res: Response) => {
 
     // 5. CASCADING RE-ASSIGNMENT ENGINE: Find Next Available Technician
     const { processWaitingQueue } = require('../services/queueService');
-    
-    const availableTech = await User.findOne({ 
-      role: 'TECHNICIAN', 
-      isAvailable: true, 
+
+    const availableTech = await User.findOne({
+      role: 'TECHNICIAN',
+      isAvailable: true,
       isActive: true,
       _id: { $nin: job.rejectedTechnicianIds }
     });
@@ -1418,7 +1418,7 @@ router.post('/:id/admin-approve', async (req: Request, res: Response) => {
         }
         const techName = (job?.assignedTechnicians && job.assignedTechnicians[0]?.name) || order?.assignedTechnician || 'Technician';
         const customerName = order?.customerName || (job as any)?.customerName || job?.customer?.name || 'Customer';
-        
+
         const existingIdx = dashboardData.payments.findIndex((p: any) => p.invoiceNo === targetCode || p.transactionNo === targetCode || p.id === `PAY-${targetCode}`);
         const daybookEntry = {
           id: `PAY-${targetCode}`,
@@ -1498,7 +1498,7 @@ router.post('/:id/admin-approve', async (req: Request, res: Response) => {
     try {
       const { processWaitingQueue } = require('../services/queueService');
       processWaitingQueue();
-    } catch (e) {}
+    } catch (e) { }
 
     clearDashboardCache();
 
@@ -1572,7 +1572,7 @@ router.post('/:id/rework', async (req: Request, res: Response) => {
           await dashboardData.save();
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     clearDashboardCache();
 

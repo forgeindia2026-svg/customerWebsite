@@ -18,6 +18,7 @@ import Notifications from './pages/Notifications/Notifications';
 import Settings from './pages/Settings/Settings';
 import Queries from './pages/Queries/Queries';
 import Announcements from './pages/Announcements/Announcements';
+import Recruitment from './pages/Recruitment/Recruitment';
 import AdminChat from './pages/Chat/AdminChat';
 import Banners from './pages/Banners/Banners';
 import Brands from './pages/Brands/Brands';
@@ -100,6 +101,7 @@ export default function App() {
             <Route path="settings" element={<Settings />} />
             <Route path="queries" element={<Queries />} />
             <Route path="announcements" element={<Announcements />} />
+            <Route path="recruitment" element={<Recruitment />} />
           </Route>
         </Route>
 
