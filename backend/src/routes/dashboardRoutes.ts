@@ -827,10 +827,10 @@ router.put('/', async (req: Request, res: Response) => {
             jobCode: o.id
           });
           if (associatedJob) {
-            if (o.status === 'Completed' || o.status === 'DELIVERED') {
+            if (associatedJob.status === 'APPROVED' || associatedJob.status === 'COMPLETED') {
+              // Never demote an APPROVED or COMPLETED job back to ASSIGNED or IN_PROGRESS
+            } else if (o.status === 'Completed' || o.status === 'DELIVERED') {
               associatedJob.status = 'COMPLETED';
-            } else if (associatedJob.status === 'COMPLETED') {
-              // Never demote a completed job back to ASSIGNED or IN_PROGRESS
             } else if (o.status === 'Approved') {
               const isNewlyApproved = associatedJob.status !== 'ASSIGNED';
               associatedJob.status = 'ASSIGNED';
