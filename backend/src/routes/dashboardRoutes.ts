@@ -254,7 +254,7 @@ async function buildDashboardData() {
 
     const activeJobByTechId = new Map<string, any>();
     (liveJobs || []).forEach((j: any) => {
-      if (j.status !== 'COMPLETED' && j.status !== 'CANCELLED') {
+      if (j.status !== 'COMPLETED' && j.status !== 'APPROVED' && j.status !== 'CANCELLED') {
         (j.assignedTechnicians || []).forEach((t: any) => {
           if (t.id && !activeJobByTechId.has(t.id.toString())) {
             activeJobByTechId.set(t.id.toString(), j);
@@ -444,7 +444,7 @@ async function buildDashboardData() {
       const activeJob = liveJobs.find((j: any) => 
         (j.assignedTechnicians && j.assignedTechnicians.some((t: any) => 
           (t.id && t.id.toString() === tId) || (t.name && t.name.toLowerCase().trim() === tName)
-        )) && j.status !== 'COMPLETED' && j.status !== 'CANCELLED'
+        )) && j.status !== 'COMPLETED' && j.status !== 'APPROVED' && j.status !== 'CANCELLED'
       );
 
       const techJobs = (liveJobs || []).filter((j: any) => 

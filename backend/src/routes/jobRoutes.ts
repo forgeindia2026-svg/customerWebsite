@@ -409,6 +409,7 @@ router.get('/', async (req: Request, res: Response) => {
     }
 
     const jobs = await Job.find(filter)
+      .select('-proofImages -siteImages -voiceNoteBase64')
       .sort({ createdAt: -1 })
       .lean();
 

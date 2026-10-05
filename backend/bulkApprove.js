@@ -58,26 +58,43 @@ async function bulkApprove() {
     );
     console.log(`Orders updated: ${orderResult.modifiedCount}`);
 
-    console.log("Updating Dashboard Mock Orders (if any)...");
+    console.log("Updating Dashboard Orders & Projects...");
     const dashboards = await db.collection('dashboards').find({}).toArray();
     for (const dashboard of dashboards) {
       let changed = false;
+
       if (Array.isArray(dashboard.orders)) {
         dashboard.orders.forEach(order => {
-          // Check if order date is on or before Sept 29 (assuming string date)
-          const orderDate = new Date(order.date || order.createdAt);
-          if (orderDate <= cutoffDate && order.status !== 'Approved' && order.status !== 'Cancelled') {
-            order.status = 'Approved';
-            changed = true;
+          const dStr = order.createdAt || order.date || order.submissionDate;
+          const oDate = new Date(dStr);
+          if (!isNaN(oDate.getTime()) && oDate <= cutoffDate) {
+            if (order.status !== 'Approved' && order.status !== 'Completed' && order.status !== 'Cancelled') {
+              order.status = 'Approved';
+              changed = true;
+            }
           }
         });
       }
+
+      if (Array.isArray(dashboard.projects)) {
+        dashboard.projects.forEach(project => {
+          const dStr = project.createdAt || project.submissionDate || project.date;
+          const pDate = new Date(dStr);
+          if (!isNaN(pDate.getTime()) && pDate <= cutoffDate) {
+            if (project.status !== 'Approved' && project.status !== 'Completed' && project.status !== 'Cancelled') {
+              project.status = 'Approved';
+              changed = true;
+            }
+          }
+        });
+      }
+
       if (changed) {
         await db.collection('dashboards').updateOne(
           { _id: dashboard._id },
-          { $set: { orders: dashboard.orders } }
+          { $set: { orders: dashboard.orders, projects: dashboard.projects } }
         );
-        console.log(`Dashboard ${dashboard._id} orders updated.`);
+        console.log(`Dashboard ${dashboard._id} orders & projects updated.`);
       }
     }
 

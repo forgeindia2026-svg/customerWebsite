@@ -156,18 +156,10 @@ export const JobsApiService = {
       const searchVal = options.searchQuery || '';
       const statusVal = options.status && options.status !== 'ALL' ? options.status : '';
       const url = `${baseUrl}/api/jobs?technicianId=${techId}&technicianName=${encodeURIComponent(techName)}&includeAvailable=true&status=${statusVal}&search=${encodeURIComponent(searchVal)}`;
-      const [res, repRes] = await Promise.all([
-        fetch(url),
-        fetch(`${baseUrl}/api/reports?t=${Date.now()}`).catch(() => null)
-      ]);
+      const res = await fetch(url);
       const resData = await res.json();
       let rawJobs = resData.data || [];
       let reportsList: any[] = [];
-      if (repRes && repRes.ok) {
-        try {
-          reportsList = await repRes.json();
-        } catch (e) {}
-      }
 
       const lowerTechName = techName?.toLowerCase().trim();
 
@@ -248,9 +240,9 @@ export const JobsApiService = {
           }));
         }
 
-        if (normStatus !== 'COMPLETED') {
+        if (normStatus === 'PENDING') {
           const localSavedStatus = localStorage.getItem(`job_status_${j._id || j.id}`);
-          if (localSavedStatus === 'IN_PROGRESS' || matchingReport || (beforeList && beforeList.length > 0)) {
+          if (localSavedStatus === 'IN_PROGRESS') {
             normStatus = 'IN_PROGRESS';
           }
         }
@@ -671,6 +663,13 @@ export const JobsApiService = {
       if (!resData.success || !resData.data) {
         throw new Error(resData.message || `Failed to update job ${jobId}`);
       }
+      if (status === 'COMPLETED' || status === 'APPROVED') {
+        localStorage.removeItem(`job_status_${jobId}`);
+        if (resData.data?._id) localStorage.removeItem(`job_status_${resData.data._id}`);
+        if (resData.data?.id) localStorage.removeItem(`job_status_${resData.data.id}`);
+      } else if (status === 'IN_PROGRESS') {
+        localStorage.setItem(`job_status_${jobId}`, 'IN_PROGRESS');
+      }
       return this.mapJob(resData.data);
     } catch (err) {
       console.error('Error updating job status:', err);
@@ -799,6 +798,10 @@ export const JobsApiService = {
       if (!res.ok || resData.success === false) {
         throw new Error(resData.message || 'Failed to complete job');
       }
+      localStorage.removeItem(`job_status_${jobId}`);
+      if (resData.data?._id) localStorage.removeItem(`job_status_${resData.data._id}`);
+      if (resData.data?.id) localStorage.removeItem(`job_status_${resData.data.id}`);
+
       const updatedJob = this.mapJob(resData.data);
 
       // Auto-post report to /api/reports MongoDB collection so it appears in Daily Reports & Admin Dashboard
