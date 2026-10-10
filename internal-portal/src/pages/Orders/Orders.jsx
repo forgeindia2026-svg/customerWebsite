@@ -365,7 +365,7 @@ export default function Orders() {
     if (!ord.assignedTechnician || ord.assignedTechnician === 'Unassigned') {
       return ord.status || ord.rawJobStatus || 'Pending';
     }
-    return ord.status || ord.rawJobStatus || 'In Progress';
+    return ord.status || ord.rawJobStatus || 'Pending';
   };
 
   const formatOrderDate = (ord) => {
