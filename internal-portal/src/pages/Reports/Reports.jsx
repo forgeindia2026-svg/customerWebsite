@@ -2378,7 +2378,7 @@ export default function Reports() {
 
             {/* 📱 Mobile Card View (Screenshot 1) - Matching Technician Mobile Flow */}
             <div className="block md:hidden space-y-3">
-              {isLoadingReports ? (
+              {isLoadingReports && filteredFieldReports.length === 0 ? (
                 <div className="p-8 text-center text-slate-400 text-xs bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
                   <div className="flex flex-col items-center justify-center space-y-2">
                     <div className="w-6 h-6 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
@@ -2455,7 +2455,7 @@ export default function Reports() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
-                  {isLoadingReports ? (
+                  {isLoadingReports && filteredFieldReports.length === 0 ? (
                     <tr>
                       <td colSpan={9} className="py-16 text-center text-slate-400 text-sm">
                         <div className="flex flex-col items-center justify-center space-y-3">
