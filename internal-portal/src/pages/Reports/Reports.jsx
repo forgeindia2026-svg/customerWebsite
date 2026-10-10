@@ -576,11 +576,6 @@ export default function Reports() {
     fetchGeneralReports(true);
     fetchAttendance();
 
-    // Force loader to hide after 2 seconds regardless of API speed
-    const timeout = setTimeout(() => {
-      setIsLoadingReports(false);
-    }, 2000);
-
     // Poll every 5 seconds to show new reports immediately
     const interval = setInterval(() => {
       fetchGeneralReports(false);
@@ -588,7 +583,6 @@ export default function Reports() {
     }, 5000);
 
     return () => {
-      clearTimeout(timeout);
       clearInterval(interval);
       if (window.__activeAudioInstance) {
         window.__activeAudioInstance.pause();
