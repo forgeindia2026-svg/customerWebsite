@@ -461,6 +461,10 @@ export default function Orders() {
     const techName = approvalTargetOrder.assignedTechnician || 'Staff';
     const custName = approvalTargetOrder.customer || approvalTargetOrder.customerName || approvalTargetOrder.name || 'Customer';
 
+    const orderDateObj = approvalTargetOrder.date || approvalTargetOrder.createdAt || new Date().toISOString();
+    const orderDateISO = new Date(orderDateObj).toISOString();
+    const orderDateOnly = orderDateISO.split('T')[0];
+
     dispatch(addPayment({
       id: `PAY-${orderId}`,
       invoiceNo: orderId,
@@ -477,8 +481,8 @@ export default function Orders() {
       createdBy: techName,
       creator: techName,
       status: 'Paid',
-      createdAt: new Date().toISOString(),
-      date: new Date().toISOString().split('T')[0]
+      createdAt: orderDateISO,
+      date: orderDateOnly
     }));
 
     Object.entries(parsedSubs).forEach(([subName, subEarning], idx) => {
@@ -499,8 +503,8 @@ export default function Orders() {
           createdBy: subName,
           creator: subName,
           status: 'Paid',
-          createdAt: new Date().toISOString(),
-          date: new Date().toISOString().split('T')[0]
+          createdAt: orderDateISO,
+          date: orderDateOnly
         }));
       }
     });
