@@ -1108,7 +1108,7 @@ export default function Reports() {
 
   const handleDownloadReportPDF = async (report) => {
     try {
-      showToast('Preparing PDF Report... Please wait.', 'success');
+      showToast('Downloading PDF... Please wait.', 'success');
       const doc = new jsPDF();
       const isApproved = localStorage.getItem(`report_approved_${report?.jobCode}`) === 'true' || report?.status === 'Approved' || report?.status === 'COMPLETED';
 
