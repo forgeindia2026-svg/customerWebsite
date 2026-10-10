@@ -749,7 +749,7 @@ export default function Reports() {
         address: order.location || order.address || 'Location Specified on Work Order',
         technician: techName,
         status: mappedStatus,
-        jobStatus: (order.jobStatus || order.status || order.dailyReports?.[0]?.status || 'IN_PROGRESS').toUpperCase().includes('COMPLET') ? 'COMPLETED' : (order.jobStatus || order.status || 'IN_PROGRESS').toUpperCase().includes('HOLD') ? 'ON HOLD' : 'IN PROGRESS',
+        jobStatus: order.jobStatus || order.status || order.dailyReports?.[0]?.status || 'IN PROGRESS',
         notes: order.fieldNotes || order.dailyReports?.[0]?.workDone || order.workDone || 'Work order completed on site.',
         beforePhotos: order.beforePhotos || [],
         afterPhotos: order.afterPhotos || [],
@@ -789,11 +789,7 @@ export default function Reports() {
         address: gr.location || 'Site Location',
         technician: gr.technicianName || gr.technician || 'Field Technician',
         status: gr.approvedByAdmin || localStorage.getItem(`report_approved_${gr.jobCode || gr._id}`) === 'true' ? 'Verified' : 'Under Review',
-        jobStatus: (() => {
-          const js = (gr.jobStatus || (gr.status && gr.status !== 'PRESENT' ? gr.status : '') || '').toUpperCase();
-          if (js === 'COMPLETED' || js === 'APPROVED' || js === 'DELIVERED') return 'COMPLETED';
-          return 'IN PROGRESS';
-        })(),
+        jobStatus: gr.jobStatus || (gr.status && gr.status !== 'PRESENT' ? gr.status : 'IN PROGRESS'),
         checkInTime: gr.checkInTime || '',
         checkOutTime: gr.checkOutTime || '',
         notes: (gr.workDescription || 'Daily report log submitted.').replace(/\[Voice Memo Attached:[^\]]*\]/gi, '').trim(),
@@ -846,7 +842,7 @@ export default function Reports() {
 
     const isJobCompletedInOrder = (meta?.status || '').toUpperCase().includes('COMPLET');
     const isReportCompleted = (gr.jobStatus || gr.status || '').toUpperCase().includes('COMPLET') || (gr.notes || '').toLowerCase().includes('completed');
-    const finalJobStatus = (isJobCompletedInOrder || isReportCompleted) ? 'COMPLETED' : (gr.jobStatus || 'IN PROGRESS');
+    const finalJobStatus = (isJobCompletedInOrder || isReportCompleted) ? 'COMPLETED' : (gr.jobStatus || gr.status || meta?.status || 'IN PROGRESS');
 
     if (meta) {
       return {
@@ -2540,8 +2536,6 @@ export default function Reports() {
                                 ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                                 : (report.jobStatus || '').toUpperCase() === 'IN PROGRESS' || (report.jobStatus || '').toUpperCase() === 'IN_PROGRESS'
                                 ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                                : (report.jobStatus || '').toUpperCase() === 'ON HOLD'
-                                ? 'bg-amber-100 text-amber-800 border border-amber-200'
                                 : 'bg-sky-100 text-sky-800 border border-sky-200'
                             }`}>
                               {report.jobStatus || 'IN PROGRESS'}

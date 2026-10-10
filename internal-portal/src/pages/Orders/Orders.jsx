@@ -363,9 +363,9 @@ export default function Orders() {
       return 'Rework';
     }
     if (!ord.assignedTechnician || ord.assignedTechnician === 'Unassigned') {
-      return 'Pending';
+      return ord.status || ord.rawJobStatus || 'Pending';
     }
-    return 'In Progress';
+    return ord.status || ord.rawJobStatus || 'In Progress';
   };
 
   const formatOrderDate = (ord) => {
