@@ -30,10 +30,10 @@ export const EarningsHistoryModal: React.FC<EarningsHistoryModalProps> = ({ isOp
       const data = await res.json();
       
       if (data.success && data.data) {
-        // Sort descending by completion date
+        // Sort descending by completion date (use creation date as per requirements)
         const sorted = data.data.sort((a: any, b: any) => {
-          const dateA = new Date(a.financials?.approvedAt || a.updatedAt || a.createdAt).getTime();
-          const dateB = new Date(b.financials?.approvedAt || b.updatedAt || b.createdAt).getTime();
+          const dateA = new Date(a.date || a.createdAt || a.updatedAt).getTime();
+          const dateB = new Date(b.date || b.createdAt || b.updatedAt).getTime();
           return dateB - dateA;
         });
         setHistory(sorted);
@@ -113,7 +113,7 @@ export const EarningsHistoryModal: React.FC<EarningsHistoryModalProps> = ({ isOp
                 }
               }
 
-              const jobDate = new Date(job.financials?.approvedAt || job.updatedAt || job.createdAt);
+              const jobDate = new Date(job.date || job.createdAt || job.updatedAt);
               
               return (
                 <div key={job._id || job.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:border-indigo-200 transition-colors">
