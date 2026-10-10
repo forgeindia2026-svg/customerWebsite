@@ -1300,17 +1300,11 @@ export default function Reports() {
           }
         };
 
-        let data = await tryFetch(targetUrl);
-        if (data && typeof data === 'string' && data.startsWith('data:image')) return data;
-
-        data = await tryImageElement(targetUrl);
+        let data = await tryImageElement(targetUrl);
         if (data && typeof data === 'string' && data.startsWith('data:image')) return data;
 
         if (targetUrl.startsWith('http://') || targetUrl.startsWith('https://')) {
           const proxyUrl = `${baseUrl}/api/upload/proxy-image?url=${encodeURIComponent(targetUrl)}`;
-          data = await tryFetch(proxyUrl);
-          if (data && typeof data === 'string' && data.startsWith('data:image')) return data;
-
           data = await tryImageElement(proxyUrl);
           if (data && typeof data === 'string' && data.startsWith('data:image')) return data;
         }
