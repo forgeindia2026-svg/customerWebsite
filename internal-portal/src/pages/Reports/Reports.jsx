@@ -749,7 +749,7 @@ export default function Reports() {
         address: order.location || order.address || 'Location Specified on Work Order',
         technician: techName,
         status: mappedStatus,
-        jobStatus: order.jobStatus || order.status || order.dailyReports?.[0]?.status || 'PENDING',
+        jobStatus: order.jobStatus || (order.status !== 'Approved' ? order.status : null) || order.dailyReports?.[0]?.status || 'COMPLETED',
         notes: order.fieldNotes || order.dailyReports?.[0]?.workDone || order.workDone || 'Work order completed on site.',
         beforePhotos: order.beforePhotos || [],
         afterPhotos: order.afterPhotos || [],
@@ -788,8 +788,8 @@ export default function Reports() {
         customer: gr.customerName || (isCustomOrder ? 'Customer Site' : 'Office / Internal Activity'),
         address: gr.location || 'Site Location',
         technician: gr.technicianName || gr.technician || 'Field Technician',
-        status: gr.approvedByAdmin || localStorage.getItem(`report_approved_${gr.jobCode || gr._id}`) === 'true' ? 'Verified' : 'Under Review',
-        jobStatus: gr.jobStatus || (gr.status && gr.status !== 'PRESENT' ? gr.status : 'PENDING'),
+        status: gr.status === 'Approved' || gr.status === 'VERIFIED' || gr.approvedByAdmin || localStorage.getItem(`report_approved_${gr.jobCode || gr._id}`) === 'true' ? 'Verified' : 'Under Review',
+        jobStatus: gr.jobStatus || (gr.status === 'COMPLETED' || gr.status === 'IN PROGRESS' ? gr.status : 'COMPLETED'),
         checkInTime: gr.checkInTime || '',
         checkOutTime: gr.checkOutTime || '',
         notes: (gr.workDescription || 'Daily report log submitted.').replace(/\[Voice Memo Attached:[^\]]*\]/gi, '').trim(),
@@ -842,7 +842,7 @@ export default function Reports() {
 
     const isJobCompletedInOrder = (meta?.status || '').toUpperCase().includes('COMPLET');
     const isReportCompleted = (gr.jobStatus || gr.status || '').toUpperCase().includes('COMPLET') || (gr.notes || '').toLowerCase().includes('completed');
-    const finalJobStatus = (isJobCompletedInOrder || isReportCompleted) ? 'COMPLETED' : (gr.jobStatus || gr.status || meta?.status || 'PENDING');
+    const finalJobStatus = (isJobCompletedInOrder || isReportCompleted) ? 'COMPLETED' : (gr.jobStatus || (gr.status !== 'Approved' && gr.status !== 'VERIFIED' && gr.status !== 'PRESENT' ? gr.status : null) || (meta?.status !== 'Approved' ? meta?.status : null) || 'COMPLETED');
 
     if (meta) {
       return {
