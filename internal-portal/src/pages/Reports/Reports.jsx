@@ -1108,6 +1108,7 @@ export default function Reports() {
 
   const handleDownloadReportPDF = async (report) => {
     try {
+      showToast('Preparing PDF Report... Please wait.', 'success');
       const doc = new jsPDF();
       const isApproved = localStorage.getItem(`report_approved_${report?.jobCode}`) === 'true' || report?.status === 'Approved' || report?.status === 'COMPLETED';
 
@@ -1317,6 +1318,8 @@ export default function Reports() {
         return null;
       };
 
+      const preloadedImages = await Promise.all(allPhotos.map(photo => loadImageAsBase64(photo)));
+
       if (allPhotos.length <= 2) {
         // ─── CASE A: <= 2 Photos (Fits 100% on Single Page 1) ───
         doc.setTextColor(15, 23, 42);
@@ -1333,7 +1336,7 @@ export default function Reports() {
           let curX = 14;
           for (let i = 0; i < allPhotos.length; i++) {
             const photoItem = allPhotos[i];
-            const imgData = await loadImageAsBase64(photoItem);
+            const imgData = preloadedImages[i];
             doc.setDrawColor(226, 232, 240);
             doc.setFillColor(248, 250, 252);
             doc.rect(curX, photoBoxY, pWidth, pHeight, 'FD');
@@ -1492,7 +1495,8 @@ export default function Reports() {
             const h = 80;
 
             const photoItem = photosOnThisPage[i];
-            const imgData = await loadImageAsBase64(photoItem);
+            const globalIndex = pIndex * 4 + i;
+            const imgData = preloadedImages[globalIndex];
 
             doc.setDrawColor(226, 232, 240);
             doc.setFillColor(248, 250, 252);
