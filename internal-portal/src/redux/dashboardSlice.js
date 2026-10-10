@@ -11,11 +11,11 @@ export const createOrderAPI = createAsyncThunk('dashboard/createOrder', async (o
       body: JSON.stringify(orderData) 
     });
     const data = await res.json();
-    dispatch(fetchDashboardData());
+    dispatch(fetchDashboardData(true));
     return data;
   } catch (err) {
     console.error('createOrderAPI error:', err);
-    dispatch(fetchDashboardData());
+    dispatch(fetchDashboardData(true));
     throw err;
   }
 });
@@ -23,45 +23,46 @@ export const updateOrderAPI = createAsyncThunk('dashboard/updateOrder', async ({
   const cleanId = String(id || '').replace(/^#/, '').trim();
   const res = await fetch(`${getApiUrl()}/api/orders/${encodeURIComponent(cleanId)}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
   const json = await res.json();
-  dispatch(fetchDashboardData());
+  dispatch(fetchDashboardData(true));
   return json;
 });
 export const deleteOrderAPI = createAsyncThunk('dashboard/deleteOrder', async (id, { dispatch }) => {
   const cleanId = String(id || '').replace(/^#/, '').trim();
   const res = await fetch(`${getApiUrl()}/api/orders/${encodeURIComponent(cleanId)}`, { method: 'DELETE' });
   const json = await res.json();
-  dispatch(fetchDashboardData());
+  dispatch(fetchDashboardData(true));
   return json;
 });
 
 export const createTechnicianAPI = createAsyncThunk('dashboard/createTechnician', async (techData, { dispatch }) => {
   const res = await fetch(`${getApiUrl()}/api/technicians`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(techData) });
-  dispatch(fetchDashboardData());
+  dispatch(fetchDashboardData(true));
   return res.json();
 });
 export const updateTechnicianAPI = createAsyncThunk('dashboard/updateTechnician', async ({ id, ...data }, { dispatch }) => {
   const res = await fetch(`${getApiUrl()}/api/technicians/${id}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
-  dispatch(fetchDashboardData());
+  dispatch(fetchDashboardData(true));
   return res.json();
 });
 export const deleteTechnicianAPI = createAsyncThunk('dashboard/deleteTechnician', async (id, { dispatch }) => {
   const res = await fetch(`${getApiUrl()}/api/technicians/${id}`, { method: 'DELETE' });
-  dispatch(fetchDashboardData());
+  dispatch(fetchDashboardData(true));
   return res.json();
 });
 
 export const createPaymentAPI = createAsyncThunk('dashboard/createPayment', async (paymentData, { dispatch }) => {
   const res = await fetch(`${getApiUrl()}/api/payments`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(paymentData) });
-  dispatch(fetchDashboardData());
+  dispatch(fetchDashboardData(true));
   return res.json();
 });
 // ---------------------------------------------
 export const fetchDashboardData = createAsyncThunk(
   'dashboard/fetchDashboardData',
-  async (_, { dispatch }) => {
+  async (forceRefresh = false, { dispatch }) => {
     dispatch(dashboardSlice.actions.setLoading(true));
     try {
-      const res = await fetch(`${getApiUrl()}/api/dashboard?refresh=true`);
+      const isForce = forceRefresh === true;
+      const res = await fetch(`${getApiUrl()}/api/dashboard${isForce ? '?refresh=true' : ''}`);
       const data = await res.json();
       if (data.success && data.data) {
         dispatch(setDashboardData(data.data));
@@ -92,7 +93,7 @@ export const adminApproveJob = createAsyncThunk(
       const data = await res.json();
       if (data.success) {
         // Refresh dashboard data with refresh=true to update queues and metrics
-        dispatch(fetchDashboardData());
+        dispatch(fetchDashboardData(true));
       }
       return data;
     } catch (err) {
@@ -114,7 +115,7 @@ export const adminReworkJob = createAsyncThunk(
       });
       const data = await res.json();
       if (data.success) {
-        dispatch(fetchDashboardData());
+        dispatch(fetchDashboardData(true));
       }
       return data;
     } catch (err) {

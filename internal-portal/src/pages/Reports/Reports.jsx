@@ -576,11 +576,11 @@ export default function Reports() {
     fetchGeneralReports(true);
     fetchAttendance();
 
-    // Poll every 5 seconds to show new reports immediately
+    // Poll every 60 seconds to show new reports without overloading the backend
     const interval = setInterval(() => {
       fetchGeneralReports(false);
       fetchAttendance();
-    }, 5000);
+    }, 60000);
 
     return () => {
       clearInterval(interval);
