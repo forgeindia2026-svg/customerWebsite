@@ -24,45 +24,112 @@ export default function Technicians() {
   const [searchTerm, setSearchTerm] = useState('');
   const [earningsTech, setEarningsTech] = useState(null);
   const [techSummaries, setTechSummaries] = useState({});
+  const [techJobsMap, setTechJobsMap] = useState({});
 
   useEffect(() => {
-    const fetchSummaries = async () => {
+    const fetchAllCompletedJobs = async () => {
       const baseUrl = getApiUrl();
       try {
-        // ⚡ Step 1: Fetch bulk overview for ALL technicians in ONE single request (< 30ms)
-        const res = await fetch(`${baseUrl}/api/jobs/technicians-overview`);
+        const res = await fetch(`${baseUrl}/api/jobs?status=COMPLETED`);
         const data = await res.json();
-        if (data && data.success && data.data) {
-          const map = {};
-          Object.entries(data.data).forEach(([name, stats]) => {
-            map[name] = stats;
-            map[name.toLowerCase()] = stats;
-          });
-          setTechSummaries(map);
-          return;
-        }
-      } catch (_) {}
-
-      // Fallback: only fetch per-technician if bulk overview endpoint is not deployed yet
-      if (technicians && technicians.length > 0) {
-        technicians.forEach(async (t) => {
+        if (data && data.success && Array.isArray(data.data)) {
+          const now = new Date();
+          let istMonth = '';
           try {
-            const res = await fetch(`${baseUrl}/api/jobs/dashboard-summary?technicianName=${encodeURIComponent(t.name)}`);
-            const data = await res.json();
-            if (data && data.success && data.data) {
-              setTechSummaries(prev => ({
-                ...prev,
-                [t.name]: data.data,
-                [t.name.toLowerCase()]: data.data
-              }));
+            istMonth = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now).substring(0, 7);
+          } catch (_) {
+            istMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+          }
+
+          const map = {};
+          const jobsByTech = {};
+
+          data.data.forEach((j) => {
+            let jobDateStr = '';
+            if (j.scheduledDate && typeof j.scheduledDate === 'string') jobDateStr = j.scheduledDate.split('T')[0];
+            else if (j.date && typeof j.date === 'string') jobDateStr = j.date.split('T')[0];
+            else if (j.dailyReports && j.dailyReports.length > 0 && j.dailyReports[0]?.date) jobDateStr = String(j.dailyReports[0].date).split('T')[0];
+            else if (j.createdAt) {
+              try {
+                jobDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(j.createdAt));
+              } catch (_) {
+                jobDateStr = String(j.createdAt).split('T')[0];
+              }
             }
-          } catch (_) {}
-        });
+            const isThisMonth = jobDateStr.startsWith(istMonth);
+
+            const leadName = (
+              j.assignedTechnicianName ||
+              (typeof j.assignedTechnician === 'string' ? j.assignedTechnician : j.assignedTechnician?.name) ||
+              (Array.isArray(j.assignedTechnicians) && j.assignedTechnicians[0]?.name) ||
+              ''
+            ).trim();
+
+            const mainEarning = Number(
+              j.financials?.mainTechnicianEarning ??
+              j.mainTechnicianEarning ??
+              j.financials?.technicianEarning ??
+              j.technicianEarning ??
+              0
+            );
+
+            if (leadName) {
+              const key = leadName.toLowerCase();
+              if (!map[key]) map[key] = { monthlyEarnings: 0, totalEarnings: 0, totalCompleted: 0 };
+              if (!jobsByTech[key]) jobsByTech[key] = [];
+              map[key].totalEarnings += mainEarning;
+              map[key].totalCompleted += 1;
+              if (isThisMonth) map[key].monthlyEarnings += mainEarning;
+              jobsByTech[key].push(j);
+            }
+
+            const subs = j.financials?.subTechnicianEarnings || j.subTechnicianEarnings || {};
+            if (Array.isArray(subs)) {
+              subs.forEach((st) => {
+                const sName = (st.technicianName || '').trim();
+                if (sName) {
+                  const key = sName.toLowerCase();
+                  if (!map[key]) map[key] = { monthlyEarnings: 0, totalEarnings: 0, totalCompleted: 0 };
+                  if (!jobsByTech[key]) jobsByTech[key] = [];
+                  const amt = Number(st.amount || 0);
+                  map[key].totalEarnings += amt;
+                  map[key].totalCompleted += 1;
+                  if (isThisMonth) map[key].monthlyEarnings += amt;
+                  jobsByTech[key].push(j);
+                }
+              });
+            } else if (typeof subs === 'object' && subs !== null) {
+              Object.entries(subs).forEach(([sName, amt]) => {
+                const clean = sName.trim();
+                if (clean) {
+                  const key = clean.toLowerCase();
+                  if (!map[key]) map[key] = { monthlyEarnings: 0, totalEarnings: 0, totalCompleted: 0 };
+                  if (!jobsByTech[key]) jobsByTech[key] = [];
+                  const numAmt = Number(amt || 0);
+                  map[key].totalEarnings += numAmt;
+                  map[key].totalCompleted += 1;
+                  if (isThisMonth) map[key].monthlyEarnings += numAmt;
+                  jobsByTech[key].push(j);
+                }
+              });
+            }
+          });
+
+          setTechSummaries(map);
+          setTechJobsMap(jobsByTech);
+        }
+      } catch (err) {
+        console.error('Error fetching completed jobs:', err);
       }
     };
 
-    fetchSummaries();
-  }, [technicians]);
+    fetchAllCompletedJobs();
+  }, []);
+
+  const getTechMonthEarning = (name) => {
+    if (!name) return 0;
+    return techSummaries[name.toLowerCase().trim()]?.monthlyEarnings ?? 0;
+  };
   
   const [techForm, setTechForm] = useState({ 
     name: '', 
@@ -419,7 +486,7 @@ export default function Technicians() {
                         <div>
                           <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400">This Month</div>
                           <div className="text-xs font-black text-emerald-900 dark:text-emerald-200">
-                            ₹{(techSummaries[tech.name]?.monthlyEarnings ?? 0).toLocaleString('en-IN')}
+                            ₹{getTechMonthEarning(tech.name).toLocaleString('en-IN')}
                           </div>
                         </div>
                       </div>
@@ -506,7 +573,7 @@ export default function Technicians() {
                           <span className="w-5 h-5 rounded-md bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold text-xs flex items-center justify-center">₹</span>
                           <span className="text-[10px] font-bold text-emerald-800 dark:text-emerald-400">Month:</span>
                           <span className="text-xs font-black text-emerald-950 dark:text-emerald-200">
-                            ₹{(techSummaries[tech.name]?.monthlyEarnings ?? 0).toLocaleString('en-IN')}
+                            ₹{getTechMonthEarning(tech.name).toLocaleString('en-IN')}
                           </span>
                         </div>
                         <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 group-hover/earn:translate-x-0.5 transition-transform">
@@ -622,7 +689,7 @@ export default function Technicians() {
                             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:hover:bg-emerald-900/40 border border-emerald-200/80 dark:border-emerald-800/50 text-emerald-800 dark:text-emerald-300 transition-colors cursor-pointer group/earn"
                             title="View Earnings History"
                           >
-                            <span className="font-bold text-xs">₹{(techSummaries[tech.name]?.monthlyEarnings ?? 0).toLocaleString('en-IN')}</span>
+                            <span className="font-bold text-xs">₹{getTechMonthEarning(tech.name).toLocaleString('en-IN')}</span>
                             <span className="text-[10px] text-emerald-600 dark:text-emerald-400 group-hover/earn:translate-x-0.5 transition-transform">↗</span>
                           </button>
                         </td>
@@ -921,7 +988,8 @@ export default function Technicians() {
           isOpen={Boolean(earningsTech)} 
           onClose={() => setEarningsTech(null)} 
           technician={earningsTech} 
-          summary={techSummaries[earningsTech?.name]}
+          summary={techSummaries[earningsTech?.name?.toLowerCase().trim()] || {}}
+          preloadedJobs={techJobsMap[earningsTech?.name?.toLowerCase().trim()] || []}
         />
       )}
 

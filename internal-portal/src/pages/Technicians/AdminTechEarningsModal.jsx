@@ -15,9 +15,9 @@ import {
 } from 'lucide-react';
 import { getApiUrl } from '../../utils/config';
 
-export default function AdminTechEarningsModal({ isOpen, onClose, technician, summary }) {
-  const [jobs, setJobs] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+export default function AdminTechEarningsModal({ isOpen, onClose, technician, summary, preloadedJobs = [] }) {
+  const [jobs, setJobs] = useState(preloadedJobs || []);
+  const [isLoading, setIsLoading] = useState(!preloadedJobs || preloadedJobs.length === 0);
   const [filterPeriod, setFilterPeriod] = useState('THIS_MONTH'); // 'THIS_MONTH' | 'ALL'
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -30,10 +30,18 @@ export default function AdminTechEarningsModal({ isOpen, onClose, technician, su
   }
 
   useEffect(() => {
-    if (isOpen && technician) {
+    if (preloadedJobs && preloadedJobs.length > 0) {
+      const sorted = [...preloadedJobs].sort((a, b) => {
+        const dateA = new Date(a.scheduledDate || a.date || a.createdAt || a.updatedAt).getTime();
+        const dateB = new Date(b.scheduledDate || b.date || b.createdAt || b.updatedAt).getTime();
+        return dateB - dateA;
+      });
+      setJobs(sorted);
+      setIsLoading(false);
+    } else if (isOpen && technician) {
       fetchTechEarnings();
     }
-  }, [isOpen, technician]);
+  }, [isOpen, technician, preloadedJobs]);
 
   const fetchTechEarnings = async () => {
     setIsLoading(true);
