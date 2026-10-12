@@ -40,6 +40,8 @@ export default function Orders() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'All');
   const [categoryFilter, setCategoryFilter] = useState(searchParams.get('category') || 'All');
+  const [selectedLeadTech, setSelectedLeadTech] = useState('All');
+  const [selectedSubTech, setSelectedSubTech] = useState('All');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState(null);
@@ -630,7 +632,34 @@ export default function Orders() {
       matchesCategory = isInternalTask;
     }
 
-    return matchesSearch && matchesStatus && matchesDate && matchesCategory;
+    // Filter by Lead Technician
+    let matchesLeadTech = true;
+    if (selectedLeadTech !== 'All') {
+      const leadName = (
+        order.assignedTechnicianName ||
+        (typeof order.assignedTechnician === 'string' ? order.assignedTechnician : order.assignedTechnician?.name) ||
+        ''
+      ).trim().toLowerCase();
+
+      if (selectedLeadTech === 'Unassigned') {
+        matchesLeadTech = !leadName || leadName === 'unassigned';
+      } else {
+        matchesLeadTech = leadName === selectedLeadTech.toLowerCase().trim();
+      }
+    }
+
+    // Filter by Sub Technician
+    let matchesSubTech = true;
+    if (selectedSubTech !== 'All') {
+      const subs = parseSubTechNames(order.subTechnicians).map(s => s.toLowerCase().trim());
+      if (selectedSubTech === 'None') {
+        matchesSubTech = subs.length === 0;
+      } else {
+        matchesSubTech = subs.includes(selectedSubTech.toLowerCase().trim());
+      }
+    }
+
+    return matchesSearch && matchesStatus && matchesDate && matchesCategory && matchesLeadTech && matchesSubTech;
   });
 
   const getStatusBadge = (status) => {
@@ -1005,24 +1034,77 @@ export default function Orders() {
       </div>
 
       {/* Search, Add Order & Filters Panel */}
-      <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col lg:flex-row gap-4 justify-between items-center transition-colors">
+      <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col xl:flex-row gap-3.5 justify-between items-stretch xl:items-center transition-colors">
         
-        {/* Search */}
-        <div className="relative w-full lg:max-w-xs">
-          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-            <FiSearch size={15} />
-          </span>
-          <input
-            type="text"
-            placeholder="Search customer name, ID..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full text-xs pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200/50 dark:border-slate-800 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
-          />
+        {/* Search & Technician Filter Dropdowns */}
+        <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto flex-1">
+          {/* Search */}
+          <div className="relative w-full sm:w-60 min-w-[200px]">
+            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+              <FiSearch size={15} />
+            </span>
+            <input
+              type="text"
+              placeholder="Search customer name, ID..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full text-xs pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200/50 dark:border-slate-800 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100"
+            />
+          </div>
+
+          {/* Lead Tech Dropdown */}
+          <div className="relative min-w-[150px] flex-1 sm:flex-initial">
+            <select
+              value={selectedLeadTech}
+              onChange={(e) => setSelectedLeadTech(e.target.value)}
+              className="w-full text-xs pl-2.5 pr-8 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100 font-semibold appearance-none cursor-pointer"
+            >
+              <option value="All">👤 Lead: All</option>
+              <option value="Unassigned">👤 Unassigned</option>
+              {technicians.map((t) => (
+                <option key={t.id || t.name} value={t.name}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+            <FiChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none w-3.5 h-3.5" />
+          </div>
+
+          {/* Sub Tech Dropdown */}
+          <div className="relative min-w-[150px] flex-1 sm:flex-initial">
+            <select
+              value={selectedSubTech}
+              onChange={(e) => setSelectedSubTech(e.target.value)}
+              className="w-full text-xs pl-2.5 pr-8 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-xl focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100 font-semibold appearance-none cursor-pointer"
+            >
+              <option value="All">🤝 Sub: All</option>
+              <option value="None">None (Solo Jobs)</option>
+              {technicians.map((t) => (
+                <option key={t.id || t.name} value={t.name}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+            <FiChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none w-3.5 h-3.5" />
+          </div>
+
+          {/* Reset Filters Button if Lead or Sub Tech is active */}
+          {(selectedLeadTech !== 'All' || selectedSubTech !== 'All') && (
+            <button
+              onClick={() => {
+                setSelectedLeadTech('All');
+                setSelectedSubTech('All');
+              }}
+              className="text-[11px] font-bold text-red-500 hover:text-red-600 px-2 py-1.5 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/40 transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1"
+              title="Reset Technician Filters"
+            >
+              ✕ Clear
+            </button>
+          )}
         </div>
 
         {/* Filters, View Switcher & Create Button Row */}
-        <div className="flex flex-wrap items-center justify-between lg:justify-end gap-3 w-full lg:w-auto">
+        <div className="flex flex-wrap items-center justify-between xl:justify-end gap-3 w-full xl:w-auto">
           {/* Status Buttons */}
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-full">
             <span className="text-xs text-slate-400 font-semibold flex items-center gap-1 flex-shrink-0">
