@@ -4,11 +4,13 @@ import { updateTechnicianStatus, addTechnician, editTechnician, deleteTechnician
 import { 
   FiSliders, FiPhone, FiMail, FiStar, FiPlus, 
   FiChevronDown, FiGrid, FiList, FiSearch, FiEdit, FiInfo,
-  FiEye, FiEyeOff, FiTrash2, FiPower, FiDollarSign
+  FiEye, FiEyeOff, FiTrash2, FiPower, FiDollarSign, FiDownload
 } from 'react-icons/fi';
 import Modal from '../../components/Modal';
 import { getApiUrl } from '../../utils/config';
 import AdminTechEarningsModal from './AdminTechEarningsModal';
+import { exportAllTechniciansPDF } from '../../utils/technicianPdfGenerator';
+import toast from 'react-hot-toast';
 
 export default function Technicians() {
   const dispatch = useDispatch();
@@ -173,6 +175,44 @@ export default function Technicians() {
     const key = Object.keys(techJobsMap).find(k => isTechNameMatch(k, target));
     if (key) return techJobsMap[key];
     return [];
+  };
+
+  const handleDownloadAllTechPDF = () => {
+    try {
+      const now = new Date();
+      let monthLabel = '';
+      try {
+        monthLabel = new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric' }).format(now);
+      } catch (_) {
+        monthLabel = 'This Month';
+      }
+
+      const reportData = (technicians || []).map(t => {
+        const sum = getTechSummary(t.name) || {};
+        return {
+          name: t.name,
+          role: t.role || t.specialization || 'Technician',
+          monthCompletedCount: sum.monthCompletedCount || 0,
+          monthlyEarnings: sum.monthlyEarnings || 0,
+          totalCompleted: sum.totalCompleted || t.completedJobsCount || 0,
+          totalEarnings: sum.totalEarnings || t.totalEarnings || t.earnings || 0
+        };
+      });
+
+      const success = exportAllTechniciansPDF({
+        technicians: reportData,
+        monthLabel
+      });
+
+      if (success) {
+        toast.success('Technicians Performance PDF Report downloaded!');
+      } else {
+        toast.error('Failed to generate PDF');
+      }
+    } catch (err) {
+      console.error('Error generating technician report PDF:', err);
+      toast.error('Error generating PDF report');
+    }
   };
   
   const [techForm, setTechForm] = useState({ 
@@ -445,6 +485,15 @@ export default function Technicians() {
               <FiList size={15} />
             </button>
           </div>
+
+          <button 
+            type="button"
+            onClick={handleDownloadAllTechPDF}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+            title="Download Technicians Performance & Payout Report (PDF)"
+          >
+            <FiDownload size={14} /> Download PDF Report
+          </button>
 
           <button 
             onClick={() => setModalOpen(true)}

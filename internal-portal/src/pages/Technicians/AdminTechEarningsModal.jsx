@@ -11,9 +11,12 @@ import {
   Briefcase,
   DollarSign,
   ArrowUpRight,
-  Filter
+  Filter,
+  Download
 } from 'lucide-react';
 import { getApiUrl } from '../../utils/config';
+import { exportSingleTechnicianStatementPDF } from '../../utils/technicianPdfGenerator';
+import toast from 'react-hot-toast';
 
 export default function AdminTechEarningsModal({ isOpen, onClose, technician, summary, preloadedJobs = [] }) {
   const [jobs, setJobs] = useState(preloadedJobs || []);
@@ -261,6 +264,29 @@ export default function AdminTechEarningsModal({ isOpen, onClose, technician, su
     return summary?.monthCompletedCount ?? 0;
   }, [jobs, summary, currentYearMonth]);
 
+  const handleDownloadStatementPDF = () => {
+    try {
+      const success = exportSingleTechnicianStatementPDF({
+        technician,
+        jobs: filteredJobs,
+        thisMonthTotal,
+        allTimeTotal,
+        completedCount,
+        thisMonthCompletedCount,
+        filterPeriod,
+        getJobEarningDetails
+      });
+      if (success) {
+        toast.success(`${technician?.name || 'Technician'} Statement PDF downloaded!`);
+      } else {
+        toast.error('Failed to generate statement PDF');
+      }
+    } catch (err) {
+      console.error('Error generating technician statement PDF:', err);
+      toast.error('Error generating PDF');
+    }
+  };
+
   if (!isOpen || !technician) return null;
 
   return (
@@ -298,12 +324,25 @@ export default function AdminTechEarningsModal({ isOpen, onClose, technician, su
               </div>
             </div>
 
-            <button 
-              onClick={onClose}
-              className="w-8 h-8 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white transition-colors cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleDownloadStatementPDF}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 transition-colors cursor-pointer"
+                title="Download Earnings Statement as PDF"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Download PDF</span>
+              </button>
+
+              <button 
+                onClick={onClose}
+                className="w-8 h-8 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white transition-colors cursor-pointer"
+                title="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* Metric KPI Cards */}
