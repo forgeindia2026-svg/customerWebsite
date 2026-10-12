@@ -325,9 +325,18 @@ router.get('/dashboard-summary', async (req: Request, res: Response) => {
     completedJobsList.forEach((j: any) => {
       let earning = 0;
 
+      const techTarget = technicianName?.toString().toLowerCase().trim() || '';
+      const assignedTechStr = (
+        (typeof j.assignedTechnician === 'string' ? j.assignedTechnician : j.assignedTechnician?.name) ||
+        j.assignedTechnicianName ||
+        ''
+      ).toLowerCase();
       const isMainTech =
-        (j.assignedTechnician && j.assignedTechnician.toLowerCase().includes(technicianName?.toString().toLowerCase() || '')) ||
-        (j.assignedTechnicians && j.assignedTechnicians.some((t: any) => t.name?.toLowerCase().includes(technicianName?.toString().toLowerCase() || '')));
+        (techTarget && assignedTechStr.includes(techTarget)) ||
+        (Array.isArray(j.assignedTechnicians) && j.assignedTechnicians.some((t: any) => {
+          const tName = typeof t === 'string' ? t : (t?.name || '');
+          return typeof tName === 'string' && tName.toLowerCase().includes(techTarget);
+        }));
 
       if (isMainTech) {
         earning = Number(j.financials?.mainTechnicianEarning ?? j.mainTechnicianEarning ?? j.financials?.technicianEarning ?? j.technicianEarning ?? 0);

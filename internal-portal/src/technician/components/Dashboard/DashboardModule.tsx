@@ -98,10 +98,17 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
     let mEarnings = 0;
     let tEarnings = 0;
     completedJobs.forEach((j: any) => {
-      let earning = 0;
+      const assignedName = (
+        j.assignedTechnicianName ||
+        (typeof j.assignedTechnician === 'string' ? j.assignedTechnician : j.assignedTechnician?.name) ||
+        ''
+      ).toLowerCase();
       const isMain =
-        (j.assignedTechnician && j.assignedTechnician.toLowerCase().includes(currentTechName)) ||
-        (j.assignedTechnicians && j.assignedTechnicians.some((t: any) => t.name?.toLowerCase().includes(currentTechName)));
+        assignedName.includes(currentTechName) ||
+        (Array.isArray(j.assignedTechnicians) && j.assignedTechnicians.some((t: any) => {
+          const tName = typeof t === 'string' ? t : (t?.name || '');
+          return tName.toLowerCase().includes(currentTechName);
+        }));
 
       if (isMain) {
         earning = Number(j.financials?.mainTechnicianEarning ?? j.mainTechnicianEarning ?? j.financials?.technicianEarning ?? j.technicianEarning ?? 0);

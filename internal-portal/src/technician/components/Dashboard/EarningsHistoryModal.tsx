@@ -53,9 +53,17 @@ export const EarningsHistoryModal: React.FC<EarningsHistoryModalProps> = ({ isOp
   const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
   const getJobEarning = (job: any) => {
+    const assignedName = (
+      job.assignedTechnicianName ||
+      (typeof job.assignedTechnician === 'string' ? job.assignedTechnician : job.assignedTechnician?.name) ||
+      ''
+    ).toLowerCase();
     const isMainTech = 
-      (job.assignedTechnician && job.assignedTechnician.toLowerCase().includes(techName.toLowerCase())) ||
-      (job.assignedTechnicians && job.assignedTechnicians.some((t: any) => t.name?.toLowerCase().includes(techName.toLowerCase())));
+      assignedName.includes(techName.toLowerCase()) ||
+      (Array.isArray(job.assignedTechnicians) && job.assignedTechnicians.some((t: any) => {
+        const tName = typeof t === 'string' ? t : (t?.name || '');
+        return tName.toLowerCase().includes(techName.toLowerCase());
+      }));
       
     if (isMainTech) {
       return Number(job.financials?.mainTechnicianEarning ?? job.mainTechnicianEarning ?? job.financials?.technicianEarning ?? job.technicianEarning ?? 0);
