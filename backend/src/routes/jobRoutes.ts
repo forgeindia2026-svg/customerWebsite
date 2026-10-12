@@ -238,6 +238,113 @@ router.post('/auto-dispatch-complete', async (req: Request, res: Response) => {
   }
 });
 
+// ⚡ High-Speed Bulk Technicians Earnings & Stats (Single query for all technicians)
+router.get('/technicians-overview', async (_req: Request, res: Response) => {
+  const startTime = Date.now();
+  try {
+    const completedJobs = await Job.find({
+      status: { $in: ['COMPLETED', 'DELIVERED', 'APPROVED'] }
+    } as any)
+      .select('jobCode status scheduledDate date dailyReports financials mainTechnicianEarning technicianEarning subTechnicians subTechnicianEarnings assignedTechnician assignedTechnicians createdAt updatedAt')
+      .lean();
+
+    const now = new Date();
+    let istDateStr = '';
+    try {
+      istDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now);
+    } catch (_) {
+      istDateStr = now.toISOString().split('T')[0];
+    }
+    const currentYearMonth = istDateStr.substring(0, 7); // 'YYYY-MM'
+
+    const getJobDateString = (j: any): string => {
+      if (j.scheduledDate && typeof j.scheduledDate === 'string') return j.scheduledDate.split('T')[0];
+      if (j.date && typeof j.date === 'string') return j.date.split('T')[0];
+      if (j.dailyReports && j.dailyReports.length > 0 && j.dailyReports[0]?.date) return String(j.dailyReports[0].date).split('T')[0];
+      if (j.createdAt) {
+        try {
+          return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(j.createdAt));
+        } catch (_) {
+          return new Date(j.createdAt).toISOString().split('T')[0];
+        }
+      }
+      return '';
+    };
+
+    const overview: Record<string, { monthlyEarnings: number; totalEarnings: number; totalCompleted: number }> = {};
+
+    const getOrInit = (name: string) => {
+      const clean = name.trim();
+      if (!overview[clean]) {
+        overview[clean] = { monthlyEarnings: 0, totalEarnings: 0, totalCompleted: 0 };
+      }
+      return overview[clean];
+    };
+
+    completedJobs.forEach((j: any) => {
+      const jobDateStr = getJobDateString(j);
+      const isThisMonth = jobDateStr.startsWith(currentYearMonth);
+
+      // Lead technician
+      const assignedTechStr = (
+        (typeof j.assignedTechnician === 'string' ? j.assignedTechnician : j.assignedTechnician?.name) ||
+        j.assignedTechnicianName ||
+        (Array.isArray(j.assignedTechnicians) && j.assignedTechnicians[0]?.name) ||
+        ''
+      ).trim();
+
+      const mainEarning = Number(
+        j.financials?.mainTechnicianEarning ??
+        j.mainTechnicianEarning ??
+        j.financials?.technicianEarning ??
+        j.technicianEarning ??
+        0
+      );
+
+      if (assignedTechStr) {
+        const stats = getOrInit(assignedTechStr);
+        stats.totalEarnings += mainEarning;
+        stats.totalCompleted += 1;
+        if (isThisMonth) {
+          stats.monthlyEarnings += mainEarning;
+        }
+      }
+
+      // Sub technicians
+      const subs = j.financials?.subTechnicianEarnings || j.subTechnicianEarnings || {};
+      if (Array.isArray(subs)) {
+        subs.forEach((st: any) => {
+          if (st.technicianName) {
+            const stats = getOrInit(st.technicianName);
+            const amt = Number(st.amount || 0);
+            stats.totalEarnings += amt;
+            stats.totalCompleted += 1;
+            if (isThisMonth) stats.monthlyEarnings += amt;
+          }
+        });
+      } else if (typeof subs === 'object' && subs !== null) {
+        Object.entries(subs).forEach(([sName, amt]) => {
+          if (sName) {
+            const stats = getOrInit(sName);
+            const numAmt = Number(amt || 0);
+            stats.totalEarnings += numAmt;
+            stats.totalCompleted += 1;
+            if (isThisMonth) stats.monthlyEarnings += numAmt;
+          }
+        });
+      }
+    });
+
+    res.json({
+      success: true,
+      executionTimeMs: Date.now() - startTime,
+      data: overview
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // ⚡ High-Speed Aggregated Dashboard Summary (< 20ms) - Filtered per Technician
 router.get('/dashboard-summary', async (req: Request, res: Response) => {
   const startTime = Date.now();
@@ -460,7 +567,7 @@ router.get('/', async (req: Request, res: Response) => {
     }
 
     const jobs = await Job.find(filter)
-      .select('-proofImages -siteImages -voiceNoteBase64')
+      .select('-proofImages -siteImages -voiceNoteBase64 -beforePhotos -afterPhotos -chats -equipmentList -notes -scopeOfWork')
       .sort({ createdAt: -1 })
       .lean();
 

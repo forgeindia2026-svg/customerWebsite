@@ -26,21 +26,42 @@ export default function Technicians() {
   const [techSummaries, setTechSummaries] = useState({});
 
   useEffect(() => {
-    if (technicians && technicians.length > 0) {
+    const fetchSummaries = async () => {
       const baseUrl = getApiUrl();
-      technicians.forEach(async (t) => {
-        try {
-          const res = await fetch(`${baseUrl}/api/jobs/dashboard-summary?technicianName=${encodeURIComponent(t.name)}`);
-          const data = await res.json();
-          if (data && data.success && data.data) {
-            setTechSummaries(prev => ({
-              ...prev,
-              [t.name]: data.data
-            }));
-          }
-        } catch (_) {}
-      });
-    }
+      try {
+        // ⚡ Step 1: Fetch bulk overview for ALL technicians in ONE single request (< 30ms)
+        const res = await fetch(`${baseUrl}/api/jobs/technicians-overview`);
+        const data = await res.json();
+        if (data && data.success && data.data) {
+          const map = {};
+          Object.entries(data.data).forEach(([name, stats]) => {
+            map[name] = stats;
+            map[name.toLowerCase()] = stats;
+          });
+          setTechSummaries(map);
+          return;
+        }
+      } catch (_) {}
+
+      // Fallback: only fetch per-technician if bulk overview endpoint is not deployed yet
+      if (technicians && technicians.length > 0) {
+        technicians.forEach(async (t) => {
+          try {
+            const res = await fetch(`${baseUrl}/api/jobs/dashboard-summary?technicianName=${encodeURIComponent(t.name)}`);
+            const data = await res.json();
+            if (data && data.success && data.data) {
+              setTechSummaries(prev => ({
+                ...prev,
+                [t.name]: data.data,
+                [t.name.toLowerCase()]: data.data
+              }));
+            }
+          } catch (_) {}
+        });
+      }
+    };
+
+    fetchSummaries();
   }, [technicians]);
   
   const [techForm, setTechForm] = useState({ 
