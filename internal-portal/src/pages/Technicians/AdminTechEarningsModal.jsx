@@ -47,14 +47,51 @@ export default function AdminTechEarningsModal({ isOpen, onClose, technician, su
     setIsLoading(true);
     try {
       const baseUrl = getApiUrl();
-      const techName = technician?.name || '';
+      const techName = (technician?.name || '').toLowerCase().trim();
       
-      const res = await fetch(`${baseUrl}/api/jobs?status=COMPLETED&technicianName=${encodeURIComponent(techName)}`);
+      const res = await fetch(`${baseUrl}/api/jobs?status=COMPLETED`);
       const data = await res.json();
       
       if (data.success && Array.isArray(data.data)) {
+        const filtered = data.data.filter(job => {
+          // Check Lead
+          const lead = (
+            job.assignedTechnicianName ||
+            (typeof job.assignedTechnician === 'string' ? job.assignedTechnician : job.assignedTechnician?.name) ||
+            (Array.isArray(job.assignedTechnicians) && job.assignedTechnicians[0]?.name) ||
+            ''
+          ).toLowerCase();
+          if (lead.includes(techName)) return true;
+
+          // Check assignedTechnicians array
+          if (Array.isArray(job.assignedTechnicians)) {
+            if (job.assignedTechnicians.some(t => {
+              const name = typeof t === 'string' ? t : (t?.name || '');
+              return name.toLowerCase().includes(techName);
+            })) return true;
+          }
+
+          // Check subTechnicians array
+          if (Array.isArray(job.subTechnicians)) {
+            if (job.subTechnicians.some(t => {
+              const name = typeof t === 'string' ? t : (t?.name || '');
+              return name.toLowerCase().includes(techName);
+            })) return true;
+          }
+
+          // Check financials.subTechnicianEarnings
+          const subs = job.financials?.subTechnicianEarnings || job.subTechnicianEarnings || {};
+          if (Array.isArray(subs)) {
+            if (subs.some(st => (st.technicianName || '').toLowerCase().includes(techName))) return true;
+          } else if (typeof subs === 'object' && subs !== null) {
+            if (Object.keys(subs).some(k => k.toLowerCase().includes(techName))) return true;
+          }
+
+          return false;
+        });
+
         // Sort descending by scheduledDate / date / createdAt
-        const sorted = data.data.sort((a, b) => {
+        const sorted = filtered.sort((a, b) => {
           const dateA = new Date(a.scheduledDate || a.date || a.createdAt || a.updatedAt).getTime();
           const dateB = new Date(b.scheduledDate || b.date || b.createdAt || b.updatedAt).getTime();
           return dateB - dateA;
@@ -110,6 +147,7 @@ export default function AdminTechEarningsModal({ isOpen, onClose, technician, su
     const assignedName = (
       job.assignedTechnicianName ||
       (typeof job.assignedTechnician === 'string' ? job.assignedTechnician : job.assignedTechnician?.name) ||
+      (Array.isArray(job.assignedTechnicians) && job.assignedTechnicians[0]?.name) ||
       ''
     ).toLowerCase();
 
@@ -127,19 +165,28 @@ export default function AdminTechEarningsModal({ isOpen, onClose, technician, su
       earning = Number(job.financials?.mainTechnicianEarning ?? job.mainTechnicianEarning ?? job.financials?.technicianEarning ?? job.technicianEarning ?? 0);
     } else {
       const subs = job.financials?.subTechnicianEarnings || job.subTechnicianEarnings || {};
+      let subFound = false;
       let subAmount = 0;
       if (Array.isArray(subs)) {
         const match = subs.find(st => (st.technicianName || '').toLowerCase().includes(targetName));
-        if (match) subAmount = Number(match.amount || 0);
-      } else {
+        if (match) {
+          subAmount = Number(match.amount || 0);
+          subFound = true;
+        }
+      } else if (typeof subs === 'object' && subs !== null) {
         const key = Object.keys(subs).find(k => k.toLowerCase().includes(targetName));
-        if (key) subAmount = Number(subs[key]);
+        if (key) {
+          subAmount = Number(subs[key] || 0);
+          subFound = true;
+        }
       }
-      if (subAmount > 0) {
+
+      if (subFound) {
         earning = subAmount;
         role = 'Sub-Technician';
       } else {
-        earning = Number(job.financials?.technicianEarning ?? job.technicianEarning ?? 0);
+        earning = 0;
+        role = 'Sub-Technician';
       }
     }
 
@@ -175,16 +222,14 @@ export default function AdminTechEarningsModal({ isOpen, onClose, technician, su
   // Instant Totals: Use calculated jobs when ready, fallback to preloaded summary
   const thisMonthTotal = useMemo(() => {
     if (jobs.length > 0) {
-      const sum = jobs.reduce((acc, j) => isJobThisMonth(j) ? acc + getJobEarningDetails(j).earning : acc, 0);
-      return sum || (summary?.monthlyEarnings ?? 0);
+      return jobs.reduce((acc, j) => isJobThisMonth(j) ? acc + getJobEarningDetails(j).earning : acc, 0);
     }
     return summary?.monthlyEarnings ?? 0;
   }, [jobs, summary, currentYearMonth]);
 
   const allTimeTotal = useMemo(() => {
     if (jobs.length > 0) {
-      const sum = jobs.reduce((acc, j) => acc + getJobEarningDetails(j).earning, 0);
-      return sum || (summary?.totalEarnings ?? technician?.totalEarnings ?? technician?.earnings ?? 0);
+      return jobs.reduce((acc, j) => acc + getJobEarningDetails(j).earning, 0);
     }
     return summary?.totalEarnings ?? technician?.totalEarnings ?? technician?.earnings ?? 0;
   }, [jobs, summary, technician]);

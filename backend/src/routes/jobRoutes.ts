@@ -522,9 +522,12 @@ router.get('/', async (req: Request, res: Response) => {
         techOrMatch.push({ 'assignedTechnicians.id': technicianId });
       }
       if (technicianName) {
-        techOrMatch.push({ 'assignedTechnicians.name': { $regex: `^${technicianName}`, $options: 'i' } });
-        techOrMatch.push({ 'assignedTechnician': { $regex: `^${technicianName}`, $options: 'i' } });
-        techOrMatch.push({ 'subTechnicians': { $regex: `^${technicianName}`, $options: 'i' } });
+        techOrMatch.push({ 'assignedTechnicians.name': { $regex: `${technicianName}`, $options: 'i' } });
+        techOrMatch.push({ 'assignedTechnician': { $regex: `${technicianName}`, $options: 'i' } });
+        techOrMatch.push({ 'assignedTechnicianName': { $regex: `${technicianName}`, $options: 'i' } });
+        techOrMatch.push({ 'subTechnicians': { $regex: `${technicianName}`, $options: 'i' } });
+        techOrMatch.push({ [`financials.subTechnicianEarnings.${technicianName}`]: { $exists: true } });
+        techOrMatch.push({ 'financials.subTechnicianEarnings.technicianName': { $regex: `${technicianName}`, $options: 'i' } });
       }
 
       if (includeAvailable === 'true') {
