@@ -4,9 +4,11 @@ import { updateTechnicianStatus, addTechnician, editTechnician, deleteTechnician
 import { 
   FiSliders, FiPhone, FiMail, FiStar, FiPlus, 
   FiChevronDown, FiGrid, FiList, FiSearch, FiEdit, FiInfo,
-  FiEye, FiEyeOff, FiTrash2, FiPower
+  FiEye, FiEyeOff, FiTrash2, FiPower, FiDollarSign
 } from 'react-icons/fi';
 import Modal from '../../components/Modal';
+import { getApiUrl } from '../../utils/config';
+import AdminTechEarningsModal from './AdminTechEarningsModal';
 
 export default function Technicians() {
   const dispatch = useDispatch();
@@ -20,6 +22,26 @@ export default function Technicians() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
   const [searchTerm, setSearchTerm] = useState('');
+  const [earningsTech, setEarningsTech] = useState(null);
+  const [techSummaries, setTechSummaries] = useState({});
+
+  useEffect(() => {
+    if (technicians && technicians.length > 0) {
+      const baseUrl = getApiUrl();
+      technicians.forEach(async (t) => {
+        try {
+          const res = await fetch(`${baseUrl}/api/jobs/dashboard-summary?technicianName=${encodeURIComponent(t.name)}`);
+          const data = await res.json();
+          if (data && data.success && data.data) {
+            setTechSummaries(prev => ({
+              ...prev,
+              [t.name]: data.data
+            }));
+          }
+        } catch (_) {}
+      });
+    }
+  }, [technicians]);
   
   const [techForm, setTechForm] = useState({ 
     name: '', 
@@ -363,6 +385,28 @@ export default function Technicians() {
                       <p className="truncate">📞 {tech.phone} • ✉️ {tech.email}</p>
                     </div>
 
+                    {/* Earnings Summary Button */}
+                    <button
+                      type="button"
+                      onClick={() => setEarningsTech(tech)}
+                      className="w-full flex items-center justify-between p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-6 h-6 rounded-lg bg-emerald-500 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                          ₹
+                        </div>
+                        <div>
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400">This Month</div>
+                          <div className="text-xs font-black text-emerald-900 dark:text-emerald-200">
+                            ₹{(techSummaries[tech.name]?.monthlyEarnings ?? 0).toLocaleString('en-IN')}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-white dark:bg-slate-900 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800">
+                        View History →
+                      </span>
+                    </button>
+
                     {/* Status Dropdown selector */}
                     <div className="relative flex items-center pt-1">
                       <span className={`absolute left-3 w-2 h-2 rounded-full ${getStatusColor(tech.status)}`} />
@@ -429,6 +473,25 @@ export default function Technicians() {
                           <span>{tech.phone}</span>
                         </div>
                       </div>
+
+                      {/* Earnings Badge Button */}
+                      <button
+                        type="button"
+                        onClick={() => setEarningsTech(tech)}
+                        className="mt-2.5 w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:hover:bg-emerald-900/40 border border-emerald-200/70 dark:border-emerald-800/50 transition-colors text-left group/earn cursor-pointer"
+                        title="View Technician Earnings History"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-5 h-5 rounded-md bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold text-xs flex items-center justify-center">₹</span>
+                          <span className="text-[10px] font-bold text-emerald-800 dark:text-emerald-400">Month:</span>
+                          <span className="text-xs font-black text-emerald-950 dark:text-emerald-200">
+                            ₹{(techSummaries[tech.name]?.monthlyEarnings ?? 0).toLocaleString('en-IN')}
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 group-hover/earn:translate-x-0.5 transition-transform">
+                          →
+                        </span>
+                      </button>
                     </div>
 
                     {/* Actions / Status selector */}
@@ -493,6 +556,7 @@ export default function Technicians() {
                     <th className="py-3.5 px-4 min-w-[200px] whitespace-nowrap">Technician</th>
                     <th className="py-3.5 px-4 min-w-[220px] whitespace-nowrap">Specialization</th>
                     <th className="py-3.5 px-4 min-w-[240px] whitespace-nowrap">Contact Info</th>
+                    <th className="py-3.5 px-4 text-center whitespace-nowrap w-36">This Month</th>
                     <th className="py-3.5 px-4 text-center whitespace-nowrap w-24">Rating</th>
                     <th className="py-3.5 px-4 text-right whitespace-nowrap w-44">Status</th>
                     <th className="py-3.5 px-4 text-center whitespace-nowrap w-24">Actions</th>
@@ -529,6 +593,17 @@ export default function Technicians() {
                         <td className="py-4 px-4 align-middle whitespace-nowrap">
                           <div className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">{tech.email}</div>
                           <div className="text-[11px] text-slate-400 font-medium mt-0.5 font-sans whitespace-nowrap">{tech.phone}</div>
+                        </td>
+                        <td className="py-4 px-4 align-middle text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            onClick={() => setEarningsTech(tech)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:hover:bg-emerald-900/40 border border-emerald-200/80 dark:border-emerald-800/50 text-emerald-800 dark:text-emerald-300 transition-colors cursor-pointer group/earn"
+                            title="View Earnings History"
+                          >
+                            <span className="font-bold text-xs">₹{(techSummaries[tech.name]?.monthlyEarnings ?? 0).toLocaleString('en-IN')}</span>
+                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 group-hover/earn:translate-x-0.5 transition-transform">↗</span>
+                          </button>
                         </td>
                         <td className="py-4 px-4 align-middle text-center whitespace-nowrap">
                           <span className="inline-flex items-center justify-center gap-1 text-xs font-bold text-slate-800 dark:text-slate-200">
@@ -818,6 +893,15 @@ export default function Technicians() {
           </form>
         )}
       </Modal>
+
+      {/* Technician Earnings History Modal */}
+      {earningsTech && (
+        <AdminTechEarningsModal 
+          isOpen={Boolean(earningsTech)} 
+          onClose={() => setEarningsTech(null)} 
+          technician={earningsTech} 
+        />
+      )}
 
     </div>
   );

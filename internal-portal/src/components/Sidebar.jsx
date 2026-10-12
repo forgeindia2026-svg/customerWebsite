@@ -81,6 +81,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
         { name: 'Chat', path: '/admin/chat', icon: FiMessageSquare },
         { name: 'Orders', path: '/admin/orders', icon: FiShoppingCart },
         { name: 'Service Requests', path: '/admin/service-requests', icon: FiTool },
+        { name: 'Technicians', path: '/admin/technicians', icon: FiBriefcase },
         { name: 'Reports', path: '/admin/reports', icon: FiBarChart2 },
         { name: 'Leadership Board', path: '/admin/leaderboard', icon: FiAward },
         { name: 'QR Scanner', path: '/admin/scanner', icon: FiImage },
