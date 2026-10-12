@@ -28,172 +28,181 @@ export default function Technicians() {
   const [techSummaries, setTechSummaries] = useState({});
   const [techJobsMap, setTechJobsMap] = useState({});
 
-  useEffect(() => {
-    const fetchAllCompletedJobs = async () => {
-      const baseUrl = getApiUrl();
-      try {
-        const res = await fetch(`${baseUrl}/api/jobs?status=COMPLETED`);
-        const data = await res.json();
-        if (data && data.success && Array.isArray(data.data)) {
-          const now = new Date();
-          let istMonth = '';
-          try {
-            istMonth = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now).substring(0, 7);
-          } catch (_) {
-            istMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-          }
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
-          const map = {};
-          const jobsByTech = {};
+  const buildTechSummaries = (jobsList) => {
+    const now = new Date();
+    let istMonth = '';
+    try {
+      istMonth = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now).substring(0, 7);
+    } catch (_) {
+      istMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    }
 
-          data.data.forEach((j) => {
-            let jobDateStr = '';
-            if (j.scheduledDate && typeof j.scheduledDate === 'string') jobDateStr = j.scheduledDate.split('T')[0];
-            else if (j.date && typeof j.date === 'string') jobDateStr = j.date.split('T')[0];
-            else if (j.dailyReports && j.dailyReports.length > 0 && j.dailyReports[0]?.date) jobDateStr = String(j.dailyReports[0].date).split('T')[0];
-            else if (j.financials?.approvedAt) {
-              try {
-                jobDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(j.financials.approvedAt));
-              } catch (_) {
-                jobDateStr = String(j.financials.approvedAt).split('T')[0];
-              }
-            } else if (j.createdAt) {
-              try {
-                jobDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(j.createdAt));
-              } catch (_) {
-                jobDateStr = String(j.createdAt).split('T')[0];
-              }
-            }
-            const isThisMonth = jobDateStr.startsWith(istMonth);
+    const map = {};
+    const jobsByTech = {};
 
-            const leadName = (
-              j.assignedTechnicianName ||
-              (typeof j.assignedTechnician === 'string' ? j.assignedTechnician : j.assignedTechnician?.name) ||
-              (Array.isArray(j.assignedTechnicians) && j.assignedTechnicians[0]?.name) ||
-              ''
-            ).trim();
+    (jobsList || []).forEach((j) => {
+      let jobDateStr = '';
+      if (j.scheduledDate && typeof j.scheduledDate === 'string') jobDateStr = j.scheduledDate.split('T')[0];
+      else if (j.date && typeof j.date === 'string') jobDateStr = j.date.split('T')[0];
+      else if (j.dailyReports && j.dailyReports.length > 0 && j.dailyReports[0]?.date) jobDateStr = String(j.dailyReports[0].date).split('T')[0];
+      else if (j.financials?.approvedAt) {
+        try {
+          jobDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(j.financials.approvedAt));
+        } catch (_) {
+          jobDateStr = String(j.financials.approvedAt).split('T')[0];
+        }
+      } else if (j.createdAt) {
+        try {
+          jobDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(j.createdAt));
+        } catch (_) {
+          jobDateStr = String(j.createdAt).split('T')[0];
+        }
+      }
+      const isThisMonth = jobDateStr.startsWith(istMonth);
 
-            const mainEarning = Number(
-              j.financials?.mainTechnicianEarning ??
-              j.mainTechnicianEarning ??
-              j.financials?.technicianEarning ??
-              j.technicianEarning ??
-              0
-            );
+      const leadName = (
+        j.assignedTechnicianName ||
+        (typeof j.assignedTechnician === 'string' ? j.assignedTechnician : j.assignedTechnician?.name) ||
+        (Array.isArray(j.assignedTechnicians) && j.assignedTechnicians[0]?.name) ||
+        ''
+      ).trim();
 
-            const countedTechs = new Set();
+      const mainEarning = Number(
+        j.financials?.mainTechnicianEarning ??
+        j.mainTechnicianEarning ??
+        j.financials?.technicianEarning ??
+        j.technicianEarning ??
+        0
+      );
 
-            if (leadName) {
-              const key = leadName.toLowerCase();
-              if (!map[key]) map[key] = { monthlyEarnings: 0, totalEarnings: 0, totalCompleted: 0, monthCompletedCount: 0 };
-              if (!jobsByTech[key]) jobsByTech[key] = [];
-              map[key].totalEarnings += mainEarning;
+      const countedTechs = new Set();
+
+      if (leadName) {
+        const key = leadName.toLowerCase();
+        if (!map[key]) map[key] = { monthlyEarnings: 0, totalEarnings: 0, totalCompleted: 0, monthCompletedCount: 0 };
+        if (!jobsByTech[key]) jobsByTech[key] = [];
+        map[key].totalEarnings += mainEarning;
+        map[key].totalCompleted += 1;
+        if (isThisMonth) {
+          map[key].monthlyEarnings += mainEarning;
+          map[key].monthCompletedCount += 1;
+        }
+        jobsByTech[key].push(j);
+        countedTechs.add(key);
+      }
+
+      const subs = j.financials?.subTechnicianEarnings || j.subTechnicianEarnings || {};
+      if (Array.isArray(subs)) {
+        subs.forEach((st) => {
+          const sName = (st.technicianName || '').trim();
+          if (sName) {
+            const key = sName.toLowerCase();
+            if (!map[key]) map[key] = { monthlyEarnings: 0, totalEarnings: 0, totalCompleted: 0, monthCompletedCount: 0 };
+            if (!jobsByTech[key]) jobsByTech[key] = [];
+            const amt = Number(st.amount || 0);
+            map[key].totalEarnings += amt;
+            if (!countedTechs.has(key)) {
               map[key].totalCompleted += 1;
               if (isThisMonth) {
-                map[key].monthlyEarnings += mainEarning;
                 map[key].monthCompletedCount += 1;
               }
               jobsByTech[key].push(j);
               countedTechs.add(key);
             }
-
-            const subs = j.financials?.subTechnicianEarnings || j.subTechnicianEarnings || {};
-            if (Array.isArray(subs)) {
-              subs.forEach((st) => {
-                const sName = (st.technicianName || '').trim();
-                if (sName) {
-                  const key = sName.toLowerCase();
-                  if (!map[key]) map[key] = { monthlyEarnings: 0, totalEarnings: 0, totalCompleted: 0, monthCompletedCount: 0 };
-                  if (!jobsByTech[key]) jobsByTech[key] = [];
-                  const amt = Number(st.amount || 0);
-                  map[key].totalEarnings += amt;
-                  if (!countedTechs.has(key)) {
-                    map[key].totalCompleted += 1;
-                    if (isThisMonth) {
-                      map[key].monthCompletedCount += 1;
-                    }
-                    jobsByTech[key].push(j);
-                    countedTechs.add(key);
-                  }
-                  if (isThisMonth) {
-                    map[key].monthlyEarnings += amt;
-                  }
-                }
-              });
-            } else if (typeof subs === 'object' && subs !== null) {
-              Object.entries(subs).forEach(([sName, amt]) => {
-                const clean = sName.trim();
-                if (clean) {
-                  const key = clean.toLowerCase();
-                  if (!map[key]) map[key] = { monthlyEarnings: 0, totalEarnings: 0, totalCompleted: 0, monthCompletedCount: 0 };
-                  if (!jobsByTech[key]) jobsByTech[key] = [];
-                  const numAmt = Number(amt || 0);
-                  map[key].totalEarnings += numAmt;
-                  if (!countedTechs.has(key)) {
-                    map[key].totalCompleted += 1;
-                    if (isThisMonth) {
-                      map[key].monthCompletedCount += 1;
-                    }
-                    jobsByTech[key].push(j);
-                    countedTechs.add(key);
-                  }
-                  if (isThisMonth) {
-                    map[key].monthlyEarnings += numAmt;
-                  }
-                }
-              });
+            if (isThisMonth) {
+              map[key].monthlyEarnings += amt;
             }
-
-            // Also check direct subTechnicians array (e.g. ₹0 visits)
-            if (Array.isArray(j.subTechnicians)) {
-              j.subTechnicians.forEach((st) => {
-                const sName = (typeof st === 'string' ? st : (st?.name || '')).trim();
-                if (sName) {
-                  const key = sName.toLowerCase();
-                  if (!map[key]) map[key] = { monthlyEarnings: 0, totalEarnings: 0, totalCompleted: 0, monthCompletedCount: 0 };
-                  if (!jobsByTech[key]) jobsByTech[key] = [];
-                  if (!countedTechs.has(key)) {
-                    map[key].totalCompleted += 1;
-                    if (isThisMonth) {
-                      map[key].monthCompletedCount += 1;
-                    }
-                    jobsByTech[key].push(j);
-                    countedTechs.add(key);
-                  }
-                }
-              });
+          }
+        });
+      } else if (typeof subs === 'object' && subs !== null) {
+        Object.entries(subs).forEach(([sName, amt]) => {
+          const clean = sName.trim();
+          if (clean) {
+            const key = clean.toLowerCase();
+            if (!map[key]) map[key] = { monthlyEarnings: 0, totalEarnings: 0, totalCompleted: 0, monthCompletedCount: 0 };
+            if (!jobsByTech[key]) jobsByTech[key] = [];
+            const numAmt = Number(amt || 0);
+            map[key].totalEarnings += numAmt;
+            if (!countedTechs.has(key)) {
+              map[key].totalCompleted += 1;
+              if (isThisMonth) {
+                map[key].monthCompletedCount += 1;
+              }
+              jobsByTech[key].push(j);
+              countedTechs.add(key);
             }
-
-            // Also check assignedTechnicians array
-            if (Array.isArray(j.assignedTechnicians)) {
-              j.assignedTechnicians.forEach((at) => {
-                const aName = (typeof at === 'string' ? at : (at?.name || '')).trim();
-                if (aName) {
-                  const key = aName.toLowerCase();
-                  if (!map[key]) map[key] = { monthlyEarnings: 0, totalEarnings: 0, totalCompleted: 0, monthCompletedCount: 0 };
-                  if (!jobsByTech[key]) jobsByTech[key] = [];
-                  if (!countedTechs.has(key)) {
-                    map[key].totalCompleted += 1;
-                    if (isThisMonth) {
-                      map[key].monthCompletedCount += 1;
-                    }
-                    jobsByTech[key].push(j);
-                    countedTechs.add(key);
-                  }
-                }
-              });
+            if (isThisMonth) {
+              map[key].monthlyEarnings += numAmt;
             }
-          });
-
-          setTechSummaries(map);
-          setTechJobsMap(jobsByTech);
-        }
-      } catch (err) {
-        console.error('Error fetching completed jobs:', err);
+          }
+        });
       }
-    };
 
-    fetchAllCompletedJobs();
+      // Also check direct subTechnicians array (e.g. ₹0 visits)
+      if (Array.isArray(j.subTechnicians)) {
+        j.subTechnicians.forEach((st) => {
+          const sName = (typeof st === 'string' ? st : (st?.name || '')).trim();
+          if (sName) {
+            const key = sName.toLowerCase();
+            if (!map[key]) map[key] = { monthlyEarnings: 0, totalEarnings: 0, totalCompleted: 0, monthCompletedCount: 0 };
+            if (!jobsByTech[key]) jobsByTech[key] = [];
+            if (!countedTechs.has(key)) {
+              map[key].totalCompleted += 1;
+              if (isThisMonth) {
+                map[key].monthCompletedCount += 1;
+              }
+              jobsByTech[key].push(j);
+              countedTechs.add(key);
+            }
+          }
+        });
+      }
+
+      // Also check assignedTechnicians array
+      if (Array.isArray(j.assignedTechnicians)) {
+        j.assignedTechnicians.forEach((at) => {
+          const aName = (typeof at === 'string' ? at : (at?.name || '')).trim();
+          if (aName) {
+            const key = aName.toLowerCase();
+            if (!map[key]) map[key] = { monthlyEarnings: 0, totalEarnings: 0, totalCompleted: 0, monthCompletedCount: 0 };
+            if (!jobsByTech[key]) jobsByTech[key] = [];
+            if (!countedTechs.has(key)) {
+              map[key].totalCompleted += 1;
+              if (isThisMonth) {
+                map[key].monthCompletedCount += 1;
+              }
+              jobsByTech[key].push(j);
+              countedTechs.add(key);
+            }
+          }
+        });
+      }
+    });
+
+    return { map, jobsByTech };
+  };
+
+  const fetchCompletedJobsData = async () => {
+    const baseUrl = getApiUrl();
+    try {
+      const res = await fetch(`${baseUrl}/api/jobs?status=COMPLETED`);
+      const data = await res.json();
+      if (data && data.success && Array.isArray(data.data)) {
+        const { map, jobsByTech } = buildTechSummaries(data.data);
+        setTechSummaries(map);
+        setTechJobsMap(jobsByTech);
+        return map;
+      }
+    } catch (err) {
+      console.error('Error fetching completed jobs:', err);
+    }
+    return null;
+  };
+
+  useEffect(() => {
+    fetchCompletedJobsData();
   }, []);
 
   const isTechNameMatch = (name1, name2) => {
@@ -236,8 +245,20 @@ export default function Technicians() {
     return [];
   };
 
-  const handleDownloadAllTechPDF = () => {
+  const handleDownloadAllTechPDF = async () => {
+    if (isGeneratingPDF) return;
+    setIsGeneratingPDF(true);
+    const toastId = toast.loading('Generating Technicians Performance Report...');
     try {
+      let activeSummaries = techSummaries;
+      // If not yet loaded or empty, fetch immediately
+      if (!activeSummaries || Object.keys(activeSummaries).length === 0) {
+        const fetched = await fetchCompletedJobsData();
+        if (fetched) {
+          activeSummaries = fetched;
+        }
+      }
+
       const now = new Date();
       let monthLabel = '';
       try {
@@ -246,8 +267,17 @@ export default function Technicians() {
         monthLabel = 'This Month';
       }
 
+      const getSummaryForTech = (name) => {
+        if (!name) return {};
+        const target = name.toLowerCase().trim();
+        if (activeSummaries[target]) return activeSummaries[target];
+        const key = Object.keys(activeSummaries).find(k => isTechNameMatch(k, target));
+        if (key) return activeSummaries[key];
+        return {};
+      };
+
       const reportData = (technicians || []).map(t => {
-        const sum = getTechSummary(t.name) || {};
+        const sum = getSummaryForTech(t.name);
         return {
           name: t.name,
           role: t.role || t.specialization || 'Technician',
@@ -263,6 +293,7 @@ export default function Technicians() {
         monthLabel
       });
 
+      toast.dismiss(toastId);
       if (success) {
         toast.success('Technicians Performance PDF Report downloaded!');
       } else {
@@ -270,7 +301,10 @@ export default function Technicians() {
       }
     } catch (err) {
       console.error('Error generating technician report PDF:', err);
+      toast.dismiss(toastId);
       toast.error('Error generating PDF report');
+    } finally {
+      setIsGeneratingPDF(false);
     }
   };
   
@@ -547,11 +581,15 @@ export default function Technicians() {
 
           <button 
             type="button"
+            disabled={isGeneratingPDF}
             onClick={handleDownloadAllTechPDF}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer text-white ${
+              isGeneratingPDF ? 'bg-emerald-400 cursor-not-allowed opacity-80' : 'bg-emerald-600 hover:bg-emerald-700'
+            }`}
             title="Download Technicians Performance & Payout Report (PDF)"
           >
-            <FiDownload size={14} /> Download PDF Report
+            <FiDownload className={isGeneratingPDF ? 'animate-bounce' : ''} size={14} />
+            {isGeneratingPDF ? 'Generating PDF...' : 'Download PDF Report'}
           </button>
 
           <button 
