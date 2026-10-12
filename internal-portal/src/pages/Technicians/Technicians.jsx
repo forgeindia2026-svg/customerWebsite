@@ -135,9 +135,44 @@ export default function Technicians() {
     fetchAllCompletedJobs();
   }, []);
 
+  const isTechNameMatch = (name1, name2) => {
+    if (!name1 || !name2) return false;
+    const a = String(name1).toLowerCase().trim();
+    const b = String(name2).toLowerCase().trim();
+    if (a === b) return true;
+    if (a.includes(b) || b.includes(a)) return true;
+    const aClean = a.replace(/[\.\s_]/g, '');
+    const bClean = b.replace(/[\.\s_]/g, '');
+    if (aClean === bClean) return true;
+    if (aClean.length >= 4 && bClean.length >= 4 && (aClean.includes(bClean) || bClean.includes(aClean))) return true;
+    return false;
+  };
+
   const getTechMonthEarning = (name) => {
     if (!name) return 0;
-    return techSummaries[name.toLowerCase().trim()]?.monthlyEarnings ?? 0;
+    const target = name.toLowerCase().trim();
+    if (techSummaries[target]) return techSummaries[target].monthlyEarnings;
+    const key = Object.keys(techSummaries).find(k => isTechNameMatch(k, target));
+    if (key) return techSummaries[key].monthlyEarnings;
+    return 0;
+  };
+
+  const getTechSummary = (name) => {
+    if (!name) return {};
+    const target = name.toLowerCase().trim();
+    if (techSummaries[target]) return techSummaries[target];
+    const key = Object.keys(techSummaries).find(k => isTechNameMatch(k, target));
+    if (key) return techSummaries[key];
+    return {};
+  };
+
+  const getTechJobs = (name) => {
+    if (!name) return [];
+    const target = name.toLowerCase().trim();
+    if (techJobsMap[target]) return techJobsMap[target];
+    const key = Object.keys(techJobsMap).find(k => isTechNameMatch(k, target));
+    if (key) return techJobsMap[key];
+    return [];
   };
   
   const [techForm, setTechForm] = useState({ 
@@ -997,8 +1032,8 @@ export default function Technicians() {
           isOpen={Boolean(earningsTech)} 
           onClose={() => setEarningsTech(null)} 
           technician={earningsTech} 
-          summary={techSummaries[earningsTech?.name?.toLowerCase().trim()] || {}}
-          preloadedJobs={techJobsMap[earningsTech?.name?.toLowerCase().trim()] || []}
+          summary={getTechSummary(earningsTech?.name)}
+          preloadedJobs={getTechJobs(earningsTech?.name)}
         />
       )}
 

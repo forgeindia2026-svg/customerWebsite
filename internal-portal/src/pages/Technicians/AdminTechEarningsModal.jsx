@@ -43,11 +43,24 @@ export default function AdminTechEarningsModal({ isOpen, onClose, technician, su
     }
   }, [isOpen, technician, preloadedJobs]);
 
+  const isTechNameMatch = (name1, name2) => {
+    if (!name1 || !name2) return false;
+    const a = String(name1).toLowerCase().trim();
+    const b = String(name2).toLowerCase().trim();
+    if (a === b) return true;
+    if (a.includes(b) || b.includes(a)) return true;
+    const aClean = a.replace(/[\.\s_]/g, '');
+    const bClean = b.replace(/[\.\s_]/g, '');
+    if (aClean === bClean) return true;
+    if (aClean.length >= 4 && bClean.length >= 4 && (aClean.includes(bClean) || bClean.includes(aClean))) return true;
+    return false;
+  };
+
   const fetchTechEarnings = async () => {
     setIsLoading(true);
     try {
       const baseUrl = getApiUrl();
-      const techName = (technician?.name || '').toLowerCase().trim();
+      const techName = technician?.name || '';
       
       const res = await fetch(`${baseUrl}/api/jobs?status=COMPLETED`);
       const data = await res.json();
@@ -60,14 +73,14 @@ export default function AdminTechEarningsModal({ isOpen, onClose, technician, su
             (typeof job.assignedTechnician === 'string' ? job.assignedTechnician : job.assignedTechnician?.name) ||
             (Array.isArray(job.assignedTechnicians) && job.assignedTechnicians[0]?.name) ||
             ''
-          ).toLowerCase();
-          if (lead.includes(techName)) return true;
+          );
+          if (isTechNameMatch(lead, techName)) return true;
 
           // Check assignedTechnicians array
           if (Array.isArray(job.assignedTechnicians)) {
             if (job.assignedTechnicians.some(t => {
               const name = typeof t === 'string' ? t : (t?.name || '');
-              return name.toLowerCase().includes(techName);
+              return isTechNameMatch(name, techName);
             })) return true;
           }
 
@@ -75,16 +88,16 @@ export default function AdminTechEarningsModal({ isOpen, onClose, technician, su
           if (Array.isArray(job.subTechnicians)) {
             if (job.subTechnicians.some(t => {
               const name = typeof t === 'string' ? t : (t?.name || '');
-              return name.toLowerCase().includes(techName);
+              return isTechNameMatch(name, techName);
             })) return true;
           }
 
           // Check financials.subTechnicianEarnings
           const subs = job.financials?.subTechnicianEarnings || job.subTechnicianEarnings || {};
           if (Array.isArray(subs)) {
-            if (subs.some(st => (st.technicianName || '').toLowerCase().includes(techName))) return true;
+            if (subs.some(st => isTechNameMatch(st.technicianName, techName))) return true;
           } else if (typeof subs === 'object' && subs !== null) {
-            if (Object.keys(subs).some(k => k.toLowerCase().includes(techName))) return true;
+            if (Object.keys(subs).some(k => isTechNameMatch(k, techName))) return true;
           }
 
           return false;
@@ -143,19 +156,19 @@ export default function AdminTechEarningsModal({ isOpen, onClose, technician, su
   };
 
   const getJobEarningDetails = (job) => {
-    const targetName = (technician?.name || '').toLowerCase().trim();
+    const targetName = technician?.name || '';
     const assignedName = (
       job.assignedTechnicianName ||
       (typeof job.assignedTechnician === 'string' ? job.assignedTechnician : job.assignedTechnician?.name) ||
       (Array.isArray(job.assignedTechnicians) && job.assignedTechnicians[0]?.name) ||
       ''
-    ).toLowerCase();
+    );
 
     const isMain =
-      assignedName.includes(targetName) ||
+      isTechNameMatch(assignedName, targetName) ||
       (Array.isArray(job.assignedTechnicians) && job.assignedTechnicians.some(t => {
         const tName = typeof t === 'string' ? t : (t?.name || '');
-        return typeof tName === 'string' && tName.toLowerCase().includes(targetName);
+        return isTechNameMatch(tName, targetName);
       }));
 
     let earning = 0;
@@ -168,13 +181,13 @@ export default function AdminTechEarningsModal({ isOpen, onClose, technician, su
       let subFound = false;
       let subAmount = 0;
       if (Array.isArray(subs)) {
-        const match = subs.find(st => (st.technicianName || '').toLowerCase().includes(targetName));
+        const match = subs.find(st => isTechNameMatch(st.technicianName, targetName));
         if (match) {
           subAmount = Number(match.amount || 0);
           subFound = true;
         }
       } else if (typeof subs === 'object' && subs !== null) {
-        const key = Object.keys(subs).find(k => k.toLowerCase().includes(targetName));
+        const key = Object.keys(subs).find(k => isTechNameMatch(k, targetName));
         if (key) {
           subAmount = Number(subs[key] || 0);
           subFound = true;
