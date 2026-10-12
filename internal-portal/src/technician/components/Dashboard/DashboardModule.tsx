@@ -98,6 +98,7 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
     let mEarnings = 0;
     let tEarnings = 0;
     completedJobs.forEach((j: any) => {
+      let earning = 0;
       const assignedName = (
         j.assignedTechnicianName ||
         (typeof j.assignedTechnician === 'string' ? j.assignedTechnician : j.assignedTechnician?.name) ||
