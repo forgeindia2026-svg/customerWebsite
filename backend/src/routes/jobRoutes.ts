@@ -243,7 +243,10 @@ router.get('/technicians-overview', async (_req: Request, res: Response) => {
   const startTime = Date.now();
   try {
     const completedJobs = await Job.find({
-      status: { $in: ['COMPLETED', 'DELIVERED', 'APPROVED'] }
+      $or: [
+        { status: { $in: ['COMPLETED', 'DELIVERED', 'APPROVED'] } },
+        { 'financials.approvedAt': { $exists: true, $ne: null } }
+      ]
     } as any)
       .select('jobCode status scheduledDate date dailyReports financials mainTechnicianEarning technicianEarning subTechnicians subTechnicianEarnings assignedTechnician assignedTechnicians createdAt updatedAt')
       .lean();
@@ -261,6 +264,13 @@ router.get('/technicians-overview', async (_req: Request, res: Response) => {
       if (j.scheduledDate && typeof j.scheduledDate === 'string') return j.scheduledDate.split('T')[0];
       if (j.date && typeof j.date === 'string') return j.date.split('T')[0];
       if (j.dailyReports && j.dailyReports.length > 0 && j.dailyReports[0]?.date) return String(j.dailyReports[0].date).split('T')[0];
+      if (j.financials?.approvedAt) {
+        try {
+          return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(j.financials.approvedAt));
+        } catch (_) {
+          return String(j.financials.approvedAt).split('T')[0];
+        }
+      }
       if (j.createdAt) {
         try {
           return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(j.createdAt));
@@ -284,6 +294,7 @@ router.get('/technicians-overview', async (_req: Request, res: Response) => {
     completedJobs.forEach((j: any) => {
       const jobDateStr = getJobDateString(j);
       const isThisMonth = jobDateStr.startsWith(currentYearMonth);
+      const countedTechs = new Set<string>();
 
       // Lead technician
       const assignedTechStr = (
@@ -305,12 +316,13 @@ router.get('/technicians-overview', async (_req: Request, res: Response) => {
         const stats = getOrInit(assignedTechStr);
         stats.totalEarnings += mainEarning;
         stats.totalCompleted += 1;
+        countedTechs.add(assignedTechStr.toLowerCase());
         if (isThisMonth) {
           stats.monthlyEarnings += mainEarning;
         }
       }
 
-      // Sub technicians
+      // Sub technicians from financials earnings
       const subs = j.financials?.subTechnicianEarnings || j.subTechnicianEarnings || {};
       if (Array.isArray(subs)) {
         subs.forEach((st: any) => {
@@ -318,7 +330,11 @@ router.get('/technicians-overview', async (_req: Request, res: Response) => {
             const stats = getOrInit(st.technicianName);
             const amt = Number(st.amount || 0);
             stats.totalEarnings += amt;
-            stats.totalCompleted += 1;
+            const tKey = st.technicianName.toLowerCase();
+            if (!countedTechs.has(tKey)) {
+              stats.totalCompleted += 1;
+              countedTechs.add(tKey);
+            }
             if (isThisMonth) stats.monthlyEarnings += amt;
           }
         });
@@ -328,8 +344,42 @@ router.get('/technicians-overview', async (_req: Request, res: Response) => {
             const stats = getOrInit(sName);
             const numAmt = Number(amt || 0);
             stats.totalEarnings += numAmt;
-            stats.totalCompleted += 1;
+            const tKey = sName.toLowerCase();
+            if (!countedTechs.has(tKey)) {
+              stats.totalCompleted += 1;
+              countedTechs.add(tKey);
+            }
             if (isThisMonth) stats.monthlyEarnings += numAmt;
+          }
+        });
+      }
+
+      // Direct subTechnicians array (e.g., ₹0 visit jobs)
+      if (Array.isArray(j.subTechnicians)) {
+        j.subTechnicians.forEach((st: any) => {
+          const sName = (typeof st === 'string' ? st : (st?.name || '')).trim();
+          if (sName) {
+            const tKey = sName.toLowerCase();
+            if (!countedTechs.has(tKey)) {
+              const stats = getOrInit(sName);
+              stats.totalCompleted += 1;
+              countedTechs.add(tKey);
+            }
+          }
+        });
+      }
+
+      // Direct assignedTechnicians array
+      if (Array.isArray(j.assignedTechnicians)) {
+        j.assignedTechnicians.forEach((at: any) => {
+          const aName = (typeof at === 'string' ? at : (at?.name || '')).trim();
+          if (aName) {
+            const tKey = aName.toLowerCase();
+            if (!countedTechs.has(tKey)) {
+              const stats = getOrInit(aName);
+              stats.totalCompleted += 1;
+              countedTechs.add(tKey);
+            }
           }
         });
       }
@@ -377,14 +427,21 @@ router.get('/dashboard-summary', async (req: Request, res: Response) => {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
+    const completedMatch = {
+      $or: [
+        { status: { $in: ['COMPLETED', 'DELIVERED', 'APPROVED'] } },
+        { 'financials.approvedAt': { $exists: true, $ne: null } }
+      ]
+    };
+
     const [totalAssigned, inProgress, pending, totalCompleted, completedToday, techReports, completedJobsList] = await Promise.all([
       Job.countDocuments(jobFilter),
-      Job.countDocuments({ ...jobFilter, status: { $in: ['IN_PROGRESS', 'ACCEPTED', 'ASSIGNED'] } } as any),
+      Job.countDocuments({ ...jobFilter, status: { $in: ['IN_PROGRESS', 'ACCEPTED', 'ASSIGNED'] }, 'financials.approvedAt': { $exists: false } } as any),
       Job.countDocuments({ ...jobFilter, status: { $in: ['PENDING', 'PENDING APPROVAL'] } } as any),
-      Job.countDocuments({ ...jobFilter, status: { $in: ['COMPLETED', 'DELIVERED', 'APPROVED'] } } as any),
-      Job.countDocuments({ ...jobFilter, status: { $in: ['COMPLETED', 'DELIVERED', 'APPROVED'] }, updatedAt: { $gte: todayStart } } as any),
+      Job.countDocuments({ ...jobFilter, ...completedMatch } as any),
+      Job.countDocuments({ ...jobFilter, ...completedMatch, updatedAt: { $gte: todayStart } } as any),
       TechnicianReport.find(reportQuery),
-      Job.find({ ...jobFilter, status: { $in: ['COMPLETED', 'DELIVERED', 'APPROVED'] } }).lean()
+      Job.find({ ...jobFilter, ...completedMatch }).lean()
     ]);
 
     // Compute actual hours logged from real reports submitted by this technician
@@ -542,17 +599,30 @@ router.get('/', async (req: Request, res: Response) => {
     if (status && status !== 'ALL') {
       const s = (status as string).toUpperCase();
       if (s === 'COMPLETED') {
-        filter.status = { $in: ['COMPLETED', 'APPROVED', 'DELIVERED', 'WAITING_ADMIN_APPROVAL'] };
+        andClauses.push({
+          $or: [
+            { status: { $in: ['COMPLETED', 'APPROVED', 'DELIVERED', 'WAITING_ADMIN_APPROVAL'] } },
+            { 'financials.approvedAt': { $exists: true, $ne: null } }
+          ]
+        });
       } else if (s === 'PENDING') {
-        filter.status = { $in: ['PENDING', 'ASSIGNED', 'WAITING_FOR_TECH', 'PENDING APPROVAL', 'ASSIGNMENT_PENDING_ACCEPTANCE'] };
+        andClauses.push({
+          status: { $in: ['PENDING', 'ASSIGNED', 'WAITING_FOR_TECH', 'PENDING APPROVAL', 'ASSIGNMENT_PENDING_ACCEPTANCE'] },
+          $or: [
+            { 'financials.approvedAt': { $exists: false } },
+            { 'financials.approvedAt': null }
+          ]
+        });
       } else if (s === 'IN_PROGRESS') {
-        filter.status = { $in: ['IN_PROGRESS', 'ACCEPTED', 'BEFORE_PHOTOS_DONE', 'AFTER_PHOTOS_DONE', 'INSPECTED', 'DAILY_REPORTED'] };
+        andClauses.push({
+          status: { $in: ['IN_PROGRESS', 'ACCEPTED', 'BEFORE_PHOTOS_DONE', 'AFTER_PHOTOS_DONE', 'INSPECTED', 'DAILY_REPORTED'] }
+        });
       } else {
-        filter.status = status;
+        andClauses.push({ status });
       }
     }
     if (priority && priority !== 'ALL') {
-      filter.priority = priority;
+      andClauses.push({ priority });
     }
 
     if (search) {

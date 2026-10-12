@@ -108,8 +108,8 @@ export default function AdminTechEarningsModal({ isOpen, onClose, technician, su
 
         // Sort descending by scheduledDate / date / createdAt
         const sorted = filtered.sort((a, b) => {
-          const dateA = new Date(a.scheduledDate || a.date || a.createdAt || a.updatedAt).getTime();
-          const dateB = new Date(b.scheduledDate || b.date || b.createdAt || b.updatedAt).getTime();
+          const dateA = new Date(a.scheduledDate || a.date || a.financials?.approvedAt || a.createdAt || a.updatedAt).getTime();
+          const dateB = new Date(b.scheduledDate || b.date || b.financials?.approvedAt || b.createdAt || b.updatedAt).getTime();
           return dateB - dateA;
         });
         setJobs(sorted);
@@ -133,6 +133,13 @@ export default function AdminTechEarningsModal({ isOpen, onClose, technician, su
     }
     if (j.dailyReports && j.dailyReports.length > 0 && j.dailyReports[0]?.date) {
       return String(j.dailyReports[0].date).split('T')[0];
+    }
+    if (j.financials?.approvedAt) {
+      try {
+        return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(j.financials.approvedAt));
+      } catch (_) {
+        return String(j.financials.approvedAt).split('T')[0];
+      }
     }
     if (j.createdAt) {
       try {
