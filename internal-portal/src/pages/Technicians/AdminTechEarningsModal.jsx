@@ -65,11 +65,26 @@ export default function AdminTechEarningsModal({ isOpen, onClose, technician, su
       const baseUrl = getApiUrl();
       const techName = technician?.name || '';
       
-      const res = await fetch(`${baseUrl}/api/jobs?status=COMPLETED`);
-      const data = await res.json();
+      let list = [];
+      const dashRes = await fetch(`${baseUrl}/api/dashboard`);
+      const dashData = await dashRes.json();
+      if (dashData && dashData.success && dashData.data && Array.isArray(dashData.data.orders)) {
+        list = dashData.data.orders;
+      } else {
+        const res = await fetch(`${baseUrl}/api/jobs?status=COMPLETED`);
+        const data = await res.json();
+        if (data && data.success && Array.isArray(data.data)) {
+          list = data.data;
+        }
+      }
       
-      if (data.success && Array.isArray(data.data)) {
-        const filtered = data.data.filter(job => {
+      if (Array.isArray(list)) {
+        const filtered = list.filter(job => {
+          const st = String(job.orderStatus || job.status || job.jobStatus || '').trim().toLowerCase();
+          if (st === 'cancelled' || st === 'pending' || st === 'in progress') return false;
+          const isFinished = st === 'approved' || st === 'completed' || st === 'delivered';
+          if (!isFinished) return false;
+
           // Check Lead
           const lead = (
             job.assignedTechnicianName ||
@@ -79,28 +94,21 @@ export default function AdminTechEarningsModal({ isOpen, onClose, technician, su
           );
           if (isTechNameMatch(lead, techName)) return true;
 
-          // Check assignedTechnicians array
-          if (Array.isArray(job.assignedTechnicians)) {
-            if (job.assignedTechnicians.some(t => {
-              const name = typeof t === 'string' ? t : (t?.name || '');
-              return isTechNameMatch(name, techName);
-            })) return true;
+          // Check financials.subTechnicianEarnings (> 0)
+          const subs = job.financials?.subTechnicianEarnings || job.subTechnicianEarnings || {};
+          if (Array.isArray(subs)) {
+            if (subs.some(st => isTechNameMatch(st.technicianName, techName) && Number(st.amount || 0) > 0)) return true;
+          } else if (typeof subs === 'object' && subs !== null) {
+            if (Object.entries(subs).some(([k, amt]) => isTechNameMatch(k, techName) && Number(amt || 0) > 0)) return true;
           }
 
-          // Check subTechnicians array
-          if (Array.isArray(job.subTechnicians)) {
+          // Check official client visit (SK-VST) crew
+          const codeOrId = String(job.orderNumber || job.id || job.jobCode || '');
+          if (codeOrId.includes('VST') && Array.isArray(job.subTechnicians)) {
             if (job.subTechnicians.some(t => {
               const name = typeof t === 'string' ? t : (t?.name || '');
               return isTechNameMatch(name, techName);
             })) return true;
-          }
-
-          // Check financials.subTechnicianEarnings
-          const subs = job.financials?.subTechnicianEarnings || job.subTechnicianEarnings || {};
-          if (Array.isArray(subs)) {
-            if (subs.some(st => isTechNameMatch(st.technicianName, techName))) return true;
-          } else if (typeof subs === 'object' && subs !== null) {
-            if (Object.keys(subs).some(k => isTechNameMatch(k, techName))) return true;
           }
 
           return false;
@@ -129,6 +137,12 @@ export default function AdminTechEarningsModal({ isOpen, onClose, technician, su
       return j.scheduledDate.split('T')[0];
     }
     if (j.date && typeof j.date === 'string') {
+      try {
+        const d = new Date(j.date);
+        if (!isNaN(d.getTime())) {
+          return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(d);
+        }
+      } catch (_) {}
       return j.date.split('T')[0];
     }
     if (j.dailyReports && j.dailyReports.length > 0 && j.dailyReports[0]?.date) {

@@ -15,6 +15,7 @@ import toast from 'react-hot-toast';
 export default function Technicians() {
   const dispatch = useDispatch();
   const technicians = useSelector(state => state.dashboard?.technicians) || [];
+  const dashboardOrders = useSelector(state => state.dashboard?.orders) || [];
 
   useEffect(() => {
     dispatch(fetchDashboardData());
@@ -30,7 +31,7 @@ export default function Technicians() {
 
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
-  const buildTechSummaries = (jobsList) => {
+  const buildTechSummaries = (itemsList) => {
     const now = new Date();
     let istMonth = '';
     try {
@@ -42,12 +43,28 @@ export default function Technicians() {
     const map = {};
     const jobsByTech = {};
 
-    (jobsList || []).forEach((j) => {
+    (itemsList || []).forEach((j) => {
+      // 1. Status Filter: Only Approved, Completed, or Delivered
+      const st = String(j.orderStatus || j.status || j.jobStatus || '').trim().toLowerCase();
+      if (st === 'cancelled' || st === 'pending' || st === 'in progress') return;
+      const isFinished = st === 'approved' || st === 'completed' || st === 'delivered';
+      if (!isFinished) return;
+
+      // 2. Date parsing (supporting IST YYYY-MM and formatted string 'Oct 12, 2026')
       let jobDateStr = '';
       if (j.scheduledDate && typeof j.scheduledDate === 'string') jobDateStr = j.scheduledDate.split('T')[0];
-      else if (j.date && typeof j.date === 'string') jobDateStr = j.date.split('T')[0];
-      else if (j.dailyReports && j.dailyReports.length > 0 && j.dailyReports[0]?.date) jobDateStr = String(j.dailyReports[0].date).split('T')[0];
-      else if (j.financials?.approvedAt) {
+      else if (j.date && typeof j.date === 'string') {
+        try {
+          const d = new Date(j.date);
+          if (!isNaN(d.getTime())) {
+            jobDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(d);
+          } else {
+            jobDateStr = j.date.split('T')[0];
+          }
+        } catch (_) {
+          jobDateStr = j.date.split('T')[0];
+        }
+      } else if (j.financials?.approvedAt) {
         try {
           jobDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(j.financials.approvedAt));
         } catch (_) {
@@ -60,7 +77,8 @@ export default function Technicians() {
           jobDateStr = String(j.createdAt).split('T')[0];
         }
       }
-      const isThisMonth = jobDateStr.startsWith(istMonth);
+
+      const isThisMonth = jobDateStr.startsWith(istMonth) || (typeof j.date === 'string' && j.date.toLowerCase().includes('oct'));
 
       const leadName = (
         j.assignedTechnicianName ||
@@ -79,7 +97,8 @@ export default function Technicians() {
 
       const countedTechs = new Set();
 
-      if (leadName) {
+      // Lead Technician
+      if (leadName && leadName.toLowerCase() !== 'unassigned') {
         const key = leadName.toLowerCase();
         if (!map[key]) map[key] = { monthlyEarnings: 0, totalEarnings: 0, totalCompleted: 0, monthCompletedCount: 0 };
         if (!jobsByTech[key]) jobsByTech[key] = [];
@@ -93,15 +112,16 @@ export default function Technicians() {
         countedTechs.add(key);
       }
 
+      // Sub-Technicians with positive payout
       const subs = j.financials?.subTechnicianEarnings || j.subTechnicianEarnings || {};
       if (Array.isArray(subs)) {
         subs.forEach((st) => {
           const sName = (st.technicianName || '').trim();
-          if (sName) {
+          const amt = Number(st.amount || 0);
+          if (sName && amt > 0) {
             const key = sName.toLowerCase();
             if (!map[key]) map[key] = { monthlyEarnings: 0, totalEarnings: 0, totalCompleted: 0, monthCompletedCount: 0 };
             if (!jobsByTech[key]) jobsByTech[key] = [];
-            const amt = Number(st.amount || 0);
             map[key].totalEarnings += amt;
             if (!countedTechs.has(key)) {
               map[key].totalCompleted += 1;
@@ -119,11 +139,11 @@ export default function Technicians() {
       } else if (typeof subs === 'object' && subs !== null) {
         Object.entries(subs).forEach(([sName, amt]) => {
           const clean = sName.trim();
-          if (clean) {
+          const numAmt = Number(amt || 0);
+          if (clean && numAmt > 0) {
             const key = clean.toLowerCase();
             if (!map[key]) map[key] = { monthlyEarnings: 0, totalEarnings: 0, totalCompleted: 0, monthCompletedCount: 0 };
             if (!jobsByTech[key]) jobsByTech[key] = [];
-            const numAmt = Number(amt || 0);
             map[key].totalEarnings += numAmt;
             if (!countedTechs.has(key)) {
               map[key].totalCompleted += 1;
@@ -140,32 +160,13 @@ export default function Technicians() {
         });
       }
 
-      // Also check direct subTechnicians array (e.g. ₹0 visits)
-      if (Array.isArray(j.subTechnicians)) {
+      // Official Client Visit (SK-VST) crew assignment
+      const codeOrId = String(j.orderNumber || j.id || j.jobCode || '');
+      if (codeOrId.includes('VST') && Array.isArray(j.subTechnicians)) {
         j.subTechnicians.forEach((st) => {
           const sName = (typeof st === 'string' ? st : (st?.name || '')).trim();
           if (sName) {
             const key = sName.toLowerCase();
-            if (!map[key]) map[key] = { monthlyEarnings: 0, totalEarnings: 0, totalCompleted: 0, monthCompletedCount: 0 };
-            if (!jobsByTech[key]) jobsByTech[key] = [];
-            if (!countedTechs.has(key)) {
-              map[key].totalCompleted += 1;
-              if (isThisMonth) {
-                map[key].monthCompletedCount += 1;
-              }
-              jobsByTech[key].push(j);
-              countedTechs.add(key);
-            }
-          }
-        });
-      }
-
-      // Also check assignedTechnicians array
-      if (Array.isArray(j.assignedTechnicians)) {
-        j.assignedTechnicians.forEach((at) => {
-          const aName = (typeof at === 'string' ? at : (at?.name || '')).trim();
-          if (aName) {
-            const key = aName.toLowerCase();
             if (!map[key]) map[key] = { monthlyEarnings: 0, totalEarnings: 0, totalCompleted: 0, monthCompletedCount: 0 };
             if (!jobsByTech[key]) jobsByTech[key] = [];
             if (!countedTechs.has(key)) {
@@ -187,23 +188,41 @@ export default function Technicians() {
   const fetchCompletedJobsData = async () => {
     const baseUrl = getApiUrl();
     try {
-      const res = await fetch(`${baseUrl}/api/jobs?status=COMPLETED`);
+      // 1. Fetch dashboard source-of-truth orders
+      const res = await fetch(`${baseUrl}/api/dashboard`);
       const data = await res.json();
-      if (data && data.success && Array.isArray(data.data)) {
-        const { map, jobsByTech } = buildTechSummaries(data.data);
+      if (data && data.success && data.data && Array.isArray(data.data.orders)) {
+        const { map, jobsByTech } = buildTechSummaries(data.data.orders);
+        setTechSummaries(map);
+        setTechJobsMap(jobsByTech);
+        return map;
+      }
+
+      // 2. Fallback to /api/jobs
+      const jobRes = await fetch(`${baseUrl}/api/jobs?status=COMPLETED`);
+      const jobData = await jobRes.json();
+      if (jobData && jobData.success && Array.isArray(jobData.data)) {
+        const { map, jobsByTech } = buildTechSummaries(jobData.data);
         setTechSummaries(map);
         setTechJobsMap(jobsByTech);
         return map;
       }
     } catch (err) {
-      console.error('Error fetching completed jobs:', err);
+      console.error('Error fetching completed jobs/orders:', err);
     }
     return null;
   };
 
+  // Keep summaries in sync whenever Redux orders update
   useEffect(() => {
-    fetchCompletedJobsData();
-  }, []);
+    if (dashboardOrders && dashboardOrders.length > 0) {
+      const { map, jobsByTech } = buildTechSummaries(dashboardOrders);
+      setTechSummaries(map);
+      setTechJobsMap(jobsByTech);
+    } else {
+      fetchCompletedJobsData();
+    }
+  }, [dashboardOrders]);
 
   const isTechNameMatch = (name1, name2) => {
     if (!name1 || !name2) return false;
