@@ -286,13 +286,41 @@ router.get('/dashboard-summary', async (req: Request, res: Response) => {
       return acc + (Number(r.hoursWorked) || 0);
     }, 0);
 
-    const currentMonthStart = new Date();
-    currentMonthStart.setDate(1);
-    currentMonthStart.setHours(0, 0, 0, 0);
+    const now = new Date();
+    // India Standard Time (IST) formatting for date strings ('YYYY-MM-DD')
+    let istDateStr = '';
+    try {
+      istDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now);
+    } catch (_) {
+      istDateStr = now.toISOString().split('T')[0];
+    }
+    const currentYearMonth = istDateStr.substring(0, 7); // 'YYYY-MM'
+    const todayStr = istDateStr; // 'YYYY-MM-DD'
+
+    const getJobDateString = (j: any): string => {
+      if (j.scheduledDate && typeof j.scheduledDate === 'string') {
+        return j.scheduledDate.split('T')[0];
+      }
+      if (j.date && typeof j.date === 'string') {
+        return j.date.split('T')[0];
+      }
+      if (j.dailyReports && j.dailyReports.length > 0 && j.dailyReports[0].date) {
+        return String(j.dailyReports[0].date).split('T')[0];
+      }
+      if (j.createdAt) {
+        try {
+          return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(j.createdAt));
+        } catch (_) {
+          return new Date(j.createdAt).toISOString().split('T')[0];
+        }
+      }
+      return '';
+    };
 
     let totalEarnings = 0;
     let monthlyEarnings = 0;
     let todayEarnings = 0;
+    let actualCompletedToday = 0;
 
     completedJobsList.forEach((j: any) => {
       let earning = 0;
@@ -325,12 +353,17 @@ router.get('/dashboard-summary', async (req: Request, res: Response) => {
       }
 
       totalEarnings += earning;
-      const jobUpdatedAt = new Date(j.financials?.approvedAt || j.updatedAt || j.createdAt);
-      if (jobUpdatedAt >= currentMonthStart) {
+
+      const jobDateStr = getJobDateString(j);
+      const isThisMonth = jobDateStr.startsWith(currentYearMonth);
+      const isToday = jobDateStr === todayStr;
+
+      if (isThisMonth) {
         monthlyEarnings += earning;
       }
-      if (jobUpdatedAt >= todayStart) {
+      if (isToday) {
         todayEarnings += earning;
+        actualCompletedToday++;
       }
     });
 
@@ -344,7 +377,7 @@ router.get('/dashboard-summary', async (req: Request, res: Response) => {
         availablePool: 0,
         inProgress,
         pending,
-        completedToday,
+        completedToday: actualCompletedToday,
         totalCompleted,
         hoursLogged: parseFloat(hoursLogged.toFixed(1)),
         shiftTarget: 8,

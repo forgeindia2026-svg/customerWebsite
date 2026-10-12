@@ -87,9 +87,56 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
   const fixRateVal = summaryStats ? summaryStats.firstTimeFix : (completedJobs.length > 0 ? 100.0 : (isLoading ? null : 0.0));
   const safetyVal = summaryStats ? summaryStats.safetyScore : (myAssignedJobs.length > 0 ? 100 : (isLoading ? null : 0));
   
+  // Current month & today date markers for strictly scoped earnings
+  const now = new Date();
+  const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const currentTechName = (localStorage.getItem('user_name') || '').toLowerCase().trim();
+
+  // Compute strictly from completed jobs for this month if summaryStats is missing
+  const computedStatsFromJobs = React.useMemo(() => {
+    let mEarnings = 0;
+    let tEarnings = 0;
+    completedJobs.forEach((j: any) => {
+      let earning = 0;
+      const isMain =
+        (j.assignedTechnician && j.assignedTechnician.toLowerCase().includes(currentTechName)) ||
+        (j.assignedTechnicians && j.assignedTechnicians.some((t: any) => t.name?.toLowerCase().includes(currentTechName)));
+
+      if (isMain) {
+        earning = Number(j.financials?.mainTechnicianEarning ?? j.mainTechnicianEarning ?? j.financials?.technicianEarning ?? j.technicianEarning ?? 0);
+      } else {
+        const subs = j.financials?.subTechnicianEarnings || j.subTechnicianEarnings || {};
+        let subAmount = 0;
+        if (Array.isArray(subs)) {
+          const match = subs.find((st: any) => st.technicianName?.toLowerCase().includes(currentTechName));
+          if (match) subAmount = Number(match.amount || 0);
+        } else {
+          const key = Object.keys(subs).find(k => k.toLowerCase().includes(currentTechName));
+          if (key) subAmount = Number(subs[key]);
+        }
+        earning = subAmount > 0 ? subAmount : Number(j.financials?.technicianEarning ?? j.technicianEarning ?? 0);
+      }
+
+      const rawDate = j.scheduledDate || j.date || (j.dailyReports && j.dailyReports[0]?.date) || (j.createdAt ? String(j.createdAt).split('T')[0] : '');
+      const dateStr = typeof rawDate === 'string' ? rawDate.split('T')[0] : '';
+      if (dateStr.startsWith(currentYearMonth)) {
+        mEarnings += earning;
+      }
+      if (dateStr === todayStr) {
+        tEarnings += earning;
+      }
+    });
+    return { monthlyEarnings: mEarnings, todayEarnings: tEarnings };
+  }, [completedJobs, currentTechName, currentYearMonth, todayStr]);
+
   const totalEarningsVal = summaryStats?.totalEarnings ?? 0;
-  const monthlyEarningsVal = summaryStats?.monthlyEarnings ?? totalEarningsVal;
-  const todayEarningsVal = summaryStats?.todayEarnings ?? 0;
+  const monthlyEarningsVal = summaryStats?.monthlyEarnings !== undefined 
+    ? summaryStats.monthlyEarnings 
+    : computedStatsFromJobs.monthlyEarnings;
+  const todayEarningsVal = summaryStats?.todayEarnings !== undefined 
+    ? summaryStats.todayEarnings 
+    : computedStatsFromJobs.todayEarnings;
 
   const nextJob = activeJob || jobs[0];
 

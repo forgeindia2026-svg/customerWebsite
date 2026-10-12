@@ -11,6 +11,7 @@ interface EarningsHistoryModalProps {
 export const EarningsHistoryModal: React.FC<EarningsHistoryModalProps> = ({ isOpen, onClose }) => {
   const [history, setHistory] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [filterPeriod, setFilterPeriod] = useState<'THIS_MONTH' | 'ALL'>('THIS_MONTH');
 
   useEffect(() => {
     if (isOpen) {
@@ -30,10 +31,10 @@ export const EarningsHistoryModal: React.FC<EarningsHistoryModalProps> = ({ isOp
       const data = await res.json();
       
       if (data.success && data.data) {
-        // Sort descending by completion date (use creation date as per requirements)
+        // Sort descending by completion / scheduled date
         const sorted = data.data.sort((a: any, b: any) => {
-          const dateA = new Date(a.date || a.createdAt || a.updatedAt).getTime();
-          const dateB = new Date(b.date || b.createdAt || b.updatedAt).getTime();
+          const dateA = new Date(a.scheduledDate || a.date || a.createdAt || a.updatedAt).getTime();
+          const dateB = new Date(b.scheduledDate || b.date || b.createdAt || b.updatedAt).getTime();
           return dateB - dateA;
         });
         setHistory(sorted);
@@ -46,6 +47,51 @@ export const EarningsHistoryModal: React.FC<EarningsHistoryModalProps> = ({ isOp
   };
 
   if (!isOpen) return null;
+
+  const techName = localStorage.getItem('user_name') || '';
+  const now = new Date();
+  const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+  const getJobEarning = (job: any) => {
+    const isMainTech = 
+      (job.assignedTechnician && job.assignedTechnician.toLowerCase().includes(techName.toLowerCase())) ||
+      (job.assignedTechnicians && job.assignedTechnicians.some((t: any) => t.name?.toLowerCase().includes(techName.toLowerCase())));
+      
+    if (isMainTech) {
+      return Number(job.financials?.mainTechnicianEarning ?? job.mainTechnicianEarning ?? job.financials?.technicianEarning ?? job.technicianEarning ?? 0);
+    }
+    const subs = job.financials?.subTechnicianEarnings || job.subTechnicianEarnings || {};
+    let subTechAmount = 0;
+    if (Array.isArray(subs)) {
+      const subTechMatch = subs.find((st: any) => 
+        st.technicianName?.toLowerCase().includes(techName.toLowerCase())
+      );
+      if (subTechMatch) subTechAmount = Number(subTechMatch.amount || 0);
+    } else {
+      const key = Object.keys(subs).find(k => k.toLowerCase().includes(techName.toLowerCase()));
+      if (key) subTechAmount = Number(subs[key]);
+    }
+    return subTechAmount > 0 ? subTechAmount : Number(job.financials?.technicianEarning ?? job.technicianEarning ?? 0);
+  };
+
+  const getJobDate = (job: any) => {
+    return job.scheduledDate || job.date || (job.dailyReports && job.dailyReports[0]?.date) || job.createdAt || job.updatedAt;
+  };
+
+  const isJobThisMonth = (job: any) => {
+    const dStr = String(getJobDate(job) || '').split('T')[0];
+    return dStr.startsWith(currentYearMonth);
+  };
+
+  const filteredHistory = history.filter((job: any) => {
+    if (filterPeriod === 'THIS_MONTH') {
+      return isJobThisMonth(job);
+    }
+    return true;
+  });
+
+  const thisMonthTotal = history.reduce((sum, j) => isJobThisMonth(j) ? sum + getJobEarning(j) : sum, 0);
+  const allTimeTotal = history.reduce((sum, j) => sum + getJobEarning(j), 0);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm transition-opacity">
@@ -71,49 +117,45 @@ export const EarningsHistoryModal: React.FC<EarningsHistoryModalProps> = ({ isOp
           </button>
         </div>
 
+        {/* Filter Switcher Tabs */}
+        <div className="flex items-center gap-2 px-5 py-3 border-b border-slate-100 bg-white">
+          <button
+            onClick={() => setFilterPeriod('THIS_MONTH')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              filterPeriod === 'THIS_MONTH'
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            This Month (₹{thisMonthTotal.toLocaleString('en-IN')})
+          </button>
+          <button
+            onClick={() => setFilterPeriod('ALL')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              filterPeriod === 'ALL'
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            All History (₹{allTimeTotal.toLocaleString('en-IN')})
+          </button>
+        </div>
+
         <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-slate-50/30">
           {isLoading ? (
             <div className="flex justify-center items-center py-10">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
             </div>
-          ) : history.length === 0 ? (
+          ) : filteredHistory.length === 0 ? (
             <div className="text-center py-10 text-slate-500">
               <Wallet className="w-12 h-12 mx-auto text-slate-300 mb-3" />
-              <p className="font-semibold text-sm">No earnings history found</p>
+              <p className="font-semibold text-sm">No earnings found for {filterPeriod === 'THIS_MONTH' ? 'this month' : 'this period'}</p>
               <p className="text-xs mt-1">Complete jobs to start earning.</p>
             </div>
           ) : (
-            history.map((job: any) => {
-              const techName = localStorage.getItem('user_name') || '';
-              let earning = 0;
-              const isMainTech = 
-                (job.assignedTechnician && job.assignedTechnician.toLowerCase().includes(techName.toLowerCase())) ||
-                (job.assignedTechnicians && job.assignedTechnicians.some((t: any) => t.name?.toLowerCase().includes(techName.toLowerCase())));
-                
-              if (isMainTech) {
-                earning = Number(job.financials?.mainTechnicianEarning ?? job.mainTechnicianEarning ?? job.financials?.technicianEarning ?? job.technicianEarning ?? 0);
-              } else {
-                let subTechAmount = 0;
-                const subs = job.financials?.subTechnicianEarnings || job.subTechnicianEarnings || {};
-                
-                if (Array.isArray(subs)) {
-                  const subTechMatch = subs.find((st: any) => 
-                    st.technicianName?.toLowerCase().includes(techName.toLowerCase())
-                  );
-                  if (subTechMatch) subTechAmount = Number(subTechMatch.amount || 0);
-                } else {
-                  const key = Object.keys(subs).find(k => k.toLowerCase().includes(techName.toLowerCase()));
-                  if (key) subTechAmount = Number(subs[key]);
-                }
-                
-                if (subTechAmount > 0) {
-                  earning = subTechAmount;
-                } else {
-                  earning = Number(job.financials?.technicianEarning ?? job.technicianEarning ?? 0);
-                }
-              }
-
-              const jobDate = new Date(job.date || job.createdAt || job.updatedAt);
+            filteredHistory.map((job: any) => {
+              const earning = getJobEarning(job);
+              const jobDate = new Date(getJobDate(job));
               
               return (
                 <div key={job._id || job.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:border-indigo-200 transition-colors">
