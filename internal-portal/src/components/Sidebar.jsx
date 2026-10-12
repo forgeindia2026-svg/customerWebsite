@@ -35,7 +35,31 @@ const BrandLogo = () => (
 export default function Sidebar({ isOpen, toggleSidebar }) {
   const navigate = useNavigate();
   const notifications = useSelector(state => state.dashboard?.notifications) || [];
+  const settings = useSelector(state => state.dashboard?.settings) || {};
   const unreadCount = (notifications || []).filter(n => !n.read).length;
+
+  const getActiveUserName = () => {
+    const currentRole = (localStorage.getItem('internal_role') || 'ADMIN').toUpperCase();
+    return localStorage.getItem('user_name') || (currentRole === 'HR' ? 'HR Manager' : (settings?.contactPerson || 'Administrator'));
+  };
+
+  const [currentUserName, setCurrentUserName] = useState(getActiveUserName);
+
+  useEffect(() => {
+    const handleProfileUpdate = (e) => {
+      if (e?.detail?.name) {
+        setCurrentUserName(e.detail.name);
+      } else {
+        setCurrentUserName(getActiveUserName());
+      }
+    };
+    window.addEventListener('admin_profile_updated', handleProfileUpdate);
+    window.addEventListener('storage', handleProfileUpdate);
+    return () => {
+      window.removeEventListener('admin_profile_updated', handleProfileUpdate);
+      window.removeEventListener('storage', handleProfileUpdate);
+    };
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('internal_token');
@@ -150,8 +174,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
       {/* Bottom Profile & Logout Section */}
       {(() => {
         const currentRole = (localStorage.getItem('internal_role') || 'ADMIN').toUpperCase();
-        const currentUserName = localStorage.getItem('user_name') || (currentRole === 'HR' ? 'HR Manager' : 'Administrator');
-        const userInitials = currentUserName.slice(0, 2).toUpperCase();
+        const userInitials = (currentUserName || 'AD').slice(0, 2).toUpperCase();
         return (
           <div className="p-3 border-t border-[#0F2347] bg-[#051124] space-y-2.5">
             {isOpen && (

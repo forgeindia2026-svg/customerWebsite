@@ -292,12 +292,16 @@ const dashboardSlice = createSlice({
       });
 
       const storedPhoto = localStorage.getItem('admin_avatar') || state.settings?.profilePhoto || '';
+      const storedName = localStorage.getItem('user_name');
       const mergedSettings = {
         ...state.settings,
         ...(payload.settings || {})
       };
       if (storedPhoto && !mergedSettings.profilePhoto) {
         mergedSettings.profilePhoto = storedPhoto;
+      }
+      if (storedName && (!payload.settings?.contactPerson || payload.settings.contactPerson === 'Ramesh Kumar')) {
+        mergedSettings.contactPerson = storedName;
       }
 
       return {

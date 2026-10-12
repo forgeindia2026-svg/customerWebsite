@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { updateSettings } from '../../redux/dashboardSlice';
 import { FiSave, FiSettings, FiBriefcase, FiMail, FiMapPin, FiPercent, FiCamera, FiUpload, FiTrash2, FiUser, FiShield } from 'react-icons/fi';
 import { compressImage } from '../../utils/imageUtils';
+import { getApiUrl } from '../../utils/config';
 
 export default function Settings() {
   const dispatch = useDispatch();
@@ -10,6 +11,7 @@ export default function Settings() {
 
   const role = (localStorage.getItem('internal_role') || 'ADMIN').toUpperCase();
   const isHR = role === 'HR';
+  const isInitialized = useRef(false);
 
   const [form, setForm] = useState(() => {
     const rawUser = (() => {
@@ -38,25 +40,30 @@ export default function Settings() {
     };
   });
 
+  // Only initialize form once when settings/profile are loaded to prevent 5s dashboard polling loop from wiping user edits
   useEffect(() => {
-    const rawUser = (() => {
-      try { return JSON.parse(localStorage.getItem('internal_user') || '{}'); } catch { return {}; }
-    })();
-    const savedName = localStorage.getItem('user_name') || rawUser.name || (isHR ? 'Kowsalya.V' : (settings?.contactPerson || 'SARAN KUMAR'));
-    const savedEmail = localStorage.getItem('user_email') || rawUser.email || (isHR ? 'hr@sktechnology.in' : (settings?.email || 'sales@sktechnology.services'));
-    const savedPhoto = localStorage.getItem('admin_avatar') || rawUser.avatar || settings?.profilePhoto || '';
-    const savedPhone = localStorage.getItem('user_phone') || rawUser.phone || settings?.phone || '+91 96009 75483';
+    if (isInitialized.current) return;
+    if (settings && Object.keys(settings).length > 0) {
+      isInitialized.current = true;
+      const rawUser = (() => {
+        try { return JSON.parse(localStorage.getItem('internal_user') || '{}'); } catch { return {}; }
+      })();
+      const savedName = localStorage.getItem('user_name') || rawUser.name || (isHR ? 'Kowsalya.V' : (settings?.contactPerson || 'SARAN KUMAR'));
+      const savedEmail = localStorage.getItem('user_email') || rawUser.email || (isHR ? 'hr@sktechnology.in' : (settings?.email || 'sales@sktechnology.services'));
+      const savedPhoto = localStorage.getItem('admin_avatar') || rawUser.avatar || settings?.profilePhoto || '';
+      const savedPhone = localStorage.getItem('user_phone') || rawUser.phone || settings?.phone || '+91 96009 75483';
 
-    setForm(prev => ({
-      ...prev,
-      companyName: settings?.companyName || prev.companyName || 'SK TECHNOLOGY',
-      address: settings?.address || prev.address,
-      taxRate: settings?.taxRate ?? prev.taxRate ?? 18,
-      contactPerson: savedName,
-      email: savedEmail,
-      phone: savedPhone,
-      profilePhoto: savedPhoto
-    }));
+      setForm(prev => ({
+        ...prev,
+        companyName: settings?.companyName || prev.companyName || 'SK TECHNOLOGY',
+        address: settings?.address || prev.address,
+        taxRate: settings?.taxRate ?? prev.taxRate ?? 18,
+        contactPerson: savedName,
+        email: savedEmail,
+        phone: savedPhone,
+        profilePhoto: savedPhoto
+      }));
+    }
   }, [settings, isHR]);
 
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -77,6 +84,10 @@ export default function Settings() {
         localStorage.setItem('internal_user', JSON.stringify(u));
       } catch (err) {}
       dispatch(updateSettings({ profilePhoto: base64Image }));
+      window.dispatchEvent(new CustomEvent('admin_profile_updated', {
+        detail: { name: form.contactPerson, avatar: base64Image }
+      }));
+      window.dispatchEvent(new Event('storage'));
     } catch (err) {
       setUploadError('Failed to process image. Please choose a valid image file.');
     }
@@ -91,13 +102,19 @@ export default function Settings() {
       localStorage.setItem('internal_user', JSON.stringify(u));
     } catch (err) {}
     dispatch(updateSettings({ profilePhoto: '' }));
+    window.dispatchEvent(new CustomEvent('admin_profile_updated', {
+      detail: { name: form.contactPerson, avatar: '' }
+    }));
+    window.dispatchEvent(new Event('storage'));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    const updatedName = (form.contactPerson || '').trim() || (isHR ? 'HR Manager' : 'Administrator');
+
     // Persist active user details locally
-    localStorage.setItem('user_name', form.contactPerson);
+    localStorage.setItem('user_name', updatedName);
     localStorage.setItem('user_email', form.email);
     localStorage.setItem('user_phone', form.phone);
     if (form.profilePhoto) {
@@ -108,24 +125,35 @@ export default function Settings() {
 
     try {
       const u = JSON.parse(localStorage.getItem('internal_user') || '{}');
-      u.name = form.contactPerson;
+      u.name = updatedName;
       u.email = form.email;
       u.phone = form.phone;
       u.avatar = form.profilePhoto;
       localStorage.setItem('internal_user', JSON.stringify(u));
     } catch (_) {}
 
-    dispatch(updateSettings(form));
+    dispatch(updateSettings({ ...form, contactPerson: updatedName }));
 
-    // Sync with backend profile API
+    // Instantly notify Header, Sidebar, and other layout components
+    window.dispatchEvent(new CustomEvent('admin_profile_updated', {
+      detail: {
+        name: updatedName,
+        email: form.email,
+        phone: form.phone,
+        avatar: form.profilePhoto
+      }
+    }));
+    window.dispatchEvent(new Event('storage'));
+
+    // Sync with backend profile API using getApiUrl()
     try {
       if (form.email) {
-        await fetch('/api/auth/profile', {
+        await fetch(`${getApiUrl()}/api/auth/profile`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             email: form.email,
-            name: form.contactPerson,
+            name: updatedName,
             phone: form.phone,
             address: form.address,
             avatar: form.profilePhoto
@@ -133,7 +161,7 @@ export default function Settings() {
         });
       }
     } catch (err) {
-      // Ignore network errors if backend offline
+      console.warn('Backend profile update note:', err);
     }
 
     setSaveSuccess(true);

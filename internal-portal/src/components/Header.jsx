@@ -4,6 +4,7 @@ import { toggleDarkMode, markNotificationAsRead, markAllNotificationsAsRead, upd
 import { FiSearch, FiBell, FiSun, FiMoon, FiMenu, FiLogOut, FiSettings, FiUser, FiCheck, FiChevronDown, FiX, FiArrowRight, FiTv, FiCamera, FiUpload } from 'react-icons/fi';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { compressImage } from '../utils/imageUtils';
+import { getApiUrl } from '../utils/config';
 
 export default function Header({ toggleMobileSidebar }) {
   const dispatch = useDispatch();
@@ -114,16 +115,51 @@ export default function Header({ toggleMobileSidebar }) {
     return segment.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   };
 
-  const user = (() => {
-    try {
-      return JSON.parse(localStorage.getItem('internal_user') || '{}');
-    } catch {
-      return {};
-    }
-  })();
-  const userRole = (localStorage.getItem('internal_role') || user?.role || 'ADMIN').toUpperCase();
-  const adminName = localStorage.getItem('user_name') || user?.name || (userRole === 'HR' ? 'HR Manager' : (settings?.contactPerson && settings.contactPerson !== 'Ramesh Kumar' ? settings.contactPerson : 'Administrator'));
-  const adminAvatar = user?.avatar || (user?.email === settings?.email ? settings?.profilePhoto : '') || localStorage.getItem('admin_avatar') || '';
+  const computeAdminName = () => {
+    const u = (() => {
+      try { return JSON.parse(localStorage.getItem('internal_user') || '{}'); } catch { return {}; }
+    })();
+    const userRole = (localStorage.getItem('internal_role') || u?.role || 'ADMIN').toUpperCase();
+    return localStorage.getItem('user_name') || u?.name || (userRole === 'HR' ? 'HR Manager' : (settings?.contactPerson && settings.contactPerson !== 'Ramesh Kumar' ? settings.contactPerson : 'Administrator'));
+  };
+
+  const computeAdminAvatar = () => {
+    const u = (() => {
+      try { return JSON.parse(localStorage.getItem('internal_user') || '{}'); } catch { return {}; }
+    })();
+    return u?.avatar || (u?.email === settings?.email ? settings?.profilePhoto : '') || localStorage.getItem('admin_avatar') || '';
+  };
+
+  const [adminName, setAdminName] = useState(computeAdminName);
+  const [adminAvatar, setAdminAvatar] = useState(computeAdminAvatar);
+
+  useEffect(() => {
+    setAdminName(computeAdminName());
+    setAdminAvatar(computeAdminAvatar());
+  }, [settings]);
+
+  useEffect(() => {
+    const handleProfileSync = (e) => {
+      if (e?.detail?.name) {
+        setAdminName(e.detail.name);
+      } else {
+        setAdminName(computeAdminName());
+      }
+      if (e?.detail?.avatar !== undefined) {
+        setAdminAvatar(e.detail.avatar);
+      } else {
+        setAdminAvatar(computeAdminAvatar());
+      }
+    };
+
+    window.addEventListener('admin_profile_updated', handleProfileSync);
+    window.addEventListener('storage', handleProfileSync);
+    return () => {
+      window.removeEventListener('admin_profile_updated', handleProfileSync);
+      window.removeEventListener('storage', handleProfileSync);
+    };
+  }, []);
+
   const headerFileInputRef = useRef(null);
 
   const handleHeaderPhotoUpload = async (e) => {
@@ -140,16 +176,23 @@ export default function Header({ toggleMobileSidebar }) {
         localStorage.setItem('internal_user', JSON.stringify(u));
       } catch (err) {}
 
-      if (settings?.email || user?.email) {
-        fetch('/api/auth/profile', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: settings?.email || user?.email || 'admin@sktechnology.in',
-            avatar: base64Image
-          })
-        }).catch(() => {});
-      }
+      setAdminAvatar(base64Image);
+      window.dispatchEvent(new CustomEvent('admin_profile_updated', {
+        detail: { name: adminName, avatar: base64Image }
+      }));
+
+      const uEmail = settings?.email || (() => {
+        try { return JSON.parse(localStorage.getItem('internal_user') || '{}').email; } catch { return ''; }
+      })() || 'admin@sktechnology.in';
+
+      fetch(`${getApiUrl()}/api/auth/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: uEmail,
+          avatar: base64Image
+        })
+      }).catch(() => {});
     } catch (err) {
       console.error('Failed to upload profile photo from header', err);
     }
