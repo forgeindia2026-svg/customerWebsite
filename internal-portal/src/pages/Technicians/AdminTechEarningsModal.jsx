@@ -94,22 +94,25 @@ export default function AdminTechEarningsModal({ isOpen, onClose, technician, su
           );
           if (isTechNameMatch(lead, techName)) return true;
 
-          // Check financials.subTechnicianEarnings (> 0)
-          const subs = job.financials?.subTechnicianEarnings || job.subTechnicianEarnings || {};
-          if (Array.isArray(subs)) {
-            if (subs.some(st => isTechNameMatch(st.technicianName, techName) && Number(st.amount || 0) > 0)) return true;
-          } else if (typeof subs === 'object' && subs !== null) {
-            if (Object.entries(subs).some(([k, amt]) => isTechNameMatch(k, techName) && Number(amt || 0) > 0)) return true;
-          }
+          // Helper function to extract assigned sub technician names
+          const parseSubs = (raw) => {
+            if (!raw) return [];
+            let slist = [];
+            if (typeof raw === 'string') {
+              try {
+                const parsed = JSON.parse(raw);
+                slist = Array.isArray(parsed) ? parsed : [raw];
+              } catch { slist = raw.split(','); }
+            } else if (Array.isArray(raw)) { slist = raw; }
+            return slist.map(item => {
+              if (typeof item === 'object' && item !== null) return item.name || item.technicianName || item.id || '';
+              return String(item || '').trim();
+            }).filter(Boolean);
+          };
 
-          // Check official client visit (SK-VST) crew
-          const codeOrId = String(job.orderNumber || job.id || job.jobCode || '');
-          if (codeOrId.includes('VST') && Array.isArray(job.subTechnicians)) {
-            if (job.subTechnicians.some(t => {
-              const name = typeof t === 'string' ? t : (t?.name || '');
-              return isTechNameMatch(name, techName);
-            })) return true;
-          }
+          // Check Sub Technician assignment
+          const orderSubList = parseSubs(job.subTechnicians);
+          if (orderSubList.some(s => isTechNameMatch(s, techName))) return true;
 
           return false;
         });
