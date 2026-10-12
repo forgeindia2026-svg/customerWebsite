@@ -196,6 +196,13 @@ export default function AdminTechEarningsModal({ isOpen, onClose, technician, su
     return summary?.totalCompleted ?? technician?.completedJobsCount ?? 0;
   }, [jobs, summary, technician]);
 
+  const thisMonthCompletedCount = useMemo(() => {
+    if (jobs.length > 0) {
+      return jobs.filter(j => isJobThisMonth(j)).length;
+    }
+    return summary?.monthCompletedCount ?? 0;
+  }, [jobs, summary, currentYearMonth]);
+
   if (!isOpen || !technician) return null;
 
   return (
@@ -274,14 +281,14 @@ export default function AdminTechEarningsModal({ isOpen, onClose, technician, su
             {/* 3. Completed Jobs Count */}
             <div className="bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 rounded-2xl p-3 flex flex-col justify-between">
               <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
-                <span className="text-[10px] font-black uppercase tracking-wider">COMPLETED</span>
+                <span className="text-[10px] font-black uppercase tracking-wider">MONTH COMPLETED</span>
                 <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
               </div>
               <div className="mt-1.5">
                 <span className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100 font-mono">
-                  {completedCount}
+                  {thisMonthCompletedCount}
                 </span>
-                <p className="text-[10px] text-slate-500 font-medium">Signed off work</p>
+                <p className="text-[10px] text-slate-500 font-medium">Jobs this month ({completedCount} all-time)</p>
               </div>
             </div>
           </div>

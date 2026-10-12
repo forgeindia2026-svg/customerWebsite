@@ -75,11 +75,14 @@ export default function Technicians() {
 
             if (leadName) {
               const key = leadName.toLowerCase();
-              if (!map[key]) map[key] = { monthlyEarnings: 0, totalEarnings: 0, totalCompleted: 0 };
+              if (!map[key]) map[key] = { monthlyEarnings: 0, totalEarnings: 0, totalCompleted: 0, monthCompletedCount: 0 };
               if (!jobsByTech[key]) jobsByTech[key] = [];
               map[key].totalEarnings += mainEarning;
               map[key].totalCompleted += 1;
-              if (isThisMonth) map[key].monthlyEarnings += mainEarning;
+              if (isThisMonth) {
+                map[key].monthlyEarnings += mainEarning;
+                map[key].monthCompletedCount += 1;
+              }
               jobsByTech[key].push(j);
             }
 
@@ -89,12 +92,15 @@ export default function Technicians() {
                 const sName = (st.technicianName || '').trim();
                 if (sName) {
                   const key = sName.toLowerCase();
-                  if (!map[key]) map[key] = { monthlyEarnings: 0, totalEarnings: 0, totalCompleted: 0 };
+                  if (!map[key]) map[key] = { monthlyEarnings: 0, totalEarnings: 0, totalCompleted: 0, monthCompletedCount: 0 };
                   if (!jobsByTech[key]) jobsByTech[key] = [];
                   const amt = Number(st.amount || 0);
                   map[key].totalEarnings += amt;
                   map[key].totalCompleted += 1;
-                  if (isThisMonth) map[key].monthlyEarnings += amt;
+                  if (isThisMonth) {
+                    map[key].monthlyEarnings += amt;
+                    map[key].monthCompletedCount += 1;
+                  }
                   jobsByTech[key].push(j);
                 }
               });
@@ -103,12 +109,15 @@ export default function Technicians() {
                 const clean = sName.trim();
                 if (clean) {
                   const key = clean.toLowerCase();
-                  if (!map[key]) map[key] = { monthlyEarnings: 0, totalEarnings: 0, totalCompleted: 0 };
+                  if (!map[key]) map[key] = { monthlyEarnings: 0, totalEarnings: 0, totalCompleted: 0, monthCompletedCount: 0 };
                   if (!jobsByTech[key]) jobsByTech[key] = [];
                   const numAmt = Number(amt || 0);
                   map[key].totalEarnings += numAmt;
                   map[key].totalCompleted += 1;
-                  if (isThisMonth) map[key].monthlyEarnings += numAmt;
+                  if (isThisMonth) {
+                    map[key].monthlyEarnings += numAmt;
+                    map[key].monthCompletedCount += 1;
+                  }
                   jobsByTech[key].push(j);
                 }
               });
