@@ -900,6 +900,7 @@ export default function Technicians() {
           isOpen={Boolean(earningsTech)} 
           onClose={() => setEarningsTech(null)} 
           technician={earningsTech} 
+          summary={techSummaries[earningsTech?.name]}
         />
       )}
 

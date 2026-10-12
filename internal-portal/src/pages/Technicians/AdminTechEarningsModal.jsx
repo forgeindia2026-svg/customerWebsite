@@ -15,14 +15,19 @@ import {
 } from 'lucide-react';
 import { getApiUrl } from '../../utils/config';
 
-export default function AdminTechEarningsModal({ isOpen, onClose, technician }) {
+export default function AdminTechEarningsModal({ isOpen, onClose, technician, summary }) {
   const [jobs, setJobs] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [filterPeriod, setFilterPeriod] = useState('THIS_MONTH'); // 'THIS_MONTH' | 'ALL'
   const [searchQuery, setSearchQuery] = useState('');
 
   const now = new Date();
-  const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  let currentYearMonth = '';
+  try {
+    currentYearMonth = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now).substring(0, 7);
+  } catch (_) {
+    currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }
 
   useEffect(() => {
     if (isOpen && technician) {
@@ -35,9 +40,8 @@ export default function AdminTechEarningsModal({ isOpen, onClose, technician }) 
     try {
       const baseUrl = getApiUrl();
       const techName = technician?.name || '';
-      const techId = technician?.id || '';
       
-      const res = await fetch(`${baseUrl}/api/jobs?status=COMPLETED&technicianId=${encodeURIComponent(techId)}&technicianName=${encodeURIComponent(techName)}`);
+      const res = await fetch(`${baseUrl}/api/jobs?status=COMPLETED&technicianName=${encodeURIComponent(techName)}`);
       const data = await res.json();
       
       if (data.success && Array.isArray(data.data)) {
@@ -59,8 +63,31 @@ export default function AdminTechEarningsModal({ isOpen, onClose, technician }) 
     }
   };
 
-  const getJobDate = (job) => {
-    return job.scheduledDate || job.date || (job.dailyReports && job.dailyReports[0]?.date) || job.createdAt || job.updatedAt;
+  const getJobDateString = (j) => {
+    if (j.scheduledDate && typeof j.scheduledDate === 'string') {
+      return j.scheduledDate.split('T')[0];
+    }
+    if (j.date && typeof j.date === 'string') {
+      return j.date.split('T')[0];
+    }
+    if (j.dailyReports && j.dailyReports.length > 0 && j.dailyReports[0]?.date) {
+      return String(j.dailyReports[0].date).split('T')[0];
+    }
+    if (j.createdAt) {
+      try {
+        return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(j.createdAt));
+      } catch (_) {
+        return String(j.createdAt).split('T')[0];
+      }
+    }
+    if (j.updatedAt) {
+      try {
+        return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(j.updatedAt));
+      } catch (_) {
+        return String(j.updatedAt).split('T')[0];
+      }
+    }
+    return '';
   };
 
   const formatJobDate = (dateVal) => {
@@ -82,7 +109,7 @@ export default function AdminTechEarningsModal({ isOpen, onClose, technician }) 
       assignedName.includes(targetName) ||
       (Array.isArray(job.assignedTechnicians) && job.assignedTechnicians.some(t => {
         const tName = typeof t === 'string' ? t : (t?.name || '');
-        return tName.toLowerCase().includes(targetName);
+        return typeof tName === 'string' && tName.toLowerCase().includes(targetName);
       }));
 
     let earning = 0;
@@ -112,7 +139,7 @@ export default function AdminTechEarningsModal({ isOpen, onClose, technician }) 
   };
 
   const isJobThisMonth = (job) => {
-    const dStr = String(getJobDate(job) || '').split('T')[0];
+    const dStr = getJobDateString(job);
     return dStr.startsWith(currentYearMonth);
   };
 
@@ -137,14 +164,29 @@ export default function AdminTechEarningsModal({ isOpen, onClose, technician }) 
     });
   }, [jobs, filterPeriod, searchQuery, currentYearMonth]);
 
-  // Totals
+  // Instant Totals: Use calculated jobs when ready, fallback to preloaded summary
   const thisMonthTotal = useMemo(() => {
-    return jobs.reduce((sum, j) => isJobThisMonth(j) ? sum + getJobEarningDetails(j).earning : sum, 0);
-  }, [jobs, currentYearMonth]);
+    if (jobs.length > 0) {
+      const sum = jobs.reduce((acc, j) => isJobThisMonth(j) ? acc + getJobEarningDetails(j).earning : acc, 0);
+      return sum || (summary?.monthlyEarnings ?? 0);
+    }
+    return summary?.monthlyEarnings ?? 0;
+  }, [jobs, summary, currentYearMonth]);
 
   const allTimeTotal = useMemo(() => {
-    return jobs.reduce((sum, j) => sum + getJobEarningDetails(j).earning, 0);
-  }, [jobs]);
+    if (jobs.length > 0) {
+      const sum = jobs.reduce((acc, j) => acc + getJobEarningDetails(j).earning, 0);
+      return sum || (summary?.totalEarnings ?? technician?.totalEarnings ?? technician?.earnings ?? 0);
+    }
+    return summary?.totalEarnings ?? technician?.totalEarnings ?? technician?.earnings ?? 0;
+  }, [jobs, summary, technician]);
+
+  const completedCount = useMemo(() => {
+    if (jobs.length > 0) {
+      return jobs.length;
+    }
+    return summary?.totalCompleted ?? technician?.completedJobsCount ?? 0;
+  }, [jobs, summary, technician]);
 
   if (!isOpen || !technician) return null;
 
@@ -229,7 +271,7 @@ export default function AdminTechEarningsModal({ isOpen, onClose, technician }) 
               </div>
               <div className="mt-1.5">
                 <span className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100 font-mono">
-                  {jobs.length}
+                  {completedCount}
                 </span>
                 <p className="text-[10px] text-slate-500 font-medium">Signed off work</p>
               </div>
@@ -279,9 +321,23 @@ export default function AdminTechEarningsModal({ isOpen, onClose, technician }) 
         {/* Jobs List Body */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3 bg-slate-50/40 dark:bg-slate-950/30">
           {isLoading ? (
-            <div className="flex flex-col items-center justify-center py-16 text-slate-500">
-              <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin mb-3" />
-              <p className="text-xs font-semibold">Loading earnings history...</p>
+            <div className="space-y-3 py-2">
+              <div className="flex items-center justify-center gap-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 py-1">
+                <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                <span>Loading completed work orders...</span>
+              </div>
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 animate-pulse flex flex-col gap-2.5">
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-2 flex-1">
+                      <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-28" />
+                      <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-48" />
+                    </div>
+                    <div className="h-6 bg-slate-200 dark:bg-slate-800 rounded w-20" />
+                  </div>
+                  <div className="h-3 bg-slate-100 dark:bg-slate-800/60 rounded w-36 mt-1" />
+                </div>
+              ))}
             </div>
           ) : filteredJobs.length === 0 ? (
             <div className="text-center py-14 text-slate-500">
@@ -300,7 +356,7 @@ export default function AdminTechEarningsModal({ isOpen, onClose, technician }) 
           ) : (
             filteredJobs.map((job) => {
               const { earning, role, isMain } = getJobEarningDetails(job);
-              const jobDate = getJobDate(job);
+              const jobDate = getJobDateString(job);
               const orderValue = job.financials?.totalValue || job.totalValue || job.salesValue;
               const companyProfit = job.financials?.companyProfit || job.companyProfit;
 
