@@ -218,23 +218,40 @@ export default function TvDashboard() {
     return set;
   }, [todayAttendance]);
 
+  // Filter out Non-Technicians (HR, Admin, Office Staff) - Strictly Field Technicians
+  const fieldTechnicians = useMemo(() => {
+    return (technicians || []).filter(tech => {
+      if (!tech) return false;
+      const role = (tech.role || '').toLowerCase().trim();
+      const spec = (tech.specialization || '').toLowerCase().trim();
+      const dept = (tech.department || '').toLowerCase().trim();
+      const name = (tech.name || '').toLowerCase().trim();
+
+      if (role === 'hr' || role.includes('hr') || spec === 'hr' || spec.includes('hr') || dept === 'hr' || dept.includes('hr')) return false;
+      if (role === 'admin' || role.includes('admin') || spec === 'admin' || spec.includes('admin')) return false;
+      if (name.includes('kaviya') || name.includes('kowsalya')) return false;
+
+      return true;
+    });
+  }, [technicians]);
+
   // Present Technicians List
   const presentTechniciansList = useMemo(() => {
-    return (technicians || []).filter(tech => {
+    return fieldTechnicians.filter(tech => {
       const idMatch = tech.id && presentTechKeys.has(String(tech.id));
       const nameMatch = tech.name && presentTechKeys.has(tech.name.toLowerCase().trim());
       return idMatch || nameMatch;
     });
-  }, [technicians, presentTechKeys]);
+  }, [fieldTechnicians, presentTechKeys]);
 
   // Absent Technicians List
   const absentTechniciansList = useMemo(() => {
-    return (technicians || []).filter(tech => {
+    return fieldTechnicians.filter(tech => {
       const idMatch = tech.id && presentTechKeys.has(String(tech.id));
       const nameMatch = tech.name && presentTechKeys.has(tech.name.toLowerCase().trim());
       return !(idMatch || nameMatch);
     });
-  }, [technicians, presentTechKeys]);
+  }, [fieldTechnicians, presentTechKeys]);
 
   // Set of Busy Technician Keys (Technicians assigned to an active field job)
   const busyTechKeys = useMemo(() => {
@@ -302,10 +319,10 @@ export default function TvDashboard() {
     return buildTechSummaries(orders);
   }, [orders]);
 
-  // All technicians mapped with real earnings & sorted by This Month's Earnings (Highest First)
+  // All field technicians mapped with real earnings & sorted by This Month's Earnings (Highest First)
   const topEarnersList = useMemo(() => {
     const { map } = techEarningsData;
-    const list = (technicians || []).map((tech, idx) => {
+    const list = (fieldTechnicians || []).map((tech, idx) => {
       const target = (tech.name || '').toLowerCase().trim();
       let sum = map[target];
       if (!sum) {
@@ -329,7 +346,7 @@ export default function TvDashboard() {
       }
       return b.monthCompletedCount - a.monthCompletedCount;
     });
-  }, [technicians, techEarningsData]);
+  }, [fieldTechnicians, techEarningsData]);
 
   // This Month's Performance Ranked Technicians (Ranked by THIS MONTH completed jobs & ratings - NO EARNINGS)
   const rankedTechnicians = useMemo(() => {
@@ -574,8 +591,8 @@ export default function TvDashboard() {
               <div className="flex items-center gap-6">
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-slate-600"></span>
-                  <span className="text-xs font-bold text-slate-500 uppercase">Total Team:</span>
-                  <span className="text-base font-black text-slate-900 font-mono">{(technicians || []).length || 8} Staff</span>
+                  <span className="text-xs font-bold text-slate-500 uppercase">Total Field Team:</span>
+                  <span className="text-base font-black text-slate-900 font-mono">{(fieldTechnicians || []).length || 6} Field Techs</span>
                 </div>
 
                 <div className="w-px h-4 bg-slate-200"></div>
