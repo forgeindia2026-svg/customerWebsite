@@ -331,13 +331,16 @@ export default function TvDashboard() {
     });
   }, [technicians, techEarningsData]);
 
-  // Overall Performance Ranked Technicians (by total completed jobs & ratings)
+  // This Month's Performance Ranked Technicians (Ranked by THIS MONTH completed jobs & ratings - NO EARNINGS)
   const rankedTechnicians = useMemo(() => {
     return [...topEarnersList].sort((a, b) => {
+      if (b.monthCompletedCount !== a.monthCompletedCount) {
+        return b.monthCompletedCount - a.monthCompletedCount;
+      }
       if (b.totalCompleted !== a.totalCompleted) {
         return b.totalCompleted - a.totalCompleted;
       }
-      return b.monthlyEarnings - a.monthlyEarnings;
+      return (parseFloat(b.rating) || 0) - (parseFloat(a.rating) || 0);
     });
   }, [topEarnersList]);
 
@@ -1184,7 +1187,7 @@ export default function TvDashboard() {
         )}
 
         {/* ══════════════════════════════════════════════════════════════════
-            SLIDE 3: OVERALL PERFORMANCE LEADERBOARD (RATINGS & COMPLETED JOBS)
+            SLIDE 3: THIS MONTH PERFORMANCE LEADERBOARD (COMPLETED JOBS & RATINGS - NO EARNINGS)
             ══════════════════════════════════════════════════════════════════ */}
         {currentSlide === 3 && (
           <div className="flex-1 flex flex-col gap-2.5 min-h-0 overflow-hidden">
@@ -1194,15 +1197,15 @@ export default function TvDashboard() {
                 <span className="text-xl">🏆</span>
                 <div>
                   <h2 className="text-xs font-black text-amber-900 uppercase tracking-wider">
-                    TECHNICIAN PERFORMANCE LEADERBOARD
+                    TECHNICIAN PERFORMANCE LEADERBOARD • {currentMonthLabel}
                   </h2>
                   <p className="text-[10px] font-medium text-amber-800">
-                    Ranked by completed installations, on-time punctuality & 5-star customer ratings
+                    Ranked by completed installations this month & 5-star customer ratings
                   </p>
                 </div>
               </div>
               <span className="px-2.5 py-0.5 rounded-lg bg-amber-500 text-white text-[10px] font-black uppercase tracking-wider shadow-xs">
-                Performance Ladder
+                {currentMonthLabel} RANKINGS
               </span>
             </div>
 
@@ -1215,7 +1218,7 @@ export default function TvDashboard() {
                   <div className="flex items-center gap-1.5">
                     <FiAward className="text-amber-500" size={14} />
                     <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                      OLYMPIC VICTORY PODIUM • TOP 3 PERFORMERS
+                      TOP 3 PERFORMERS ({currentMonthLabel})
                     </h3>
                   </div>
                   <span className="text-[9px] font-bold text-amber-700 bg-amber-100/80 px-2 py-0.2 rounded">
@@ -1266,17 +1269,17 @@ export default function TvDashboard() {
                         </div>
                       </div>
 
-                      {/* Metrics Pill */}
+                      {/* Metrics Pill (NO EARNINGS) */}
                       <div className="w-full bg-slate-100 rounded-lg p-1.5 border border-slate-200/80 text-center">
                         <div className="text-base font-black text-slate-900 font-mono">
-                          {rankedTechnicians[1]?.totalCompleted || 9}
+                          {rankedTechnicians[1]?.monthCompletedCount || 0}
                         </div>
                         <div className="text-[8px] font-bold text-slate-500 uppercase tracking-wider">
-                          Jobs Completed
+                          Jobs Completed ({currentMonthLabel})
                         </div>
                         <div className="mt-1 pt-1 border-t border-slate-200 flex items-center justify-between text-[9px]">
-                          <span className="font-semibold text-emerald-600">₹{rankedTechnicians[1]?.monthlyEarnings.toLocaleString('en-IN')}</span>
-                          <span className="font-bold text-slate-600">★ High SLA</span>
+                          <span className="font-bold text-blue-700">★ High SLA</span>
+                          <span className="font-bold text-slate-700">★ Pro Tech</span>
                         </div>
                       </div>
                     </div>
@@ -1323,21 +1326,21 @@ export default function TvDashboard() {
                         </h4>
                         <div className="flex items-center justify-center gap-1 text-amber-600 text-[10px] font-bold mt-0.5">
                           <FiStar fill="currentColor" size={11} />
-                          <span>{rankedTechnicians[0]?.rating || '5.0'} (Perfect Score)</span>
+                          <span>{rankedTechnicians[0]?.rating || '5.0'} (Top Performer)</span>
                         </div>
                       </div>
 
-                      {/* Metrics Pill */}
+                      {/* Metrics Pill (NO EARNINGS) */}
                       <div className="w-full bg-amber-100/80 rounded-lg p-2 border border-amber-300/80 text-center">
                         <div className="text-lg font-black text-amber-950 font-mono">
-                          {rankedTechnicians[0]?.totalCompleted || 11}
+                          {rankedTechnicians[0]?.monthCompletedCount || 0}
                         </div>
                         <div className="text-[8px] font-black text-amber-900 uppercase tracking-wider">
-                          Installations Done
+                          Installations Done ({currentMonthLabel})
                         </div>
                         <div className="mt-1 pt-1 border-t border-amber-200 flex items-center justify-between text-[9px]">
-                          <span className="font-extrabold text-emerald-700">₹{rankedTechnicians[0]?.monthlyEarnings.toLocaleString('en-IN')} Month</span>
-                          <span className="font-extrabold text-amber-900">⭐ Field MVP</span>
+                          <span className="font-extrabold text-amber-900">⭐ 100% On-Time SLA</span>
+                          <span className="font-extrabold text-amber-900">🏆 Field MVP</span>
                         </div>
                       </div>
                     </div>
@@ -1383,17 +1386,17 @@ export default function TvDashboard() {
                         </div>
                       </div>
 
-                      {/* Metrics Pill */}
+                      {/* Metrics Pill (NO EARNINGS) */}
                       <div className="w-full bg-orange-50 rounded-lg p-1.5 border border-amber-200 text-center">
                         <div className="text-base font-black text-slate-900 font-mono">
-                          {rankedTechnicians[2]?.totalCompleted || 7}
+                          {rankedTechnicians[2]?.monthCompletedCount || 0}
                         </div>
                         <div className="text-[8px] font-bold text-slate-500 uppercase tracking-wider">
-                          Jobs Completed
+                          Jobs Completed ({currentMonthLabel})
                         </div>
                         <div className="mt-1 pt-1 border-t border-amber-200/80 flex items-center justify-between text-[9px]">
-                          <span className="font-semibold text-emerald-600">₹{rankedTechnicians[2]?.monthlyEarnings.toLocaleString('en-IN')}</span>
                           <span className="font-bold text-amber-800">★ CCTV Pro</span>
+                          <span className="font-bold text-amber-700">⭐ {rankedTechnicians[2]?.rating || '4.8'} Star</span>
                         </div>
                       </div>
                     </div>
@@ -1408,11 +1411,11 @@ export default function TvDashboard() {
                   <div className="flex items-center gap-1.5">
                     <FiUsers className="text-blue-600" size={14} />
                     <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                      TEAM STANDINGS (RANKS #4 - #{rankedTechnicians.length})
+                      TEAM STANDINGS ({currentMonthLabel})
                     </h3>
                   </div>
                   <span className="text-[9px] font-bold text-slate-400">
-                    Performance Ladder
+                    Jobs Completed
                   </span>
                 </div>
 
@@ -1451,10 +1454,11 @@ export default function TvDashboard() {
 
                       <div className="text-right shrink-0">
                         <span className="text-xs font-black text-slate-900 font-mono block">
-                          {tech.totalCompleted || 0} Jobs
+                          {tech.monthCompletedCount || 0} Jobs
                         </span>
-                        <span className="text-[9px] font-bold text-emerald-600 flex items-center justify-end gap-0.5">
-                          ₹{tech.monthlyEarnings.toLocaleString('en-IN')}
+                        <span className="text-[9px] font-bold text-amber-600 flex items-center justify-end gap-0.5">
+                          <FiStar size={9} fill="currentColor" />
+                          <span>{tech.rating || '5.0'} Rating</span>
                         </span>
                       </div>
                     </div>
