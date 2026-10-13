@@ -64,7 +64,30 @@ export default function TvDashboard() {
     return () => clearInterval(timer);
   }, [isPaused]);
 
-  // Keyboard navigation (Left/Right to switch, Space to pause)
+  // Fullscreen Toggle Function
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().then(() => {
+        setIsFullscreen(true);
+      }).catch(err => console.warn(err));
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().then(() => {
+          setIsFullscreen(false);
+        }).catch(err => console.warn(err));
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handleFsChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+  }, []);
+
+  // Keyboard navigation (Left/Right to switch, Space to pause, F for Fullscreen)
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'ArrowRight') {
@@ -76,6 +99,9 @@ export default function TvDashboard() {
       } else if (e.key === ' ') {
         e.preventDefault();
         setIsPaused(p => !p);
+      } else if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        toggleFullscreen();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -168,28 +194,7 @@ export default function TvDashboard() {
     };
   }, []);
 
-  // Fullscreen Toggle
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().then(() => {
-        setIsFullscreen(true);
-      }).catch(err => console.warn(err));
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen().then(() => {
-          setIsFullscreen(false);
-        }).catch(err => console.warn(err));
-      }
-    }
-  };
 
-  useEffect(() => {
-    const handleFsChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener('fullscreenchange', handleFsChange);
-    return () => document.removeEventListener('fullscreenchange', handleFsChange);
-  }, []);
 
   // Today Date String (Asia/Kolkata / YYYY-MM-DD)
   const todayStr = useMemo(() => {
@@ -473,27 +478,27 @@ export default function TvDashboard() {
         />
       </div>
 
-      {/* ── BROADCAST TOP HEADER (Vibrant, Spacious, Zero Wrapping) ── */}
-      <header className="h-[62px] bg-white border-b border-slate-200/90 px-6 flex items-center justify-between shrink-0 shadow-xs z-30 gap-4">
+      {/* ── BROADCAST TOP HEADER (Vibrant, Spacious, Guaranteed Visible Controls) ── */}
+      <header className="h-[62px] bg-white border-b border-slate-200/90 px-4 flex items-center justify-between shrink-0 shadow-xs z-30 gap-2 sm:gap-3">
         
         {/* Left: Brand Identity & Quick Exit */}
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2.5 shrink-0">
           <button 
             onClick={() => navigate('/admin')}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer border border-slate-200 shadow-2xs whitespace-nowrap"
+            className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer border border-slate-200 shadow-2xs whitespace-nowrap"
             title="Exit TV Display"
           >
             <FiArrowLeft size={13} />
             <span>Exit</span>
           </button>
 
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 text-white flex items-center justify-center font-black text-xs tracking-wider shadow-sm shadow-blue-500/20">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 text-white flex items-center justify-center font-black text-xs tracking-wider shadow-sm shadow-blue-500/20">
               SK
             </div>
             <div className="whitespace-nowrap">
               <div className="flex items-center gap-1.5">
-                <span className="text-sm font-black tracking-tight text-slate-900 uppercase">
+                <span className="text-xs sm:text-sm font-black tracking-tight text-slate-900 uppercase">
                   SK TECHNOLOGY
                 </span>
                 <span className="flex items-center gap-1 px-1.5 py-0.2 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-black uppercase tracking-wider">
@@ -501,7 +506,7 @@ export default function TvDashboard() {
                   LIVE
                 </span>
               </div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">
                 COMMAND CENTER
               </span>
             </div>
@@ -509,7 +514,7 @@ export default function TvDashboard() {
         </div>
 
         {/* Center: Vibrant Slide Tabs (Sleek, Compact, Zero Clipping) */}
-        <div className="flex items-center gap-1.5 bg-slate-100/90 p-1 rounded-2xl border border-slate-200/90 shadow-2xs">
+        <div className="flex items-center gap-1 bg-slate-100/90 p-1 rounded-2xl border border-slate-200/90 shadow-2xs">
           {slideTabs.map((tab, idx) => {
             const Icon = tab.icon;
             const active = currentSlide === idx;
@@ -520,13 +525,13 @@ export default function TvDashboard() {
                   setCurrentSlide(idx);
                   setProgress(0);
                 }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                   active 
                     ? tab.activeColor
                     : tab.inactiveColor
                 }`}
               >
-                <Icon size={14} className={active ? 'text-white' : tab.iconColor} />
+                <Icon size={13} className={active ? 'text-white' : tab.iconColor} />
                 <span>{tab.title}</span>
                 {active && (
                   <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse shadow-xs"></span>
@@ -536,44 +541,50 @@ export default function TvDashboard() {
           })}
         </div>
 
-        {/* Right: Live Digital Clock, Play/Pause Toggle & Fullscreen */}
-        <div className="flex items-center gap-2.5 shrink-0">
+        {/* Right: Prominent Fullscreen, Play/Pause Toggle & Live Digital Clock */}
+        <div className="flex items-center gap-2 shrink-0">
           
+          {/* 🌟 PROMINENT FULLSCREEN BUTTON (High Visibility, Never Clipped) */}
+          <button
+            onClick={toggleFullscreen}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer shadow-xs border whitespace-nowrap ${
+              isFullscreen
+                ? 'bg-slate-900 text-white border-slate-700 hover:bg-slate-800'
+                : 'bg-blue-600 hover:bg-blue-700 text-white border-blue-500 shadow-blue-500/25 ring-2 ring-blue-400/30'
+            }`}
+            title="Toggle Fullscreen (F11 or Press F key)"
+          >
+            {isFullscreen ? <FiMinimize size={13} /> : <FiMaximize size={13} />}
+            <span>{isFullscreen ? 'Exit Full' : 'Fullscreen'}</span>
+          </button>
+
           {/* Pause / Play Toggle */}
           <button
             onClick={() => setIsPaused(!isPaused)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border shadow-2xs whitespace-nowrap ${
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border shadow-2xs whitespace-nowrap ${
               isPaused 
                 ? 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100' 
                 : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border-slate-200'
             }`}
+            title="Pause / Play Slideshow (Spacebar)"
           >
             {isPaused ? <FiPlay size={12} className="text-amber-700" /> : <FiPause size={12} />}
             <span>{isPaused ? 'Paused' : 'Playing'}</span>
           </button>
 
-          {/* Crisp Digital Clock Card */}
-          <div className="bg-slate-900 text-white px-3 py-1.5 rounded-xl shadow-xs border border-slate-800 flex items-center gap-2.5 shrink-0 whitespace-nowrap">
-            <div className="flex items-center gap-1.5">
-              <FiClock className="text-emerald-400" size={13} />
-              <span className="font-mono text-sm font-black text-emerald-400 tracking-wider">
+          {/* Digital Clock Card */}
+          <div className="bg-slate-900 text-white px-2.5 py-1.5 rounded-xl shadow-xs border border-slate-800 flex items-center gap-2 shrink-0 whitespace-nowrap">
+            <div className="flex items-center gap-1">
+              <FiClock className="text-emerald-400" size={12} />
+              <span className="font-mono text-xs font-black text-emerald-400 tracking-wider">
                 {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
               </span>
             </div>
-            <div className="w-px h-3.5 bg-slate-700"></div>
-            <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">
+            <div className="w-px h-3 bg-slate-700"></div>
+            <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wider">
               {currentTime.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' })}
             </span>
           </div>
-
-          {/* Fullscreen Button */}
-          <button
-            onClick={toggleFullscreen}
-            className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all border border-slate-200 shadow-2xs cursor-pointer"
-            title="Toggle Fullscreen (F11)"
-          >
-            {isFullscreen ? <FiMinimize size={14} /> : <FiMaximize size={14} />}
-          </button>
         </div>
       </header>
 
@@ -1583,9 +1594,19 @@ export default function TvDashboard() {
           </div>
         </div>
 
-        <div className="text-[10px] text-slate-400 font-mono shrink-0 flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-          REAL-TIME STREAM
+        <div className="text-[10px] text-slate-400 font-mono shrink-0 flex items-center gap-3">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+            REAL-TIME STREAM
+          </span>
+          <button 
+            onClick={toggleFullscreen}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-slate-800 hover:bg-blue-600 text-white font-mono text-[10px] font-black transition-all border border-slate-700 cursor-pointer shadow-xs"
+            title="Toggle TV Fullscreen (Press F or F11)"
+          >
+            {isFullscreen ? <FiMinimize size={11} /> : <FiMaximize size={11} />}
+            <span>{isFullscreen ? 'EXIT FULL' : 'FULLSCREEN'}</span>
+          </button>
         </div>
       </footer>
     </div>
