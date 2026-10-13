@@ -396,11 +396,11 @@ export default function TvDashboard() {
     return null;
   };
 
-  // 4-Slide Meta Navigation with Dedicated Vibrant Colors
+  // 4-Slide Meta Navigation with Dedicated Vibrant Colors (Compact, Zero-Clipping)
   const slideTabs = [
     { 
       id: 0,
-      title: 'ATTENDANCE & AVAILABILITY', 
+      title: 'ATTENDANCE', 
       shortTitle: 'ATTENDANCE',
       icon: FiUsers,
       activeColor: 'bg-gradient-to-r from-rose-600 to-red-500 text-white shadow-md shadow-rose-500/30 border-rose-600',
@@ -410,7 +410,7 @@ export default function TvDashboard() {
     },
     { 
       id: 1,
-      title: 'FIELD INSTALLATIONS', 
+      title: 'INSTALLATIONS', 
       shortTitle: 'INSTALLATIONS',
       icon: FiBox,
       activeColor: 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/30 border-blue-600',
@@ -420,7 +420,7 @@ export default function TvDashboard() {
     },
     { 
       id: 2,
-      title: 'THIS MONTH TOP EARNERS', 
+      title: 'TOP EARNERS', 
       shortTitle: 'TOP EARNERS',
       icon: FiDollarSign,
       activeColor: 'bg-gradient-to-r from-emerald-600 via-teal-600 to-green-600 text-white shadow-md shadow-emerald-500/30 border-emerald-600',
@@ -430,7 +430,7 @@ export default function TvDashboard() {
     },
     { 
       id: 3,
-      title: 'PERFORMANCE LEADERBOARD', 
+      title: 'LEADERBOARD', 
       shortTitle: 'LEADERBOARD',
       icon: FiAward,
       activeColor: 'bg-gradient-to-r from-amber-500 via-yellow-500 to-orange-500 text-white shadow-md shadow-amber-500/30 border-amber-500',
@@ -454,42 +454,42 @@ export default function TvDashboard() {
       </div>
 
       {/* ── BROADCAST TOP HEADER (Vibrant, Spacious, Zero Wrapping) ── */}
-      <header className="h-[74px] bg-white border-b border-slate-200/90 px-8 flex items-center justify-between shrink-0 shadow-xs z-30 gap-6">
+      <header className="h-[62px] bg-white border-b border-slate-200/90 px-6 flex items-center justify-between shrink-0 shadow-xs z-30 gap-4">
         
         {/* Left: Brand Identity & Quick Exit */}
-        <div className="flex items-center gap-4 shrink-0">
+        <div className="flex items-center gap-3 shrink-0">
           <button 
             onClick={() => navigate('/admin')}
-            className="flex items-center gap-2 px-3.5 py-2 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer border border-slate-200 shadow-2xs whitespace-nowrap"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer border border-slate-200 shadow-2xs whitespace-nowrap"
             title="Exit TV Display"
           >
-            <FiArrowLeft size={14} />
+            <FiArrowLeft size={13} />
             <span>Exit</span>
           </button>
 
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 text-white flex items-center justify-center font-black text-sm tracking-wider shadow-sm shadow-blue-500/20">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 text-white flex items-center justify-center font-black text-xs tracking-wider shadow-sm shadow-blue-500/20">
               SK
             </div>
             <div className="whitespace-nowrap">
-              <div className="flex items-center gap-2">
-                <span className="text-base font-black tracking-tight text-slate-900 uppercase">
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm font-black tracking-tight text-slate-900 uppercase">
                   SK TECHNOLOGY
                 </span>
-                <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-black uppercase tracking-wider">
+                <span className="flex items-center gap-1 px-1.5 py-0.2 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-black uppercase tracking-wider">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
                   LIVE
                 </span>
               </div>
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block">
-                OPERATIONS COMMAND CENTER
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
+                COMMAND CENTER
               </span>
             </div>
           </div>
         </div>
 
-        {/* Center: Vibrant Slide Tabs (Colorful, Spacious, Single Line) */}
-        <div className="flex items-center gap-2.5 bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200/90 shadow-2xs overflow-x-auto no-scrollbar">
+        {/* Center: Vibrant Slide Tabs (Sleek, Compact, Zero Clipping) */}
+        <div className="flex items-center gap-1.5 bg-slate-100/90 p-1 rounded-2xl border border-slate-200/90 shadow-2xs">
           {slideTabs.map((tab, idx) => {
             const Icon = tab.icon;
             const active = currentSlide === idx;
@@ -500,16 +500,16 @@ export default function TvDashboard() {
                   setCurrentSlide(idx);
                   setProgress(0);
                 }}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                   active 
                     ? tab.activeColor
                     : tab.inactiveColor
                 }`}
               >
-                <Icon size={15} className={active ? 'text-white' : tab.iconColor} />
+                <Icon size={14} className={active ? 'text-white' : tab.iconColor} />
                 <span>{tab.title}</span>
                 {active && (
-                  <span className="w-2 h-2 rounded-full bg-white animate-pulse shadow-xs"></span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse shadow-xs"></span>
                 )}
               </button>
             );
@@ -517,31 +517,31 @@ export default function TvDashboard() {
         </div>
 
         {/* Right: Live Digital Clock, Play/Pause Toggle & Fullscreen */}
-        <div className="flex items-center gap-3.5 shrink-0">
+        <div className="flex items-center gap-2.5 shrink-0">
           
           {/* Pause / Play Toggle */}
           <button
             onClick={() => setIsPaused(!isPaused)}
-            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border shadow-2xs whitespace-nowrap ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border shadow-2xs whitespace-nowrap ${
               isPaused 
                 ? 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100' 
                 : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border-slate-200'
             }`}
           >
-            {isPaused ? <FiPlay size={13} className="text-amber-700" /> : <FiPause size={13} />}
+            {isPaused ? <FiPlay size={12} className="text-amber-700" /> : <FiPause size={12} />}
             <span>{isPaused ? 'Paused' : 'Playing'}</span>
           </button>
 
-          {/* Crisp Digital Clock Card (Guaranteed Single-Line, Never Wraps) */}
-          <div className="bg-slate-900 text-white px-4 py-2 rounded-xl shadow-xs border border-slate-800 flex items-center gap-3 shrink-0 whitespace-nowrap">
-            <div className="flex items-center gap-2">
-              <FiClock className="text-emerald-400" size={14} />
-              <span className="font-mono text-base font-black text-emerald-400 tracking-wider">
+          {/* Crisp Digital Clock Card */}
+          <div className="bg-slate-900 text-white px-3 py-1.5 rounded-xl shadow-xs border border-slate-800 flex items-center gap-2.5 shrink-0 whitespace-nowrap">
+            <div className="flex items-center gap-1.5">
+              <FiClock className="text-emerald-400" size={13} />
+              <span className="font-mono text-sm font-black text-emerald-400 tracking-wider">
                 {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
               </span>
             </div>
-            <div className="w-px h-4 bg-slate-700"></div>
-            <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+            <div className="w-px h-3.5 bg-slate-700"></div>
+            <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">
               {currentTime.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' })}
             </span>
           </div>
@@ -549,16 +549,16 @@ export default function TvDashboard() {
           {/* Fullscreen Button */}
           <button
             onClick={toggleFullscreen}
-            className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all border border-slate-200 shadow-2xs cursor-pointer"
+            className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all border border-slate-200 shadow-2xs cursor-pointer"
             title="Toggle Fullscreen (F11)"
           >
-            {isFullscreen ? <FiMinimize size={15} /> : <FiMaximize size={15} />}
+            {isFullscreen ? <FiMinimize size={14} /> : <FiMaximize size={14} />}
           </button>
         </div>
       </header>
 
-      {/* ── MAIN FULL-SCREEN SLIDE VIEWPORT ── */}
-      <main className="flex-1 p-6 min-h-0 overflow-hidden flex flex-col">
+      {/* ── MAIN FULL-SCREEN SLIDE VIEWPORT (Optimized Compact Sizing) ── */}
+      <main className="flex-1 px-5 py-3 min-h-0 overflow-hidden flex flex-col">
 
         {/* ══════════════════════════════════════════════════════════════════
             SLIDE 0: TECHNICIAN AVAILABILITY & LIVE STATUS (AVAILABLE / BUSY / ABSENT)
@@ -884,85 +884,80 @@ export default function TvDashboard() {
         )}
 
         {/* ══════════════════════════════════════════════════════════════════
-            SLIDE 2: THIS MONTH TOP EARNERS & PAYOUTS (OLYMPIC PODIUM & FULL TEAM LADDER)
+            SLIDE 2: THIS MONTH TOP EARNERS & PAYOUTS (FLIPKART PRO LEADERBOARD)
             ══════════════════════════════════════════════════════════════════ */}
         {currentSlide === 2 && (
-          <div className="flex-1 flex flex-col gap-4 min-h-0">
-            {/* Top Ribbon */}
-            <div className="flex items-center justify-between bg-emerald-50/90 px-6 py-3 rounded-2xl border border-emerald-200 shadow-xs shrink-0">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">💰</span>
+          <div className="flex-1 flex flex-col gap-2.5 min-h-0 overflow-hidden">
+            {/* Top Stat Ribbon (Compact, Sleek, Single-Line) */}
+            <div className="flex items-center justify-between bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-2xs shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center font-black text-xs shadow-xs">
+                  ₹
+                </div>
                 <div>
-                  <h2 className="text-sm font-black text-emerald-950 uppercase tracking-tight flex items-center gap-2">
-                    THIS MONTH TOP EARNERS • TECHNICIAN PAYOUTS
-                    <span className="px-2 py-0.5 rounded-md bg-emerald-200/80 text-emerald-900 text-[10px] font-black uppercase">
+                  <h2 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                    MONTHLY EARNINGS LEADERBOARD
+                    <span className="px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-black uppercase">
                       {currentMonthLabel}
                     </span>
                   </h2>
-                  <p className="text-xs font-semibold text-emerald-800">
-                    Live calculated earnings & completed job payouts for all field technicians.
+                  <p className="text-[10px] font-medium text-slate-500">
+                    Live payouts calculated from completed & approved field installations
                   </p>
                 </div>
               </div>
 
-              {/* Stat Counters */}
-              <div className="flex items-center gap-3">
-                <div className="bg-white/95 border border-emerald-200 px-3.5 py-1.5 rounded-xl shadow-2xs text-right">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase block">Total Month Payout</span>
-                  <span className="text-base font-black text-emerald-700 font-mono">
-                    ₹{totalMonthlyPayout.toLocaleString('en-IN')}
-                  </span>
+              {/* Compact Badges */}
+              <div className="flex items-center gap-2">
+                <div className="bg-slate-50 border border-slate-200/90 px-3 py-1 rounded-lg shadow-2xs flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">Total Payout:</span>
+                  <span className="text-xs font-black text-emerald-600 font-mono">₹{totalMonthlyPayout.toLocaleString('en-IN')}</span>
                 </div>
 
-                <div className="bg-white/95 border border-emerald-200 px-3.5 py-1.5 rounded-xl shadow-2xs text-right">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase block">Top Earner This Month</span>
-                  <span className="text-base font-black text-amber-600 font-mono">
-                    {topEarner?.name || 'N/A'} (₹{(topEarner?.monthlyEarnings || 0).toLocaleString('en-IN')})
-                  </span>
+                <div className="bg-amber-50 border border-amber-200 px-3 py-1 rounded-lg shadow-2xs flex items-center gap-1.5">
+                  <span className="text-[10px] font-black text-amber-800 uppercase">Top Earner:</span>
+                  <span className="text-xs font-black text-amber-900 font-mono">{topEarner?.name || 'N/A'} (₹{(topEarner?.monthlyEarnings || 0).toLocaleString('en-IN')})</span>
                 </div>
 
-                <div className="bg-white/95 border border-emerald-200 px-3.5 py-1.5 rounded-xl shadow-2xs text-right">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase block">Jobs Completed</span>
-                  <span className="text-base font-black text-blue-700 font-mono">
-                    {totalMonthlyJobsCount} Jobs
-                  </span>
+                <div className="bg-blue-50 border border-blue-200 px-3 py-1 rounded-lg shadow-2xs flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold text-blue-700 uppercase">Completed:</span>
+                  <span className="text-xs font-black text-blue-900 font-mono">{totalMonthlyJobsCount} Jobs</span>
                 </div>
               </div>
             </div>
 
-            {/* Olympic Victory Podium (Top 3 Earners) + All Team Standings (Ranks 4-8) */}
-            <div className="flex-1 grid grid-cols-12 gap-5 min-h-0">
+            {/* Split Arena: Left 7 Cols Podium, Right 5 Cols Standings Table */}
+            <div className="flex-1 grid grid-cols-12 gap-3 min-h-0 overflow-hidden">
               
-              {/* ── LEFT 8 COLS: OLYMPIC PODIUM (Top 3 Earners) ── */}
-              <div className="col-span-8 bg-gradient-to-b from-emerald-950/5 via-white to-emerald-50/30 rounded-3xl border border-emerald-200/90 p-5 flex flex-col shadow-xs overflow-hidden">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0 mb-3">
-                  <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                    <FiAward className="text-amber-500" size={16} />
-                    TOP 3 EARNING CHAMPIONS • {currentMonthLabel}
-                  </h3>
-                  <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100/90 px-2.5 py-0.5 rounded-lg">
-                    Real-time Payout Sync
+              {/* ── LEFT 7 COLS: PODIUM ARENA (Top 3 Performers) ── */}
+              <div className="col-span-7 bg-white rounded-2xl border border-slate-200 p-3 flex flex-col shadow-2xs overflow-hidden min-h-0">
+                <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 shrink-0 mb-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <FiAward className="text-amber-500" size={14} />
+                    <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                      TOP 3 PERFORMERS PODIUM
+                    </h3>
+                  </div>
+                  <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded">
+                    ● Real-Time Sync
                   </span>
                 </div>
 
-                {/* 3 Pillars: #2 Silver, #1 Gold (Elevated), #3 Bronze */}
-                <div className="flex-1 grid grid-cols-3 gap-4 min-h-0 items-end pb-2">
+                {/* 3 Podium Pillars: #2 Silver, #1 Gold (Center Elevated), #3 Bronze */}
+                <div className="flex-1 grid grid-cols-3 gap-2.5 min-h-0 items-end pb-0.5 pt-2">
                   
                   {/* 🥈 #2 SILVER EARNER */}
                   {topEarnersList[1] && (
-                    <div className="h-[92%] bg-gradient-to-b from-slate-50 via-white to-slate-100 border-2 border-slate-300 rounded-3xl p-4 flex flex-col items-center justify-between shadow-sm relative hover:border-slate-400 transition-all">
-                      <div className="w-full flex items-center justify-between">
-                        <span className="px-2.5 py-0.5 rounded-lg bg-slate-200 text-slate-800 text-[11px] font-black uppercase flex items-center gap-1 shadow-xs">
-                          <span>🥈</span> RANK #2 EARNER
-                        </span>
-                        <span className="text-[10px] font-bold text-slate-500">Silver Earner</span>
-                      </div>
+                    <div className="h-[90%] bg-gradient-to-b from-slate-50 via-white to-slate-100/60 border border-slate-300 rounded-xl p-2.5 flex flex-col items-center justify-between shadow-2xs relative">
+                      <span className="px-2 py-0.5 rounded-md bg-slate-200 text-slate-800 text-[9px] font-black uppercase flex items-center gap-1 shadow-2xs">
+                        🥈 RANK #2
+                      </span>
 
-                      {/* Halo Avatar */}
-                      <div className="relative my-2">
+                      {/* Avatar 48px */}
+                      <div className="relative my-0.5">
                         <div 
-                          className="rounded-full border-4 border-slate-300 ring-4 ring-slate-200/70 shadow-lg bg-slate-100 flex items-center justify-center overflow-hidden"
-                          style={{ width: '84px', height: '84px' }}
+                          className="rounded-full border-2 border-slate-300 shadow-xs bg-slate-100 flex items-center justify-center overflow-hidden"
+                          style={{ width: '48px', height: '48px' }}
                         >
                           {getTechPhoto(topEarnersList[1]) ? (
                             <img 
@@ -971,63 +966,58 @@ export default function TvDashboard() {
                               className="w-full h-full object-cover" 
                             />
                           ) : (
-                            <span className="text-slate-700 font-black text-2xl tracking-wider">
+                            <span className="text-slate-700 font-black text-base">
                               {(topEarnersList[1]?.name || 'TC').slice(0, 2).toUpperCase()}
                             </span>
                           )}
                         </div>
-                        <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-slate-700 text-white font-black text-xs flex items-center justify-center shadow-md">
+                        <span className="absolute -bottom-0.5 -right-0.5 w-4.5 h-4.5 rounded-full bg-slate-700 text-white font-black text-[9px] flex items-center justify-center shadow-xs">
                           2
                         </span>
                       </div>
 
                       <div className="text-center w-full px-1">
-                        <h4 className="text-base font-black text-slate-900 tracking-tight uppercase truncate">
+                        <h4 className="text-xs font-black text-slate-900 tracking-tight uppercase truncate">
                           {topEarnersList[1]?.name}
                         </h4>
-                        <span className="text-[11px] font-bold text-slate-500 block truncate">
-                          {topEarnersList[1]?.badge || 'Field Technician'}
+                        <span className="text-[9px] font-semibold text-slate-500 block truncate">
+                          Technician • ⭐ 4.9
                         </span>
                       </div>
 
                       {/* Earnings Pill */}
-                      <div className="w-full bg-slate-100/90 rounded-2xl p-2.5 border border-slate-200/80 text-center">
-                        <div className="text-2xl font-black text-emerald-600 font-mono">
+                      <div className="w-full bg-slate-100 rounded-lg p-1.5 border border-slate-200/80 text-center">
+                        <div className="text-base font-black text-emerald-600 font-mono">
                           ₹{topEarnersList[1]?.monthlyEarnings.toLocaleString('en-IN')}
                         </div>
-                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                          This Month Payout
+                        <div className="text-[8px] font-bold text-slate-500 uppercase tracking-wider">
+                          This Month
                         </div>
-                        <div className="mt-1 pt-1 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                          <span className="font-bold text-blue-700">{topEarnersList[1]?.monthCompletedCount} Jobs Done</span>
-                          <span className="font-semibold text-slate-600">Total: ₹{topEarnersList[1]?.totalEarnings.toLocaleString('en-IN')}</span>
+                        <div className="mt-1 pt-1 border-t border-slate-200/80 flex items-center justify-between text-[9px]">
+                          <span className="font-bold text-blue-700">{topEarnersList[1]?.monthCompletedCount} Jobs</span>
+                          <span className="font-semibold text-slate-500">Tot: ₹{topEarnersList[1]?.totalEarnings.toLocaleString('en-IN')}</span>
                         </div>
                       </div>
                     </div>
                   )}
 
-                  {/* 🥇 #1 GOLD CHAMPION EARNER (ELEVATED) */}
+                  {/* 🥇 #1 GOLD CHAMPION EARNER (CENTER - ELEVATED) */}
                   {topEarnersList[0] && (
-                    <div className="h-full bg-gradient-to-b from-amber-100/70 via-emerald-50/30 to-white border-3 border-amber-400 rounded-3xl p-5 flex flex-col items-center justify-between shadow-xl relative scale-[1.02] z-10 transition-all">
+                    <div className="h-[98%] bg-gradient-to-b from-amber-50/80 via-white to-emerald-50/40 border-2 border-amber-400 rounded-xl p-2.5 flex flex-col items-center justify-between shadow-sm relative scale-[1.02] z-10">
                       {/* Floating Crown */}
-                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-2xl animate-bounce">
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-base">
                         👑
                       </div>
 
-                      <div className="w-full flex items-center justify-between mt-1">
-                        <span className="px-3 py-1 rounded-xl bg-amber-500 text-white text-xs font-black uppercase flex items-center gap-1.5 shadow-md">
-                          <span>🥇</span> TOP EARNER #1
-                        </span>
-                        <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase">
-                          Highest Payout
-                        </span>
-                      </div>
+                      <span className="px-2 py-0.5 rounded-md bg-amber-500 text-white text-[9px] font-black uppercase flex items-center gap-1 shadow-xs mt-0.5">
+                        🥇 TOP EARNER #1
+                      </span>
 
-                      {/* Large Halo Avatar */}
-                      <div className="relative my-2">
+                      {/* Avatar 58px */}
+                      <div className="relative my-0.5">
                         <div 
-                          className="rounded-full border-4 border-amber-400 ring-6 ring-amber-300/60 shadow-2xl bg-amber-100 flex items-center justify-center overflow-hidden"
-                          style={{ width: '104px', height: '104px' }}
+                          className="rounded-full border-2 border-amber-400 ring-3 ring-amber-200/60 shadow-sm bg-amber-100 flex items-center justify-center overflow-hidden"
+                          style={{ width: '58px', height: '58px' }}
                         >
                           {getTechPhoto(topEarnersList[0]) ? (
                             <img 
@@ -1036,36 +1026,36 @@ export default function TvDashboard() {
                               className="w-full h-full object-cover" 
                             />
                           ) : (
-                            <span className="text-amber-800 font-black text-3xl tracking-wider">
+                            <span className="text-amber-800 font-black text-lg tracking-wider">
                               {(topEarnersList[0]?.name || 'TC').slice(0, 2).toUpperCase()}
                             </span>
                           )}
                         </div>
-                        <span className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-amber-500 text-white font-black text-sm flex items-center justify-center shadow-lg border-2 border-white">
+                        <span className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-amber-500 text-white font-black text-[9px] flex items-center justify-center shadow-xs border border-white">
                           1
                         </span>
                       </div>
 
                       <div className="text-center w-full px-1">
-                        <h4 className="text-lg font-black text-slate-900 tracking-tight uppercase truncate">
+                        <h4 className="text-xs font-black text-slate-900 tracking-tight uppercase truncate">
                           {topEarnersList[0]?.name}
                         </h4>
-                        <span className="text-xs font-extrabold text-amber-700 block truncate">
-                          ⭐ Lead Technician • 5.0 Rating
+                        <span className="text-[9px] font-bold text-amber-700 block truncate">
+                          ⭐ Lead Tech • 5.0 Rating
                         </span>
                       </div>
 
                       {/* Mega Earnings Pill */}
-                      <div className="w-full bg-emerald-100/90 rounded-2xl p-3 border border-emerald-300 text-center shadow-xs">
-                        <div className="text-3xl font-black text-emerald-700 font-mono tracking-tight">
+                      <div className="w-full bg-emerald-50 rounded-lg p-2 border border-emerald-300 text-center shadow-2xs">
+                        <div className="text-xl font-black text-emerald-700 font-mono tracking-tight">
                           ₹{topEarnersList[0]?.monthlyEarnings.toLocaleString('en-IN')}
                         </div>
-                        <div className="text-[10px] font-black text-emerald-900 uppercase tracking-wider">
-                          Earned This Month ({currentMonthLabel})
+                        <div className="text-[8px] font-black text-emerald-900 uppercase tracking-wider">
+                          Highest Payout ({currentMonthLabel})
                         </div>
-                        <div className="mt-1.5 pt-1.5 border-t border-emerald-200 flex items-center justify-between text-xs">
+                        <div className="mt-1 pt-1 border-t border-emerald-200 flex items-center justify-between text-[9px]">
                           <span className="font-black text-blue-800">{topEarnersList[0]?.monthCompletedCount} Completed Jobs</span>
-                          <span className="font-extrabold text-emerald-800">Total: ₹{topEarnersList[0]?.totalEarnings.toLocaleString('en-IN')}</span>
+                          <span className="font-extrabold text-emerald-800">Tot: ₹{topEarnersList[0]?.totalEarnings.toLocaleString('en-IN')}</span>
                         </div>
                       </div>
                     </div>
@@ -1073,19 +1063,16 @@ export default function TvDashboard() {
 
                   {/* 🥉 #3 BRONZE EARNER */}
                   {topEarnersList[2] && (
-                    <div className="h-[88%] bg-gradient-to-b from-orange-50/40 via-white to-amber-100/40 border-2 border-amber-700/30 rounded-3xl p-4 flex flex-col items-center justify-between shadow-sm relative hover:border-amber-600 transition-all">
-                      <div className="w-full flex items-center justify-between">
-                        <span className="px-2.5 py-0.5 rounded-lg bg-amber-700/20 text-amber-900 text-[11px] font-black uppercase flex items-center gap-1 shadow-xs">
-                          <span>🥉</span> RANK #3 EARNER
-                        </span>
-                        <span className="text-[10px] font-bold text-amber-800">Bronze Earner</span>
-                      </div>
+                    <div className="h-[86%] bg-gradient-to-b from-orange-50/40 via-white to-amber-100/30 border border-amber-600/30 rounded-xl p-2.5 flex flex-col items-center justify-between shadow-2xs relative">
+                      <span className="px-2 py-0.5 rounded-md bg-amber-700/20 text-amber-900 text-[9px] font-black uppercase flex items-center gap-1 shadow-2xs">
+                        🥉 RANK #3
+                      </span>
 
-                      {/* Halo Avatar */}
-                      <div className="relative my-2">
+                      {/* Avatar 48px */}
+                      <div className="relative my-0.5">
                         <div 
-                          className="rounded-full border-4 border-amber-700/40 ring-4 ring-amber-600/20 shadow-lg bg-orange-100/70 flex items-center justify-center overflow-hidden"
-                          style={{ width: '84px', height: '84px' }}
+                          className="rounded-full border-2 border-amber-700/40 shadow-xs bg-orange-100/70 flex items-center justify-center overflow-hidden"
+                          style={{ width: '48px', height: '48px' }}
                         >
                           {getTechPhoto(topEarnersList[2]) ? (
                             <img 
@@ -1094,36 +1081,36 @@ export default function TvDashboard() {
                               className="w-full h-full object-cover" 
                             />
                           ) : (
-                            <span className="text-amber-900 font-black text-2xl tracking-wider">
+                            <span className="text-amber-900 font-black text-base">
                               {(topEarnersList[2]?.name || 'TC').slice(0, 2).toUpperCase()}
                             </span>
                           )}
                         </div>
-                        <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-amber-800 text-white font-black text-xs flex items-center justify-center shadow-md">
+                        <span className="absolute -bottom-0.5 -right-0.5 w-4.5 h-4.5 rounded-full bg-amber-800 text-white font-black text-[9px] flex items-center justify-center shadow-xs">
                           3
                         </span>
                       </div>
 
                       <div className="text-center w-full px-1">
-                        <h4 className="text-base font-black text-slate-900 tracking-tight uppercase truncate">
+                        <h4 className="text-xs font-black text-slate-900 tracking-tight uppercase truncate">
                           {topEarnersList[2]?.name}
                         </h4>
-                        <span className="text-[11px] font-bold text-slate-500 block truncate">
-                          {topEarnersList[2]?.badge || 'Field Technician'}
+                        <span className="text-[9px] font-semibold text-slate-500 block truncate">
+                          Technician • ⭐ 5.0
                         </span>
                       </div>
 
                       {/* Earnings Pill */}
-                      <div className="w-full bg-orange-50/80 rounded-2xl p-2.5 border border-amber-200 text-center">
-                        <div className="text-2xl font-black text-emerald-600 font-mono">
+                      <div className="w-full bg-orange-50 rounded-lg p-1.5 border border-amber-200 text-center">
+                        <div className="text-base font-black text-emerald-600 font-mono">
                           ₹{topEarnersList[2]?.monthlyEarnings.toLocaleString('en-IN')}
                         </div>
-                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                          This Month Payout
+                        <div className="text-[8px] font-bold text-slate-500 uppercase tracking-wider">
+                          This Month
                         </div>
-                        <div className="mt-1 pt-1 border-t border-amber-200/80 flex items-center justify-between text-[11px]">
-                          <span className="font-bold text-blue-700">{topEarnersList[2]?.monthCompletedCount} Jobs Done</span>
-                          <span className="font-semibold text-slate-600">Total: ₹{topEarnersList[2]?.totalEarnings.toLocaleString('en-IN')}</span>
+                        <div className="mt-1 pt-1 border-t border-amber-200/80 flex items-center justify-between text-[9px]">
+                          <span className="font-bold text-blue-700">{topEarnersList[2]?.monthCompletedCount} Jobs</span>
+                          <span className="font-semibold text-slate-500">Tot: ₹{topEarnersList[2]?.totalEarnings.toLocaleString('en-IN')}</span>
                         </div>
                       </div>
                     </div>
@@ -1132,56 +1119,58 @@ export default function TvDashboard() {
                 </div>
               </div>
 
-              {/* ── RIGHT 4 COLS: FULL TEAM EARNINGS STANDINGS (Ranks #4 - End) ── */}
-              <div className="col-span-4 bg-white rounded-3xl border border-slate-200/90 p-5 flex flex-col shadow-xs overflow-hidden">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0 mb-3">
-                  <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                    <FiDollarSign className="text-emerald-600" size={15} />
-                    ALL TECHNICIAN EARNINGS (RANKS #4 - #{topEarnersList.length})
-                  </h3>
-                  <span className="text-[11px] font-bold text-slate-400">
+              {/* ── RIGHT 5 COLS: FULL TEAM STANDINGS TABLE (FLIPKART LEADERBOARD STYLE) ── */}
+              <div className="col-span-5 bg-white rounded-2xl border border-slate-200 p-3 flex flex-col shadow-2xs overflow-hidden min-h-0">
+                <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 shrink-0 mb-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <FiDollarSign className="text-emerald-600" size={14} />
+                    <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                      TEAM STANDINGS (RANKS #4 - #{topEarnersList.length})
+                    </h3>
+                  </div>
+                  <span className="text-[9px] font-bold text-slate-400">
                     {currentMonthLabel}
                   </span>
                 </div>
 
-                <div className="flex-1 overflow-y-auto no-scrollbar flex flex-col justify-between gap-2">
+                <div className="flex-1 flex flex-col justify-between gap-1 min-h-0 overflow-hidden">
                   {topEarnersList.slice(3).map((tech, idx) => (
                     <div 
                       key={tech.id || idx}
-                      className="bg-slate-50 hover:bg-emerald-50/40 border border-slate-200/80 rounded-2xl p-3 flex items-center justify-between gap-3 transition-all shadow-2xs"
+                      className="bg-slate-50/80 hover:bg-emerald-50/50 border border-slate-200/80 rounded-xl px-2.5 py-1.5 flex items-center justify-between gap-2 transition-all shadow-2xs"
                     >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className="w-6 h-6 rounded-lg bg-slate-200 text-slate-700 font-black text-xs flex items-center justify-center shrink-0">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="w-5 h-5 rounded-md bg-slate-200 text-slate-700 font-black text-[9px] flex items-center justify-center shrink-0">
                           #{idx + 4}
                         </span>
 
                         <div 
-                          className="w-10 h-10 rounded-xl overflow-hidden border border-slate-300 bg-slate-200 flex items-center justify-center shrink-0"
+                          className="w-7 h-7 rounded-full overflow-hidden border border-slate-300 bg-slate-200 flex items-center justify-center shrink-0 shadow-2xs"
                         >
                           {getTechPhoto(tech) ? (
                             <img src={getTechPhoto(tech)} alt={tech.name} className="w-full h-full object-cover" />
                           ) : (
-                            <span className="text-slate-700 font-bold text-xs">
+                            <span className="text-slate-700 font-black text-[9px]">
                               {(tech.name || 'TC').slice(0, 2).toUpperCase()}
                             </span>
                           )}
                         </div>
 
                         <div className="min-w-0">
-                          <h5 className="text-xs font-black text-slate-900 truncate uppercase">
+                          <h5 className="text-[11px] font-black text-slate-900 truncate uppercase">
                             {tech.name}
                           </h5>
-                          <p className="text-[11px] font-semibold text-slate-500 truncate">
+                          <p className="text-[9px] font-medium text-slate-500 truncate">
                             {tech.monthCompletedCount} jobs completed
                           </p>
                         </div>
                       </div>
 
                       <div className="text-right shrink-0">
-                        <span className="text-sm font-black text-emerald-600 font-mono block">
+                        <span className="text-xs font-black text-emerald-600 font-mono block">
                           ₹{tech.monthlyEarnings.toLocaleString('en-IN')}
                         </span>
-                        <span className="text-[10px] font-semibold text-slate-400 block">
+                        <span className="text-[8px] font-medium text-slate-400 block">
                           Total: ₹{tech.totalEarnings.toLocaleString('en-IN')}
                         </span>
                       </div>
@@ -1198,58 +1187,57 @@ export default function TvDashboard() {
             SLIDE 3: OVERALL PERFORMANCE LEADERBOARD (RATINGS & COMPLETED JOBS)
             ══════════════════════════════════════════════════════════════════ */}
         {currentSlide === 3 && (
-          <div className="flex-1 flex flex-col gap-4 min-h-0">
+          <div className="flex-1 flex flex-col gap-2.5 min-h-0 overflow-hidden">
             {/* Top Ribbon */}
-            <div className="flex items-center justify-between bg-amber-50 px-6 py-3 rounded-2xl border border-amber-200 shadow-xs shrink-0">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">🏆</span>
+            <div className="flex items-center justify-between bg-amber-50/90 px-4 py-2 rounded-xl border border-amber-200 shadow-2xs shrink-0">
+              <div className="flex items-center gap-2.5">
+                <span className="text-xl">🏆</span>
                 <div>
-                  <h2 className="text-sm font-black text-amber-900 uppercase tracking-tight">
-                    TECHNICIAN LEADERBOARD • TOP PERFORMERS
+                  <h2 className="text-xs font-black text-amber-900 uppercase tracking-wider">
+                    TECHNICIAN PERFORMANCE LEADERBOARD
                   </h2>
-                  <p className="text-xs font-semibold text-amber-800">
-                    Ranked by completed installations, on-time punctuality & 5-star customer ratings.
+                  <p className="text-[10px] font-medium text-amber-800">
+                    Ranked by completed installations, on-time punctuality & 5-star customer ratings
                   </p>
                 </div>
               </div>
-              <span className="px-3.5 py-1 rounded-xl bg-amber-500 text-white text-xs font-black uppercase tracking-wider shadow-xs">
-                Performance Leaderboard
+              <span className="px-2.5 py-0.5 rounded-lg bg-amber-500 text-white text-[10px] font-black uppercase tracking-wider shadow-xs">
+                Performance Ladder
               </span>
             </div>
 
             {/* Olympic Victory Podium Arena (Top 3) + All-Team Leaderboard (Ranks 4-8) */}
-            <div className="flex-1 grid grid-cols-12 gap-5 min-h-0">
+            <div className="flex-1 grid grid-cols-12 gap-3 min-h-0 overflow-hidden">
               
-              {/* ── LEFT 8 COLS: OLYMPIC PODIUM (Top 3) ── */}
-              <div className="col-span-8 bg-gradient-to-b from-slate-900/5 via-white to-amber-50/20 rounded-3xl border border-slate-200/90 p-5 flex flex-col shadow-xs overflow-hidden">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0 mb-3">
-                  <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                    <FiAward className="text-amber-500" size={16} />
-                    OLYMPIC VICTORY PODIUM • TOP 3 PERFORMERS
-                  </h3>
-                  <span className="text-[11px] font-bold text-amber-700 bg-amber-100/80 px-2.5 py-0.5 rounded-lg">
+              {/* ── LEFT 7 COLS: OLYMPIC PODIUM (Top 3) ── */}
+              <div className="col-span-7 bg-white rounded-2xl border border-slate-200 p-3 flex flex-col shadow-2xs overflow-hidden min-h-0">
+                <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 shrink-0 mb-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <FiAward className="text-amber-500" size={14} />
+                    <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                      OLYMPIC VICTORY PODIUM • TOP 3 PERFORMERS
+                    </h3>
+                  </div>
+                  <span className="text-[9px] font-bold text-amber-700 bg-amber-100/80 px-2 py-0.2 rounded">
                     Honor Roll
                   </span>
                 </div>
 
-                {/* The 3 Podium Pillars: #2 Silver, #1 Gold (Center Elevated), #3 Bronze */}
-                <div className="flex-1 grid grid-cols-3 gap-4 min-h-0 items-end pb-2">
+                {/* 3 Podium Pillars: #2 Silver, #1 Gold (Center Elevated), #3 Bronze */}
+                <div className="flex-1 grid grid-cols-3 gap-2.5 min-h-0 items-end pb-0.5 pt-2">
                   
                   {/* 🥈 #2 SILVER (LEFT) */}
                   {rankedTechnicians[1] && (
-                    <div className="h-[92%] bg-gradient-to-b from-slate-50 via-white to-slate-100 border-2 border-slate-300 rounded-3xl p-4 flex flex-col items-center justify-between shadow-sm relative hover:border-slate-400 transition-all">
-                      <div className="w-full flex items-center justify-between">
-                        <span className="px-2.5 py-0.5 rounded-lg bg-slate-200 text-slate-800 text-[11px] font-black uppercase flex items-center gap-1 shadow-xs">
-                          <span>🥈</span> RANK #2
-                        </span>
-                        <span className="text-[10px] font-bold text-slate-500">Silver Star</span>
-                      </div>
+                    <div className="h-[90%] bg-gradient-to-b from-slate-50 via-white to-slate-100 border border-slate-300 rounded-xl p-2.5 flex flex-col items-center justify-between shadow-2xs relative">
+                      <span className="px-2 py-0.5 rounded-md bg-slate-200 text-slate-800 text-[9px] font-black uppercase flex items-center gap-1 shadow-2xs">
+                        🥈 RANK #2
+                      </span>
 
-                      {/* Circular Halo Avatar */}
-                      <div className="relative my-2">
+                      {/* Circular Avatar */}
+                      <div className="relative my-0.5">
                         <div 
-                          className="rounded-full border-4 border-slate-300 ring-4 ring-slate-200/70 shadow-lg bg-slate-100 flex items-center justify-center overflow-hidden"
-                          style={{ width: '84px', height: '84px' }}
+                          className="rounded-full border-2 border-slate-300 shadow-xs bg-slate-100 flex items-center justify-center overflow-hidden"
+                          style={{ width: '48px', height: '48px' }}
                         >
                           {getTechPhoto(rankedTechnicians[1]) ? (
                             <img 
@@ -1258,35 +1246,35 @@ export default function TvDashboard() {
                               className="w-full h-full object-cover" 
                             />
                           ) : (
-                            <span className="text-slate-700 font-black text-2xl tracking-wider">
+                            <span className="text-slate-700 font-black text-base">
                               {(rankedTechnicians[1]?.name || 'TC').slice(0, 2).toUpperCase()}
                             </span>
                           )}
                         </div>
-                        <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-slate-700 text-white font-black text-xs flex items-center justify-center shadow-md">
+                        <span className="absolute -bottom-0.5 -right-0.5 w-4.5 h-4.5 rounded-full bg-slate-700 text-white font-black text-[9px] flex items-center justify-center shadow-xs">
                           2
                         </span>
                       </div>
 
                       <div className="text-center w-full px-1">
-                        <h4 className="text-base font-black text-slate-900 tracking-tight uppercase truncate">
+                        <h4 className="text-xs font-black text-slate-900 tracking-tight uppercase truncate">
                           {rankedTechnicians[1]?.name}
                         </h4>
-                        <div className="flex items-center justify-center gap-1 text-amber-500 text-xs font-black mt-0.5">
-                          <FiStar fill="currentColor" size={12} />
-                          <span>{rankedTechnicians[1]?.rating || '4.9'} / 5.0 Rating</span>
+                        <div className="flex items-center justify-center gap-0.5 text-amber-500 text-[10px] font-bold mt-0.5">
+                          <FiStar fill="currentColor" size={10} />
+                          <span>{rankedTechnicians[1]?.rating || '4.9'} Rating</span>
                         </div>
                       </div>
 
                       {/* Metrics Pill */}
-                      <div className="w-full bg-slate-100/90 rounded-2xl p-2.5 border border-slate-200/80 text-center">
-                        <div className="text-xl font-black text-slate-900 font-mono">
+                      <div className="w-full bg-slate-100 rounded-lg p-1.5 border border-slate-200/80 text-center">
+                        <div className="text-base font-black text-slate-900 font-mono">
                           {rankedTechnicians[1]?.totalCompleted || 9}
                         </div>
-                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                        <div className="text-[8px] font-bold text-slate-500 uppercase tracking-wider">
                           Jobs Completed
                         </div>
-                        <div className="mt-1 pt-1 border-t border-slate-200 flex items-center justify-between text-[11px]">
+                        <div className="mt-1 pt-1 border-t border-slate-200 flex items-center justify-between text-[9px]">
                           <span className="font-semibold text-emerald-600">₹{rankedTechnicians[1]?.monthlyEarnings.toLocaleString('en-IN')}</span>
                           <span className="font-bold text-slate-600">★ High SLA</span>
                         </div>
@@ -1296,27 +1284,21 @@ export default function TvDashboard() {
 
                   {/* 🥇 #1 GOLD CHAMPION (CENTER - ELEVATED) */}
                   {rankedTechnicians[0] && (
-                    <div className="h-full bg-gradient-to-b from-amber-100/70 via-amber-50/40 to-white border-3 border-amber-400 rounded-3xl p-5 flex flex-col items-center justify-between shadow-xl relative scale-[1.02] z-10 transition-all">
-                      
+                    <div className="h-[98%] bg-gradient-to-b from-amber-50/80 via-white to-amber-100/40 border-2 border-amber-400 rounded-xl p-2.5 flex flex-col items-center justify-between shadow-sm relative scale-[1.02] z-10">
                       {/* Floating Crown 👑 */}
-                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-2xl animate-bounce">
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-base">
                         👑
                       </div>
 
-                      <div className="w-full flex items-center justify-between mt-1">
-                        <span className="px-3 py-1 rounded-xl bg-amber-500 text-white text-xs font-black uppercase flex items-center gap-1.5 shadow-md">
-                          <span>🥇</span> CHAMPION #1
-                        </span>
-                        <span className="px-2 py-0.5 rounded-md bg-amber-200/80 text-amber-900 text-[10px] font-black uppercase">
-                          Top Performer
-                        </span>
-                      </div>
+                      <span className="px-2 py-0.5 rounded-md bg-amber-500 text-white text-[9px] font-black uppercase flex items-center gap-1 shadow-xs mt-0.5">
+                        🥇 CHAMPION #1
+                      </span>
 
-                      {/* Big Circular Halo Avatar */}
-                      <div className="relative my-2">
+                      {/* Avatar */}
+                      <div className="relative my-0.5">
                         <div 
-                          className="rounded-full border-4 border-amber-400 ring-6 ring-amber-300/60 shadow-2xl bg-amber-100 flex items-center justify-center overflow-hidden"
-                          style={{ width: '104px', height: '104px' }}
+                          className="rounded-full border-2 border-amber-400 ring-3 ring-amber-200/60 shadow-sm bg-amber-100 flex items-center justify-center overflow-hidden"
+                          style={{ width: '58px', height: '58px' }}
                         >
                           {getTechPhoto(rankedTechnicians[0]) ? (
                             <img 
@@ -1325,36 +1307,36 @@ export default function TvDashboard() {
                               className="w-full h-full object-cover" 
                             />
                           ) : (
-                            <span className="text-amber-800 font-black text-3xl tracking-wider">
+                            <span className="text-amber-800 font-black text-lg tracking-wider">
                               {(rankedTechnicians[0]?.name || 'TC').slice(0, 2).toUpperCase()}
                             </span>
                           )}
                         </div>
-                        <span className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-amber-500 text-white font-black text-sm flex items-center justify-center shadow-lg border-2 border-white">
+                        <span className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-amber-500 text-white font-black text-[9px] flex items-center justify-center shadow-xs border border-white">
                           1
                         </span>
                       </div>
 
                       <div className="text-center w-full px-1">
-                        <h4 className="text-lg font-black text-slate-900 tracking-tight uppercase truncate">
+                        <h4 className="text-xs font-black text-slate-900 tracking-tight uppercase truncate">
                           {rankedTechnicians[0]?.name}
                         </h4>
-                        <div className="flex items-center justify-center gap-1.5 text-amber-600 text-xs font-black mt-0.5">
-                          <FiStar fill="currentColor" size={13} />
-                          <span>{rankedTechnicians[0]?.rating || '5.0'} / 5.0 (Perfect Score)</span>
+                        <div className="flex items-center justify-center gap-1 text-amber-600 text-[10px] font-bold mt-0.5">
+                          <FiStar fill="currentColor" size={11} />
+                          <span>{rankedTechnicians[0]?.rating || '5.0'} (Perfect Score)</span>
                         </div>
                       </div>
 
                       {/* Metrics Pill */}
-                      <div className="w-full bg-amber-100/80 rounded-2xl p-3 border border-amber-300/80 text-center">
-                        <div className="text-2xl font-black text-amber-950 font-mono">
+                      <div className="w-full bg-amber-100/80 rounded-lg p-2 border border-amber-300/80 text-center">
+                        <div className="text-lg font-black text-amber-950 font-mono">
                           {rankedTechnicians[0]?.totalCompleted || 11}
                         </div>
-                        <div className="text-[10px] font-black text-amber-900 uppercase tracking-wider">
-                          Total Installations Done
+                        <div className="text-[8px] font-black text-amber-900 uppercase tracking-wider">
+                          Installations Done
                         </div>
-                        <div className="mt-1.5 pt-1.5 border-t border-amber-200 flex items-center justify-between text-xs">
-                          <span className="font-extrabold text-emerald-700">₹{rankedTechnicians[0]?.monthlyEarnings.toLocaleString('en-IN')} This Month</span>
+                        <div className="mt-1 pt-1 border-t border-amber-200 flex items-center justify-between text-[9px]">
+                          <span className="font-extrabold text-emerald-700">₹{rankedTechnicians[0]?.monthlyEarnings.toLocaleString('en-IN')} Month</span>
                           <span className="font-extrabold text-amber-900">⭐ Field MVP</span>
                         </div>
                       </div>
@@ -1363,19 +1345,16 @@ export default function TvDashboard() {
 
                   {/* 🥉 #3 BRONZE (RIGHT) */}
                   {rankedTechnicians[2] && (
-                    <div className="h-[88%] bg-gradient-to-b from-orange-50/40 via-white to-amber-100/40 border-2 border-amber-700/30 rounded-3xl p-4 flex flex-col items-center justify-between shadow-sm relative hover:border-amber-600 transition-all">
-                      <div className="w-full flex items-center justify-between">
-                        <span className="px-2.5 py-0.5 rounded-lg bg-amber-700/20 text-amber-900 text-[11px] font-black uppercase flex items-center gap-1 shadow-xs">
-                          <span>🥉</span> RANK #3
-                        </span>
-                        <span className="text-[10px] font-bold text-amber-800">Bronze Star</span>
-                      </div>
+                    <div className="h-[86%] bg-gradient-to-b from-orange-50/40 via-white to-amber-100/30 border border-amber-600/30 rounded-xl p-2.5 flex flex-col items-center justify-between shadow-2xs relative">
+                      <span className="px-2 py-0.5 rounded-md bg-amber-700/20 text-amber-900 text-[9px] font-black uppercase flex items-center gap-1 shadow-2xs">
+                        🥉 RANK #3
+                      </span>
 
-                      {/* Circular Halo Avatar */}
-                      <div className="relative my-2">
+                      {/* Avatar */}
+                      <div className="relative my-0.5">
                         <div 
-                          className="rounded-full border-4 border-amber-700/40 ring-4 ring-amber-600/20 shadow-lg bg-orange-100/70 flex items-center justify-center overflow-hidden"
-                          style={{ width: '84px', height: '84px' }}
+                          className="rounded-full border-2 border-amber-700/40 shadow-xs bg-orange-100/70 flex items-center justify-center overflow-hidden"
+                          style={{ width: '48px', height: '48px' }}
                         >
                           {getTechPhoto(rankedTechnicians[2]) ? (
                             <img 
@@ -1384,35 +1363,35 @@ export default function TvDashboard() {
                               className="w-full h-full object-cover" 
                             />
                           ) : (
-                            <span className="text-amber-900 font-black text-2xl tracking-wider">
+                            <span className="text-amber-900 font-black text-base">
                               {(rankedTechnicians[2]?.name || 'TC').slice(0, 2).toUpperCase()}
                             </span>
                           )}
                         </div>
-                        <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-amber-800 text-white font-black text-xs flex items-center justify-center shadow-md">
+                        <span className="absolute -bottom-0.5 -right-0.5 w-4.5 h-4.5 rounded-full bg-amber-800 text-white font-black text-[9px] flex items-center justify-center shadow-xs">
                           3
                         </span>
                       </div>
 
                       <div className="text-center w-full px-1">
-                        <h4 className="text-base font-black text-slate-900 tracking-tight uppercase truncate">
+                        <h4 className="text-xs font-black text-slate-900 tracking-tight uppercase truncate">
                           {rankedTechnicians[2]?.name}
                         </h4>
-                        <div className="flex items-center justify-center gap-1 text-amber-600 text-xs font-black mt-0.5">
-                          <FiStar fill="currentColor" size={12} />
-                          <span>{rankedTechnicians[2]?.rating || '4.8'} / 5.0 Rating</span>
+                        <div className="flex items-center justify-center gap-0.5 text-amber-600 text-[10px] font-bold mt-0.5">
+                          <FiStar fill="currentColor" size={10} />
+                          <span>{rankedTechnicians[2]?.rating || '4.8'} Rating</span>
                         </div>
                       </div>
 
                       {/* Metrics Pill */}
-                      <div className="w-full bg-orange-50/80 rounded-2xl p-2.5 border border-amber-200 text-center">
-                        <div className="text-xl font-black text-slate-900 font-mono">
+                      <div className="w-full bg-orange-50 rounded-lg p-1.5 border border-amber-200 text-center">
+                        <div className="text-base font-black text-slate-900 font-mono">
                           {rankedTechnicians[2]?.totalCompleted || 7}
                         </div>
-                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                        <div className="text-[8px] font-bold text-slate-500 uppercase tracking-wider">
                           Jobs Completed
                         </div>
-                        <div className="mt-1 pt-1 border-t border-amber-200/80 flex items-center justify-between text-[11px]">
+                        <div className="mt-1 pt-1 border-t border-amber-200/80 flex items-center justify-between text-[9px]">
                           <span className="font-semibold text-emerald-600">₹{rankedTechnicians[2]?.monthlyEarnings.toLocaleString('en-IN')}</span>
                           <span className="font-bold text-amber-800">★ CCTV Pro</span>
                         </div>
@@ -1423,46 +1402,48 @@ export default function TvDashboard() {
                 </div>
               </div>
 
-              {/* ── RIGHT 4 COLS: FULL TEAM LEADERBOARD (Ranks #4 - #8) ── */}
-              <div className="col-span-4 bg-white rounded-3xl border border-slate-200/90 p-5 flex flex-col shadow-xs overflow-hidden">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0 mb-3">
-                  <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                    <FiUsers className="text-blue-600" size={15} />
-                    TEAM STANDINGS (RANKS #4 - #{rankedTechnicians.length})
-                  </h3>
-                  <span className="text-[11px] font-bold text-slate-400">
+              {/* ── RIGHT 5 COLS: FULL TEAM LEADERBOARD (Ranks #4 - #8) ── */}
+              <div className="col-span-5 bg-white rounded-2xl border border-slate-200 p-3 flex flex-col shadow-2xs overflow-hidden min-h-0">
+                <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 shrink-0 mb-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <FiUsers className="text-blue-600" size={14} />
+                    <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                      TEAM STANDINGS (RANKS #4 - #{rankedTechnicians.length})
+                    </h3>
+                  </div>
+                  <span className="text-[9px] font-bold text-slate-400">
                     Performance Ladder
                   </span>
                 </div>
 
-                <div className="flex-1 overflow-y-auto no-scrollbar flex flex-col justify-between gap-2">
+                <div className="flex-1 flex flex-col justify-between gap-1 min-h-0 overflow-hidden">
                   {rankedTechnicians.slice(3).map((tech, idx) => (
                     <div 
                       key={tech.id || idx}
-                      className="bg-slate-50 hover:bg-blue-50/40 border border-slate-200/80 rounded-2xl p-3 flex items-center justify-between gap-3 transition-all shadow-2xs"
+                      className="bg-slate-50/80 hover:bg-blue-50/40 border border-slate-200/80 rounded-xl px-2.5 py-1.5 flex items-center justify-between gap-2 transition-all shadow-2xs"
                     >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className="w-6 h-6 rounded-lg bg-slate-200 text-slate-700 font-black text-xs flex items-center justify-center shrink-0">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="w-5 h-5 rounded-md bg-slate-200 text-slate-700 font-black text-[9px] flex items-center justify-center shrink-0">
                           #{idx + 4}
                         </span>
 
                         <div 
-                          className="w-10 h-10 rounded-xl overflow-hidden border border-slate-300 bg-slate-200 flex items-center justify-center shrink-0"
+                          className="w-7 h-7 rounded-full overflow-hidden border border-slate-300 bg-slate-200 flex items-center justify-center shrink-0 shadow-2xs"
                         >
                           {getTechPhoto(tech) ? (
                             <img src={getTechPhoto(tech)} alt={tech.name} className="w-full h-full object-cover" />
                           ) : (
-                            <span className="text-slate-700 font-bold text-xs">
+                            <span className="text-slate-700 font-bold text-[9px]">
                               {(tech.name || 'TC').slice(0, 2).toUpperCase()}
                             </span>
                           )}
                         </div>
 
                         <div className="min-w-0">
-                          <h5 className="text-xs font-black text-slate-900 truncate uppercase">
+                          <h5 className="text-[11px] font-black text-slate-900 truncate uppercase">
                             {tech.name}
                           </h5>
-                          <p className="text-[11px] font-semibold text-slate-500 truncate">
+                          <p className="text-[9px] font-medium text-slate-500 truncate">
                             {tech.badge || 'Field Technician'}
                           </p>
                         </div>
@@ -1472,7 +1453,7 @@ export default function TvDashboard() {
                         <span className="text-xs font-black text-slate-900 font-mono block">
                           {tech.totalCompleted || 0} Jobs
                         </span>
-                        <span className="text-[10px] font-bold text-emerald-600 flex items-center justify-end gap-0.5">
+                        <span className="text-[9px] font-bold text-emerald-600 flex items-center justify-end gap-0.5">
                           ₹{tech.monthlyEarnings.toLocaleString('en-IN')}
                         </span>
                       </div>
