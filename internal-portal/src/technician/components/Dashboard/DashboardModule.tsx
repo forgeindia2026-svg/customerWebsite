@@ -459,7 +459,7 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] sm:text-xs font-black tracking-wider text-white/90 uppercase">
-              THIS MONTH'S EXPENSES
+              MY THIS MONTH'S EXPENSES
             </span>
             <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center text-white shrink-0 group-hover:scale-110 transition-transform">
               <Receipt className="w-5 h-5" />
