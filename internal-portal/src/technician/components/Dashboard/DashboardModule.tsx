@@ -94,6 +94,7 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
   // Current month & today date markers for strictly scoped earnings
   const now = new Date();
   const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const authUser = JSON.parse(localStorage.getItem('tech_user') || '{}');
   const currentTechName = (authUser.name || localStorage.getItem('user_name') || '').toLowerCase().trim();
 
