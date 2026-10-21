@@ -13,6 +13,7 @@ import ServiceRequests from './pages/ServiceRequests/ServiceRequests';
 import Products from './pages/Products/Products';
 import Inventory from './pages/Inventory/Inventory';
 import Payments from './pages/Payments/Payments';
+import Expenses from './pages/Expenses/Expenses';
 import Reports from './pages/Reports/Reports';
 import Notifications from './pages/Notifications/Notifications';
 import Settings from './pages/Settings/Settings';
@@ -91,6 +92,7 @@ export default function App() {
             <Route path="categories" element={<Categories />} />
             <Route path="inventory" element={<Inventory />} />
             <Route path="payments" element={<Payments />} />
+            <Route path="expenses" element={<Expenses />} />
             <Route path="reports" element={<Reports />} />
             <Route path="leaderboard" element={<Navigate to="/admin/reports?tab=leaderboard" replace />} />
             <Route path="customers" element={<Customers />} />
@@ -115,6 +117,7 @@ export default function App() {
         <Route path="/inventory" element={<Navigate to="/admin/inventory" replace />} />
         <Route path="/chat" element={<Navigate to="/admin/chat" replace />} />
         <Route path="/payments" element={<Navigate to="/admin/payments" replace />} />
+        <Route path="/expenses" element={<Navigate to="/admin/expenses" replace />} />
         <Route path="/reports" element={<Navigate to="/admin/reports" replace />} />
         <Route path="/notifications" element={<Navigate to="/admin/notifications" replace />} />
         <Route path="/settings" element={<Navigate to="/admin/settings" replace />} />
