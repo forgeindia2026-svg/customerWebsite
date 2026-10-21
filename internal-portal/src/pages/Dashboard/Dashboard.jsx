@@ -489,114 +489,142 @@ export default function Dashboard() {
       {/* HR Attendance & Live Punch In / Punch Out Card (Only for HR role) */}
       {currentRole === 'HR' && <HrAttendanceCard />}
 
-      {/* 5 KPI Cards Grid (Including Daily Technician Expenses) */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-5">
+      {/* 5 KPI Cards Grid (Including Daily Technician Expenses - Clean Non-Clipping Architecture) */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3.5 sm:gap-4">
         
         {/* Total Revenue */}
         <div 
           onClick={() => navigate('/admin/payments')}
-          className="bg-[#E5EFFF] border border-[#CCE1FC] dark:bg-blue-900/30 dark:border-blue-800 p-4 sm:p-5 rounded-2xl shadow-xs flex items-center gap-3 sm:gap-4 transition-all duration-200 cursor-pointer hover:shadow-md hover:scale-[1.01] active:scale-[0.99] select-none group"
+          className="bg-[#E5EFFF] border border-[#CCE1FC] dark:bg-blue-900/30 dark:border-blue-800 p-4 sm:p-5 rounded-2xl shadow-xs flex flex-col justify-between transition-all duration-200 cursor-pointer hover:shadow-md hover:scale-[1.01] active:scale-[0.99] select-none group min-h-[140px]"
           title="Click to view Payments & Revenue"
         >
-          <div className="w-12 h-12 sm:w-14 sm:h-14 bg-[#1D68FE] rounded-full flex items-center justify-center text-white shadow-md shadow-blue-600/25 shrink-0 group-hover:scale-105 transition-transform">
-            <FiDollarSign className="w-6 h-6 sm:w-7 sm:h-7" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 truncate">Total Revenue</p>
-            <h3 className="text-lg sm:text-2xl font-bold text-slate-900 dark:text-slate-50 mt-0.5 truncate">₹{totalRevenue.toLocaleString('en-IN')}</h3>
-            <span className={`text-[11px] sm:text-xs font-semibold flex items-center gap-0.5 mt-0.5 ${revenueChangePercent >= 0 ? 'text-emerald-600' : 'text-rose-600 dark:text-rose-400'}`}>
-              {revenueChangePercent >= 0 ? <FiArrowUpRight className="shrink-0" /> : <FiArrowDownRight className="shrink-0" />}
-              <span className="truncate">
-                {Math.abs(revenueChangePercent).toFixed(1)}% <span className="hidden sm:inline text-slate-500 dark:text-slate-400 font-normal">from last month</span>
-              </span>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] sm:text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+              Total Revenue
             </span>
+            <div className="w-10 h-10 sm:w-11 sm:h-11 bg-[#1D68FE] rounded-xl flex items-center justify-center text-white shadow-md shadow-blue-600/25 shrink-0 group-hover:scale-105 transition-transform">
+              <FiDollarSign className="w-5 h-5" />
+            </div>
           </div>
+          <div className="my-1.5">
+            <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-50 font-mono tracking-tight whitespace-nowrap">
+              ₹{totalRevenue.toLocaleString('en-IN')}
+            </h3>
+          </div>
+          <span className={`text-[11px] sm:text-xs font-semibold flex items-center gap-1 ${revenueChangePercent >= 0 ? 'text-emerald-600' : 'text-rose-600 dark:text-rose-400'}`}>
+            {revenueChangePercent >= 0 ? <FiArrowUpRight className="shrink-0" /> : <FiArrowDownRight className="shrink-0" />}
+            <span className="truncate">
+              {Math.abs(revenueChangePercent).toFixed(1)}% <span className="text-slate-500 dark:text-slate-400 font-normal">vs last month</span>
+            </span>
+          </span>
         </div>
 
         {/* This Month Expenses (Technician Daily Expenses) */}
         <div 
           onClick={() => setIsExpenseModalOpen(true)}
-          className="bg-[#FFF1F2] border border-[#FECDD3] dark:bg-rose-950/30 dark:border-rose-900/60 p-4 sm:p-5 rounded-2xl shadow-xs flex items-center gap-3 sm:gap-4 transition-all duration-200 cursor-pointer hover:shadow-md hover:scale-[1.01] active:scale-[0.99] select-none group"
+          className="bg-[#FFF1F2] border border-[#FECDD3] dark:bg-rose-950/30 dark:border-rose-900/60 p-4 sm:p-5 rounded-2xl shadow-xs flex flex-col justify-between transition-all duration-200 cursor-pointer hover:shadow-md hover:scale-[1.01] active:scale-[0.99] select-none group min-h-[140px]"
           title="Click to view Technician Daily Expenses Breakdown"
         >
-          <div className="w-12 h-12 sm:w-14 sm:h-14 bg-[#E11D48] rounded-full flex items-center justify-center text-white shadow-md shadow-rose-600/25 shrink-0 group-hover:scale-105 transition-transform">
-            <FiDollarSign className="w-6 h-6 sm:w-7 sm:h-7" />
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] sm:text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+              This Month Expenses
+            </span>
+            <div className="w-10 h-10 sm:w-11 sm:h-11 bg-[#E11D48] rounded-xl flex items-center justify-center text-white shadow-md shadow-rose-600/25 shrink-0 group-hover:scale-105 transition-transform">
+              <FiDollarSign className="w-5 h-5" />
+            </div>
           </div>
-          <div className="min-w-0">
-            <p className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 truncate">This Month Expenses</p>
-            <h3 className="text-lg sm:text-2xl font-bold text-slate-900 dark:text-slate-50 mt-0.5 truncate">
+          <div className="my-1.5">
+            <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-50 font-mono tracking-tight whitespace-nowrap">
               ₹{(expensesSummary?.summary?.thisMonthTotal || 0).toLocaleString('en-IN')}
             </h3>
-            <span className="text-[11px] sm:text-xs text-rose-600 dark:text-rose-400 font-semibold flex items-center gap-0.5 mt-0.5">
-              <FiEye className="shrink-0" />
-              <span className="truncate">
-                {expensesSummary?.technicianBreakdown?.length || 0} Techs <span className="hidden sm:inline font-normal">• View Details</span>
-              </span>
-            </span>
           </div>
+          <span className="text-[11px] sm:text-xs text-rose-600 dark:text-rose-400 font-semibold flex items-center gap-1">
+            <FiEye className="shrink-0" />
+            <span className="truncate">
+              {expensesSummary?.technicianBreakdown?.length || 0} Techs • <span className="font-normal underline">Details</span>
+            </span>
+          </span>
         </div>
 
         {/* Today Orders */}
         <div 
           onClick={() => navigate('/admin/orders')}
-          className="bg-[#D6F5E3] border border-[#BBECD0] dark:bg-emerald-900/30 dark:border-emerald-800 p-4 sm:p-5 rounded-2xl shadow-xs flex items-center gap-3 sm:gap-4 transition-all duration-200 cursor-pointer hover:shadow-md hover:scale-[1.01] active:scale-[0.99] select-none group"
+          className="bg-[#D6F5E3] border border-[#BBECD0] dark:bg-emerald-900/30 dark:border-emerald-800 p-4 sm:p-5 rounded-2xl shadow-xs flex flex-col justify-between transition-all duration-200 cursor-pointer hover:shadow-md hover:scale-[1.01] active:scale-[0.99] select-none group min-h-[140px]"
           title="Click to view Today Orders"
         >
-          <div className="w-12 h-12 sm:w-14 sm:h-14 bg-[#069655] rounded-full flex items-center justify-center text-white shadow-md shadow-emerald-600/25 shrink-0 group-hover:scale-105 transition-transform">
-            <FiShoppingCart className="w-5 h-5 sm:w-6 sm:h-6" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 truncate">Today Orders</p>
-            <h3 className="text-lg sm:text-2xl font-bold text-slate-900 dark:text-slate-50 mt-0.5 truncate">{todayOrders}</h3>
-            <span className="text-[11px] sm:text-xs text-emerald-600 font-semibold flex items-center gap-0.5 mt-0.5">
-              <FiArrowUpRight className="shrink-0" />
-              <span className="truncate">
-                +{lastHourOrders} new <span className="hidden sm:inline text-slate-500 dark:text-slate-400 font-normal">in last hour</span>
-              </span>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] sm:text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+              Today Orders
             </span>
+            <div className="w-10 h-10 sm:w-11 sm:h-11 bg-[#069655] rounded-xl flex items-center justify-center text-white shadow-md shadow-emerald-600/25 shrink-0 group-hover:scale-105 transition-transform">
+              <FiShoppingCart className="w-5 h-5" />
+            </div>
           </div>
+          <div className="my-1.5">
+            <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-50 font-mono tracking-tight whitespace-nowrap">
+              {todayOrders}
+            </h3>
+          </div>
+          <span className="text-[11px] sm:text-xs text-emerald-600 font-semibold flex items-center gap-1">
+            <FiArrowUpRight className="shrink-0" />
+            <span className="truncate">
+              +{lastHourOrders} new <span className="text-slate-500 dark:text-slate-400 font-normal">in last hour</span>
+            </span>
+          </span>
         </div>
 
         {/* Active Orders */}
         <div 
           onClick={() => navigate('/admin/orders?status=In Progress')}
-          className="bg-[#FEF5D2] border border-[#FDE68A] dark:bg-amber-900/30 dark:border-amber-800 p-4 sm:p-5 rounded-2xl shadow-xs flex items-center gap-3 sm:gap-4 transition-all duration-200 cursor-pointer hover:shadow-md hover:scale-[1.01] active:scale-[0.99] select-none group"
+          className="bg-[#FEF5D2] border border-[#FDE68A] dark:bg-amber-900/30 dark:border-amber-800 p-4 sm:p-5 rounded-2xl shadow-xs flex flex-col justify-between transition-all duration-200 cursor-pointer hover:shadow-md hover:scale-[1.01] active:scale-[0.99] select-none group min-h-[140px]"
           title="Click to view Active Orders In Progress"
         >
-          <div className="w-12 h-12 sm:w-14 sm:h-14 bg-[#E58A00] rounded-full flex items-center justify-center text-white shadow-md shadow-amber-500/25 shrink-0 group-hover:scale-105 transition-transform">
-            <FiClock className="w-5 h-5 sm:w-6 sm:h-6" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 truncate">Active Orders</p>
-            <h3 className="text-lg sm:text-2xl font-bold text-slate-900 dark:text-slate-50 mt-0.5 truncate">{activeOrders}</h3>
-            <span className="text-[11px] sm:text-xs text-emerald-700 font-semibold flex items-center gap-0.5 mt-0.5">
-              <FiActivity className="shrink-0 text-emerald-600" />
-              <span className="truncate">
-                Running <span className="hidden sm:inline text-slate-500 dark:text-slate-400 font-normal">installations</span>
-              </span>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] sm:text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+              Active Orders
             </span>
+            <div className="w-10 h-10 sm:w-11 sm:h-11 bg-[#E58A00] rounded-xl flex items-center justify-center text-white shadow-md shadow-amber-500/25 shrink-0 group-hover:scale-105 transition-transform">
+              <FiClock className="w-5 h-5" />
+            </div>
           </div>
+          <div className="my-1.5">
+            <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-50 font-mono tracking-tight whitespace-nowrap">
+              {activeOrders}
+            </h3>
+          </div>
+          <span className="text-[11px] sm:text-xs text-amber-700 dark:text-amber-400 font-semibold flex items-center gap-1">
+            <FiActivity className="shrink-0 text-amber-600" />
+            <span className="truncate">
+              Running <span className="text-slate-500 dark:text-slate-400 font-normal">installations</span>
+            </span>
+          </span>
         </div>
 
         {/* Finished Orders */}
         <div 
           onClick={() => navigate('/admin/orders?status=Completed')}
-          className="bg-[#F3EAFF] border border-[#EAD9FF] dark:bg-purple-900/30 dark:border-purple-800 p-4 sm:p-5 rounded-2xl shadow-xs flex items-center gap-3 sm:gap-4 transition-all duration-200 cursor-pointer hover:shadow-md hover:scale-[1.01] active:scale-[0.99] select-none group"
+          className="bg-[#F3EAFF] border border-[#EAD9FF] dark:bg-purple-900/30 dark:border-purple-800 p-4 sm:p-5 rounded-2xl shadow-xs flex flex-col justify-between transition-all duration-200 cursor-pointer hover:shadow-md hover:scale-[1.01] active:scale-[0.99] select-none group min-h-[140px]"
           title="Click to view Finished & Completed Orders"
         >
-          <div className="w-12 h-12 sm:w-14 sm:h-14 bg-[#8B2BE2] rounded-full flex items-center justify-center text-white shadow-md shadow-purple-600/25 shrink-0 group-hover:scale-105 transition-transform">
-            <FiCheckCircle className="w-5 h-5 sm:w-6 sm:h-6" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 truncate">Finished Orders</p>
-            <h3 className="text-lg sm:text-2xl font-bold text-slate-900 dark:text-slate-50 mt-0.5 truncate">{finishedOrders}</h3>
-            <span className="text-[11px] sm:text-xs text-purple-700 font-semibold flex items-center gap-0.5 mt-0.5">
-              <FiCheck className="shrink-0 text-purple-600" />
-              <span className="truncate">
-                {completionRate}% <span className="hidden sm:inline text-slate-500 dark:text-slate-400 font-normal">completion rate</span>
-              </span>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] sm:text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+              Finished Orders
             </span>
+            <div className="w-10 h-10 sm:w-11 sm:h-11 bg-[#8B2BE2] rounded-xl flex items-center justify-center text-white shadow-md shadow-purple-600/25 shrink-0 group-hover:scale-105 transition-transform">
+              <FiCheckCircle className="w-5 h-5" />
+            </div>
           </div>
+          <div className="my-1.5">
+            <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-50 font-mono tracking-tight whitespace-nowrap">
+              {finishedOrders}
+            </h3>
+          </div>
+          <span className="text-[11px] sm:text-xs text-purple-700 dark:text-purple-400 font-semibold flex items-center gap-1">
+            <FiCheck className="shrink-0 text-purple-600" />
+            <span className="truncate">
+              {completionRate}% <span className="text-slate-500 dark:text-slate-400 font-normal">completion rate</span>
+            </span>
+          </span>
         </div>
       </div>
 
