@@ -364,16 +364,20 @@ export default function Dashboard() {
       ? orderForm.email.trim().toLowerCase()
       : `${custName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'client'}@sktech.com`;
 
+    const selectedType = orderForm.type || 'Cameras Installation';
+
     dispatch(createOrderAPI({
       customerName: custName,
       customerEmail: cleanEmail,
       customerPhone: orderForm.phone || '',
       shippingAddress: 'Site Location',
       totalAmount: parseFloat(orderForm.amount) || 0,
-      serviceType: orderForm.type || 'Cameras Installation',
+      serviceType: selectedType,
+      category: selectedType,
+      type: selectedType,
       items: [{
         productId: 'SRV-01',
-        title: orderForm.type || 'Cameras Installation',
+        title: selectedType,
         price: parseFloat(orderForm.amount) || 0,
         quantity: 1,
         image: ''

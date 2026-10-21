@@ -62,10 +62,33 @@ export const fetchDashboardData = createAsyncThunk(
     dispatch(dashboardSlice.actions.setLoading(true));
     try {
       const isForce = forceRefresh === true;
-      const res = await fetch(`${getApiUrl()}/api/dashboard${isForce ? '?refresh=true' : ''}`);
-      const data = await res.json();
-      if (data.success && data.data) {
-        dispatch(setDashboardData(data.data));
+      const primaryUrl = `${getApiUrl()}/api/dashboard${isForce ? '?refresh=true' : ''}`;
+      let data = null;
+      try {
+        const res = await fetch(primaryUrl);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data) data = json.data;
+        }
+      } catch (err) {
+        console.warn('Primary dashboard fetch failed, trying local fallback:', err);
+      }
+
+      // If primary failed or returned empty orders, try local backend fallback if on localhost
+      if (!data || !Array.isArray(data.orders) || data.orders.length === 0) {
+        try {
+          const fallbackRes = await fetch(`http://localhost:5000/api/dashboard${isForce ? '?refresh=true' : ''}`);
+          if (fallbackRes.ok) {
+            const fallbackJson = await fallbackRes.json();
+            if (fallbackJson.success && fallbackJson.data) {
+              data = fallbackJson.data;
+            }
+          }
+        } catch (_) {}
+      }
+
+      if (data) {
+        dispatch(setDashboardData(data));
       }
     } catch (err) {
       console.warn('Dashboard fetch error:', err);

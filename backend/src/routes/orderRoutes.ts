@@ -118,9 +118,13 @@ router.post('/', async (req: Request, res: Response) => {
       }
     }
 
+    const requestedServiceType = (req.body.serviceType || req.body.category || req.body.type || '').toString().trim();
+    const finalServiceType = requestedServiceType || 'Cameras Installation';
+
     const newOrder = new Order({
       ...req.body,
       orderNumber,
+      serviceType: finalServiceType,
       customerName,
       customerEmail,
       customerPhone,
@@ -186,6 +190,7 @@ router.post('/', async (req: Request, res: Response) => {
         assignedTech = freeTechs.length > 0 ? freeTechs[0] : null;
       }
 
+      const techArray: any[] = [];
       if (assignedTech) {
         newOrder.assignedTechnician = assignedTech.name;
         newOrder.assignedTechnicianName = assignedTech.name;
@@ -215,46 +220,56 @@ router.post('/', async (req: Request, res: Response) => {
           });
         }
 
-        const rawItemTitles = req.body.items?.map((item: any) => item.title).join(', ') || 'CCTV Installation';
-        const cleanJobTitle = extractCleanJobTitle(rawItemTitles);
-        const cleanJobCat = extractCleanCategory(req.body.category || rawItemTitles, rawItemTitles);
-
-        await Job.create({
-          jobCode: orderNumber,
-          title: cleanJobTitle,
-          category: cleanJobCat,
-          status: 'ASSIGNMENT_PENDING_ACCEPTANCE',
-          priority: 'MEDIUM',
-          scheduledDate: req.body.scheduledDate || new Date().toISOString().split('T')[0],
-          scheduledTimeSlot: req.body.scheduledTimeSlot || '02:00 PM',
-          startDate: new Date().toISOString().split('T')[0],
-          estimatedDays: 1,
-          requiredTechniciansCount: 1,
-          orderCategory: 'Delivery & Installation',
-          customer: {
-            name: customerName,
-            phone: customerPhone,
-            email: customerEmail,
-            address: shippingAddress,
-            city: req.body.city || req.body.customerCity || req.body.state || 'Local',
-            postalCode: req.body.postalCode || req.body.zipcode || req.body.customerPostalCode || '600001'
-          },
-          customerQuery: req.body.customerQuery || '',
-          siteImages: req.body.siteImages || [],
-          hasVoiceNote: Boolean(finalVoiceUrl && finalVoiceUrl.length > 50),
-          voiceNoteDuration: req.body.voiceNoteDuration || '00:18',
-          voiceNoteUrl: finalVoiceUrl,
-          voiceNoteBase64: finalVoiceUrl,
-          assignedTechnicians: [
-            {
-              id: assignedTech._id.toString(),
-              name: assignedTech.name,
-              phone: assignedTech.phone || ''
-            }
-          ],
-          subTechnicians: subTechs
+        techArray.push({
+          id: assignedTech._id.toString(),
+          name: assignedTech.name,
+          phone: assignedTech.phone || ''
         });
       }
+
+      const rawItemTitles = req.body.items?.map((item: any) => item.title).filter(Boolean).join(', ') || '';
+      
+      // Preserve HR selected Order Type as Job Category
+      let cleanJobCat = finalServiceType;
+      if (!cleanJobCat || cleanJobCat.toLowerCase() === 'internal_task' || cleanJobCat.length > 40) {
+        cleanJobCat = extractCleanCategory(req.body.category || rawItemTitles, rawItemTitles || 'CCTV Installation');
+      }
+
+      // Preserve Package Description as Job Title, or fallback to clean order type
+      let cleanJobTitle = rawItemTitles ? extractCleanJobTitle(rawItemTitles) : (cleanJobCat || 'CCTV Installation');
+      if (!cleanJobTitle || cleanJobTitle.toLowerCase() === 'srv-01' || cleanJobTitle.toLowerCase() === 'internal_task') {
+        cleanJobTitle = cleanJobCat || 'CCTV Installation';
+      }
+
+      await Job.create({
+        jobCode: orderNumber,
+        title: cleanJobTitle,
+        category: cleanJobCat,
+        status: assignedTech ? 'ASSIGNMENT_PENDING_ACCEPTANCE' : 'PENDING',
+        priority: 'MEDIUM',
+        scheduledDate: req.body.scheduledDate || new Date().toISOString().split('T')[0],
+        scheduledTimeSlot: req.body.scheduledTimeSlot || '02:00 PM',
+        startDate: new Date().toISOString().split('T')[0],
+        estimatedDays: 1,
+        requiredTechniciansCount: 1,
+        orderCategory: 'Delivery & Installation',
+        customer: {
+          name: customerName,
+          phone: customerPhone,
+          email: customerEmail,
+          address: shippingAddress,
+          city: req.body.city || req.body.customerCity || req.body.state || 'Local',
+          postalCode: req.body.postalCode || req.body.zipcode || req.body.customerPostalCode || '600001'
+        },
+        customerQuery: req.body.customerQuery || '',
+        siteImages: req.body.siteImages || [],
+        hasVoiceNote: Boolean(finalVoiceUrl && finalVoiceUrl.length > 50),
+        voiceNoteDuration: req.body.voiceNoteDuration || '00:18',
+        voiceNoteUrl: finalVoiceUrl,
+        voiceNoteBase64: finalVoiceUrl,
+        assignedTechnicians: techArray,
+        subTechnicians: subTechs
+      });
     }
 
     clearDashboardCache();
@@ -318,6 +333,8 @@ router.put('/:id', async (req: Request, res: Response) => {
       }
       if (req.body.orderStatus === 'DELIVERED') {
         jobFields.status = 'APPROVED';
+      } else if (req.body.orderStatus === 'CANCELLED' || req.body.status === 'Cancelled' || String(req.body.status || '').toLowerCase() === 'cancelled') {
+        jobFields.status = 'CANCELLED';
       }
 
       if (Object.keys(jobFields).length > 0) {
@@ -345,6 +362,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       const dashboardDoc = await Dashboard.findOne();
       if (dashboardDoc) {
         let dashChanged = false;
+        const isCancelled = req.body.orderStatus === 'CANCELLED' || req.body.status === 'Cancelled' || String(req.body.status || '').toLowerCase() === 'cancelled';
         
         if (Array.isArray(dashboardDoc.orders)) {
           dashboardDoc.orders.forEach((o: any) => {
@@ -358,7 +376,10 @@ router.put('/:id', async (req: Request, res: Response) => {
               if (req.body.assignedTechnician) o.assignedTechnician = req.body.assignedTechnician;
               if (req.body.subTechnicians) o.subTechnicians = req.body.subTechnicians;
               if (req.body.serviceType) o.serviceType = req.body.serviceType;
-              if (req.body.orderStatus) {
+              if (isCancelled) {
+                o.orderStatus = 'CANCELLED';
+                o.status = 'Cancelled';
+              } else if (req.body.orderStatus) {
                 o.orderStatus = req.body.orderStatus;
                 o.status = req.body.orderStatus === 'DELIVERED' ? 'Approved' : (o.status || 'Processing');
               }
@@ -375,16 +396,31 @@ router.put('/:id', async (req: Request, res: Response) => {
               if (req.body.shippingAddress) p.location = req.body.shippingAddress;
               if (req.body.assignedTechnician) p.technician = req.body.assignedTechnician;
               if (req.body.serviceType) p.name = req.body.serviceType;
-              if (req.body.orderStatus === 'DELIVERED') p.status = 'Approved';
+              if (isCancelled) p.status = 'Cancelled';
+              else if (req.body.orderStatus === 'DELIVERED') p.status = 'Approved';
               dashChanged = true;
             }
           });
         }
 
+        // If cancelled, remove or update from Daybook payments in dashboardDoc
+        if (isCancelled && Array.isArray(dashboardDoc.payments)) {
+          const initialLen = dashboardDoc.payments.length;
+          dashboardDoc.payments = dashboardDoc.payments.filter((p: any) => {
+            const pInv = String(p.invoiceNo || p.transactionNo || p.id || '').toLowerCase();
+            return !pInv.includes(cleanId.toLowerCase()) && !pInv.includes(ordNum.toLowerCase());
+          });
+          if (dashboardDoc.payments.length !== initialLen) {
+            dashboardDoc.markModified('payments');
+            dashChanged = true;
+          }
+        }
+
         if (dashChanged) {
-          dashboardDoc.markModified('orders');
-          dashboardDoc.markModified('projects');
-          await dashboardDoc.save();
+          await Dashboard.updateOne(
+            { _id: dashboardDoc._id },
+            { $set: { orders: dashboardDoc.orders, projects: dashboardDoc.projects, payments: dashboardDoc.payments } }
+          );
         }
       }
     } catch (dashSyncErr) {
@@ -398,6 +434,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
 // DELETE /api/orders/:id
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
@@ -411,15 +448,79 @@ router.delete('/:id', async (req: Request, res: Response) => {
     }
 
     if (!deletedOrder) {
-      return res.status(404).json({ success: false, message: 'Order not found' });
+      // Also try cleaning up if only Job or Dashboard record exists
+      await Job.deleteMany({
+        $or: [
+          { jobCode: orderId },
+          { jobCode: `#${orderId}` },
+          { jobCode: `SK-${orderId}` }
+        ]
+      }).catch(() => {});
     }
 
-    // Also delete any associated jobs
-    await Job.findOneAndDelete({ jobCode: deletedOrder.orderNumber }).catch(() => {});
+    const ordNum = String(deletedOrder?.orderNumber || orderId);
+    const cleanId = ordNum.replace(/^#/, '').replace(/^SK-/, '').replace(/^ORD-/, '').replace(/^VST-/, '').trim();
+    const strOrderId = String(orderId);
+
+    // Also delete any associated jobs across all possible ID patterns
+    await Job.deleteMany({
+      $or: [
+        { jobCode: ordNum },
+        { jobCode: `#${ordNum}` },
+        { jobCode: `SK-${ordNum}` },
+        { jobCode: `SK-ORD-${cleanId}` },
+        { jobCode: `SK-VST-${cleanId}` },
+        { jobCode: `ORD-${cleanId}` },
+        { jobCode: `VST-${cleanId}` },
+        { jobCode: cleanId },
+        { jobCode: strOrderId }
+      ]
+    }).catch(() => {});
+
+    // Clean up Dashboard model document (orders, projects, and payments)
+    try {
+      const Dashboard = require('../models/Dashboard').default;
+      const dashboardDoc = await Dashboard.findOne();
+      if (dashboardDoc) {
+        let changed = false;
+        if (Array.isArray(dashboardDoc.orders)) {
+          const prevLen = dashboardDoc.orders.length;
+          dashboardDoc.orders = dashboardDoc.orders.filter((o: any) => {
+            const oId = String(o.id || o.orderNumber || '').toLowerCase();
+            return oId !== ordNum.toLowerCase() && oId !== cleanId.toLowerCase() && oId !== strOrderId.toLowerCase();
+          });
+          if (dashboardDoc.orders.length !== prevLen) changed = true;
+        }
+        if (Array.isArray(dashboardDoc.projects)) {
+          const prevLen = dashboardDoc.projects.length;
+          dashboardDoc.projects = dashboardDoc.projects.filter((p: any) => {
+            const pId = String(p.id || '').toLowerCase();
+            return pId !== ordNum.toLowerCase() && pId !== cleanId.toLowerCase() && pId !== strOrderId.toLowerCase();
+          });
+          if (dashboardDoc.projects.length !== prevLen) changed = true;
+        }
+        if (Array.isArray(dashboardDoc.payments)) {
+          const prevLen = dashboardDoc.payments.length;
+          dashboardDoc.payments = dashboardDoc.payments.filter((p: any) => {
+            const pInv = String(p.invoiceNo || p.transactionNo || p.id || '').toLowerCase();
+            return !pInv.includes(cleanId.toLowerCase()) && !pInv.includes(ordNum.toLowerCase()) && !pInv.includes(strOrderId.toLowerCase());
+          });
+          if (dashboardDoc.payments.length !== prevLen) changed = true;
+        }
+        if (changed) {
+          await Dashboard.updateOne(
+            { _id: dashboardDoc._id },
+            { $set: { orders: dashboardDoc.orders, projects: dashboardDoc.projects, payments: dashboardDoc.payments } }
+          );
+        }
+      }
+    } catch (dashCleanErr) {
+      console.warn('Dashboard cleanup on order delete error:', dashCleanErr);
+    }
 
     clearDashboardCache();
     broadcastEvent('dashboard:updated', {});
-    res.json({ success: true, message: 'Order deleted successfully' });
+    res.json({ success: true, message: 'Order and associated records deleted successfully' });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

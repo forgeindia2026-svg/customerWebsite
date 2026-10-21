@@ -389,6 +389,7 @@ async function buildDashboardData() {
         email: order.customerEmail,
         phone: order.customerPhone,
         type: order.serviceType || (order.items && order.items.length > 0 ? order.items.map((item: any) => item.title).join(', ') : '') || 'CCTV Installation',
+        serviceType: order.serviceType || (order.items && order.items.length > 0 ? order.items.map((item: any) => item.title).join(', ') : '') || 'CCTV Installation',
         location: order.shippingAddress || '',
         assignedTechnician: techName,
         assignedTechnicianName: techName,
@@ -573,36 +574,88 @@ async function buildDashboardData() {
 
     // Map live Payments from mappedOrders & existing DB payments
     const existingDbPayments = Array.isArray(dashboardData.payments) ? dashboardData.payments : [];
-    
-    const livePaymentsFromOrders = mappedOrders.map((o: any, idx: number) => {
-      const orderCode = o.id || o.orderNumber || `ORD-${idx}`;
-      const sales = Number(o.financials?.salesValue ?? o.financials?.totalValue ?? o.amount ?? o.totalAmount ?? 0);
-      const purchase = Number(o.financials?.purchaseValue ?? 0);
-      const profit = Number(o.financials?.companyProfit ?? 0);
-      const earning = Number(o.financials?.technicianEarning ?? o.technicianEarning ?? 0);
-      const techName = o.assignedTechnician || o.assignedTechnicianName || 'Technician';
 
-      return {
-        id: `PAY-${orderCode}`,
-        invoiceNo: orderCode,
-        transactionNo: orderCode,
-        customerName: o.customer || o.customerName || 'Customer',
-        customer: o.customer || o.customerName || 'Customer',
-        type: 'Sales Invoices',
-        transactionType: 'Sales Invoices',
-        salesValue: sales,
-        purchaseValue: purchase,
-        companyProfit: profit,
-        technicianEarning: earning,
-        amount: sales,
-        status: (o.status === 'Approved' || o.rawJobStatus === 'APPROVED' || o.orderStatus === 'DELIVERED') ? 'Paid' : 'Pending',
-        method: o.paymentMethod || (idx % 2 === 0 ? 'Razorpay / Online UPI' : 'Cash on Delivery'),
-        createdBy: techName,
-        creator: techName,
-        date: new Date(o.createdAt || Date.now()).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-'),
-        createdAt: o.createdAt || new Date()
-      };
+    // Track active vs cancelled order/job codes
+    const activeOrderCodes = new Set<string>();
+    const cancelledOrderCodes = new Set<string>();
+
+    (mappedOrders || []).forEach((o: any) => {
+      const code = String(o.id || o.orderNumber || '').replace(/^#/, '').replace(/^SK-/, '').replace(/^ORD-/, '').replace(/^VST-/, '').toLowerCase().trim();
+      const rawId = String(o.id || o.orderNumber || '').toLowerCase().trim();
+      const s = String(o.status || '').toLowerCase();
+      const os = String(o.orderStatus || '').toLowerCase();
+      const rjs = String(o.rawJobStatus || '').toLowerCase();
+      const isCancelled = s === 'cancelled' || os === 'cancelled' || rjs === 'cancelled';
+      if (isCancelled) {
+        if (code) cancelledOrderCodes.add(code);
+        if (rawId) cancelledOrderCodes.add(rawId);
+      } else {
+        if (code) activeOrderCodes.add(code);
+        if (rawId) activeOrderCodes.add(rawId);
+      }
     });
+
+    (liveJobs || []).forEach((j: any) => {
+      const code = String(j.jobCode || '').replace(/^#/, '').replace(/^SK-/, '').replace(/^ORD-/, '').replace(/^VST-/, '').toLowerCase().trim();
+      const rawId = String(j.jobCode || '').toLowerCase().trim();
+      const isCancelled = String(j.status || '').toLowerCase() === 'cancelled';
+      if (isCancelled) {
+        if (code) cancelledOrderCodes.add(code);
+        if (rawId) cancelledOrderCodes.add(rawId);
+      } else {
+        if (code) activeOrderCodes.add(code);
+        if (rawId) activeOrderCodes.add(rawId);
+      }
+    });
+    
+    const livePaymentsFromOrders = mappedOrders
+      .filter((o: any) => {
+        const s = String(o.status || '').toLowerCase();
+        const os = String(o.orderStatus || '').toLowerCase();
+        const rjs = String(o.rawJobStatus || '').toLowerCase();
+        return s !== 'cancelled' && os !== 'cancelled' && rjs !== 'cancelled';
+      })
+      .map((o: any, idx: number) => {
+        const orderCode = o.id || o.orderNumber || `ORD-${idx}`;
+        const sales = Number(o.financials?.salesValue ?? o.financials?.totalValue ?? o.amount ?? o.totalAmount ?? 0);
+        const purchase = Number(o.financials?.purchaseValue ?? 0);
+        const profit = Number(o.financials?.companyProfit ?? 0);
+        const techName = o.assignedTechnician || o.assignedTechnicianName || 'Technician';
+        const subs = Array.isArray(o.subTechnicians) ? o.subTechnicians : [];
+        const mainEarn = Number(o.financials?.mainTechnicianEarning ?? 0);
+        const subEarns = o.financials?.subTechnicianEarnings || {};
+        let subSum = 0;
+        if (typeof subEarns === 'object' && subEarns !== null) {
+          Object.values(subEarns).forEach((v: any) => subSum += Number(v || 0));
+        }
+        const totalCrewEarn = (mainEarn > 0 || subSum > 0) ? (mainEarn + subSum) : Number(o.financials?.technicianEarning ?? o.technicianEarning ?? 0);
+        const earning = totalCrewEarn;
+
+        return {
+          id: `PAY-${orderCode}`,
+          invoiceNo: orderCode,
+          transactionNo: orderCode,
+          customerName: o.customer || o.customerName || 'Customer',
+          customer: o.customer || o.customerName || 'Customer',
+          type: 'Sales Invoices',
+          transactionType: 'Sales Invoices',
+          salesValue: sales,
+          purchaseValue: purchase,
+          companyProfit: profit,
+          technicianEarning: earning,
+          mainTechnicianEarning: mainEarn,
+          subTechnicianEarnings: subEarns,
+          subTechnicians: subs,
+          financials: o.financials || {},
+          amount: sales,
+          status: (o.status === 'Approved' || o.rawJobStatus === 'APPROVED' || o.orderStatus === 'DELIVERED') ? 'Paid' : 'Pending',
+          method: o.paymentMethod || (idx % 2 === 0 ? 'Razorpay / Online UPI' : 'Cash on Delivery'),
+          createdBy: techName,
+          creator: techName,
+          date: new Date(o.createdAt || Date.now()).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-'),
+          createdAt: o.createdAt || new Date()
+        };
+      });
 
     // Merge existing stored DB payments and live order payments
     const paymentMap = new Map<string, any>();
@@ -613,12 +666,54 @@ async function buildDashboardData() {
       paymentMap.set(key, p);
     });
 
-    // Add / overwrite with stored DB payments
+    // Add / overwrite with stored DB payments ONLY if not cancelled and not deleted
     existingDbPayments.forEach((p: any) => {
+      const rawCode = String(p.invoiceNo || p.transactionNo || p.id || '').replace(/^PAY-/i, '').toLowerCase().trim();
+      const cleanCode = rawCode.replace(/^#/, '').replace(/^sk-/, '').replace(/^ord-/, '').replace(/^vst-/, '').trim();
       const key = String(p.invoiceNo || p.transactionNo || p.id || '').toLowerCase();
+
+      // Check if cancelled
+      if (String(p.status || '').toLowerCase() === 'cancelled' || cancelledOrderCodes.has(rawCode) || cancelledOrderCodes.has(cleanCode)) {
+        return; // Exclude cancelled from Daybook
+      }
+
+      // Check if deleted: if this payment is from an order/visit (SK- or ORD- or VST-), but that order doesn't exist anymore, omit it
+      const isOrderRef = rawCode.startsWith('sk-') || rawCode.startsWith('ord-') || rawCode.startsWith('vst-');
+      if (isOrderRef && !activeOrderCodes.has(rawCode) && !activeOrderCodes.has(cleanCode) && !paymentMap.has(key)) {
+        return; // Exclude deleted orders from Daybook
+      }
+
       if (key) {
         const existing = paymentMap.get(key) || {};
-        paymentMap.set(key, { ...existing, ...p });
+        
+        // Prefer live approved order financials over stale zero payments
+        const hasLiveFin = (existing.salesValue && existing.salesValue > 0) || (existing.companyProfit && existing.companyProfit > 0) || (existing.technicianEarning && existing.technicianEarning > 0);
+        const finalSales = hasLiveFin ? existing.salesValue : (p.salesValue || p.amount || 0);
+        const finalPurchase = hasLiveFin ? existing.purchaseValue : (p.purchaseValue || 0);
+        const finalProfit = hasLiveFin ? existing.companyProfit : (p.companyProfit || 0);
+        const finalEarning = hasLiveFin ? existing.technicianEarning : (p.technicianEarning || 0);
+        const finalMain = (existing.mainTechnicianEarning !== undefined && existing.mainTechnicianEarning > 0) ? existing.mainTechnicianEarning : (p.mainTechnicianEarning || 0);
+        const finalSubs = (existing.subTechnicians && existing.subTechnicians.length > 0) ? existing.subTechnicians : (p.subTechnicians || []);
+        const finalSubEarns = (existing.subTechnicianEarnings && Object.keys(existing.subTechnicianEarnings).length > 0) ? existing.subTechnicianEarnings : (p.subTechnicianEarnings || {});
+
+        const finalCreatedAt = existing.createdAt || p.createdAt;
+        const finalDate = existing.date || p.date;
+
+        paymentMap.set(key, {
+          ...p,
+          ...existing,
+          createdAt: finalCreatedAt,
+          date: finalDate,
+          salesValue: finalSales,
+          amount: finalSales,
+          purchaseValue: finalPurchase,
+          companyProfit: finalProfit,
+          technicianEarning: finalEarning,
+          mainTechnicianEarning: finalMain,
+          subTechnicians: finalSubs,
+          subTechnicianEarnings: finalSubEarns,
+          financials: existing.financials || p.financials || {}
+        });
       }
     });
 

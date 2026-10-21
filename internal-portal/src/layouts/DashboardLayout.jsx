@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { setDashboardData } from '../redux/dashboardSlice';
+import { setDashboardData, fetchDashboardData } from '../redux/dashboardSlice';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import { getApiUrl } from '../utils/config';
@@ -27,19 +27,10 @@ export default function DashboardLayout() {
   }, []);
 
   useEffect(() => {
-    const fetchData = () => {
-      fetch(`${getApiUrl()}/api/dashboard`)
-        .then(res => res.json())
-        .then(resData => {
-          if (resData.success && resData.data) {
-            dispatch(setDashboardData(resData.data));
-          }
-        })
-        .catch(err => console.error('Failed to load dashboard data:', err));
-    };
-
-    fetchData();
-    const interval = setInterval(fetchData, 5000);
+    dispatch(fetchDashboardData());
+    const interval = setInterval(() => {
+      dispatch(fetchDashboardData());
+    }, 6000);
 
     return () => clearInterval(interval);
   }, [dispatch]);

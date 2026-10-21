@@ -48,7 +48,13 @@ export default function Orders() {
   const [activeStatusDropdown, setActiveStatusDropdown] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [selectedDateRange, setSelectedDateRange] = useState(localStorage.getItem('admin_date_range') || 'All Time');
+  const [selectedDateRange, setSelectedDateRange] = useState(
+    () => localStorage.getItem('admin_date_range') || 'This Month'
+  );
+
+  useEffect(() => {
+    dispatch(fetchDashboardData());
+  }, [dispatch]);
 
   useEffect(() => {
     const handleDateFilterChange = (e) => {
@@ -463,7 +469,7 @@ export default function Orders() {
     const techName = approvalTargetOrder.assignedTechnician || 'Staff';
     const custName = approvalTargetOrder.customer || approvalTargetOrder.customerName || approvalTargetOrder.name || 'Customer';
 
-    const orderDateObj = approvalTargetOrder.date || approvalTargetOrder.createdAt || new Date().toISOString();
+    const orderDateObj = approvalTargetOrder.createdAt || approvalTargetOrder.scheduledDate || approvalTargetOrder.date || new Date().toISOString();
     const orderDateISO = new Date(orderDateObj).toISOString();
     const orderDateOnly = orderDateISO.split('T')[0];
 
@@ -599,9 +605,9 @@ export default function Orders() {
   // Filter logic
   const filteredOrders = orders.filter(order => {
     const matchesSearch = 
-      order.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.type.toLowerCase().includes(searchTerm.toLowerCase());
+      String(order.customer || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(order.id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(order.type || '').toLowerCase().includes(searchTerm.toLowerCase());
     
     const displayStatus = getDisplayStatus(order);
     const matchesStatus = statusFilter === 'All' || displayStatus === statusFilter;
@@ -755,28 +761,24 @@ export default function Orders() {
       ? orderForm.email.trim().toLowerCase()
       : `${custName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'client'}@sktech.com`;
 
-    const orderPayload = {
-      customer: custName,
-      email: cleanEmail,
-      phone: orderForm.phone || '',
-      type: orderForm.type || 'Cameras Installation',
-      assignedTechnician: orderForm.assignedTechnician || 'Unassigned',
-      subTechnicians: orderForm.subTechnicians || [],
-      amount: parseFloat(orderForm.amount) || 0,
-      location: orderForm.location || ord.shippingAddress || ord.address || 'Site Location'
-    };
-    
+    const packageDescription = (orderForm.items && orderForm.items.trim()) ? orderForm.items.trim() : '';
+    const itemTitle = packageDescription || orderForm.type || 'Cameras Installation';
+    const selectedType = orderForm.type || 'Cameras Installation';
+    const cleanLocation = (orderForm.location && orderForm.location.trim()) ? orderForm.location.trim() : 'Site Location';
+
     // Persist to Production Backend (AWS EC2 / MongoDB)
     dispatch(createOrderAPI({
       customerName: custName,
       customerEmail: cleanEmail,
       customerPhone: orderForm.phone || '',
-      shippingAddress: orderForm.location || '',
+      shippingAddress: cleanLocation,
       totalAmount: parseFloat(orderForm.amount) || 0,
-      serviceType: orderForm.type || 'Cameras Installation',
+      serviceType: selectedType,
+      category: selectedType,
+      type: selectedType,
       items: [{
         productId: 'SRV-01',
-        title: orderForm.type || 'Cameras Installation',
+        title: itemTitle,
         price: parseFloat(orderForm.amount) || 0,
         quantity: 1,
         image: ''
@@ -792,6 +794,7 @@ export default function Orders() {
       type: 'Cameras Installation', 
       assignedTechnician: 'Unassigned', 
       subTechnicians: [],
+      items: '',
       amount: '',
       location: ''
     });

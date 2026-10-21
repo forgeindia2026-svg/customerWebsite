@@ -10,7 +10,7 @@ import {
   FiDownload, FiBarChart2, FiTrendingUp, FiCheckCircle, 
   FiUsers, FiStar, FiClock, FiSettings, FiGrid, FiActivity,
   FiEye, FiTrash2, FiFileText, FiMoreVertical, FiShield, FiShieldOff,
-  FiUserX, FiZap, FiAward
+  FiUserX, FiZap, FiAward, FiShoppingBag, FiDollarSign
 } from 'react-icons/fi';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -266,9 +266,14 @@ export default function Reports() {
     if (!payments) return [];
 
     return payments.filter(p => {
+      // Exclude cancelled transactions from Daybook
+      if (String(p.status || '').toLowerCase() === 'cancelled') return false;
+
       if (daybookStaff !== 'All Staff') {
         const creator = p.createdBy || p.creator || p.technician || '';
-        if (!creator.toLowerCase().includes(daybookStaff.toLowerCase())) return false;
+        const subs = Array.isArray(p.subTechnicians) ? p.subTechnicians.join(' ') : '';
+        const combinedStaff = `${creator} ${subs}`.toLowerCase();
+        if (!combinedStaff.includes(daybookStaff.toLowerCase())) return false;
       }
       if (daybookType !== 'All Transactions') {
         const pType = (p.type || p.transactionType || '').toLowerCase();
@@ -278,9 +283,62 @@ export default function Reports() {
       if (!isDateInRange(p.createdAt || p.date, daybookTimeRange)) {
         return false;
       }
+      // Exclude deleted order payments that have no financials and no matching order
+      const pInv = String(p.invoiceNo || p.transactionNo || p.id || '').replace(/^PAY-/i, '').replace(/^#/, '').toLowerCase().trim();
+      const isOrderRef = pInv.startsWith('sk-') || pInv.startsWith('ord-') || pInv.startsWith('vst-');
+      const hasFinancials = Number(p.salesValue || p.financials?.salesValue || p.amount || 0) > 0 ||
+        Number(p.purchaseValue || p.financials?.purchaseValue || 0) > 0 ||
+        Number(p.technicianEarning || p.financials?.technicianEarning || 0) > 0;
+      
+      if (isOrderRef && !hasFinancials && orders && orders.length > 0) {
+        const orderExists = orders.some(o => {
+          const oId = String(o.id || o.orderNumber || '').replace(/^#/, '').toLowerCase().trim();
+          return oId === pInv;
+        });
+        if (!orderExists) return false;
+      }
+
       return true;
+    }).sort((a, b) => {
+      const timeA = new Date(a.createdAt || a.date).getTime() || 0;
+      const timeB = new Date(b.createdAt || b.date).getTime() || 0;
+      return timeB - timeA;
     });
-  }, [payments, daybookStaff, daybookTimeRange, daybookType]);
+  }, [payments, orders, daybookStaff, daybookTimeRange, daybookType]);
+
+  const daybookTotals = React.useMemo(() => {
+    let sales = 0;
+    let purchase = 0;
+    let profit = 0;
+    let tech = 0;
+
+    (displayPayments || []).forEach(p => {
+      const salesVal = Number(p.salesValue || p.financials?.salesValue || p.financials?.totalValue || p.amount || 0);
+      const purchaseVal = Number(p.purchaseValue || p.financials?.purchaseValue || 0);
+      const margin = salesVal - purchaseVal;
+      const profitVal = p.companyProfit !== undefined 
+        ? Number(p.companyProfit) 
+        : (p.financials?.companyProfit !== undefined 
+            ? Number(p.financials.companyProfit) 
+            : (margin > 0 ? Math.round(margin * 0.7) : 0));
+
+      const mainEarnVal = Number(p.mainTechnicianEarning || p.financials?.mainTechnicianEarning || 0);
+      const subEarnsObj = p.subTechnicianEarnings || p.financials?.subTechnicianEarnings || {};
+      let subSum = 0;
+      if (typeof subEarnsObj === 'object' && subEarnsObj !== null) {
+        Object.values(subEarnsObj).forEach(v => subSum += Number(v || 0));
+      }
+      const crewEarning = (mainEarnVal > 0 || subSum > 0) ? (mainEarnVal + subSum) : Number(p.technicianEarning ?? p.financials?.technicianEarning ?? 0);
+      const techEarningVal = crewEarning > 0 ? crewEarning : (margin > 0 ? Math.round(margin * 0.3) : 0);
+
+      sales += salesVal;
+      purchase += purchaseVal;
+      profit += Number(profitVal || 0);
+      tech += Number(techEarningVal || 0);
+    });
+
+    return { sales, purchase, profit, tech };
+  }, [displayPayments]);
 
   const handleDownloadDaybookExcel = (list = displayPayments) => {
     const targetList = list && list.length > 0 ? list : payments;
@@ -311,7 +369,14 @@ export default function Reports() {
       const purchaseVal = p.purchaseValue || p.financials?.purchaseValue || 0;
       const margin = salesVal - purchaseVal;
       const profitVal = p.companyProfit !== undefined ? p.companyProfit : (p.financials?.companyProfit !== undefined ? p.financials.companyProfit : (margin > 0 ? Math.round(margin * 0.7) : 0));
-      const techEarningVal = p.technicianEarning !== undefined ? p.technicianEarning : (p.financials?.technicianEarning !== undefined ? p.financials.technicianEarning : (margin > 0 ? Math.round(margin * 0.3) : 0));
+      const subEarns = p.subTechnicianEarnings || p.financials?.subTechnicianEarnings || {};
+      let subSum = 0;
+      if (typeof subEarns === 'object' && subEarns !== null) {
+        Object.values(subEarns).forEach(v => subSum += Number(v || 0));
+      }
+      const mainEarn = Number(p.mainTechnicianEarning || p.financials?.mainTechnicianEarning || 0);
+      const crewEarning = (mainEarn > 0 || subSum > 0) ? (mainEarn + subSum) : Number(p.technicianEarning ?? p.financials?.technicianEarning ?? 0);
+      const techEarningVal = crewEarning > 0 ? crewEarning : (margin > 0 ? Math.round(margin * 0.3) : 0);
 
       totalSales += Number(salesVal || 0);
       totalPurchase += Number(purchaseVal || 0);
@@ -459,7 +524,14 @@ export default function Reports() {
         const purchaseVal = p.purchaseValue || p.financials?.purchaseValue || 0;
         const margin = salesVal - purchaseVal;
         const profitVal = p.companyProfit !== undefined ? p.companyProfit : (p.financials?.companyProfit !== undefined ? p.financials.companyProfit : (margin > 0 ? Math.round(margin * 0.7) : 0));
-        const techEarningVal = p.technicianEarning !== undefined ? p.technicianEarning : (p.financials?.technicianEarning !== undefined ? p.financials.technicianEarning : (margin > 0 ? Math.round(margin * 0.3) : 0));
+        const subEarns = p.subTechnicianEarnings || p.financials?.subTechnicianEarnings || {};
+        let subSum = 0;
+        if (typeof subEarns === 'object' && subEarns !== null) {
+          Object.values(subEarns).forEach(v => subSum += Number(v || 0));
+        }
+        const mainEarn = Number(p.mainTechnicianEarning || p.financials?.mainTechnicianEarning || 0);
+        const crewEarning = (mainEarn > 0 || subSum > 0) ? (mainEarn + subSum) : Number(p.technicianEarning ?? p.financials?.technicianEarning ?? 0);
+        const techEarningVal = crewEarning > 0 ? crewEarning : (margin > 0 ? Math.round(margin * 0.3) : 0);
 
         totSales += Number(salesVal || 0);
         totPurchase += Number(purchaseVal || 0);
@@ -511,6 +583,240 @@ export default function Reports() {
     } catch (err) {
       console.error('PDF generation error:', err);
       showToast('Failed to generate PDF', 'error');
+    }
+  };
+
+  // 📄 Date-wise Daily Financial Summary PDF (Date, No of Jobs, Sales Value, Purchase Value, Profit, Tech Earning)
+  const handlePrintDailySummaryPDF = () => {
+    try {
+      const targetList = displayPayments && displayPayments.length > 0 ? displayPayments : payments;
+      if (!targetList || targetList.length === 0) {
+        showToast('No transaction data to generate summary', 'error');
+        return;
+      }
+
+      // Group payments by date
+      const dailyAggregates = {};
+      targetList.forEach(p => {
+        const dObj = new Date(p.createdAt || p.date || new Date());
+        const dateKey = dObj.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
+        const timestamp = dObj.getTime();
+
+        const salesVal = Number(p.salesValue || p.financials?.salesValue || p.financials?.totalValue || p.amount || 0);
+        const purchaseVal = Number(p.purchaseValue || p.financials?.purchaseValue || 0);
+        const margin = salesVal - purchaseVal;
+        const profitVal = p.companyProfit !== undefined 
+          ? Number(p.companyProfit) 
+          : (p.financials?.companyProfit !== undefined 
+              ? Number(p.financials.companyProfit) 
+              : (margin > 0 ? Math.round(margin * 0.7) : 0));
+        
+        const mainEarn = Number(p.mainTechnicianEarning || p.financials?.mainTechnicianEarning || 0);
+        const subEarns = p.subTechnicianEarnings || p.financials?.subTechnicianEarnings || {};
+        let subSum = 0;
+        if (typeof subEarns === 'object' && subEarns !== null) {
+          Object.values(subEarns).forEach(v => subSum += Number(v || 0));
+        }
+        const crewEarning = (mainEarn > 0 || subSum > 0) ? (mainEarn + subSum) : Number(p.technicianEarning ?? p.financials?.technicianEarning ?? 0);
+        const techEarningVal = crewEarning > 0 ? crewEarning : (margin > 0 ? Math.round(margin * 0.3) : 0);
+
+        if (!dailyAggregates[dateKey]) {
+          dailyAggregates[dateKey] = {
+            date: dateKey,
+            timestamp,
+            jobsCount: 0,
+            salesValue: 0,
+            purchaseValue: 0,
+            companyProfit: 0,
+            technicianEarning: 0
+          };
+        }
+
+        dailyAggregates[dateKey].jobsCount += 1;
+        dailyAggregates[dateKey].salesValue += salesVal;
+        dailyAggregates[dateKey].purchaseValue += purchaseVal;
+        dailyAggregates[dateKey].companyProfit += profitVal;
+        dailyAggregates[dateKey].technicianEarning += techEarningVal;
+      });
+
+      // Sort dates chronologically (oldest to newest)
+      const dailyList = Object.values(dailyAggregates).sort((a, b) => a.timestamp - b.timestamp);
+
+      const doc = new jsPDF('landscape');
+      const todayStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+
+      // Header Banner
+      doc.setFillColor(15, 23, 42); // slate-900
+      doc.rect(0, 0, 297, 34, 'F');
+
+      // Accent emerald border
+      doc.setFillColor(16, 185, 129); // emerald-500
+      doc.rect(0, 34, 297, 2.5, 'F');
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.text('SK TECHNOLOGY', 14, 14);
+
+      doc.setFontSize(8.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(148, 163, 184); // slate-400
+      doc.text('CCTV Solutions & Security Systems — Admin & HR Daybook Portal', 14, 20);
+      
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(255, 255, 255);
+      doc.text(`DAILY SALES & FINANCIAL SUMMARY REPORT (${daybookTimeRange.toUpperCase()})`, 14, 28);
+
+      // Meta right side
+      doc.setFontSize(8.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(203, 213, 225);
+      doc.text(`Report Date: ${todayStr}`, 220, 14);
+      doc.text(`Staff Filter: ${daybookStaff}`, 220, 20);
+      doc.text(`Total Days: ${dailyList.length} Days`, 220, 26);
+
+      let y = 46;
+
+      // Table Header Row
+      doc.setFillColor(241, 245, 249);
+      doc.rect(14, y, 269, 10, 'F');
+      doc.setDrawColor(203, 213, 225);
+      doc.rect(14, y, 269, 10, 'S');
+
+      doc.setTextColor(30, 41, 59);
+      doc.setFontSize(8.5);
+      doc.setFont('helvetica', 'bold');
+
+      // Table column headers
+      doc.text('DATE', 20, y + 6.5);
+      doc.text('NO OF JOBS', 65, y + 6.5, { align: 'center' });
+      doc.text('TOTAL SALES VALUE (Rs.)', 135, y + 6.5, { align: 'right' });
+      doc.text('PURCHASE VALUE (Rs.)', 180, y + 6.5, { align: 'right' });
+      doc.text('COMPANY PROFIT (Rs.)', 225, y + 6.5, { align: 'right' });
+      doc.text('TECHNICIAN EARNING (Rs.)', 275, y + 6.5, { align: 'right' });
+
+      y += 10;
+
+      let grandJobs = 0;
+      let grandSales = 0;
+      let grandPurchase = 0;
+      let grandProfit = 0;
+      let grandTech = 0;
+
+      doc.setFontSize(8.5);
+
+      dailyList.forEach((row, idx) => {
+        // Page break check
+        if (y > 180) {
+          doc.addPage('landscape');
+          y = 20;
+
+          // Repeat Header on new page
+          doc.setFillColor(241, 245, 249);
+          doc.rect(14, y, 269, 10, 'F');
+          doc.setDrawColor(203, 213, 225);
+          doc.rect(14, y, 269, 10, 'S');
+
+          doc.setTextColor(30, 41, 59);
+          doc.setFont('helvetica', 'bold');
+          doc.text('DATE', 20, y + 6.5);
+          doc.text('NO OF JOBS', 65, y + 6.5, { align: 'center' });
+          doc.text('TOTAL SALES VALUE (Rs.)', 135, y + 6.5, { align: 'right' });
+          doc.text('PURCHASE VALUE (Rs.)', 180, y + 6.5, { align: 'right' });
+          doc.text('COMPANY PROFIT (Rs.)', 225, y + 6.5, { align: 'right' });
+          doc.text('TECHNICIAN EARNING (Rs.)', 275, y + 6.5, { align: 'right' });
+
+          y += 10;
+        }
+
+        grandJobs += row.jobsCount;
+        grandSales += row.salesValue;
+        grandPurchase += row.purchaseValue;
+        grandProfit += row.companyProfit;
+        grandTech += row.technicianEarning;
+
+        // Alternating row background
+        if (idx % 2 === 1) {
+          doc.setFillColor(248, 250, 252);
+          doc.rect(14, y, 269, 8.5, 'F');
+        }
+        doc.setDrawColor(241, 245, 249);
+        doc.line(14, y + 8.5, 283, y + 8.5);
+
+        // Date
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(30, 41, 59);
+        doc.text(row.date, 20, y + 5.5);
+
+        // No of Jobs
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(71, 85, 105);
+        doc.text(`${row.jobsCount} ${row.jobsCount === 1 ? 'Job' : 'Jobs'}`, 65, y + 5.5, { align: 'center' });
+
+        // Total Sales Value
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(37, 99, 235); // Blue
+        doc.text(row.salesValue > 0 ? `Rs. ${row.salesValue.toLocaleString('en-IN')}` : '-', 135, y + 5.5, { align: 'right' });
+
+        // Purchase Value
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(51, 65, 85);
+        doc.text(row.purchaseValue > 0 ? `Rs. ${row.purchaseValue.toLocaleString('en-IN')}` : '-', 180, y + 5.5, { align: 'right' });
+
+        // Company Profit
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(16, 185, 129); // Emerald
+        doc.text(row.companyProfit > 0 ? `Rs. ${row.companyProfit.toLocaleString('en-IN')}` : '-', 225, y + 5.5, { align: 'right' });
+
+        // Technician Earning
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(99, 102, 241); // Indigo
+        doc.text(row.technicianEarning > 0 ? `Rs. ${row.technicianEarning.toLocaleString('en-IN')}` : '-', 275, y + 5.5, { align: 'right' });
+
+        y += 8.5;
+      });
+
+      // Grand Total Summary Box
+      y += 3;
+      doc.setFillColor(224, 231, 255); // soft indigo highlight
+      doc.rect(14, y, 269, 12, 'F');
+      doc.setDrawColor(165, 180, 252);
+      doc.rect(14, y, 269, 12, 'S');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(15, 23, 42);
+      doc.text('GRAND TOTAL:', 20, y + 7.5);
+
+      doc.setTextColor(67, 56, 202);
+      doc.text(`${grandJobs} Jobs`, 65, y + 7.5, { align: 'center' });
+
+      doc.setTextColor(29, 78, 216); // blue-700
+      doc.text(`Rs. ${grandSales.toLocaleString('en-IN')}`, 135, y + 7.5, { align: 'right' });
+
+      doc.setTextColor(51, 65, 85);
+      doc.text(`Rs. ${grandPurchase.toLocaleString('en-IN')}`, 180, y + 7.5, { align: 'right' });
+
+      doc.setTextColor(5, 150, 105); // emerald-600
+      doc.text(`Rs. ${grandProfit.toLocaleString('en-IN')}`, 225, y + 7.5, { align: 'right' });
+
+      doc.setTextColor(79, 70, 229); // indigo-600
+      doc.text(`Rs. ${grandTech.toLocaleString('en-IN')}`, 275, y + 7.5, { align: 'right' });
+
+      // Footer note
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(148, 163, 184);
+      doc.text(`* This date-wise financial summary is officially compiled by SK Technology ERP System for Admin & HR management.`, 14, 200);
+
+      // Open in tab and download
+      const pdfBlobUrl = doc.output('bloburl');
+      window.open(pdfBlobUrl, '_blank');
+      doc.save(`Daybook_Daily_Summary_${daybookTimeRange.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
+      showToast('Daily Summary PDF generated and downloaded successfully!');
+    } catch (err) {
+      console.error('Error generating daily summary PDF:', err);
+      showToast('Failed to generate daily summary PDF', 'error');
     }
   };
 
@@ -2877,20 +3183,87 @@ export default function Reports() {
                      <FiDownload size={14} /> Download Excel
                    </button>
                    <button 
+                     onClick={handlePrintDailySummaryPDF} 
+                     className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer shadow-xs"
+                     title="Download Date-wise Daily Summary (Date, No of Jobs, Sales, Purchase, Profit, Tech Earning)"
+                   >
+                     <FiFileText size={14} /> Daily Summary PDF
+                   </button>
+                   <button 
                      onClick={handlePrintDaybookPDF} 
                      className="flex items-center gap-1.5 text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-800 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer"
                    >
-                     <FiFileText size={14} /> Print PDF
+                     <FiFileText size={14} /> Detailed PDF
                    </button>
                 </div>
               </div>
             </div>
 
-            {/* Summary */}
-            <div className="mb-6 px-2">
-              <h4 className="text-slate-600 dark:text-slate-400 font-semibold text-sm">
-                Net Amount: <span className="text-slate-900 dark:text-white text-lg ml-1">₹ {displayPayments.reduce((acc, p) => acc + Number(p.salesValue || p.financials?.salesValue || p.amount || 0), 0).toLocaleString('en-IN')}</span>
-              </h4>
+            {/* Daybook Metrics Summary Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+              {/* Card 1: Sales Value */}
+              <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xs flex items-center justify-between transition-all hover:shadow-sm">
+                <div>
+                  <span className="text-slate-400 dark:text-slate-500 text-[11px] font-bold uppercase tracking-wider block">SALES VALUE</span>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-xl sm:text-2xl font-black text-blue-600 dark:text-blue-400 font-mono tracking-tight">
+                      ₹ {daybookTotals.sales.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 block mt-0.5">Total Revenue</span>
+                </div>
+                <div className="w-11 h-11 rounded-2xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                  <FiTrendingUp size={20} />
+                </div>
+              </div>
+
+              {/* Card 2: Purchase Value */}
+              <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xs flex items-center justify-between transition-all hover:shadow-sm">
+                <div>
+                  <span className="text-slate-400 dark:text-slate-500 text-[11px] font-bold uppercase tracking-wider block">PURCHASE VALUE</span>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-xl sm:text-2xl font-black text-slate-700 dark:text-slate-200 font-mono tracking-tight">
+                      ₹ {daybookTotals.purchase.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 block mt-0.5">Material & Cost</span>
+                </div>
+                <div className="w-11 h-11 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0">
+                  <FiShoppingBag size={20} />
+                </div>
+              </div>
+
+              {/* Card 3: Company Profit */}
+              <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xs flex items-center justify-between transition-all hover:shadow-sm">
+                <div>
+                  <span className="text-slate-400 dark:text-slate-500 text-[11px] font-bold uppercase tracking-wider block">COMPANY PROFIT</span>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono tracking-tight">
+                      ₹ {daybookTotals.profit.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-medium text-emerald-600/80 dark:text-emerald-400/80 block mt-0.5">Net Profit Margin</span>
+                </div>
+                <div className="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                  <FiDollarSign size={20} />
+                </div>
+              </div>
+
+              {/* Card 4: Technician Earning */}
+              <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xs flex items-center justify-between transition-all hover:shadow-sm">
+                <div>
+                  <span className="text-slate-400 dark:text-slate-500 text-[11px] font-bold uppercase tracking-wider block">TECHNICIAN EARNING</span>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-xl sm:text-2xl font-black text-indigo-600 dark:text-indigo-400 font-mono tracking-tight">
+                      ₹ {daybookTotals.tech.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 block mt-0.5">Lead + Crew Total</span>
+                </div>
+                <div className="w-11 h-11 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                  <FiAward size={20} />
+                </div>
+              </div>
             </div>
 
             {/* Table */}
@@ -2921,7 +3294,15 @@ export default function Reports() {
                     const purchaseVal = p.purchaseValue || p.financials?.purchaseValue || 0;
                     const margin = salesVal - purchaseVal;
                     const profitVal = p.companyProfit !== undefined ? p.companyProfit : (p.financials?.companyProfit !== undefined ? p.financials.companyProfit : (margin > 0 ? Math.round(margin * 0.7) : 0));
-                    const techEarningVal = p.technicianEarning !== undefined ? p.technicianEarning : (p.financials?.technicianEarning !== undefined ? p.financials.technicianEarning : (margin > 0 ? Math.round(margin * 0.3) : 0));
+                    const subTechs = Array.isArray(p.subTechnicians) ? p.subTechnicians : [];
+                    const mainEarnVal = Number(p.mainTechnicianEarning || p.financials?.mainTechnicianEarning || 0);
+                    const subEarnsObj = p.subTechnicianEarnings || p.financials?.subTechnicianEarnings || {};
+                    let subSum = 0;
+                    if (typeof subEarnsObj === 'object' && subEarnsObj !== null) {
+                      Object.values(subEarnsObj).forEach(v => subSum += Number(v || 0));
+                    }
+                    const crewEarning = (mainEarnVal > 0 || subSum > 0) ? (mainEarnVal + subSum) : Number(p.technicianEarning ?? p.financials?.technicianEarning ?? 0);
+                    const techEarningVal = crewEarning > 0 ? crewEarning : (margin > 0 ? Math.round(margin * 0.3) : 0);
 
                     const rowData = {
                       id: p.id || p._id || i,
@@ -2933,6 +3314,9 @@ export default function Reports() {
                       purchaseValue: purchaseVal,
                       companyProfit: profitVal,
                       technicianEarning: techEarningVal,
+                      mainTechnicianEarning: mainEarnVal,
+                      subTechnicianEarnings: subEarnsObj,
+                      subTechnicians: subTechs,
                       createdBy: p.createdBy || p.creator || '-'
                     };
                     return (
@@ -2950,10 +3334,43 @@ export default function Reports() {
                         <td className="px-4 py-3 text-right text-blue-600 font-medium">
                           {rowData.companyProfit ? `₹ ${Number(rowData.companyProfit).toLocaleString('en-IN')}` : '-'}
                         </td>
-                        <td className="px-4 py-3 text-right text-emerald-600 font-medium">
-                          {rowData.technicianEarning ? `₹ ${Number(rowData.technicianEarning).toLocaleString('en-IN')}` : '-'}
+                        <td className="px-4 py-3 text-right font-medium">
+                          {rowData.technicianEarning > 0 ? (
+                            <div className="flex flex-col items-end">
+                              <span className="text-emerald-600 font-bold">
+                                ₹ {Number(rowData.technicianEarning).toLocaleString('en-IN')}
+                              </span>
+                              {(rowData.mainTechnicianEarning > 0 || Object.keys(rowData.subTechnicianEarnings).length > 0) && (
+                                <div className="flex flex-col items-end text-[10px] text-slate-400 font-normal mt-0.5">
+                                  {rowData.mainTechnicianEarning > 0 && <span>Lead: ₹{rowData.mainTechnicianEarning.toLocaleString('en-IN')}</span>}
+                                  {Object.entries(rowData.subTechnicianEarnings).map(([sName, sAmt]) => Number(sAmt) > 0 ? (
+                                    <span key={sName} className="text-teal-600 dark:text-teal-400 font-medium">
+                                      {sName}: ₹{Number(sAmt).toLocaleString('en-IN')}
+                                    </span>
+                                  ) : null)}
+                                </div>
+                              )}
+                            </div>
+                          ) : '-'}
                         </td>
-                        <td className="px-4 py-3 text-slate-500">{rowData.createdBy}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col gap-1 items-start">
+                            <span className="text-slate-700 dark:text-slate-200 font-medium">{rowData.createdBy}</span>
+                            {rowData.subTechnicians && rowData.subTechnicians.length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {rowData.subTechnicians.map((sub, sIdx) => (
+                                  <span 
+                                    key={sIdx} 
+                                    className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800"
+                                    title={`Sub Technician: ${sub}`}
+                                  >
+                                    + {sub}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}

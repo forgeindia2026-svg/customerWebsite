@@ -1642,6 +1642,13 @@ router.post('/:id/admin-approve', async (req: Request, res: Response) => {
         const customerName = order?.customerName || (job as any)?.customerName || job?.customer?.name || 'Customer';
 
         const existingIdx = dashboardData.payments.findIndex((p: any) => p.invoiceNo === targetCode || p.transactionNo === targetCode || p.id === `PAY-${targetCode}`);
+        
+        // STRICT RULE: Approval date must NEVER override the order creation date.
+        // Payment in Daybook must always be recorded under the date the order was created/scheduled.
+        const orderCreatedDate = order?.createdAt || (job as any)?.createdAt || order?.scheduledDate || (job as any)?.scheduledDate;
+        const validOrderDate = orderCreatedDate ? new Date(orderCreatedDate) : (existingIdx >= 0 && dashboardData.payments[existingIdx]?.createdAt ? new Date(dashboardData.payments[existingIdx].createdAt) : new Date());
+        const formattedDate = validOrderDate.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
+
         const daybookEntry = {
           id: `PAY-${targetCode}`,
           invoiceNo: targetCode,
@@ -1658,12 +1665,17 @@ router.post('/:id/admin-approve', async (req: Request, res: Response) => {
           createdBy: techName,
           creator: techName,
           status: 'Paid',
-          createdAt: new Date(),
-          date: new Date()
+          createdAt: validOrderDate,
+          date: formattedDate
         };
 
         if (existingIdx >= 0) {
-          dashboardData.payments[existingIdx] = { ...dashboardData.payments[existingIdx], ...daybookEntry };
+          dashboardData.payments[existingIdx] = { 
+            ...dashboardData.payments[existingIdx], 
+            ...daybookEntry,
+            createdAt: validOrderDate,
+            date: formattedDate
+          };
         } else {
           dashboardData.payments.unshift(daybookEntry);
         }
