@@ -9,6 +9,11 @@ export default defineConfig({
     port: 5175,
     strictPort: true,
     proxy: {
+      '/api/expenses': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false,
+      },
       '/api': {
         target: 'https://43.204.218.193.sslip.io',
         changeOrigin: true,

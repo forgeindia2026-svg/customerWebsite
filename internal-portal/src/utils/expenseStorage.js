@@ -127,13 +127,20 @@ export const calculateExpensesSummary = (expensesList, targetMonth) => {
   };
 };
 
+const getExpensesBase = () => {
+  if (typeof window !== 'undefined') {
+    return '/api/expenses';
+  }
+  return `${getApiUrl()}/api/expenses`;
+};
+
 /**
  * Fetch expenses with automatic local fallback
  */
 export const fetchExpensesApi = async (month) => {
-  const baseUrl = getApiUrl();
+  const url = `${getExpensesBase()}?month=${month || ''}`;
   try {
-    const res = await fetch(`${baseUrl}/api/expenses?month=${month}`);
+    const res = await fetch(url);
     if (res.ok) {
       const data = await res.json();
       if (data && data.success && Array.isArray(data.data)) {
@@ -142,7 +149,7 @@ export const fetchExpensesApi = async (month) => {
       }
     }
   } catch (err) {
-    console.warn('Remote backend /api/expenses not accessible, using local storage.');
+    console.warn('Backend /api/expenses not accessible, using local storage.');
   }
 
   // Fallback to local storage (strictly zero mock data)
@@ -154,9 +161,9 @@ export const fetchExpensesApi = async (month) => {
  * Fetch summary with automatic local fallback
  */
 export const fetchExpensesSummaryApi = async (month) => {
-  const baseUrl = getApiUrl();
+  const url = `${getExpensesBase()}/summary?month=${month || ''}`;
   try {
-    const res = await fetch(`${baseUrl}/api/expenses/summary?month=${month || ''}`);
+    const res = await fetch(url);
     if (res.ok) {
       const data = await res.json();
       if (data && data.success) {
@@ -164,7 +171,7 @@ export const fetchExpensesSummaryApi = async (month) => {
       }
     }
   } catch (err) {
-    console.warn('Remote backend /api/expenses/summary not accessible, calculating locally.');
+    console.warn('Backend /api/expenses/summary not accessible, calculating locally.');
   }
 
   // Fallback to local calculation (strictly zero mock data)
@@ -186,10 +193,9 @@ export const createExpenseApi = async (expenseData) => {
   const updatedList = [newRecord, ...localList];
   saveLocalExpenses(updatedList);
 
-  // Try to sync with backend if online
+  // Sync with backend
   try {
-    const baseUrl = getApiUrl();
-    const res = await fetch(`${baseUrl}/api/expenses`, {
+    const res = await fetch(getExpensesBase(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(expenseData)
@@ -217,8 +223,7 @@ export const deleteExpenseApi = async (id) => {
   saveLocalExpenses(updatedList);
 
   try {
-    const baseUrl = getApiUrl();
-    await fetch(`${baseUrl}/api/expenses/${id}`, { method: 'DELETE' });
+    await fetch(`${getExpensesBase()}/${id}`, { method: 'DELETE' });
   } catch (_) {
     // Local delete already succeeded
   }
