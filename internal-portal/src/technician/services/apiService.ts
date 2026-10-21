@@ -19,6 +19,8 @@ const getApiUrl = () => {
   return 'https://43.204.218.193.sslip.io';
 };
 
+const failedProfileEmails = new Set<string>();
+
 // Client-side Image Compression Helper:
 // Efficiently resizes high-resolution mobile camera pictures (12MB-20MB) to ~150KB-250KB in milliseconds
 // Uses URL.createObjectURL to avoid mobile RAM exhaustion and guarantees size < 500KB (well below Nginx limits)
@@ -477,7 +479,7 @@ export const JobsApiService = {
 
     // If backend profile has an avatar or stats, fetch and sync
     try {
-      if (email) {
+      if (email && !failedProfileEmails.has(email)) {
         const baseUrl = getApiUrl();
         const res = await fetch(`${baseUrl}/api/auth/profile?email=${encodeURIComponent(email)}`);
         if (res.ok) {
@@ -491,6 +493,9 @@ export const JobsApiService = {
               completedJobsCount = resData.data.completedJobsCount;
             }
           }
+        } else {
+          // Avoid spamming 404 in console every 30s for non-existent email
+          failedProfileEmails.add(email);
         }
       }
     } catch (e) {}

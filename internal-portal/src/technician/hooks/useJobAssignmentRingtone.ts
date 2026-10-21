@@ -11,7 +11,9 @@ export function useJobAssignmentRingtone() {
     // Connect to global socket
     const socket = io(API_URL, {
       withCredentials: true,
-      transports: ['websocket', 'polling']
+      transports: ['polling', 'websocket'],
+      reconnectionAttempts: 5,
+      timeout: 10000,
     });
 
     socket.on('connect', () => {
@@ -72,7 +74,13 @@ export function useJobAssignmentRingtone() {
     });
 
     return () => {
-      socket.disconnect();
+      try {
+        if (socket.connected) {
+          socket.disconnect();
+        } else {
+          socket.once('connect', () => socket.disconnect());
+        }
+      } catch (_) {}
       if (ringTimeout) clearTimeout(ringTimeout);
     };
   }, []);
