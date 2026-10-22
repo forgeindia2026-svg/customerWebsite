@@ -87,13 +87,15 @@ export default function Technicians() {
         ''
       ).trim();
 
-      const mainEarning = Number(
-        j.financials?.mainTechnicianEarning ??
-        j.mainTechnicianEarning ??
-        j.financials?.technicianEarning ??
-        j.technicianEarning ??
-        0
-      );
+      const subsFinancials = j.financials?.subTechnicianEarnings || j.subTechnicianEarnings || {};
+      let subSum = 0;
+      if (typeof subsFinancials === 'object' && subsFinancials !== null) {
+        Object.values(subsFinancials).forEach(v => subSum += Number(v || 0));
+      }
+
+      const rawMainEarn = Number(j.financials?.mainTechnicianEarning ?? j.mainTechnicianEarning ?? 0);
+      const totalCrew = Number(j.financials?.technicianEarning ?? j.technicianEarning ?? 0);
+      const mainEarning = rawMainEarn > 0 ? rawMainEarn : (totalCrew > subSum ? totalCrew - subSum : totalCrew);
 
       const countedTechs = new Set();
 
@@ -129,7 +131,19 @@ export default function Technicians() {
       };
 
       const orderSubList = parseSubs(j.subTechnicians);
-      const subsFinancials = j.financials?.subTechnicianEarnings || j.subTechnicianEarnings || {};
+      const subNamesSet = new Set(orderSubList);
+      if (Array.isArray(subsFinancials)) {
+        subsFinancials.forEach(st => {
+          const name = st?.name || st?.technicianName;
+          if (name) subNamesSet.add(String(name).trim());
+        });
+      } else if (typeof subsFinancials === 'object' && subsFinancials !== null) {
+        Object.keys(subsFinancials).forEach(k => {
+          const val = Number(subsFinancials[k] || 0);
+          if (k && val > 0) subNamesSet.add(String(k).trim());
+        });
+      }
+      const allSubList = Array.from(subNamesSet);
 
       const getSubAmount = (name) => {
         if (!name) return 0;
@@ -144,7 +158,7 @@ export default function Technicians() {
         return 0;
       };
 
-      orderSubList.forEach((sName) => {
+      allSubList.forEach((sName) => {
         if (!sName) return;
         const key = sName.toLowerCase().trim();
         const amt = getSubAmount(sName);
