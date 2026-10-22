@@ -303,7 +303,7 @@ export const fetchPettyCashSummaryApi = async (month) => {
 export const topupPettyCashApi = async ({ branchId, amount, isOpeningBalanceReset, notes, paymentMode, date }) => {
   // Update local storage first
   const accounts = getLocalPettyAccounts();
-  const acc = accounts[branchId] || { branchId, branchName: branchId === 'branch-1' ? 'Branch 1 (Main Office)' : 'Branch 2', openingBalance: 5000, topups: [] };
+  const acc = accounts[branchId] || { branchId, branchName: branchId === 'branch-1' ? 'Branch 1 (Main Office)' : 'Branch 2', openingBalance: 0, topups: [] };
 
   const parsedAmt = Number(amount) || 0;
   if (isOpeningBalanceReset) {

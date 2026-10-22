@@ -1273,21 +1273,34 @@ export default function Dashboard() {
             </div>
 
             {/* Modal Footer with Direct Link to Expenses Page */}
-            <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex items-center justify-between">
-              <button
-                onClick={() => {
-                  setIsExpenseModalOpen(false);
-                  navigate('/admin/expenses');
-                }}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors"
-              >
-                <span>Open Full Expenses Page</span>
-                <FiArrowUpRight className="w-4 h-4" />
-              </button>
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setIsExpenseModalOpen(false);
+                    navigate('/admin/expenses?action=record');
+                  }}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <FiPlus className="w-4 h-4" />
+                  <span>+ Record Daily Expense</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setIsExpenseModalOpen(false);
+                    navigate('/admin/expenses');
+                  }}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <span>Open Full Expenses Page</span>
+                  <FiArrowUpRight className="w-4 h-4" />
+                </button>
+              </div>
 
               <button
                 onClick={() => setIsExpenseModalOpen(false)}
-                className="px-5 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition-colors"
+                className="px-5 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition-colors cursor-pointer"
               >
                 Close
               </button>

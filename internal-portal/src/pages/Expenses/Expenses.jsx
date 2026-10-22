@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { 
   FiDollarSign, FiPlus, FiCalendar, FiUser, FiSearch, 
@@ -22,6 +23,7 @@ const CUSTOM_CATEGORIES_KEY = 'sk_custom_expense_categories';
 
 export default function Expenses() {
   const technicians = useSelector(state => state.dashboard?.technicians) || [];
+  const location = useLocation();
   
   const [expenses, setExpenses] = useState([]);
   const [summaryData, setSummaryData] = useState(null);
@@ -157,6 +159,13 @@ export default function Expenses() {
   useEffect(() => {
     fetchExpenses();
   }, [selectedMonth]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('action') === 'record' || params.get('add') === 'true') {
+      setIsAddModalOpen(true);
+    }
+  }, [location.search]);
 
   // Handle Fund Source Switch in Modal
   const handleFundSourceChange = (newSource) => {
