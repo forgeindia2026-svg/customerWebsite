@@ -355,8 +355,10 @@ export default function Reports() {
       'SALES VALUE (INR)',
       'PURCHASE VALUE (INR)',
       'COMPANY PROFIT (INR)',
-      'TECHNICIAN EARNING (INR)',
-      'CREATED BY'
+      'TOTAL TECH EARNING (INR)',
+      'CREW EARNING BREAKDOWN',
+      'CREATED BY (LEAD)',
+      'SUB TECHNICIANS'
     ];
 
     let totalSales = 0;
@@ -369,14 +371,46 @@ export default function Reports() {
       const purchaseVal = p.purchaseValue || p.financials?.purchaseValue || 0;
       const margin = salesVal - purchaseVal;
       const profitVal = p.companyProfit !== undefined ? p.companyProfit : (p.financials?.companyProfit !== undefined ? p.financials.companyProfit : (margin > 0 ? Math.round(margin * 0.7) : 0));
-      const subEarns = p.subTechnicianEarnings || p.financials?.subTechnicianEarnings || {};
+
+      const pCode = String(p.invoiceNo || p.transactionNo || p.id || '').replace(/^PAY-/i, '').replace(/^#/, '').toLowerCase().trim();
+      const matchingOrder = (orders || []).find(o => {
+        const oCode = String(o.id || o.orderNumber || '').replace(/^#/, '').toLowerCase().trim();
+        return oCode === pCode || (pCode && (oCode.includes(pCode) || pCode.includes(oCode)));
+      });
+
+      const rawSubEarns = (p.subTechnicianEarnings && typeof p.subTechnicianEarnings === 'object' && Object.keys(p.subTechnicianEarnings).length > 0)
+        ? p.subTechnicianEarnings
+        : (p.financials?.subTechnicianEarnings || matchingOrder?.financials?.subTechnicianEarnings || {});
+      
+      const validSubEarns = {};
       let subSum = 0;
-      if (typeof subEarns === 'object' && subEarns !== null) {
-        Object.values(subEarns).forEach(v => subSum += Number(v || 0));
+      if (typeof rawSubEarns === 'object' && rawSubEarns !== null) {
+        Object.entries(rawSubEarns).forEach(([sName, sAmt]) => {
+          const cleanName = String(sName || '').trim();
+          const amt = Number(sAmt || 0);
+          if (cleanName && amt > 0) {
+            validSubEarns[cleanName] = amt;
+            subSum += amt;
+          }
+        });
       }
-      const mainEarn = Number(p.mainTechnicianEarning || p.financials?.mainTechnicianEarning || 0);
+
+      const mainEarn = Number(p.mainTechnicianEarning || p.financials?.mainTechnicianEarning || matchingOrder?.financials?.mainTechnicianEarning || 0);
       const crewEarning = (mainEarn > 0 || subSum > 0) ? (mainEarn + subSum) : Number(p.technicianEarning ?? p.financials?.technicianEarning ?? 0);
       const techEarningVal = crewEarning > 0 ? crewEarning : (margin > 0 ? Math.round(margin * 0.3) : 0);
+
+      let subTechNames = [];
+      if (Array.isArray(p.subTechnicians) && p.subTechnicians.length > 0) {
+        subTechNames = p.subTechnicians;
+      } else if (matchingOrder && Array.isArray(matchingOrder.subTechnicians) && matchingOrder.subTechnicians.length > 0) {
+        subTechNames = matchingOrder.subTechnicians;
+      } else if (Object.keys(validSubEarns).length > 0) {
+        subTechNames = Object.keys(validSubEarns);
+      }
+      subTechNames = subTechNames.map(s => {
+        if (typeof s === 'object' && s !== null) return s.name || s.technicianName || '';
+        return String(s || '').trim();
+      }).filter(Boolean);
 
       totalSales += Number(salesVal || 0);
       totalPurchase += Number(purchaseVal || 0);
@@ -389,6 +423,12 @@ export default function Reports() {
       const txnNo = p.invoiceNo || p.transactionNo || p.id || '-';
       const creator = p.createdBy || p.creator || '-';
 
+      const subEarnsEntries = Object.entries(validSubEarns);
+      const breakdownText = (mainEarn > 0 || subEarnsEntries.length > 0)
+        ? `Lead: Rs. ${mainEarn || techEarningVal}${subEarnsEntries.map(([sName, sAmt]) => ` | ${sName}: Rs. ${sAmt}`).join('')}`
+        : '-';
+      const subTechsStr = subTechNames.length > 0 ? subTechNames.join(', ') : '-';
+
       return [
         `"${dateStr}"`,
         `"${custName.replace(/"/g, '""')}"`,
@@ -398,7 +438,9 @@ export default function Reports() {
         purchaseVal,
         profitVal,
         techEarningVal,
-        `"${creator.replace(/"/g, '""')}"`
+        `"${breakdownText.replace(/"/g, '""')}"`,
+        `"${creator.replace(/"/g, '""')}"`,
+        `"${subTechsStr.replace(/"/g, '""')}"`
       ];
     });
 
@@ -411,6 +453,8 @@ export default function Reports() {
       totalPurchase,
       totalProfit,
       totalTech,
+      '""',
+      '""',
       '""'
     ]);
 
@@ -444,44 +488,55 @@ export default function Reports() {
       const doc = new jsPDF('landscape');
       const todayStr = new Date().toLocaleDateString('en-IN');
 
+      // Top Header Banner
       doc.setFillColor(30, 41, 59);
-      doc.rect(0, 0, 297, 36, 'F');
+      doc.rect(0, 0, 297, 34, 'F');
+
+      doc.setFillColor(16, 185, 129);
+      doc.rect(0, 34, 297, 2, 'F');
 
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(16);
-      doc.text('SK TECHNOLOGY', 14, 16);
+      doc.text('SK TECHNOLOGY', 14, 14);
 
-      doc.setFontSize(9);
+      doc.setFontSize(8.5);
       doc.setFont('helvetica', 'normal');
-      doc.text('CCTV Solutions & Security Systems', 14, 23);
-      doc.text('DAYBOOK FINANCIAL & TRANSACTIONS REPORT', 14, 29);
-
-      doc.setFontSize(9);
-      doc.text(`Generated: ${todayStr}`, 220, 18);
-      doc.text(`Total Records: ${targetList.length}`, 220, 25);
-
-      let y = 48;
-
-      doc.setFillColor(241, 245, 249);
-      doc.rect(14, y, 269, 10, 'F');
-      doc.setDrawColor(203, 213, 225);
-      doc.rect(14, y, 269, 10, 'S');
-
-      doc.setTextColor(51, 65, 85);
-      doc.setFontSize(8);
+      doc.setTextColor(148, 163, 184);
+      doc.text('CCTV Solutions & Security Systems', 14, 21);
       doc.setFont('helvetica', 'bold');
+      doc.setTextColor(255, 255, 255);
+      doc.text('DAYBOOK FINANCIAL & TRANSACTIONS REPORT', 14, 28);
 
-      doc.text('DATE', 16, y + 6.5);
-      doc.text('PARTY NAME', 40, y + 6.5);
-      doc.text('TYPE', 92, y + 6.5);
-      doc.text('TXN NO.', 126, y + 6.5);
-      doc.text('SALES (Rs.)', 160, y + 6.5);
-      doc.text('PURCHASE (Rs.)', 190, y + 6.5);
-      doc.text('PROFIT (Rs.)', 220, y + 6.5);
-      doc.text('TECH (Rs.)', 248, y + 6.5);
-      doc.text('CREATED', 272, y + 6.5);
+      doc.setFontSize(8.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(203, 213, 225);
+      doc.text(`Generated: ${todayStr}`, 220, 16);
+      doc.text(`Total Records: ${targetList.length}`, 220, 24);
 
+      const renderTableHeader = (headerY) => {
+        doc.setFillColor(241, 245, 249);
+        doc.rect(14, headerY, 269, 10, 'F');
+        doc.setDrawColor(203, 213, 225);
+        doc.rect(14, headerY, 269, 10, 'S');
+
+        doc.setTextColor(51, 65, 85);
+        doc.setFontSize(7.5);
+        doc.setFont('helvetica', 'bold');
+
+        doc.text('DATE', 16, headerY + 6.5);
+        doc.text('PARTY NAME', 37, headerY + 6.5);
+        doc.text('TYPE', 74, headerY + 6.5);
+        doc.text('TXN NO.', 96, headerY + 6.5);
+        doc.text('SALES (Rs.)', 122, headerY + 6.5);
+        doc.text('PURCHASE (Rs.)', 146, headerY + 6.5);
+        doc.text('PROFIT (Rs.)', 170, headerY + 6.5);
+        doc.text('TECH EARNING', 194, headerY + 6.5);
+        doc.text('CREATED BY / CREW', 240, headerY + 6.5);
+      };
+
+      let y = 44;
+      renderTableHeader(y);
       y += 12;
 
       let totSales = 0;
@@ -489,49 +544,51 @@ export default function Reports() {
       let totProfit = 0;
       let totTech = 0;
 
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.setTextColor(30, 41, 59);
-
       targetList.forEach((p, idx) => {
-        if (y > 185) {
-          doc.addPage('landscape');
-          y = 20;
-
-          doc.setFillColor(241, 245, 249);
-          doc.rect(14, y, 269, 10, 'F');
-          doc.setDrawColor(203, 213, 225);
-          doc.rect(14, y, 269, 10, 'S');
-
-          doc.setTextColor(51, 65, 85);
-          doc.setFont('helvetica', 'bold');
-          doc.text('DATE', 16, y + 6.5);
-          doc.text('PARTY NAME', 40, y + 6.5);
-          doc.text('TYPE', 92, y + 6.5);
-          doc.text('TXN NO.', 126, y + 6.5);
-          doc.text('SALES (Rs.)', 160, y + 6.5);
-          doc.text('PURCHASE (Rs.)', 190, y + 6.5);
-          doc.text('PROFIT (Rs.)', 220, y + 6.5);
-          doc.text('TECH (Rs.)', 248, y + 6.5);
-          doc.text('CREATED', 272, y + 6.5);
-
-          y += 12;
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(30, 41, 59);
-        }
-
         const salesVal = p.salesValue || p.financials?.salesValue || p.financials?.totalValue || p.amount || 0;
         const purchaseVal = p.purchaseValue || p.financials?.purchaseValue || 0;
         const margin = salesVal - purchaseVal;
         const profitVal = p.companyProfit !== undefined ? p.companyProfit : (p.financials?.companyProfit !== undefined ? p.financials.companyProfit : (margin > 0 ? Math.round(margin * 0.7) : 0));
-        const subEarns = p.subTechnicianEarnings || p.financials?.subTechnicianEarnings || {};
+
+        const pCode = String(p.invoiceNo || p.transactionNo || p.id || '').replace(/^PAY-/i, '').replace(/^#/, '').toLowerCase().trim();
+        const matchingOrder = (orders || []).find(o => {
+          const oCode = String(o.id || o.orderNumber || '').replace(/^#/, '').toLowerCase().trim();
+          return oCode === pCode || (pCode && (oCode.includes(pCode) || pCode.includes(oCode)));
+        });
+
+        const rawSubEarns = (p.subTechnicianEarnings && typeof p.subTechnicianEarnings === 'object' && Object.keys(p.subTechnicianEarnings).length > 0)
+          ? p.subTechnicianEarnings
+          : (p.financials?.subTechnicianEarnings || matchingOrder?.financials?.subTechnicianEarnings || {});
+        
+        const validSubEarns = {};
         let subSum = 0;
-        if (typeof subEarns === 'object' && subEarns !== null) {
-          Object.values(subEarns).forEach(v => subSum += Number(v || 0));
+        if (typeof rawSubEarns === 'object' && rawSubEarns !== null) {
+          Object.entries(rawSubEarns).forEach(([sName, sAmt]) => {
+            const cleanName = String(sName || '').trim();
+            const amt = Number(sAmt || 0);
+            if (cleanName && amt > 0) {
+              validSubEarns[cleanName] = amt;
+              subSum += amt;
+            }
+          });
         }
-        const mainEarn = Number(p.mainTechnicianEarning || p.financials?.mainTechnicianEarning || 0);
+
+        const mainEarn = Number(p.mainTechnicianEarning || p.financials?.mainTechnicianEarning || matchingOrder?.financials?.mainTechnicianEarning || 0);
         const crewEarning = (mainEarn > 0 || subSum > 0) ? (mainEarn + subSum) : Number(p.technicianEarning ?? p.financials?.technicianEarning ?? 0);
         const techEarningVal = crewEarning > 0 ? crewEarning : (margin > 0 ? Math.round(margin * 0.3) : 0);
+
+        let subTechNames = [];
+        if (Array.isArray(p.subTechnicians) && p.subTechnicians.length > 0) {
+          subTechNames = p.subTechnicians;
+        } else if (matchingOrder && Array.isArray(matchingOrder.subTechnicians) && matchingOrder.subTechnicians.length > 0) {
+          subTechNames = matchingOrder.subTechnicians;
+        } else if (Object.keys(validSubEarns).length > 0) {
+          subTechNames = Object.keys(validSubEarns);
+        }
+        subTechNames = subTechNames.map(s => {
+          if (typeof s === 'object' && s !== null) return s.name || s.technicianName || '';
+          return String(s || '').trim();
+        }).filter(Boolean);
 
         totSales += Number(salesVal || 0);
         totPurchase += Number(purchaseVal || 0);
@@ -539,42 +596,105 @@ export default function Reports() {
         totTech += Number(techEarningVal || 0);
 
         const dateStr = new Date(p.createdAt || p.date || new Date()).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
-        const custName = (p.customerName || p.customer?.name || p.customer || '-').substring(0, 24);
-        const typeStr = (p.type || p.transactionType || '-').substring(0, 16);
-        const txnNo = (p.invoiceNo || p.transactionNo || p.id || '-').substring(0, 14);
-        const creator = (p.createdBy || p.creator || '-').substring(0, 10);
+        const custName = (p.customerName || p.customer?.name || p.customer || '-');
+        const typeStr = (p.type || p.transactionType || '-');
+        const txnNo = (p.invoiceNo || p.transactionNo || p.id || '-');
+        const creator = (p.createdBy || p.creator || '-');
+
+        const subEarnsEntries = Object.entries(validSubEarns);
+        const hasBreakdown = (mainEarn > 0 && subEarnsEntries.length > 0) || subEarnsEntries.length > 0;
+        
+        // Calculate required row height
+        const techLines = 1 + (hasBreakdown ? ((mainEarn > 0 ? 1 : 0) + subEarnsEntries.length) : 0);
+        const creatorLines = 1 + subTechNames.length;
+        const maxLines = Math.max(techLines, creatorLines, 1);
+        const rowHeight = maxLines === 1 ? 8 : (8 + (maxLines - 1) * 3.4);
+
+        if (y + rowHeight > 192) {
+          doc.addPage('landscape');
+          y = 16;
+          renderTableHeader(y);
+          y += 12;
+        }
 
         if (idx % 2 === 1) {
           doc.setFillColor(248, 250, 252);
-          doc.rect(14, y - 4, 269, 8, 'F');
+          doc.rect(14, y - 2.5, 269, rowHeight, 'F');
         }
 
-        doc.text(dateStr, 16, y);
-        doc.text(custName, 40, y);
-        doc.text(typeStr, 92, y);
-        doc.text(txnNo, 126, y);
-        doc.text(`Rs. ${Number(salesVal).toLocaleString('en-IN')}`, 160, y);
-        doc.text(`Rs. ${Number(purchaseVal).toLocaleString('en-IN')}`, 190, y);
-        doc.text(`Rs. ${Number(profitVal).toLocaleString('en-IN')}`, 220, y);
-        doc.text(`Rs. ${Number(techEarningVal).toLocaleString('en-IN')}`, 248, y);
-        doc.text(creator, 272, y);
+        // Draw standard row values
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(30, 41, 59);
 
-        y += 9;
+        doc.text(dateStr, 16, y + 2.5);
+        doc.text(custName.substring(0, 20), 37, y + 2.5);
+        doc.text(typeStr.substring(0, 13), 74, y + 2.5);
+        doc.text(txnNo.substring(0, 14), 96, y + 2.5);
+        doc.text(`Rs. ${Number(salesVal).toLocaleString('en-IN')}`, 122, y + 2.5);
+        doc.text(`Rs. ${Number(purchaseVal).toLocaleString('en-IN')}`, 146, y + 2.5);
+        doc.text(`Rs. ${Number(profitVal).toLocaleString('en-IN')}`, 170, y + 2.5);
+
+        // Tech Earning Column
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(5, 150, 105); // emerald-600
+        doc.text(`Rs. ${Number(techEarningVal).toLocaleString('en-IN')}`, 194, y + 2.5);
+
+        if (hasBreakdown) {
+          let subY = y + 2.5 + 3.2;
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(6.5);
+          if (mainEarn > 0) {
+            doc.setTextColor(100, 116, 139); // slate-500
+            doc.text(`Lead: Rs. ${mainEarn.toLocaleString('en-IN')}`, 194, subY);
+            subY += 3.0;
+          }
+          subEarnsEntries.forEach(([sName, sAmt]) => {
+            doc.setTextColor(13, 148, 136); // teal-600
+            doc.text(`${sName.substring(0, 14)}: Rs. ${Number(sAmt).toLocaleString('en-IN')}`, 194, subY);
+            subY += 3.0;
+          });
+        }
+
+        // Created By / Crew Column
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(30, 41, 59);
+        doc.text(creator.substring(0, 20), 240, y + 2.5);
+
+        if (subTechNames.length > 0) {
+          let crewY = y + 2.5 + 3.2;
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(6.5);
+          doc.setTextColor(79, 70, 229); // indigo-600
+          subTechNames.forEach(sub => {
+            doc.text(`+ ${sub.substring(0, 18)}`, 240, crewY);
+            crewY += 3.0;
+          });
+        }
+
+        y += rowHeight;
       });
 
-      y += 4;
+      if (y + 16 > 195) {
+        doc.addPage('landscape');
+        y = 20;
+      }
+      y += 2;
       doc.setFillColor(241, 245, 249);
       doc.rect(14, y, 269, 12, 'F');
       doc.setDrawColor(203, 213, 225);
       doc.rect(14, y, 269, 12, 'S');
 
       doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
       doc.setTextColor(15, 23, 42);
       doc.text('TOTAL SUMMARY:', 16, y + 8);
-      doc.text(`Sales: Rs. ${totSales.toLocaleString('en-IN')}`, 110, y + 8);
-      doc.text(`Purchase: Rs. ${totPurchase.toLocaleString('en-IN')}`, 155, y + 8);
-      doc.text(`Profit: Rs. ${totProfit.toLocaleString('en-IN')}`, 200, y + 8);
-      doc.text(`Tech: Rs. ${totTech.toLocaleString('en-IN')}`, 240, y + 8);
+      doc.text(`Sales: Rs. ${totSales.toLocaleString('en-IN')}`, 96, y + 8);
+      doc.text(`Purchase: Rs. ${totPurchase.toLocaleString('en-IN')}`, 142, y + 8);
+      doc.text(`Profit: Rs. ${totProfit.toLocaleString('en-IN')}`, 186, y + 8);
+      doc.text(`Tech: Rs. ${totTech.toLocaleString('en-IN')}`, 230, y + 8);
 
       const pdfBlobUrl = doc.output('bloburl');
       window.open(pdfBlobUrl, '_blank');
