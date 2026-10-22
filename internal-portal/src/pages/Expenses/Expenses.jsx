@@ -6,7 +6,7 @@ import {
   FiAlertCircle, FiTrendingDown, FiDownload, FiX, FiLayers,
   FiShoppingBag, FiTruck, FiCoffee, FiTool, FiChevronRight,
   FiEye, FiCreditCard, FiHome, FiRefreshCw, FiShield, FiArrowDownRight,
-  FiArrowUpRight
+  FiArrowUpRight, FiTag
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { 
@@ -17,6 +17,8 @@ import {
   createExpenseApi, 
   deleteExpenseApi 
 } from '../../utils/expenseStorage';
+
+const CUSTOM_CATEGORIES_KEY = 'sk_custom_expense_categories';
 
 export default function Expenses() {
   const technicians = useSelector(state => state.dashboard?.technicians) || [];
@@ -39,6 +41,18 @@ export default function Expenses() {
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [fundFilter, setFundFilter] = useState('ALL'); // 'ALL' | 'Branch 1' | 'Branch 2' | 'Admin'
 
+  // Custom Categories Persistent State
+  const [customCategories, setCustomCategories] = useState(() => {
+    try {
+      const raw = localStorage.getItem(CUSTOM_CATEGORIES_KEY);
+      return raw ? JSON.parse(raw) : { tech: [], office: [] };
+    } catch (_) {
+      return { tech: [], office: [] };
+    }
+  });
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [newCategoryInput, setNewCategoryInput] = useState('');
+
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isTopupModalOpen, setIsTopupModalOpen] = useState(false);
@@ -60,9 +74,10 @@ export default function Expenses() {
   const [formData, setFormData] = useState({
     expenseType: 'TECHNICIAN', // 'TECHNICIAN' | 'OFFICE'
     technicianName: '',
+    employeeName: '', // Employee who took/spent money for office
     date: new Date().toISOString().split('T')[0],
     fundSource: 'Branch 1 Petty Cash', // 'Branch 1 Petty Cash' | 'Branch 2 Petty Cash' | 'Admin Account'
-    paymentMode: 'Petty Cash', // 'Petty Cash' | 'UPI - PhonePe' | 'UPI - GPay' | 'UPI - Paytm' | 'Net Banking' | 'Cash'
+    paymentMode: 'Petty Cash',
     referenceId: '',
     category: 'Petrol / Fuel',
     amount: '',
@@ -70,25 +85,46 @@ export default function Expenses() {
     jobCode: ''
   });
 
-  const techCategories = [
-    { label: 'Petrol / Fuel', icon: FiTruck, color: 'text-amber-600 bg-amber-50 border-amber-200' },
-    { label: 'Food / Refreshment', icon: FiCoffee, color: 'text-orange-600 bg-orange-50 border-orange-200' },
-    { label: 'Travel & Toll', icon: FiTruck, color: 'text-blue-600 bg-blue-50 border-blue-200' },
-    { label: 'Materials / Hardware', icon: FiShoppingBag, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
-    { label: 'Site Tools', icon: FiTool, color: 'text-purple-600 bg-purple-50 border-purple-200' },
-    { label: 'Miscellaneous', icon: FiLayers, color: 'text-slate-600 bg-slate-50 border-slate-200' },
+  const defaultTechCategories = [
+    'Petrol / Fuel',
+    'Food / Refreshment',
+    'Travel & Toll',
+    'Materials / Hardware',
+    'Site Tools',
+    'Miscellaneous'
   ];
 
-  const officeCategories = [
-    { label: 'Pooja / Flowers', icon: FiShoppingBag, color: 'text-pink-600 bg-pink-50 border-pink-200' },
-    { label: 'Office Refreshment / Tea', icon: FiCoffee, color: 'text-amber-600 bg-amber-50 border-amber-200' },
-    { label: 'Office Cleaning & Supplies', icon: FiHome, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
-    { label: 'Office Maintenance & Repairs', icon: FiTool, color: 'text-indigo-600 bg-indigo-50 border-indigo-200' },
-    { label: 'Stationery & Printing', icon: FiFileText, color: 'text-cyan-600 bg-cyan-50 border-cyan-200' },
-    { label: 'Miscellaneous Office', icon: FiLayers, color: 'text-slate-600 bg-slate-50 border-slate-200' },
+  const defaultOfficeCategories = [
+    'Pooja / Flowers',
+    'Office Refreshment / Tea',
+    'Office Cleaning & Supplies',
+    'Office Maintenance & Repairs',
+    'Stationery & Printing',
+    'Miscellaneous Office'
   ];
 
-  const activeCategories = formData.expenseType === 'OFFICE' ? officeCategories : techCategories;
+  // Active category list depending on expenseType
+  const activeCategoryList = useMemo(() => {
+    if (formData.expenseType === 'OFFICE') {
+      const customs = customCategories.office || [];
+      return Array.from(new Set([...defaultOfficeCategories, ...customs]));
+    }
+    const customs = customCategories.tech || [];
+    return Array.from(new Set([...defaultTechCategories, ...customs]));
+  }, [formData.expenseType, customCategories]);
+
+  // Combined list for filtering
+  const allCategoriesForFilter = useMemo(() => {
+    const fromExpenses = expenses.map(e => e.category).filter(Boolean);
+    const combined = [
+      ...defaultTechCategories,
+      ...defaultOfficeCategories,
+      ...(customCategories.tech || []),
+      ...(customCategories.office || []),
+      ...fromExpenses
+    ];
+    return Array.from(new Set(combined)).slice(0, 15);
+  }, [expenses, customCategories]);
 
   const fetchExpenses = async () => {
     setIsLoading(true);
@@ -141,8 +177,39 @@ export default function Expenses() {
       ...prev,
       expenseType: newType,
       technicianName: newType === 'OFFICE' ? 'Office Purpose' : '',
+      employeeName: '',
       category: newType === 'OFFICE' ? 'Pooja / Flowers' : 'Petrol / Fuel'
     }));
+    setIsAddingCategory(false);
+  };
+
+  // Add and Save New Custom Category
+  const handleSaveCustomCategory = (e) => {
+    e?.preventDefault?.();
+    const trimmed = newCategoryInput.trim();
+    if (!trimmed) {
+      toast.error('Please enter a category name');
+      return;
+    }
+
+    const groupKey = formData.expenseType === 'OFFICE' ? 'office' : 'tech';
+    const existing = customCategories[groupKey] || [];
+
+    if (!existing.includes(trimmed)) {
+      const updated = {
+        ...customCategories,
+        [groupKey]: [...existing, trimmed]
+      };
+      setCustomCategories(updated);
+      try {
+        localStorage.setItem(CUSTOM_CATEGORIES_KEY, JSON.stringify(updated));
+      } catch (_) {}
+      toast.success(`Category "${trimmed}" saved permanently!`);
+    }
+
+    setFormData(prev => ({ ...prev, category: trimmed }));
+    setNewCategoryInput('');
+    setIsAddingCategory(false);
   };
 
   // Calculate live remaining balance preview for modal
@@ -178,12 +245,26 @@ export default function Expenses() {
   // Handle Form Submit
   const handleCreateExpense = async (e) => {
     e.preventDefault();
-    const finalTechName = formData.expenseType === 'OFFICE' 
-      ? (formData.technicianName.trim() || 'Office Purpose')
-      : formData.technicianName.trim();
+    let finalTechName = '';
+    let finalEmpName = '';
 
-    if (!finalTechName || !formData.amount) {
-      toast.error('Please enter Name / Beneficiary and Amount');
+    if (formData.expenseType === 'OFFICE') {
+      finalEmpName = (formData.employeeName || '').trim();
+      if (!finalEmpName) {
+        toast.error('Please enter the Employee / Staff Name who handled the expense');
+        return;
+      }
+      finalTechName = `Office (${finalEmpName})`;
+    } else {
+      finalTechName = formData.technicianName.trim();
+      if (!finalTechName) {
+        toast.error('Please enter Technician Name');
+        return;
+      }
+    }
+
+    if (!formData.amount || parseFloat(formData.amount) <= 0) {
+      toast.error('Please enter a valid Amount');
       return;
     }
 
@@ -192,6 +273,7 @@ export default function Expenses() {
       await createExpenseApi({
         ...formData,
         technicianName: finalTechName,
+        employeeName: finalEmpName,
         amount: parseFloat(formData.amount)
       });
       toast.success('Daily field expense recorded successfully!');
@@ -199,6 +281,7 @@ export default function Expenses() {
       setFormData({
         expenseType: 'TECHNICIAN',
         technicianName: '',
+        employeeName: '',
         date: new Date().toISOString().split('T')[0],
         fundSource: 'Branch 1 Petty Cash',
         paymentMode: 'Petty Cash',
@@ -208,6 +291,7 @@ export default function Expenses() {
         notes: '',
         jobCode: ''
       });
+      setIsAddingCategory(false);
       fetchExpenses();
     } catch (err) {
       console.error('Create expense error:', err);
@@ -280,6 +364,7 @@ export default function Expenses() {
     return expenses.filter(exp => {
       const matchesSearch = 
         exp.technicianName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        exp.employeeName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         exp.notes?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         exp.jobCode?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         exp.referenceId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -609,7 +694,7 @@ export default function Expenses() {
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Search technician, notes, fund source, job..."
+              placeholder="Search technician, employee, notes, fund source, job..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-blue-500 text-slate-800 dark:text-slate-200"
@@ -651,7 +736,7 @@ export default function Expenses() {
               >
                 All
               </button>
-              {['Petrol / Fuel', 'Food / Refreshment', 'Materials / Hardware', 'Pooja / Flowers', 'Travel & Toll'].map(cat => (
+              {allCategoriesForFilter.map(cat => (
                 <button
                   key={cat}
                   onClick={() => setCategoryFilter(cat)}
@@ -779,7 +864,7 @@ export default function Expenses() {
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
                   <th className="py-3.5 px-4">Date & Time</th>
-                  <th className="py-3.5 px-4">Beneficiary</th>
+                  <th className="py-3.5 px-4">Beneficiary / Staff</th>
                   <th className="py-3.5 px-4">Fund Source</th>
                   <th className="py-3.5 px-4">Category</th>
                   <th className="py-3.5 px-4">Amount</th>
@@ -819,6 +904,11 @@ export default function Expenses() {
                               </span>
                             )}
                           </div>
+                          {exp.employeeName && (
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-medium">
+                              Spent by: {exp.employeeName}
+                            </span>
+                          )}
                         </td>
                         <td className="py-3 px-4 whitespace-nowrap">
                           <div className="flex flex-col">
@@ -983,7 +1073,10 @@ export default function Expenses() {
                 <p className="text-xs text-slate-500">Record technician site claims or office daily expenses</p>
               </div>
               <button
-                onClick={() => setIsAddModalOpen(false)}
+                onClick={() => {
+                  setIsAddModalOpen(false);
+                  setIsAddingCategory(false);
+                }}
                 className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-white"
               >
                 <FiX className="w-4 h-4" />
@@ -991,72 +1084,7 @@ export default function Expenses() {
             </div>
 
             <form onSubmit={handleCreateExpense} className="p-5 space-y-4 max-h-[80vh] overflow-y-auto no-scrollbar">
-              {/* BENEFICIARY TYPE TOGGLE: Technician vs Office */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                  Expense Beneficiary *
-                </label>
-                <div className="grid grid-cols-2 gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
-                  <button
-                    type="button"
-                    onClick={() => handleExpenseTypeChange('TECHNICIAN')}
-                    className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all ${
-                      formData.expenseType === 'TECHNICIAN'
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                    }`}
-                  >
-                    <FiUser className="w-3.5 h-3.5" />
-                    <span>Technician Claim</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleExpenseTypeChange('OFFICE')}
-                    className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all ${
-                      formData.expenseType === 'OFFICE'
-                        ? 'bg-amber-600 text-white shadow-xs'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                    }`}
-                  >
-                    <FiHome className="w-3.5 h-3.5" />
-                    <span>Office Purpose (Pooja/Tea)</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Technician Name OR Office Specific Purpose */}
-              {formData.expenseType === 'TECHNICIAN' ? (
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Technician Name *</label>
-                  <input
-                    type="text"
-                    list="techNamesList"
-                    required
-                    placeholder="Select or enter technician name"
-                    value={formData.technicianName}
-                    onChange={(e) => setFormData({ ...formData, technicianName: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500"
-                  />
-                  <datalist id="techNamesList">
-                    {technicians.map(t => (
-                      <option key={t.id || t._id || t.name} value={t.name} />
-                    ))}
-                  </datalist>
-                </div>
-              ) : (
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Office Purpose Label</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Office Purpose (Pooja / Flowers / Cleaning)"
-                    value={formData.technicianName}
-                    onChange={(e) => setFormData({ ...formData, technicianName: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none focus:border-amber-500"
-                  />
-                </div>
-              )}
-
-              {/* FUND SOURCE SELECTION CARDS */}
+              {/* 1. FUND ACCOUNT / SOURCE FIRST AT THE TOP */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                   Fund Account / Source *
@@ -1144,33 +1172,171 @@ export default function Expenses() {
                 </div>
               )}
 
-              {/* Date & Category in 2 columns */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Date *</label>
-                  <input
-                    type="date"
-                    required
-                    value={formData.date}
-                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Category *</label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500"
+              {/* 2. EXPENSE BENEFICIARY TOGGLE (BELOW FUND ACCOUNT) */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Expense Beneficiary *
+                </label>
+                <div className="grid grid-cols-2 gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => handleExpenseTypeChange('TECHNICIAN')}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+                      formData.expenseType === 'TECHNICIAN'
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                    }`}
                   >
-                    {activeCategories.map(c => (
-                      <option key={c.label} value={c.label}>{c.label}</option>
-                    ))}
-                  </select>
+                    <FiUser className="w-3.5 h-3.5" />
+                    <span>Technician Claim</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleExpenseTypeChange('OFFICE')}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+                      formData.expenseType === 'OFFICE'
+                        ? 'bg-amber-600 text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                    }`}
+                  >
+                    <FiHome className="w-3.5 h-3.5" />
+                    <span>Office Purpose</span>
+                  </button>
                 </div>
               </div>
 
-              {/* Amount & Job Reference */}
+              {/* 3. BENEFICIARY DETAILS: TECHNICIAN NAME vs EMPLOYEE NAME (WHO SPENT CASH) */}
+              {formData.expenseType === 'TECHNICIAN' ? (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Technician Name *</label>
+                  <input
+                    type="text"
+                    list="techNamesList"
+                    required
+                    placeholder="Select or enter technician name"
+                    value={formData.technicianName}
+                    onChange={(e) => setFormData({ ...formData, technicianName: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500"
+                  />
+                  <datalist id="techNamesList">
+                    {technicians.map(t => (
+                      <option key={t.id || t._id || t.name} value={t.name} />
+                    ))}
+                  </datalist>
+                </div>
+              ) : (
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Employee / Staff Name (Handled By) *
+                    </label>
+                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
+                      Who spent for Office Purpose
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    list="employeeStaffList"
+                    required
+                    placeholder="Select or enter employee / staff name (e.g. Ramesh, Priya)"
+                    value={formData.employeeName}
+                    onChange={(e) => setFormData({ ...formData, employeeName: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-amber-300 dark:border-amber-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none focus:border-amber-500"
+                  />
+                  <datalist id="employeeStaffList">
+                    {technicians.map(t => (
+                      <option key={t.id || t._id || t.name} value={t.name} />
+                    ))}
+                  </datalist>
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Classified as Office Expense, with full audit of which employee handled this cash.
+                  </p>
+                </div>
+              )}
+
+              {/* 4. DATE & CATEGORY (WITH DYNAMIC CUSTOM CATEGORY ADDITION) */}
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Date *</label>
+                    <input
+                      type="date"
+                      required
+                      value={formData.date}
+                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Category *</label>
+                      <button
+                        type="button"
+                        onClick={() => setIsAddingCategory(!isAddingCategory)}
+                        className="text-[10px] text-blue-600 dark:text-blue-400 font-bold hover:underline flex items-center gap-0.5"
+                      >
+                        <FiPlus className="w-3 h-3" />
+                        <span>{isAddingCategory ? 'Close' : 'Add Category'}</span>
+                      </button>
+                    </div>
+                    <select
+                      value={formData.category}
+                      onChange={(e) => {
+                        if (e.target.value === '__ADD_NEW__') {
+                          setIsAddingCategory(true);
+                        } else {
+                          setFormData({ ...formData, category: e.target.value });
+                        }
+                      }}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500 cursor-pointer"
+                    >
+                      {activeCategoryList.map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                      <option value="__ADD_NEW__">+ Add New Category...</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Inline New Category Creation Input */}
+                {isAddingCategory && (
+                  <div className="p-3 bg-blue-50/80 dark:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-800 flex items-center gap-2">
+                    <input
+                      type="text"
+                      autoFocus
+                      placeholder="Enter new category name (e.g. Broadband / Printer Toner)"
+                      value={newCategoryInput}
+                      onChange={(e) => setNewCategoryInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleSaveCustomCategory();
+                        }
+                      }}
+                      className="flex-1 px-3 py-1.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSaveCustomCategory}
+                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs"
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAddingCategory(false);
+                        setNewCategoryInput('');
+                      }}
+                      className="px-2.5 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-semibold"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* 5. AMOUNT & JOB REFERENCE */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Amount (₹) *</label>
@@ -1196,7 +1362,7 @@ export default function Expenses() {
                 </div>
               </div>
 
-              {/* LIVE PETTY CASH DEDUCTION CALCULATION PREVIEW */}
+              {/* 6. LIVE PETTY CASH DEDUCTION CALCULATION PREVIEW */}
               {liveBalancePreview && liveBalancePreview.isPetty && formData.amount > 0 && (
                 <div className={`p-3 rounded-xl border flex items-center justify-between text-xs font-medium ${
                   liveBalancePreview.after >= 0
@@ -1221,14 +1387,14 @@ export default function Expenses() {
                 </div>
               )}
 
-              {/* Purpose / Notes */}
+              {/* 7. PURPOSE / DETAILS */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Purpose / Details</label>
                 <textarea
                   rows="2"
                   placeholder={
                     formData.expenseType === 'OFFICE'
-                      ? 'e.g. Pooja flowers and prasadam for Friday office pooja / Floor cleaning liquid'
+                      ? 'e.g. Pooja flowers & fruits for Friday office pooja / Tea refreshments for visiting clients'
                       : 'e.g. Petrol for site visit in Denkanikottai / Emergency PVC conduits'
                   }
                   value={formData.notes}
@@ -1241,7 +1407,10 @@ export default function Expenses() {
               <div className="flex items-center justify-end gap-2.5 pt-2">
                 <button
                   type="button"
-                  onClick={() => setIsAddModalOpen(false)}
+                  onClick={() => {
+                    setIsAddModalOpen(false);
+                    setIsAddingCategory(false);
+                  }}
                   className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
                 >
                   Cancel

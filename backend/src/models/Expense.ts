@@ -3,6 +3,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IExpense extends Document {
   technicianId?: string;
   technicianName: string;
+  employeeName?: string;
   expenseType: 'TECHNICIAN' | 'OFFICE';
   fundSource: 'Admin Account' | 'Branch 1 Petty Cash' | 'Branch 2 Petty Cash' | string;
   paymentMode: 'UPI - PhonePe' | 'UPI - GPay' | 'UPI - Paytm' | 'Net Banking' | 'Cash' | 'Petty Cash' | string;
@@ -24,6 +25,7 @@ const ExpenseSchema: Schema = new Schema(
   {
     technicianId: { type: String, default: '' },
     technicianName: { type: String, required: true },
+    employeeName: { type: String, default: '' },
     expenseType: {
       type: String,
       enum: ['TECHNICIAN', 'OFFICE'],

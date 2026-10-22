@@ -350,6 +350,7 @@ router.post('/', async (req: Request, res: Response) => {
     const {
       technicianName,
       technicianId,
+      employeeName,
       expenseType,
       fundSource,
       paymentMode,
@@ -366,9 +367,10 @@ router.post('/', async (req: Request, res: Response) => {
     } = req.body;
 
     const resolvedExpenseType = expenseType === 'OFFICE' ? 'OFFICE' : 'TECHNICIAN';
+    const resolvedEmployeeName = (employeeName || '').trim();
     const resolvedTechName = (technicianName && technicianName.trim())
       ? technicianName.trim()
-      : (resolvedExpenseType === 'OFFICE' ? 'Office Purpose' : 'Field Technician');
+      : (resolvedExpenseType === 'OFFICE' ? (resolvedEmployeeName ? `Office (${resolvedEmployeeName})` : 'Office Purpose') : 'Field Technician');
 
     if (!resolvedTechName || !amount) {
       return res.status(400).json({ success: false, message: 'Technician/Beneficiary Name and Amount are required' });
@@ -382,13 +384,14 @@ router.post('/', async (req: Request, res: Response) => {
     const newExpense = new Expense({
       technicianName: resolvedTechName,
       technicianId: technicianId || '',
+      employeeName: resolvedEmployeeName,
       expenseType: resolvedExpenseType,
       fundSource: resolvedFundSource,
       paymentMode: resolvedPaymentMode,
       referenceId: referenceId || '',
       date: finalDate,
       time: finalTime,
-      category: category || (resolvedExpenseType === 'OFFICE' ? 'Office / Pooja / Flowers' : 'Petrol / Fuel'),
+      category: category || (resolvedExpenseType === 'OFFICE' ? 'Pooja / Flowers' : 'Petrol / Fuel'),
       amount: Math.max(0, Number(amount)),
       notes: notes || '',
       receiptPhoto: receiptPhoto || '',
