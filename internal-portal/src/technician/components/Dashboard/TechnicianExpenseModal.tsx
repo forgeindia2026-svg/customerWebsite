@@ -79,7 +79,7 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
   const [formData, setFormData] = useState({
     expenseType: 'TECHNICIAN' as 'TECHNICIAN' | 'OFFICE',
     technicianName: techName,
-    employeeName: '',
+    employeeName: techName,
     date: todayStr,
     fundSource: 'Branch 1 Petty Cash',
     paymentMode: 'Petty Cash',
@@ -125,6 +125,7 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
       setFormData(prev => ({
         ...prev,
         technicianName: techName,
+        employeeName: techName,
         date: todayStr
       }));
 
@@ -158,7 +159,7 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
       ...prev,
       expenseType: newType,
       technicianName: newType === 'OFFICE' ? 'Office Purpose' : techName,
-      employeeName: newType === 'OFFICE' ? (prev.employeeName || techName) : ''
+      employeeName: techName
     }));
   };
 
