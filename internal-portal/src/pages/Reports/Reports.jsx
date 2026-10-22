@@ -49,6 +49,25 @@ const calculateLiveHours = (checkInStr, dateStr) => {
   }
 };
 
+export const parseCustomDateTimestamp = (val) => {
+  if (!val) return 0;
+  if (val instanceof Date) return val.getTime() || 0;
+  if (typeof val === 'number') return val;
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    const dmyMatch = trimmed.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+    if (dmyMatch) {
+      const day = parseInt(dmyMatch[1], 10);
+      const month = parseInt(dmyMatch[2], 10) - 1;
+      const year = parseInt(dmyMatch[3], 10);
+      return new Date(year, month, day).getTime() || 0;
+    }
+    const t = new Date(trimmed).getTime();
+    return isNaN(t) ? 0 : t;
+  }
+  return 0;
+};
+
 export const getReportDisplayDate = (report) => {
   if (!report) return '';
   const raw = report.date || report.createdAt || report.updatedAt;
@@ -341,13 +360,21 @@ export default function Reports() {
   }, [displayPayments]);
 
   const handleDownloadDaybookExcel = (list = displayPayments) => {
-    const targetList = list && list.length > 0 ? list : payments;
-    if (!targetList || targetList.length === 0) {
+    const rawList = list && list.length > 0 ? list : payments;
+    if (!rawList || rawList.length === 0) {
       showToast('No transaction data to export', 'error');
       return;
     }
 
+    // Sort chronologically from Date 1 onwards (oldest to newest: 1st, 2nd... 21st)
+    const targetList = [...rawList].sort((a, b) => {
+      const timeA = parseCustomDateTimestamp(a.createdAt || a.date);
+      const timeB = parseCustomDateTimestamp(b.createdAt || b.date);
+      return timeA - timeB;
+    });
+
     const headers = [
+      'S.NO',
       'DATE',
       'PARTY NAME',
       'TRANSACTION TYPE',
@@ -357,7 +384,7 @@ export default function Reports() {
       'COMPANY PROFIT (INR)',
       'TOTAL TECH EARNING (INR)',
       'CREW EARNING BREAKDOWN',
-      'CREATED BY (LEAD)',
+      'CREATED BY (MAIN TECH)',
       'SUB TECHNICIANS'
     ];
 
@@ -417,19 +444,21 @@ export default function Reports() {
       totalProfit += Number(profitVal || 0);
       totalTech += Number(techEarningVal || 0);
 
-      const dateStr = new Date(p.createdAt || p.date || new Date()).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
+      const pDateVal = parseCustomDateTimestamp(p.createdAt || p.date);
+      const dateStr = pDateVal ? new Date(pDateVal).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-') : '-';
       const custName = p.customerName || p.customer?.name || p.customer || '-';
       const typeStr = p.type || p.transactionType || '-';
       const txnNo = p.invoiceNo || p.transactionNo || p.id || '-';
-      const creator = p.createdBy || p.creator || '-';
+      const creator = p.createdBy || p.creator || matchingOrder?.assignedTechnician || 'Technician';
 
       const subEarnsEntries = Object.entries(validSubEarns);
       const breakdownText = (mainEarn > 0 || subEarnsEntries.length > 0)
-        ? `Lead: Rs. ${mainEarn || techEarningVal}${subEarnsEntries.map(([sName, sAmt]) => ` | ${sName}: Rs. ${sAmt}`).join('')}`
+        ? `${creator}: Rs. ${mainEarn || techEarningVal}${subEarnsEntries.map(([sName, sAmt]) => ` | ${sName}: Rs. ${sAmt}`).join('')}`
         : '-';
       const subTechsStr = subTechNames.length > 0 ? subTechNames.join(', ') : '-';
 
       return [
+        i + 1,
         `"${dateStr}"`,
         `"${custName.replace(/"/g, '""')}"`,
         `"${typeStr.replace(/"/g, '""')}"`,
@@ -445,6 +474,7 @@ export default function Reports() {
     });
 
     rows.push([
+      '""',
       '"TOTAL"',
       '""',
       '""',
@@ -479,11 +509,18 @@ export default function Reports() {
 
   const handlePrintDaybookPDF = () => {
     try {
-      const targetList = displayPayments && displayPayments.length > 0 ? displayPayments : payments;
-      if (!targetList || targetList.length === 0) {
+      const rawList = displayPayments && displayPayments.length > 0 ? displayPayments : payments;
+      if (!rawList || rawList.length === 0) {
         showToast('No transaction data to print', 'error');
         return;
       }
+
+      // Sort chronologically from Date 1 onwards (oldest to newest: 1st, 2nd... 21st)
+      const targetList = [...rawList].sort((a, b) => {
+        const timeA = parseCustomDateTimestamp(a.createdAt || a.date);
+        const timeB = parseCustomDateTimestamp(b.createdAt || b.date);
+        return timeA - timeB;
+      });
 
       const doc = new jsPDF('landscape');
       const todayStr = new Date().toLocaleDateString('en-IN');
@@ -524,15 +561,16 @@ export default function Reports() {
         doc.setFontSize(7.5);
         doc.setFont('helvetica', 'bold');
 
-        doc.text('DATE', 16, headerY + 6.5);
-        doc.text('PARTY NAME', 37, headerY + 6.5);
-        doc.text('TYPE', 74, headerY + 6.5);
-        doc.text('TXN NO.', 96, headerY + 6.5);
-        doc.text('SALES (Rs.)', 122, headerY + 6.5);
-        doc.text('PURCHASE (Rs.)', 146, headerY + 6.5);
-        doc.text('PROFIT (Rs.)', 170, headerY + 6.5);
-        doc.text('TECH EARNING', 194, headerY + 6.5);
-        doc.text('CREATED BY / CREW', 240, headerY + 6.5);
+        doc.text('S.NO', 16, headerY + 6.5);
+        doc.text('DATE', 28, headerY + 6.5);
+        doc.text('PARTY NAME', 49, headerY + 6.5);
+        doc.text('TYPE', 86, headerY + 6.5);
+        doc.text('TXN NO.', 107, headerY + 6.5);
+        doc.text('SALES (Rs.)', 132, headerY + 6.5);
+        doc.text('PURCHASE (Rs.)', 155, headerY + 6.5);
+        doc.text('PROFIT (Rs.)', 178, headerY + 6.5);
+        doc.text('TECH EARNING', 201, headerY + 6.5);
+        doc.text('CREATED BY / CREW', 243, headerY + 6.5);
       };
 
       let y = 44;
@@ -595,11 +633,12 @@ export default function Reports() {
         totProfit += Number(profitVal || 0);
         totTech += Number(techEarningVal || 0);
 
-        const dateStr = new Date(p.createdAt || p.date || new Date()).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
+        const pDateVal = parseCustomDateTimestamp(p.createdAt || p.date);
+        const dateStr = pDateVal ? new Date(pDateVal).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-') : '-';
         const custName = (p.customerName || p.customer?.name || p.customer || '-');
         const typeStr = (p.type || p.transactionType || '-');
         const txnNo = (p.invoiceNo || p.transactionNo || p.id || '-');
-        const creator = (p.createdBy || p.creator || '-');
+        const creator = (p.createdBy || p.creator || matchingOrder?.assignedTechnician || 'Technician');
 
         const subEarnsEntries = Object.entries(validSubEarns);
         const hasBreakdown = (mainEarn > 0 && subEarnsEntries.length > 0) || subEarnsEntries.length > 0;
@@ -627,19 +666,20 @@ export default function Reports() {
         doc.setFontSize(7.5);
         doc.setTextColor(30, 41, 59);
 
-        doc.text(dateStr, 16, y + 2.5);
-        doc.text(custName.substring(0, 20), 37, y + 2.5);
-        doc.text(typeStr.substring(0, 13), 74, y + 2.5);
-        doc.text(txnNo.substring(0, 14), 96, y + 2.5);
-        doc.text(`Rs. ${Number(salesVal).toLocaleString('en-IN')}`, 122, y + 2.5);
-        doc.text(`Rs. ${Number(purchaseVal).toLocaleString('en-IN')}`, 146, y + 2.5);
-        doc.text(`Rs. ${Number(profitVal).toLocaleString('en-IN')}`, 170, y + 2.5);
+        doc.text(String(idx + 1), 16, y + 2.5);
+        doc.text(dateStr, 28, y + 2.5);
+        doc.text(custName.substring(0, 18), 49, y + 2.5);
+        doc.text(typeStr.substring(0, 11), 86, y + 2.5);
+        doc.text(txnNo.substring(0, 13), 107, y + 2.5);
+        doc.text(`Rs. ${Number(salesVal).toLocaleString('en-IN')}`, 132, y + 2.5);
+        doc.text(`Rs. ${Number(purchaseVal).toLocaleString('en-IN')}`, 155, y + 2.5);
+        doc.text(`Rs. ${Number(profitVal).toLocaleString('en-IN')}`, 178, y + 2.5);
 
         // Tech Earning Column
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(7.5);
         doc.setTextColor(5, 150, 105); // emerald-600
-        doc.text(`Rs. ${Number(techEarningVal).toLocaleString('en-IN')}`, 194, y + 2.5);
+        doc.text(`Rs. ${Number(techEarningVal).toLocaleString('en-IN')}`, 201, y + 2.5);
 
         if (hasBreakdown) {
           let subY = y + 2.5 + 3.2;
@@ -647,12 +687,12 @@ export default function Reports() {
           doc.setFontSize(6.5);
           if (mainEarn > 0) {
             doc.setTextColor(100, 116, 139); // slate-500
-            doc.text(`Lead: Rs. ${mainEarn.toLocaleString('en-IN')}`, 194, subY);
+            doc.text(`${creator.substring(0, 14)}: Rs. ${mainEarn.toLocaleString('en-IN')}`, 201, subY);
             subY += 3.0;
           }
           subEarnsEntries.forEach(([sName, sAmt]) => {
             doc.setTextColor(13, 148, 136); // teal-600
-            doc.text(`${sName.substring(0, 14)}: Rs. ${Number(sAmt).toLocaleString('en-IN')}`, 194, subY);
+            doc.text(`${sName.substring(0, 14)}: Rs. ${Number(sAmt).toLocaleString('en-IN')}`, 201, subY);
             subY += 3.0;
           });
         }
@@ -661,7 +701,7 @@ export default function Reports() {
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(7.5);
         doc.setTextColor(30, 41, 59);
-        doc.text(creator.substring(0, 20), 240, y + 2.5);
+        doc.text(creator.substring(0, 18), 243, y + 2.5);
 
         if (subTechNames.length > 0) {
           let crewY = y + 2.5 + 3.2;
@@ -669,7 +709,7 @@ export default function Reports() {
           doc.setFontSize(6.5);
           doc.setTextColor(79, 70, 229); // indigo-600
           subTechNames.forEach(sub => {
-            doc.text(`+ ${sub.substring(0, 18)}`, 240, crewY);
+            doc.text(`+ ${sub.substring(0, 16)}`, 243, crewY);
             crewY += 3.0;
           });
         }
@@ -3462,7 +3502,7 @@ export default function Reports() {
                               </span>
                               {(rowData.mainTechnicianEarning > 0 || Object.keys(rowData.subTechnicianEarnings).length > 0) && (
                                 <div className="flex flex-col items-end text-[10px] text-slate-400 font-normal mt-0.5">
-                                  {rowData.mainTechnicianEarning > 0 && <span>Lead: ₹{rowData.mainTechnicianEarning.toLocaleString('en-IN')}</span>}
+                                  {rowData.mainTechnicianEarning > 0 && <span>{(rowData.createdBy && rowData.createdBy !== '-' ? rowData.createdBy : 'Main Tech')}: ₹{rowData.mainTechnicianEarning.toLocaleString('en-IN')}</span>}
                                   {Object.entries(rowData.subTechnicianEarnings).map(([sName, sAmt]) => Number(sAmt) > 0 ? (
                                     <span key={sName} className="text-teal-600 dark:text-teal-400 font-medium">
                                       {sName}: ₹{Number(sAmt).toLocaleString('en-IN')}
