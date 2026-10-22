@@ -74,7 +74,7 @@ export const getPettyCashAccountsSummary = async (targetMonth?: string) => {
     .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   const b2Remaining = Math.max(0, b2Allocated - b2Spent);
 
-  // Admin Account (Saravanan) - UPI / Net Banking / Cash
+  // Admin Account (SARAN KUMAR) - UPI / Net Banking / Cash
   const adminExpenses = allExpenses.filter(e => e.fundSource === 'Admin Account');
   const adminTotalSpent = adminExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   const adminMonthSpent = adminExpenses
@@ -111,7 +111,7 @@ export const getPettyCashAccountsSummary = async (targetMonth?: string) => {
       topups: b2.topups || []
     },
     adminAccount: {
-      name: 'Admin Account (Saravanan)',
+      name: 'Admin Account (SARAN KUMAR)',
       totalSpent: adminTotalSpent,
       monthSpent: adminMonthSpent,
       byMode: adminByMode
@@ -164,6 +164,7 @@ router.post('/petty-cash/topup', async (req: Request, res: Response) => {
 
     if (isOpeningBalanceReset) {
       account.openingBalance = numAmount;
+      account.topups = [];
     } else {
       account.topups.push({
         amount: numAmount,

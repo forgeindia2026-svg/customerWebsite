@@ -168,7 +168,7 @@ export default function Expenses() {
       };
     }
     return {
-      sourceName: 'Admin Account (Saravanan)',
+      sourceName: 'Admin Account (SARAN KUMAR)',
       current: null,
       after: null,
       isPetty: false
@@ -472,7 +472,7 @@ export default function Expenses() {
           </div>
         </div>
 
-        {/* Admin Account (Saravanan) Card */}
+        {/* Admin Account (SARAN KUMAR) Card */}
         <div className="relative overflow-hidden bg-gradient-to-br from-white to-emerald-50/40 dark:from-slate-900 dark:to-slate-800/80 border border-emerald-200/90 dark:border-emerald-800/50 p-5 rounded-2xl shadow-xs">
           <div className="flex items-center justify-between pb-3 border-b border-emerald-100 dark:border-slate-800">
             <div className="flex items-center gap-2.5">
@@ -480,7 +480,7 @@ export default function Expenses() {
                 <FiCreditCard className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="font-bold text-sm text-slate-900 dark:text-white">Admin Account (Saravanan)</h3>
+                <h3 className="font-bold text-sm text-slate-900 dark:text-white">Admin Account (SARAN KUMAR)</h3>
                 <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-semibold">UPI & Net Banking Transfers</span>
               </div>
             </div>
@@ -1127,7 +1127,7 @@ export default function Expenses() {
                         <option value="UPI - GPay">UPI - Google Pay</option>
                         <option value="UPI - Paytm">UPI - Paytm</option>
                         <option value="Net Banking">Net Banking</option>
-                        <option value="Cash">Direct Cash (Saravanan)</option>
+                        <option value="Cash">Direct Cash (SARAN KUMAR)</option>
                       </select>
                     </div>
                     <div>

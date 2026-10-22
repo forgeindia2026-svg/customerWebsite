@@ -194,7 +194,7 @@ export const calculateExpensesSummary = (expensesList, targetMonth) => {
     branch1,
     branch2,
     adminAccount: {
-      accountName: 'Admin Account (Saravanan)',
+      accountName: 'Admin Account (SARAN KUMAR)',
       monthSpent: adminMonthSpent,
       totalSpent: adminTotalSpent,
       byMode: adminByMode
@@ -304,6 +304,7 @@ export const topupPettyCashApi = async ({ branchId, amount, isOpeningBalanceRese
   const parsedAmt = Number(amount) || 0;
   if (isOpeningBalanceReset) {
     acc.openingBalance = parsedAmt;
+    acc.topups = [];
   } else {
     acc.topups = acc.topups || [];
     acc.topups.push({
