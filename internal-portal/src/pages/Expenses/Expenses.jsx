@@ -217,7 +217,7 @@ export default function Expenses() {
     if (!pettyCashData) return null;
     const amountNum = parseFloat(formData.amount) || 0;
     if (formData.fundSource === 'Branch 1 Petty Cash') {
-      const currentAvail = pettyCashData.branch1?.remainingBalance ?? 5000;
+      const currentAvail = Number(pettyCashData.branch1?.remainingBalance || 0);
       return {
         sourceName: 'Branch 1 Petty Cash',
         current: currentAvail,
@@ -226,7 +226,7 @@ export default function Expenses() {
       };
     }
     if (formData.fundSource === 'Branch 2 Petty Cash') {
-      const currentAvail = pettyCashData.branch2?.remainingBalance ?? 5000;
+      const currentAvail = Number(pettyCashData.branch2?.remainingBalance || 0);
       return {
         sourceName: 'Branch 2 Petty Cash',
         current: currentAvail,
@@ -473,16 +473,20 @@ export default function Expenses() {
           <div className="mt-4">
             <div className="flex items-baseline justify-between">
               <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Available In-Hand Cash</span>
-              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                (b1?.remainingBalance ?? 5000) > 1000 
-                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                  : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
-              }`}>
-                {(b1?.remainingBalance ?? 5000) > 0 ? 'Active' : 'Low Balance'}
-              </span>
+              {b1 ? (
+                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                  (b1.remainingBalance || 0) > 1000 
+                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                    : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                }`}>
+                  {(b1.remainingBalance || 0) > 0 ? 'Active' : 'Low Balance'}
+                </span>
+              ) : (
+                <span className="text-[11px] text-slate-400 font-medium">Loading...</span>
+              )}
             </div>
             <h2 className="text-3xl font-black text-slate-900 dark:text-white mt-1 tracking-tight">
-              ₹{(b1?.remainingBalance ?? 5000).toLocaleString('en-IN')}
+              {b1 ? `₹${Number(b1.remainingBalance || 0).toLocaleString('en-IN')}` : '₹...'}
             </h2>
           </div>
 
@@ -490,13 +494,13 @@ export default function Expenses() {
             <div>
               <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Allocated (Open + Topup)</span>
               <span className="font-bold text-slate-800 dark:text-slate-200">
-                ₹{(b1?.totalAllocated ?? 5000).toLocaleString('en-IN')}
+                {b1 ? `₹${Number(b1.totalAllocated || 0).toLocaleString('en-IN')}` : '₹...'}
               </span>
             </div>
             <div className="text-right">
               <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Spent This Month</span>
               <span className="font-bold text-rose-600 dark:text-rose-400">
-                -₹{(b1?.monthSpent ?? 0).toLocaleString('en-IN')}
+                {b1 ? `-₹${Number(b1.monthSpent || 0).toLocaleString('en-IN')}` : '-₹0'}
               </span>
             </div>
           </div>
@@ -528,16 +532,20 @@ export default function Expenses() {
           <div className="mt-4">
             <div className="flex items-baseline justify-between">
               <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Available In-Hand Cash</span>
-              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                (b2?.remainingBalance ?? 5000) > 1000 
-                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                  : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
-              }`}>
-                {(b2?.remainingBalance ?? 5000) > 0 ? 'Active' : 'Low Balance'}
-              </span>
+              {b2 ? (
+                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                  (b2.remainingBalance || 0) > 1000 
+                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                    : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                }`}>
+                  {(b2.remainingBalance || 0) > 0 ? 'Active' : 'Low Balance'}
+                </span>
+              ) : (
+                <span className="text-[11px] text-slate-400 font-medium">Loading...</span>
+              )}
             </div>
             <h2 className="text-3xl font-black text-slate-900 dark:text-white mt-1 tracking-tight">
-              ₹{(b2?.remainingBalance ?? 5000).toLocaleString('en-IN')}
+              {b2 ? `₹${Number(b2.remainingBalance || 0).toLocaleString('en-IN')}` : '₹...'}
             </h2>
           </div>
 
@@ -545,13 +553,13 @@ export default function Expenses() {
             <div>
               <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Allocated (Open + Topup)</span>
               <span className="font-bold text-slate-800 dark:text-slate-200">
-                ₹{(b2?.totalAllocated ?? 5000).toLocaleString('en-IN')}
+                {b2 ? `₹${Number(b2.totalAllocated || 0).toLocaleString('en-IN')}` : '₹...'}
               </span>
             </div>
             <div className="text-right">
               <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Spent This Month</span>
               <span className="font-bold text-rose-600 dark:text-rose-400">
-                -₹{(b2?.monthSpent ?? 0).toLocaleString('en-IN')}
+                {b2 ? `-₹${Number(b2.monthSpent || 0).toLocaleString('en-IN')}` : '-₹0'}
               </span>
             </div>
           </div>
@@ -1102,7 +1110,7 @@ export default function Expenses() {
                   >
                     <span className="font-bold text-xs text-slate-900 dark:text-white block">Branch 1</span>
                     <span className="text-[10px] text-sky-600 dark:text-sky-400 font-bold block mt-0.5">
-                      Bal: ₹{(b1?.remainingBalance ?? 5000).toLocaleString('en-IN')}
+                      Bal: {b1 ? `₹${Number(b1.remainingBalance || 0).toLocaleString('en-IN')}` : '...'}
                     </span>
                   </button>
 
@@ -1118,7 +1126,7 @@ export default function Expenses() {
                   >
                     <span className="font-bold text-xs text-slate-900 dark:text-white block">Branch 2</span>
                     <span className="text-[10px] text-purple-600 dark:text-purple-400 font-bold block mt-0.5">
-                      Bal: ₹{(b2?.remainingBalance ?? 5000).toLocaleString('en-IN')}
+                      Bal: {b2 ? `₹${Number(b2.remainingBalance || 0).toLocaleString('en-IN')}` : '...'}
                     </span>
                   </button>
 

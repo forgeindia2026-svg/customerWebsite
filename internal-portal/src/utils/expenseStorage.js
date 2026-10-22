@@ -50,15 +50,15 @@ export const getLocalPettyAccounts = () => {
     const raw = localStorage.getItem(PETTY_KEY);
     if (!raw) {
       return {
-        'branch-1': { branchId: 'branch-1', branchName: 'Branch 1 (Main Office)', openingBalance: 5000, topups: [] },
-        'branch-2': { branchId: 'branch-2', branchName: 'Branch 2', openingBalance: 5000, topups: [] }
+        'branch-1': { branchId: 'branch-1', branchName: 'Branch 1 (Main Office)', openingBalance: 0, topups: [] },
+        'branch-2': { branchId: 'branch-2', branchName: 'Branch 2', openingBalance: 0, topups: [] }
       };
     }
     return JSON.parse(raw);
   } catch (_) {
     return {
-      'branch-1': { branchId: 'branch-1', branchName: 'Branch 1 (Main Office)', openingBalance: 5000, topups: [] },
-      'branch-2': { branchId: 'branch-2', branchName: 'Branch 2', openingBalance: 5000, topups: [] }
+      'branch-1': { branchId: 'branch-1', branchName: 'Branch 1 (Main Office)', openingBalance: 0, topups: [] },
+      'branch-2': { branchId: 'branch-2', branchName: 'Branch 2', openingBalance: 0, topups: [] }
     };
   }
 };
@@ -139,8 +139,8 @@ export const calculateExpensesSummary = (expensesList, targetMonth) => {
   // Calculate local Petty Cash summary
   const pettyAccounts = getLocalPettyAccounts();
   const calcBranch = (accId, fallbackName) => {
-    const acc = pettyAccounts[accId] || { openingBalance: 5000, topups: [] };
-    const opening = Number(acc.openingBalance) || 5000;
+    const acc = pettyAccounts[accId] || { openingBalance: 0, topups: [] };
+    const opening = Number(acc.openingBalance) || 0;
     const topupsSum = (acc.topups || []).reduce((s, t) => s + (Number(t.amount) || 0), 0);
     const totalAllocated = opening + topupsSum;
 
@@ -281,6 +281,10 @@ export const fetchPettyCashSummaryApi = async (month) => {
     if (res.ok) {
       const data = await res.json();
       if (data && data.success && data.data) {
+        saveLocalPettyAccounts({
+          'branch-1': data.data.branch1,
+          'branch-2': data.data.branch2
+        });
         return data.data;
       }
     }

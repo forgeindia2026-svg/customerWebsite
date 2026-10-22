@@ -34,7 +34,7 @@ export const getPettyCashAccountsSummary = async (targetMonth?: string) => {
     b1 = await PettyCashAccount.create({
       branchId: 'branch-1',
       branchName: 'Branch 1',
-      openingBalance: 5000,
+      openingBalance: 0,
       topups: []
     });
   }
@@ -44,7 +44,7 @@ export const getPettyCashAccountsSummary = async (targetMonth?: string) => {
     b2 = await PettyCashAccount.create({
       branchId: 'branch-2',
       branchName: 'Branch 2',
-      openingBalance: 5000,
+      openingBalance: 0,
       topups: []
     });
   }
@@ -157,7 +157,7 @@ router.post('/petty-cash/topup', async (req: Request, res: Response) => {
       account = new PettyCashAccount({
         branchId: cleanBranchId,
         branchName: cleanBranchName,
-        openingBalance: isOpeningBalanceReset ? numAmount : 5000,
+        openingBalance: isOpeningBalanceReset ? numAmount : 0,
         topups: []
       });
     }
