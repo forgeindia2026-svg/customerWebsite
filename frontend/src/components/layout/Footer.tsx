@@ -76,7 +76,7 @@ export default function Footer() {
 
         {/* Footer Bottom */}
         <div className="border-t border-gray-800/80 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-400">
-          <p>© {new Date().getFullYear()} SKTechnology. All rights are reserved by Forge India Connect Pvt. Ltd.</p>
+          <p>All rights are reserved by Forge India Connect Pvt. Ltd.</p>
           <div className="flex space-x-4">
             <Link to="/privacy" className="hover:text-red-500 transition-colors">Privacy Policy</Link>
             <Link to="/terms" className="hover:text-red-500 transition-colors">Terms of Service</Link>
