@@ -3,9 +3,13 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IExpense extends Document {
   technicianId?: string;
   technicianName: string;
+  expenseType: 'TECHNICIAN' | 'OFFICE';
+  fundSource: 'Admin Account' | 'Branch 1 Petty Cash' | 'Branch 2 Petty Cash' | string;
+  paymentMode: 'UPI - PhonePe' | 'UPI - GPay' | 'UPI - Paytm' | 'Net Banking' | 'Cash' | 'Petty Cash' | string;
+  referenceId?: string;
   date: string; // YYYY-MM-DD
   time?: string;
-  category: 'Petrol / Fuel' | 'Food / Refreshment' | 'Travel & Toll' | 'Materials / Hardware' | 'Site Tools' | 'Miscellaneous';
+  category: string;
   amount: number;
   notes?: string;
   receiptPhoto?: string;
@@ -20,18 +24,24 @@ const ExpenseSchema: Schema = new Schema(
   {
     technicianId: { type: String, default: '' },
     technicianName: { type: String, required: true },
+    expenseType: {
+      type: String,
+      enum: ['TECHNICIAN', 'OFFICE'],
+      default: 'TECHNICIAN'
+    },
+    fundSource: {
+      type: String,
+      default: 'Branch 1 Petty Cash'
+    },
+    paymentMode: {
+      type: String,
+      default: 'Petty Cash'
+    },
+    referenceId: { type: String, default: '' },
     date: { type: String, required: true }, // Format: YYYY-MM-DD
     time: { type: String, default: '' },
     category: {
       type: String,
-      enum: [
-        'Petrol / Fuel',
-        'Food / Refreshment',
-        'Travel & Toll',
-        'Materials / Hardware',
-        'Site Tools',
-        'Miscellaneous'
-      ],
       default: 'Petrol / Fuel'
     },
     amount: { type: Number, required: true, min: 0 },
@@ -50,5 +60,6 @@ const ExpenseSchema: Schema = new Schema(
 
 ExpenseSchema.index({ date: -1 });
 ExpenseSchema.index({ technicianName: 1, date: -1 });
+ExpenseSchema.index({ fundSource: 1, date: -1 });
 
 export default mongoose.model<IExpense>('Expense', ExpenseSchema);

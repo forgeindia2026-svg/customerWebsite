@@ -5,12 +5,15 @@ import {
   FiFilter, FiFileText, FiTrash2, FiEdit2, FiCheckCircle, 
   FiAlertCircle, FiTrendingDown, FiDownload, FiX, FiLayers,
   FiShoppingBag, FiTruck, FiCoffee, FiTool, FiChevronRight,
-  FiEye
+  FiEye, FiCreditCard, FiHome, FiRefreshCw, FiShield, FiArrowDownRight,
+  FiArrowUpRight
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { 
   fetchExpensesApi, 
   fetchExpensesSummaryApi, 
+  fetchPettyCashSummaryApi,
+  topupPettyCashApi,
   createExpenseApi, 
   deleteExpenseApi 
 } from '../../utils/expenseStorage';
@@ -20,6 +23,7 @@ export default function Expenses() {
   
   const [expenses, setExpenses] = useState([]);
   const [summaryData, setSummaryData] = useState(null);
+  const [pettyCashData, setPettyCashData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(() => {
     try {
@@ -33,23 +37,40 @@ export default function Expenses() {
   const [activeTab, setActiveTab] = useState('technicians'); // 'technicians' | 'all_records'
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
+  const [fundFilter, setFundFilter] = useState('ALL'); // 'ALL' | 'Branch 1' | 'Branch 2' | 'Admin'
 
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [selectedTechModal, setSelectedTechModal] = useState(null); // Technician object for breakdown modal
+  const [isTopupModalOpen, setIsTopupModalOpen] = useState(false);
+  const [selectedTechModal, setSelectedTechModal] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isTopupSubmitting, setIsTopupSubmitting] = useState(false);
 
-  // Form state
+  // Topup Modal State
+  const [topupForm, setTopupForm] = useState({
+    branchId: 'branch-1',
+    isOpeningBalanceReset: false,
+    amount: '',
+    paymentMode: 'Cash',
+    notes: '',
+    date: new Date().toISOString().split('T')[0]
+  });
+
+  // Expense Form State
   const [formData, setFormData] = useState({
+    expenseType: 'TECHNICIAN', // 'TECHNICIAN' | 'OFFICE'
     technicianName: '',
     date: new Date().toISOString().split('T')[0],
+    fundSource: 'Branch 1 Petty Cash', // 'Branch 1 Petty Cash' | 'Branch 2 Petty Cash' | 'Admin Account'
+    paymentMode: 'Petty Cash', // 'Petty Cash' | 'UPI - PhonePe' | 'UPI - GPay' | 'UPI - Paytm' | 'Net Banking' | 'Cash'
+    referenceId: '',
     category: 'Petrol / Fuel',
     amount: '',
     notes: '',
     jobCode: ''
   });
 
-  const categories = [
+  const techCategories = [
     { label: 'Petrol / Fuel', icon: FiTruck, color: 'text-amber-600 bg-amber-50 border-amber-200' },
     { label: 'Food / Refreshment', icon: FiCoffee, color: 'text-orange-600 bg-orange-50 border-orange-200' },
     { label: 'Travel & Toll', icon: FiTruck, color: 'text-blue-600 bg-blue-50 border-blue-200' },
@@ -58,16 +79,34 @@ export default function Expenses() {
     { label: 'Miscellaneous', icon: FiLayers, color: 'text-slate-600 bg-slate-50 border-slate-200' },
   ];
 
+  const officeCategories = [
+    { label: 'Pooja / Flowers', icon: FiShoppingBag, color: 'text-pink-600 bg-pink-50 border-pink-200' },
+    { label: 'Office Refreshment / Tea', icon: FiCoffee, color: 'text-amber-600 bg-amber-50 border-amber-200' },
+    { label: 'Office Cleaning & Supplies', icon: FiHome, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
+    { label: 'Office Maintenance & Repairs', icon: FiTool, color: 'text-indigo-600 bg-indigo-50 border-indigo-200' },
+    { label: 'Stationery & Printing', icon: FiFileText, color: 'text-cyan-600 bg-cyan-50 border-cyan-200' },
+    { label: 'Miscellaneous Office', icon: FiLayers, color: 'text-slate-600 bg-slate-50 border-slate-200' },
+  ];
+
+  const activeCategories = formData.expenseType === 'OFFICE' ? officeCategories : techCategories;
+
   const fetchExpenses = async () => {
     setIsLoading(true);
     try {
-      const [sumData, records] = await Promise.all([
+      const [sumData, records, petty] = await Promise.all([
         fetchExpensesSummaryApi(selectedMonth),
-        fetchExpensesApi(selectedMonth)
+        fetchExpensesApi(selectedMonth),
+        fetchPettyCashSummaryApi(selectedMonth)
       ]);
 
       if (sumData) {
         setSummaryData(sumData);
+        if (sumData.pettyCashSummary) {
+          setPettyCashData(sumData.pettyCashSummary);
+        }
+      }
+      if (petty) {
+        setPettyCashData(petty);
       }
       if (Array.isArray(records)) {
         setExpenses(records);
@@ -83,11 +122,68 @@ export default function Expenses() {
     fetchExpenses();
   }, [selectedMonth]);
 
+  // Handle Fund Source Switch in Modal
+  const handleFundSourceChange = (newSource) => {
+    let newPaymentMode = 'Petty Cash';
+    if (newSource === 'Admin Account') {
+      newPaymentMode = 'UPI - PhonePe';
+    }
+    setFormData(prev => ({
+      ...prev,
+      fundSource: newSource,
+      paymentMode: newPaymentMode
+    }));
+  };
+
+  // Handle Expense Type Switch in Modal
+  const handleExpenseTypeChange = (newType) => {
+    setFormData(prev => ({
+      ...prev,
+      expenseType: newType,
+      technicianName: newType === 'OFFICE' ? 'Office Purpose' : '',
+      category: newType === 'OFFICE' ? 'Pooja / Flowers' : 'Petrol / Fuel'
+    }));
+  };
+
+  // Calculate live remaining balance preview for modal
+  const liveBalancePreview = useMemo(() => {
+    if (!pettyCashData) return null;
+    const amountNum = parseFloat(formData.amount) || 0;
+    if (formData.fundSource === 'Branch 1 Petty Cash') {
+      const currentAvail = pettyCashData.branch1?.remainingBalance ?? 5000;
+      return {
+        sourceName: 'Branch 1 Petty Cash',
+        current: currentAvail,
+        after: currentAvail - amountNum,
+        isPetty: true
+      };
+    }
+    if (formData.fundSource === 'Branch 2 Petty Cash') {
+      const currentAvail = pettyCashData.branch2?.remainingBalance ?? 5000;
+      return {
+        sourceName: 'Branch 2 Petty Cash',
+        current: currentAvail,
+        after: currentAvail - amountNum,
+        isPetty: true
+      };
+    }
+    return {
+      sourceName: 'Admin Account (Saravanan)',
+      current: null,
+      after: null,
+      isPetty: false
+    };
+  }, [formData.fundSource, formData.amount, pettyCashData]);
+
   // Handle Form Submit
   const handleCreateExpense = async (e) => {
     e.preventDefault();
-    if (!formData.technicianName.trim() || !formData.amount) {
-      toast.error('Please enter Technician Name and Amount');
+    const finalTechName = formData.expenseType === 'OFFICE' 
+      ? (formData.technicianName.trim() || 'Office Purpose')
+      : formData.technicianName.trim();
+
+    if (!finalTechName || !formData.amount) {
+      toast.error('Please enter Name / Beneficiary and Amount');
       return;
     }
 
@@ -95,13 +191,18 @@ export default function Expenses() {
     try {
       await createExpenseApi({
         ...formData,
+        technicianName: finalTechName,
         amount: parseFloat(formData.amount)
       });
-      toast.success('Daily expense recorded successfully!');
+      toast.success('Daily field expense recorded successfully!');
       setIsAddModalOpen(false);
       setFormData({
+        expenseType: 'TECHNICIAN',
         technicianName: '',
         date: new Date().toISOString().split('T')[0],
+        fundSource: 'Branch 1 Petty Cash',
+        paymentMode: 'Petty Cash',
+        referenceId: '',
         category: 'Petrol / Fuel',
         amount: '',
         notes: '',
@@ -113,6 +214,46 @@ export default function Expenses() {
       toast.error('Failed to save expense');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Handle Top-Up / Reset Balance Submit
+  const handleTopupSubmit = async (e) => {
+    e.preventDefault();
+    if (!topupForm.amount || parseFloat(topupForm.amount) <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+
+    setIsTopupSubmitting(true);
+    try {
+      await topupPettyCashApi({
+        branchId: topupForm.branchId,
+        amount: parseFloat(topupForm.amount),
+        isOpeningBalanceReset: topupForm.isOpeningBalanceReset,
+        notes: topupForm.notes,
+        paymentMode: topupForm.paymentMode,
+        date: topupForm.date
+      });
+      toast.success(
+        topupForm.isOpeningBalanceReset 
+          ? 'Opening balance updated successfully!' 
+          : 'Petty cash top-up recorded successfully!'
+      );
+      setIsTopupModalOpen(false);
+      setTopupForm({
+        branchId: 'branch-1',
+        isOpeningBalanceReset: false,
+        amount: '',
+        paymentMode: 'Cash',
+        notes: '',
+        date: new Date().toISOString().split('T')[0]
+      });
+      fetchExpenses();
+    } catch (err) {
+      toast.error('Failed to update petty cash account');
+    } finally {
+      setIsTopupSubmitting(false);
     }
   };
 
@@ -140,19 +281,31 @@ export default function Expenses() {
       const matchesSearch = 
         exp.technicianName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         exp.notes?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        exp.jobCode?.toLowerCase().includes(searchQuery.toLowerCase());
+        exp.jobCode?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        exp.referenceId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        exp.fundSource?.toLowerCase().includes(searchQuery.toLowerCase());
       
       const matchesCat = categoryFilter === 'ALL' || exp.category === categoryFilter;
-      return matchesSearch && matchesCat;
-    });
-  }, [expenses, searchQuery, categoryFilter]);
 
-  // Unique technician summaries combining technicians from DB + any expense entries
+      let matchesFund = true;
+      if (fundFilter === 'Branch 1') matchesFund = (exp.fundSource || '').includes('Branch 1');
+      else if (fundFilter === 'Branch 2') matchesFund = (exp.fundSource || '').includes('Branch 2');
+      else if (fundFilter === 'Admin') matchesFund = (exp.fundSource || '').includes('Admin');
+
+      return matchesSearch && matchesCat && matchesFund;
+    });
+  }, [expenses, searchQuery, categoryFilter, fundFilter]);
+
+  // Technician summaries
   const technicianCards = useMemo(() => {
     const list = summaryData?.technicianBreakdown || [];
     if (!searchQuery.trim()) return list;
     return list.filter(t => t.technicianName.toLowerCase().includes(searchQuery.toLowerCase()));
   }, [summaryData, searchQuery]);
+
+  const b1 = pettyCashData?.branch1;
+  const b2 = pettyCashData?.branch2;
+  const adminAcc = pettyCashData?.adminAccount;
 
   return (
     <div className="space-y-6 text-left pb-12">
@@ -164,8 +317,10 @@ export default function Expenses() {
               <FiDollarSign className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Daily Technician Expenses</h1>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Track and audit daily field expenses (petrol, food, materials, travel) across technicians.</p>
+              <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Daily Field Expenses & Petty Cash</h1>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Track Opening Balance, live deductions, Branch 1 & Branch 2 petty cash, and Admin UPI accounts.
+              </p>
             </div>
           </div>
         </div>
@@ -182,14 +337,176 @@ export default function Expenses() {
             />
           </div>
 
+          {/* Manage Opening Balance / Topup Button */}
+          <button
+            onClick={() => {
+              setTopupForm(prev => ({ ...prev, isOpeningBalanceReset: false, branchId: 'branch-1' }));
+              setIsTopupModalOpen(true);
+            }}
+            className="flex items-center gap-2 px-3.5 py-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 rounded-xl text-xs font-bold transition-all"
+          >
+            <FiRefreshCw className="w-3.5 h-3.5" />
+            <span>Petty Cash Top-Up</span>
+          </button>
+
           {/* Add Expense Button */}
           <button
             onClick={() => setIsAddModalOpen(true)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-600/20 active:scale-95 transition-all"
           >
             <FiPlus className="w-4 h-4" />
-            <span>Add Daily Expense</span>
+            <span>Record Expense</span>
           </button>
+        </div>
+      </div>
+
+      {/* 3 LIVE PETTY CASH & FUND ACCOUNT CARDS */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Branch 1 Petty Cash Card */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-white to-sky-50/40 dark:from-slate-900 dark:to-slate-800/80 border border-sky-200/90 dark:border-sky-800/50 p-5 rounded-2xl shadow-xs">
+          <div className="flex items-center justify-between pb-3 border-b border-sky-100 dark:border-slate-800">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-sky-600 text-white flex items-center justify-center font-black text-xs shadow-xs">
+                B1
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-slate-900 dark:text-white">Branch 1 Petty Cash</h3>
+                <span className="text-[10px] text-sky-700 dark:text-sky-300 font-semibold">Main Office Hand-Cash</span>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setTopupForm(prev => ({ ...prev, branchId: 'branch-1', isOpeningBalanceReset: false }));
+                setIsTopupModalOpen(true);
+              }}
+              className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-sky-100 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300 hover:bg-sky-200 transition-colors"
+            >
+              + Top-Up / Edit
+            </button>
+          </div>
+
+          <div className="mt-4">
+            <div className="flex items-baseline justify-between">
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Available In-Hand Cash</span>
+              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                (b1?.remainingBalance ?? 5000) > 1000 
+                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                  : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+              }`}>
+                {(b1?.remainingBalance ?? 5000) > 0 ? 'Active' : 'Low Balance'}
+              </span>
+            </div>
+            <h2 className="text-3xl font-black text-slate-900 dark:text-white mt-1 tracking-tight">
+              ₹{(b1?.remainingBalance ?? 5000).toLocaleString('en-IN')}
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-sky-100 dark:border-slate-800 text-[11px]">
+            <div>
+              <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Allocated (Open + Topup)</span>
+              <span className="font-bold text-slate-800 dark:text-slate-200">
+                ₹{(b1?.totalAllocated ?? 5000).toLocaleString('en-IN')}
+              </span>
+            </div>
+            <div className="text-right">
+              <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Spent This Month</span>
+              <span className="font-bold text-rose-600 dark:text-rose-400">
+                -₹{(b1?.monthSpent ?? 0).toLocaleString('en-IN')}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Branch 2 Petty Cash Card */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-white to-purple-50/40 dark:from-slate-900 dark:to-slate-800/80 border border-purple-200/90 dark:border-purple-800/50 p-5 rounded-2xl shadow-xs">
+          <div className="flex items-center justify-between pb-3 border-b border-purple-100 dark:border-slate-800">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center font-black text-xs shadow-xs">
+                B2
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-slate-900 dark:text-white">Branch 2 Petty Cash</h3>
+                <span className="text-[10px] text-purple-700 dark:text-purple-300 font-semibold">Sub-Branch Hand-Cash</span>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setTopupForm(prev => ({ ...prev, branchId: 'branch-2', isOpeningBalanceReset: false }));
+                setIsTopupModalOpen(true);
+              }}
+              className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 hover:bg-purple-200 transition-colors"
+            >
+              + Top-Up / Edit
+            </button>
+          </div>
+
+          <div className="mt-4">
+            <div className="flex items-baseline justify-between">
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Available In-Hand Cash</span>
+              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                (b2?.remainingBalance ?? 5000) > 1000 
+                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                  : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+              }`}>
+                {(b2?.remainingBalance ?? 5000) > 0 ? 'Active' : 'Low Balance'}
+              </span>
+            </div>
+            <h2 className="text-3xl font-black text-slate-900 dark:text-white mt-1 tracking-tight">
+              ₹{(b2?.remainingBalance ?? 5000).toLocaleString('en-IN')}
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-purple-100 dark:border-slate-800 text-[11px]">
+            <div>
+              <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Allocated (Open + Topup)</span>
+              <span className="font-bold text-slate-800 dark:text-slate-200">
+                ₹{(b2?.totalAllocated ?? 5000).toLocaleString('en-IN')}
+              </span>
+            </div>
+            <div className="text-right">
+              <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Spent This Month</span>
+              <span className="font-bold text-rose-600 dark:text-rose-400">
+                -₹{(b2?.monthSpent ?? 0).toLocaleString('en-IN')}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Admin Account (Saravanan) Card */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-white to-emerald-50/40 dark:from-slate-900 dark:to-slate-800/80 border border-emerald-200/90 dark:border-emerald-800/50 p-5 rounded-2xl shadow-xs">
+          <div className="flex items-center justify-between pb-3 border-b border-emerald-100 dark:border-slate-800">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-xs shadow-xs">
+                <FiCreditCard className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-slate-900 dark:text-white">Admin Account (Saravanan)</h3>
+                <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-semibold">UPI & Net Banking Transfers</span>
+              </div>
+            </div>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+              Direct Pay
+            </span>
+          </div>
+
+          <div className="mt-4">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400 block">Total Disbursed This Month</span>
+            <h2 className="text-3xl font-black text-slate-900 dark:text-white mt-1 tracking-tight">
+              ₹{(adminAcc?.monthSpent ?? 0).toLocaleString('en-IN')}
+            </h2>
+          </div>
+
+          <div className="flex flex-wrap gap-1.5 mt-4 pt-3 border-t border-emerald-100 dark:border-slate-800 text-[10px]">
+            <span className="px-2 py-0.5 rounded-md bg-emerald-100/70 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold">
+              PhonePe: ₹{adminAcc?.byMode?.['UPI - PhonePe'] || 0}
+            </span>
+            <span className="px-2 py-0.5 rounded-md bg-emerald-100/70 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold">
+              GPay: ₹{adminAcc?.byMode?.['UPI - GPay'] || 0}
+            </span>
+            <span className="px-2 py-0.5 rounded-md bg-emerald-100/70 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold">
+              NetBank: ₹{adminAcc?.byMode?.['Net Banking'] || 0}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -198,7 +515,7 @@ export default function Expenses() {
         {/* This Month Total Expenses */}
         <div className="bg-[#EBF3FF] border border-[#CCE1FC] dark:bg-blue-900/20 dark:border-blue-800/60 p-4 sm:p-5 rounded-2xl shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider">This Month Expenses</span>
+            <span className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider">This Month Total</span>
             <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
               <FiTrendingDown className="w-4 h-4" />
             </div>
@@ -207,7 +524,7 @@ export default function Expenses() {
             ₹{(summaryData?.summary?.thisMonthTotal || 0).toLocaleString('en-IN')}
           </h2>
           <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-            {summaryData?.summary?.thisMonthCount || 0} claims logged in {selectedMonth}
+            {summaryData?.summary?.thisMonthCount || 0} expenses recorded in {selectedMonth}
           </p>
         </div>
 
@@ -227,7 +544,7 @@ export default function Expenses() {
           </p>
         </div>
 
-        {/* Active Technicians */}
+        {/* Active Technicians / Beneficiaries */}
         <div className="bg-[#FEF6E8] border border-[#FDE3BA] dark:bg-amber-900/20 dark:border-amber-800/60 p-4 sm:p-5 rounded-2xl shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider">Active Techs</span>
@@ -246,7 +563,7 @@ export default function Expenses() {
         {/* All-Time Total */}
         <div className="bg-[#F5EFFF] border border-[#E4D1FC] dark:bg-purple-900/20 dark:border-purple-800/60 p-4 sm:p-5 rounded-2xl shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-purple-700 dark:text-purple-300 uppercase tracking-wider">All-Time Recorded</span>
+            <span className="text-xs font-bold text-purple-700 dark:text-purple-300 uppercase tracking-wider">All-Time Total</span>
             <div className="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-xs">
               <FiLayers className="w-4 h-4" />
             </div>
@@ -292,7 +609,7 @@ export default function Expenses() {
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Search technician, notes, job..."
+              placeholder="Search technician, notes, fund source, job..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-blue-500 text-slate-800 dark:text-slate-200"
@@ -300,41 +617,63 @@ export default function Expenses() {
           </div>
         </div>
 
-        {/* Category Pills (Only when activeTab === 'all_records') */}
-        {activeTab === 'all_records' && (
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-            <button
-              onClick={() => setCategoryFilter('ALL')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
-                categoryFilter === 'ALL'
-                  ? 'bg-slate-800 text-white dark:bg-white dark:text-slate-900'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
-              }`}
-            >
-              All Categories
-            </button>
-            {categories.map(cat => (
+        {/* Filters bar */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          {/* Fund Source Filter */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Fund Source:</span>
+            {['ALL', 'Branch 1', 'Branch 2', 'Admin'].map(f => (
               <button
-                key={cat.label}
-                onClick={() => setCategoryFilter(cat.label)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all whitespace-nowrap ${
-                  categoryFilter === cat.label
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-slate-400'
+                key={f}
+                onClick={() => setFundFilter(f)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                  fundFilter === f
+                    ? 'bg-slate-800 text-white dark:bg-white dark:text-slate-900'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
                 }`}
               >
-                {cat.label}
+                {f === 'ALL' ? 'All Sources' : f === 'Admin' ? 'Admin Account' : `${f} Petty Cash`}
               </button>
             ))}
           </div>
-        )}
+
+          {/* Category Filter Pills (When on All Records) */}
+          {activeTab === 'all_records' && (
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Category:</span>
+              <button
+                onClick={() => setCategoryFilter('ALL')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                  categoryFilter === 'ALL'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
+                }`}
+              >
+                All
+              </button>
+              {['Petrol / Fuel', 'Food / Refreshment', 'Materials / Hardware', 'Pooja / Flowers', 'Travel & Toll'].map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setCategoryFilter(cat)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                    categoryFilter === cat
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Main Content Area */}
       {isLoading ? (
         <div className="bg-white dark:bg-slate-900 p-12 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-center">
           <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-xs font-bold text-slate-500">Loading daily expenses...</p>
+          <p className="text-xs font-bold text-slate-500">Loading daily expenses and petty cash balances...</p>
         </div>
       ) : activeTab === 'technicians' ? (
         /* Technician Cards Grid */
@@ -342,83 +681,94 @@ export default function Expenses() {
           {technicianCards.length === 0 ? (
             <div className="col-span-full bg-white dark:bg-slate-900 p-12 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 text-center">
               <FiDollarSign className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
-              <h3 className="font-bold text-sm text-slate-700 dark:text-slate-300">No Technician Expenses Found</h3>
-              <p className="text-xs text-slate-500 mt-1">No daily expenses have been logged for this month yet.</p>
+              <h3 className="font-bold text-sm text-slate-700 dark:text-slate-300">No Expenses Recorded Yet</h3>
+              <p className="text-xs text-slate-500 mt-1">Record a daily technician claim or office expense using the button above.</p>
               <button
                 onClick={() => setIsAddModalOpen(true)}
                 className="mt-4 px-4 py-2 bg-blue-600 text-white font-bold text-xs rounded-xl hover:bg-blue-700"
               >
-                + Add Daily Expense
+                + Record Daily Expense
               </button>
             </div>
           ) : (
-            technicianCards.map(t => (
-              <div
-                key={t.technicianName}
-                className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-5 rounded-2xl shadow-xs hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all flex flex-col justify-between"
-              >
-                <div>
-                  {/* Top user row */}
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center gap-3">
-                      <div className="w-11 h-11 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-black text-sm flex items-center justify-center shrink-0">
-                        {t.technicianName.slice(0, 2).toUpperCase()}
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-slate-900 dark:text-white text-sm">{t.technicianName}</h3>
-                        <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-                          {t.monthCount} daily {t.monthCount === 1 ? 'entry' : 'entries'} this month
-                        </span>
-                      </div>
-                    </div>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400">
-                      Active
-                    </span>
-                  </div>
-
-                  {/* Expense Amount */}
-                  <div className="my-4 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 flex items-center justify-between">
-                    <div>
-                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">This Month Expense</p>
-                      <h4 className="text-xl font-black text-blue-600 dark:text-blue-400 mt-0.5">
-                        ₹{t.monthTotal.toLocaleString('en-IN')}
-                      </h4>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">All-Time Total</p>
-                      <p className="text-xs font-bold text-slate-700 dark:text-slate-300 mt-1">
-                        ₹{t.allTimeTotal.toLocaleString('en-IN')}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Categories Breakdown Tags */}
-                  {Object.keys(t.categories || {}).length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mb-2">
-                      {Object.entries(t.categories).map(([cat, amt]) => (
-                        <span
-                          key={cat}
-                          className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center gap-1"
-                        >
-                          <span>{cat.split(' / ')[0]}:</span>
-                          <span className="font-bold text-slate-800 dark:text-slate-100">₹{amt}</span>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Bottom Action */}
-                <button
-                  onClick={() => setSelectedTechModal(t)}
-                  className="w-full mt-3 py-2 px-3 rounded-xl bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-600 hover:text-white text-blue-600 dark:text-blue-400 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors group"
+            technicianCards.map(t => {
+              const isOffice = t.technicianName?.toLowerCase().includes('office');
+              return (
+                <div
+                  key={t.technicianName}
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-5 rounded-2xl shadow-xs hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all flex flex-col justify-between"
                 >
-                  <FiEye className="w-3.5 h-3.5" />
-                  <span>View Itemized Expenses</span>
-                  <FiChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                </button>
-              </div>
-            ))
+                  <div>
+                    {/* Top user row */}
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-11 h-11 rounded-full font-black text-sm flex items-center justify-center shrink-0 ${
+                          isOffice 
+                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
+                            : 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
+                        }`}>
+                          {isOffice ? <FiHome className="w-5 h-5" /> : t.technicianName.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-slate-900 dark:text-white text-sm">{t.technicianName}</h3>
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                            {t.monthCount} daily {t.monthCount === 1 ? 'claim' : 'claims'} in {selectedMonth}
+                          </span>
+                        </div>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        isOffice
+                          ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
+                          : 'bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400'
+                      }`}>
+                        {isOffice ? 'Office Purpose' : 'Technician'}
+                      </span>
+                    </div>
+
+                    {/* Expense Amount */}
+                    <div className="my-4 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 flex items-center justify-between">
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">This Month Total</p>
+                        <h4 className="text-xl font-black text-blue-600 dark:text-blue-400 mt-0.5">
+                          ₹{t.monthTotal.toLocaleString('en-IN')}
+                        </h4>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">All-Time Total</p>
+                        <p className="text-xs font-bold text-slate-700 dark:text-slate-300 mt-1">
+                          ₹{t.allTimeTotal.toLocaleString('en-IN')}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Categories Breakdown Tags */}
+                    {Object.keys(t.categories || {}).length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mb-2">
+                        {Object.entries(t.categories).map(([cat, amt]) => (
+                          <span
+                            key={cat}
+                            className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center gap-1"
+                          >
+                            <span>{cat.split(' / ')[0]}:</span>
+                            <span className="font-bold text-slate-800 dark:text-slate-100">₹{amt}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Bottom Action */}
+                  <button
+                    onClick={() => setSelectedTechModal(t)}
+                    className="w-full mt-3 py-2 px-3 rounded-xl bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-600 hover:text-white text-blue-600 dark:text-blue-400 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors group"
+                  >
+                    <FiEye className="w-3.5 h-3.5" />
+                    <span>View Itemized Expenses</span>
+                    <FiChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                  </button>
+                </div>
+              );
+            })
           )}
         </div>
       ) : (
@@ -429,56 +779,93 @@ export default function Expenses() {
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
                   <th className="py-3.5 px-4">Date & Time</th>
-                  <th className="py-3.5 px-4">Technician</th>
+                  <th className="py-3.5 px-4">Beneficiary</th>
+                  <th className="py-3.5 px-4">Fund Source</th>
                   <th className="py-3.5 px-4">Category</th>
                   <th className="py-3.5 px-4">Amount</th>
                   <th className="py-3.5 px-4">Purpose / Notes</th>
-                  <th className="py-3.5 px-4">Job Code</th>
+                  <th className="py-3.5 px-4">Job / Ref</th>
                   <th className="py-3.5 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
                 {filteredRecords.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="py-8 text-center text-slate-500 font-medium">
+                    <td colSpan="8" className="py-8 text-center text-slate-500 font-medium">
                       No expense records found matching filters.
                     </td>
                   </tr>
                 ) : (
-                  filteredRecords.map(exp => (
-                    <tr key={exp._id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
-                      <td className="py-3 px-4 font-mono text-slate-700 dark:text-slate-300 whitespace-nowrap">
-                        <span className="font-bold">{exp.date}</span>
-                        {exp.time && <span className="text-[10px] text-slate-400 block">{exp.time}</span>}
-                      </td>
-                      <td className="py-3 px-4 font-bold text-slate-900 dark:text-white whitespace-nowrap">
-                        {exp.technicianName}
-                      </td>
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800">
-                          {exp.category}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 whitespace-nowrap font-black text-slate-900 dark:text-white text-sm">
-                        ₹{Number(exp.amount).toLocaleString('en-IN')}
-                      </td>
-                      <td className="py-3 px-4 text-slate-600 dark:text-slate-300 max-w-xs truncate" title={exp.notes}>
-                        {exp.notes || '-'}
-                      </td>
-                      <td className="py-3 px-4 font-mono text-[11px] text-slate-500">
-                        {exp.jobCode || '-'}
-                      </td>
-                      <td className="py-3 px-4 text-right whitespace-nowrap">
-                        <button
-                          onClick={() => handleDeleteExpense(exp._id)}
-                          className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
-                          title="Delete record"
-                        >
-                          <FiTrash2 className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                  filteredRecords.map(exp => {
+                    const isOffice = exp.expenseType === 'OFFICE' || exp.technicianName?.toLowerCase().includes('office');
+                    const isBranch1 = (exp.fundSource || '').includes('Branch 1');
+                    const isBranch2 = (exp.fundSource || '').includes('Branch 2');
+                    const isAdmin = (exp.fundSource || '').includes('Admin');
+
+                    return (
+                      <tr key={exp._id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="py-3 px-4 font-mono text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                          <span className="font-bold">{exp.date}</span>
+                          {exp.time && <span className="text-[10px] text-slate-400 block">{exp.time}</span>}
+                        </td>
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-slate-900 dark:text-white">
+                              {exp.technicianName}
+                            </span>
+                            {isOffice && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                                Office
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <div className="flex flex-col">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold w-fit ${
+                              isBranch1 
+                                ? 'bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-300 dark:border-sky-700'
+                                : isBranch2
+                                ? 'bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-300 dark:border-purple-700'
+                                : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                            }`}>
+                              {exp.fundSource || 'Branch 1 Petty Cash'}
+                            </span>
+                            {exp.paymentMode && exp.paymentMode !== 'Petty Cash' && (
+                              <span className="text-[10px] font-medium text-slate-500 mt-0.5">
+                                {exp.paymentMode}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800">
+                            {exp.category}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 whitespace-nowrap font-black text-slate-900 dark:text-white text-sm">
+                          ₹{Number(exp.amount).toLocaleString('en-IN')}
+                        </td>
+                        <td className="py-3 px-4 text-slate-600 dark:text-slate-300 max-w-xs truncate" title={exp.notes}>
+                          {exp.notes || '-'}
+                        </td>
+                        <td className="py-3 px-4 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                          {exp.jobCode && <span className="block font-semibold text-blue-600">{exp.jobCode}</span>}
+                          {exp.referenceId && <span className="block text-[10px] text-slate-400">Txn: {exp.referenceId}</span>}
+                          {!exp.jobCode && !exp.referenceId && '-'}
+                        </td>
+                        <td className="py-3 px-4 text-right whitespace-nowrap">
+                          <button
+                            onClick={() => handleDeleteExpense(exp._id)}
+                            className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                            title="Delete record"
+                          >
+                            <FiTrash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -490,7 +877,6 @@ export default function Expenses() {
       {selectedTechModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-2xl w-full border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
-            {/* Modal Header */}
             <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/40">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-blue-600 text-white font-black flex items-center justify-center text-sm">
@@ -543,8 +929,11 @@ export default function Expenses() {
                           <FiDollarSign className="w-4 h-4" />
                         </div>
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-bold text-xs text-slate-900 dark:text-white">{item.category}</span>
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                              {item.fundSource || 'Branch 1 Petty Cash'}
+                            </span>
                             <span className="text-[10px] text-slate-400 font-mono">{item.date} {item.time}</span>
                           </div>
                           {item.notes && (
@@ -572,7 +961,6 @@ export default function Expenses() {
               )}
             </div>
 
-            {/* Modal Footer */}
             <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex justify-end">
               <button
                 onClick={() => setSelectedTechModal(null)}
@@ -585,12 +973,15 @@ export default function Expenses() {
         </div>
       )}
 
-      {/* MODAL 2: Add Daily Expense */}
+      {/* MODAL 2: Record Daily Field Expense */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden">
             <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/40">
-              <h3 className="font-bold text-base text-slate-900 dark:text-white">Record Daily Field Expense</h3>
+              <div>
+                <h3 className="font-bold text-base text-slate-900 dark:text-white">Record Daily Field Expense</h3>
+                <p className="text-xs text-slate-500">Record technician site claims or office daily expenses</p>
+              </div>
               <button
                 onClick={() => setIsAddModalOpen(false)}
                 className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-white"
@@ -599,25 +990,159 @@ export default function Expenses() {
               </button>
             </div>
 
-            <form onSubmit={handleCreateExpense} className="p-5 space-y-4">
-              {/* Technician Selection */}
+            <form onSubmit={handleCreateExpense} className="p-5 space-y-4 max-h-[80vh] overflow-y-auto no-scrollbar">
+              {/* BENEFICIARY TYPE TOGGLE: Technician vs Office */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Technician Name *</label>
-                <input
-                  type="text"
-                  list="techNamesList"
-                  required
-                  placeholder="Select or enter technician name"
-                  value={formData.technicianName}
-                  onChange={(e) => setFormData({ ...formData, technicianName: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500"
-                />
-                <datalist id="techNamesList">
-                  {technicians.map(t => (
-                    <option key={t.id || t._id || t.name} value={t.name} />
-                  ))}
-                </datalist>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Expense Beneficiary *
+                </label>
+                <div className="grid grid-cols-2 gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => handleExpenseTypeChange('TECHNICIAN')}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+                      formData.expenseType === 'TECHNICIAN'
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                    }`}
+                  >
+                    <FiUser className="w-3.5 h-3.5" />
+                    <span>Technician Claim</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleExpenseTypeChange('OFFICE')}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+                      formData.expenseType === 'OFFICE'
+                        ? 'bg-amber-600 text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                    }`}
+                  >
+                    <FiHome className="w-3.5 h-3.5" />
+                    <span>Office Purpose (Pooja/Tea)</span>
+                  </button>
+                </div>
               </div>
+
+              {/* Technician Name OR Office Specific Purpose */}
+              {formData.expenseType === 'TECHNICIAN' ? (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Technician Name *</label>
+                  <input
+                    type="text"
+                    list="techNamesList"
+                    required
+                    placeholder="Select or enter technician name"
+                    value={formData.technicianName}
+                    onChange={(e) => setFormData({ ...formData, technicianName: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500"
+                  />
+                  <datalist id="techNamesList">
+                    {technicians.map(t => (
+                      <option key={t.id || t._id || t.name} value={t.name} />
+                    ))}
+                  </datalist>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Office Purpose Label</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Office Purpose (Pooja / Flowers / Cleaning)"
+                    value={formData.technicianName}
+                    onChange={(e) => setFormData({ ...formData, technicianName: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none focus:border-amber-500"
+                  />
+                </div>
+              )}
+
+              {/* FUND SOURCE SELECTION CARDS */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Fund Account / Source *
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {/* Branch 1 */}
+                  <button
+                    type="button"
+                    onClick={() => handleFundSourceChange('Branch 1 Petty Cash')}
+                    className={`p-2.5 rounded-xl border text-left transition-all ${
+                      formData.fundSource === 'Branch 1 Petty Cash'
+                        ? 'border-sky-500 bg-sky-50/70 dark:bg-sky-950/40 ring-2 ring-sky-500/20'
+                        : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 hover:border-slate-300'
+                    }`}
+                  >
+                    <span className="font-bold text-xs text-slate-900 dark:text-white block">Branch 1</span>
+                    <span className="text-[10px] text-sky-600 dark:text-sky-400 font-bold block mt-0.5">
+                      Bal: ₹{(b1?.remainingBalance ?? 5000).toLocaleString('en-IN')}
+                    </span>
+                  </button>
+
+                  {/* Branch 2 */}
+                  <button
+                    type="button"
+                    onClick={() => handleFundSourceChange('Branch 2 Petty Cash')}
+                    className={`p-2.5 rounded-xl border text-left transition-all ${
+                      formData.fundSource === 'Branch 2 Petty Cash'
+                        ? 'border-purple-500 bg-purple-50/70 dark:bg-purple-950/40 ring-2 ring-purple-500/20'
+                        : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 hover:border-slate-300'
+                    }`}
+                  >
+                    <span className="font-bold text-xs text-slate-900 dark:text-white block">Branch 2</span>
+                    <span className="text-[10px] text-purple-600 dark:text-purple-400 font-bold block mt-0.5">
+                      Bal: ₹{(b2?.remainingBalance ?? 5000).toLocaleString('en-IN')}
+                    </span>
+                  </button>
+
+                  {/* Admin Account */}
+                  <button
+                    type="button"
+                    onClick={() => handleFundSourceChange('Admin Account')}
+                    className={`p-2.5 rounded-xl border text-left transition-all ${
+                      formData.fundSource === 'Admin Account'
+                        ? 'border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/40 ring-2 ring-emerald-500/20'
+                        : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 hover:border-slate-300'
+                    }`}
+                  >
+                    <span className="font-bold text-xs text-slate-900 dark:text-white block">Admin Account</span>
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block mt-0.5">
+                      UPI / NetBank
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* ADMIN ACCOUNT EXTRA FIELDS (Payment Mode & Reference ID) */}
+              {formData.fundSource === 'Admin Account' && (
+                <div className="p-3 bg-emerald-50/60 dark:bg-emerald-950/30 rounded-xl border border-emerald-200/80 dark:border-emerald-800/50 space-y-3">
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-[11px] font-bold text-emerald-900 dark:text-emerald-300 mb-1">Payment Method</label>
+                      <select
+                        value={formData.paymentMode}
+                        onChange={(e) => setFormData({ ...formData, paymentMode: e.target.value })}
+                        className="w-full px-2.5 py-2 bg-white dark:bg-slate-800 border border-emerald-300 dark:border-emerald-700 rounded-lg text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none"
+                      >
+                        <option value="UPI - PhonePe">UPI - PhonePe</option>
+                        <option value="UPI - GPay">UPI - Google Pay</option>
+                        <option value="UPI - Paytm">UPI - Paytm</option>
+                        <option value="Net Banking">Net Banking</option>
+                        <option value="Cash">Direct Cash (Saravanan)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-emerald-900 dark:text-emerald-300 mb-1">Txn / UTR / Ref (Opt)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. UPI Ref / UTR"
+                        value={formData.referenceId}
+                        onChange={(e) => setFormData({ ...formData, referenceId: e.target.value })}
+                        className="w-full px-2.5 py-2 bg-white dark:bg-slate-800 border border-emerald-300 dark:border-emerald-700 rounded-lg text-xs font-mono text-slate-800 dark:text-slate-200 outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Date & Category in 2 columns */}
               <div className="grid grid-cols-2 gap-3">
@@ -638,7 +1163,7 @@ export default function Expenses() {
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                     className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500"
                   >
-                    {categories.map(c => (
+                    {activeCategories.map(c => (
                       <option key={c.label} value={c.label}>{c.label}</option>
                     ))}
                   </select>
@@ -653,7 +1178,7 @@ export default function Expenses() {
                     type="number"
                     required
                     min="1"
-                    placeholder="e.g. 350"
+                    placeholder="e.g. 500"
                     value={formData.amount}
                     onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                     className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black text-slate-900 dark:text-white outline-none focus:border-blue-500"
@@ -671,12 +1196,41 @@ export default function Expenses() {
                 </div>
               </div>
 
+              {/* LIVE PETTY CASH DEDUCTION CALCULATION PREVIEW */}
+              {liveBalancePreview && liveBalancePreview.isPetty && formData.amount > 0 && (
+                <div className={`p-3 rounded-xl border flex items-center justify-between text-xs font-medium ${
+                  liveBalancePreview.after >= 0
+                    ? 'bg-sky-50/70 border-sky-200 dark:bg-sky-950/30 dark:border-sky-800/60 text-sky-900 dark:text-sky-200'
+                    : 'bg-rose-50 border-rose-200 dark:bg-rose-950/30 dark:border-rose-800/60 text-rose-900 dark:text-rose-200'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    <FiArrowDownRight className="w-4 h-4 text-sky-600" />
+                    <div>
+                      <span className="font-bold block">Live Balance Deduction</span>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                        ₹{liveBalancePreview.current.toLocaleString('en-IN')} - ₹{parseFloat(formData.amount).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Remaining Cash In-Hand</span>
+                    <span className={`font-black text-sm ${liveBalancePreview.after >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600'}`}>
+                      ₹{liveBalancePreview.after.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Purpose / Notes */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Purpose / Details</label>
                 <textarea
                   rows="2"
-                  placeholder="e.g. Petrol for site visit in Denkanikottai / Fasteners purchased"
+                  placeholder={
+                    formData.expenseType === 'OFFICE'
+                      ? 'e.g. Pooja flowers and prasadam for Friday office pooja / Floor cleaning liquid'
+                      : 'e.g. Petrol for site visit in Denkanikottai / Emergency PVC conduits'
+                  }
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500"
@@ -698,6 +1252,158 @@ export default function Expenses() {
                   className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-600/20 active:scale-95 transition-all"
                 >
                   {isSubmitting ? 'Saving...' : 'Save Expense'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: Manage Opening Balance & Top-Up */}
+      {isTopupModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden">
+            <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/40">
+              <div>
+                <h3 className="font-bold text-base text-slate-900 dark:text-white">
+                  {topupForm.isOpeningBalanceReset ? 'Set Monthly Opening Balance' : 'Top-Up Petty Cash Fund'}
+                </h3>
+                <p className="text-xs text-slate-500">Add physical cash or set starting balance for branch</p>
+              </div>
+              <button
+                onClick={() => setIsTopupModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-white"
+              >
+                <FiX className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleTopupSubmit} className="p-5 space-y-4">
+              {/* Branch Selection */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Select Branch *</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTopupForm({ ...topupForm, branchId: 'branch-1' })}
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
+                      topupForm.branchId === 'branch-1'
+                        ? 'border-sky-500 bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300'
+                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    Branch 1 (Main Office)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTopupForm({ ...topupForm, branchId: 'branch-2' })}
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
+                      topupForm.branchId === 'branch-2'
+                        ? 'border-purple-500 bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300'
+                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    Branch 2
+                  </button>
+                </div>
+              </div>
+
+              {/* Action Mode Toggle */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Action Type</label>
+                <div className="grid grid-cols-2 gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setTopupForm({ ...topupForm, isOpeningBalanceReset: false })}
+                    className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-all ${
+                      !topupForm.isOpeningBalanceReset
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    + Add Top-Up Cash
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTopupForm({ ...topupForm, isOpeningBalanceReset: true })}
+                    className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-all ${
+                      topupForm.isOpeningBalanceReset
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    Set Opening Balance
+                  </button>
+                </div>
+              </div>
+
+              {/* Amount & Date */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Amount (₹) *</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    placeholder="e.g. 5000"
+                    value={topupForm.amount}
+                    onChange={(e) => setTopupForm({ ...topupForm, amount: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black text-slate-900 dark:text-white outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={topupForm.date}
+                    onChange={(e) => setTopupForm({ ...topupForm, date: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              {/* Payment Mode (e.g. Handover Cash or Bank Withdrawal) */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Disbursed Via</label>
+                <select
+                  value={topupForm.paymentMode}
+                  onChange={(e) => setTopupForm({ ...topupForm, paymentMode: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none"
+                >
+                  <option value="Cash">Direct Physical Cash Handover</option>
+                  <option value="Bank ATM Withdrawal">Bank / ATM Cash Withdrawal</option>
+                  <option value="UPI Transfer">Admin UPI Handover</option>
+                </select>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Notes / Voucher Reference</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Monthly initial cash handed to branch manager"
+                  value={topupForm.notes}
+                  onChange={(e) => setTopupForm({ ...topupForm, notes: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsTopupModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isTopupSubmitting}
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 active:scale-95 transition-all"
+                >
+                  {isTopupSubmitting ? 'Saving...' : topupForm.isOpeningBalanceReset ? 'Set Opening Balance' : 'Add Top-Up'}
                 </button>
               </div>
             </form>
