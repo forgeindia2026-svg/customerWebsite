@@ -856,11 +856,14 @@ export default function Orders() {
   const totalOrdersCount = dateFilteredOrders.length;
   const pendingOrdersCount = dateFilteredOrders.filter(o => getDisplayStatus(o) === 'Pending').length;
   const inProgressOrdersCount = dateFilteredOrders.filter(o => getDisplayStatus(o) === 'In Progress').length;
-  const completedOrdersCount = dateFilteredOrders.filter(o => {
+  const completedOrdersList = dateFilteredOrders.filter(o => {
     const s = getDisplayStatus(o);
     return s === 'Completed' || s === 'Approved';
-  }).length;
-  const totalRevenue = dateFilteredOrders.reduce((sum, o) => sum + (Number(o.amount) || Number(o.totalAmount) || 0), 0);
+  });
+  const completedOrdersCount = completedOrdersList.length;
+  const totalRevenue = completedOrdersList.reduce((sum, o) => {
+    return sum + Number(o.financials?.salesValue ?? o.financials?.totalValue ?? o.salesValue ?? o.amount ?? o.totalAmount ?? 0);
+  }, 0);
 
   return (
     <div className="space-y-6">

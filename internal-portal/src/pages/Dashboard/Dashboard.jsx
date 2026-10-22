@@ -202,10 +202,14 @@ export default function Dashboard() {
   const filteredOrders = orders.filter(o => isDateInRange(o.createdAt || o.date, selectedDateRange));
   const filteredPayments = payments.filter(p => isDateInRange(p.createdAt || p.date, selectedDateRange));
 
+  const getOrderSales = (o) => {
+    return Number(o.financials?.salesValue ?? o.financials?.totalValue ?? o.salesValue ?? o.amount ?? o.totalAmount ?? 0);
+  };
+
   // Calculate dynamic stats (with robust fallback matching for MongoDB fields)
   const completedOrders = filteredOrders.filter(o => o.status === 'Completed' || o.status === 'Approved' || o.orderStatus === 'DELIVERED');
-  const completedRevenue = completedOrders.reduce((sum, o) => sum + (parseFloat(o.amount || o.totalAmount) || 0), 0);
-  const totalRevenue = completedRevenue > 0 ? completedRevenue : filteredOrders.reduce((sum, o) => sum + (parseFloat(o.amount || o.totalAmount) || 0), 0);
+  const completedRevenue = completedOrders.reduce((sum, o) => sum + getOrderSales(o), 0);
+  const totalRevenue = completedRevenue > 0 ? completedRevenue : filteredOrders.reduce((sum, o) => sum + getOrderSales(o), 0);
   
   const todayStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   const todayOrders = filteredOrders.filter(o => {
@@ -260,7 +264,7 @@ export default function Dashboard() {
     if (!oDate || isNaN(oDate.getTime())) return;
     const oMonth = oDate.getMonth();
     const oYear = oDate.getFullYear();
-    const amount = parseFloat(o.amount) || 0;
+    const amount = getOrderSales(o);
 
     if (oMonth === currentMonth && oYear === currentYear) {
       thisMonthRevenue += amount;
