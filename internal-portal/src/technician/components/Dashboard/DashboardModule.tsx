@@ -185,10 +185,10 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
       setTotalTeamExpenses(companyTotal);
       setTotalTeamExpensesCount(companyCount);
 
-      // 2. Technician Own Expenses (strictly matching GOPINATH.M breakdown: ₹1,380, 6 claims)
-      // Check official technicianBreakdown from API first
+      // 2. Technician Own Expenses (strictly matching technician breakdown, EXCLUDING any Office entries)
       const techBreakdownEntry = (sumData?.technicianBreakdown || []).find((t: any) => {
         const tName = (t.technicianName || '').toLowerCase().trim();
+        if (tName.startsWith('office')) return false;
         return currentTechName && (tName.includes(currentTechName) || currentTechName.includes(tName));
       });
 
