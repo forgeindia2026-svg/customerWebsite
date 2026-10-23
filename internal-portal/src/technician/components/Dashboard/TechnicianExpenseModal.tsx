@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  X, Plus, Receipt, Calendar, DollarSign, Trash2, CheckCircle2,
+  X, Plus, Receipt, Calendar, DollarSign, CheckCircle2,
   User, Home, ArrowDownRight, ArrowUpRight, CreditCard, Layers, Tag
 } from 'lucide-react';
 import { 
   fetchExpensesApi, 
-  fetchPettyCashSummaryApi, 
-  createExpenseApi, 
-  deleteExpenseApi 
+  createExpenseApi 
 } from '../../../utils/expenseStorage';
 import toast from 'react-hot-toast';
 
@@ -214,10 +212,7 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
 
   if (!isOpen) return null;
 
-  const displayedExpenses = viewScope === 'MY' ? myExpenses : allExpenses;
   const myTotal = myExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
-  const allTotal = allExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
-  const currentTotal = viewScope === 'MY' ? myTotal : allTotal;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -306,9 +301,7 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
               <h3 className="font-bold text-base text-zinc-900">
                 {activeTab === 'ADD' 
                   ? 'Record Daily Field Expense' 
-                  : viewScope === 'MY' 
-                    ? 'My Field Expenses' 
-                    : 'All Technicians Expenses'}
+                  : 'My Field Expenses'}
               </h3>
               <p className="text-xs text-zinc-500">
                 {activeTab === 'ADD' 
@@ -326,33 +319,17 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
         </div>
 
         {/* Top Scope / Switcher Bar */}
-        <div className="px-4 py-2.5 bg-zinc-50/80 border-b border-zinc-100 flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex rounded-xl bg-zinc-200/70 p-1 text-xs font-bold">
-            <button
-              onClick={() => { setViewScope('MY'); setActiveTab('LIST'); }}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                viewScope === 'MY' && activeTab === 'LIST' 
-                  ? 'bg-white text-rose-700 shadow-xs' 
-                  : 'text-zinc-600 hover:text-zinc-900'
-              }`}
-            >
-              My Claims ({myExpenses.length})
-            </button>
-            <button
-              onClick={() => { setViewScope('ALL'); setActiveTab('LIST'); }}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                viewScope === 'ALL' && activeTab === 'LIST' 
-                  ? 'bg-white text-amber-800 shadow-xs' 
-                  : 'text-zinc-600 hover:text-zinc-900'
-              }`}
-            >
-              All Technicians ({allExpenses.length})
-            </button>
+        <div className="px-4 py-2.5 bg-zinc-50/80 border-b border-zinc-100 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="px-3.5 py-1.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-2xs">
+              <Receipt className="w-3.5 h-3.5" />
+              <span>My Claims ({myExpenses.length})</span>
+            </span>
           </div>
 
           <button
             onClick={() => setActiveTab(activeTab === 'LIST' ? 'ADD' : 'LIST')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer transition-all ${
+            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer transition-all ${
               activeTab === 'LIST'
                 ? 'bg-blue-600 hover:bg-blue-700 text-white'
                 : 'bg-zinc-200 hover:bg-zinc-300 text-zinc-800'
@@ -361,7 +338,7 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
             {activeTab === 'LIST' ? (
               <>
                 <Plus className="w-3.5 h-3.5" />
-                <span>+ Record Expense</span>
+                <span>Record Expense</span>
               </>
             ) : (
               <span>Back to List</span>
@@ -371,17 +348,17 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
 
         {/* Total Summary Banner (when on LIST) */}
         {activeTab === 'LIST' && (
-          <div className={`p-4 border-b flex items-center justify-between ${viewScope === 'MY' ? 'bg-rose-50/70 border-rose-100' : 'bg-amber-50/70 border-amber-100'}`}>
+          <div className="p-4 border-b flex items-center justify-between bg-rose-50/70 border-rose-100">
             <div>
-              <span className={`text-[11px] font-bold uppercase tracking-wider block ${viewScope === 'MY' ? 'text-rose-700' : 'text-amber-800'}`}>
-                {viewScope === 'MY' ? "My Total Expenses (This Month)" : "Total All Technicians Expenses"}
+              <span className="text-[11px] font-bold uppercase tracking-wider block text-rose-700">
+                My Total Expenses (This Month)
               </span>
-              <span className={`text-2xl font-black font-mono ${viewScope === 'MY' ? 'text-rose-600' : 'text-amber-700'}`}>
-                ₹{currentTotal.toLocaleString('en-IN')}
+              <span className="text-2xl font-black font-mono text-rose-600">
+                ₹{myTotal.toLocaleString('en-IN')}
               </span>
             </div>
             <span className="text-xs font-bold text-zinc-600 bg-white/90 px-3 py-1 rounded-full border border-zinc-200 shadow-2xs">
-              {displayedExpenses.length} {displayedExpenses.length === 1 ? 'claim' : 'claims'}
+              {myExpenses.length} {myExpenses.length === 1 ? 'claim' : 'claims'}
             </span>
           </div>
         )}
@@ -709,11 +686,11 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
             <div>
               {isLoading ? (
                 <div className="text-center py-8 text-xs text-zinc-400">Loading claims...</div>
-              ) : displayedExpenses.length === 0 ? (
+              ) : myExpenses.length === 0 ? (
                 <div className="text-center py-10 space-y-2">
                   <Receipt className="w-8 h-8 text-zinc-300 mx-auto" />
                   <p className="text-xs font-bold text-zinc-600">
-                    {viewScope === 'MY' ? 'No Expenses Logged By You This Month' : 'No Expenses Logged Across Team This Month'}
+                    No Expenses Logged By You This Month
                   </p>
                   <p className="text-[11px] text-zinc-400">Submit your daily petrol, food, or material receipts here.</p>
                   <button
@@ -724,8 +701,7 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
                   </button>
                 </div>
               ) : (
-                displayedExpenses.map((item) => {
-                  const isMine = (item.technicianName || '').toLowerCase().includes(techName.toLowerCase());
+                myExpenses.map((item) => {
                   const isOffice = (item.technicianName || '').toLowerCase().includes('office');
                   return (
                     <div
@@ -765,15 +741,6 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
                         <span className="font-black text-sm text-zinc-900 font-mono block">
                           ₹{Number(item.amount).toLocaleString('en-IN')}
                         </span>
-                        {isMine && (
-                          <button
-                            onClick={() => handleDelete(item._id)}
-                            className="text-[10px] text-rose-500 hover:underline mt-1 inline-flex items-center gap-0.5 cursor-pointer"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                            <span>Delete</span>
-                          </button>
-                        )}
                       </div>
                     </div>
                   );
