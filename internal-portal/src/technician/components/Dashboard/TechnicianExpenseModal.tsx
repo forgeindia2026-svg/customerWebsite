@@ -52,8 +52,9 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryInput, setNewCategoryInput] = useState('');
 
-  const authUser = JSON.parse(localStorage.getItem('tech_user') || '{}');
-  const techName = (authUser.name || localStorage.getItem('user_name') || 'Technician').trim();
+  const authUser = JSON.parse(localStorage.getItem('tech_user') || localStorage.getItem('internal_user') || '{}');
+  const techName = (authUser.name || localStorage.getItem('user_name') || '').trim();
+  const techPhone = (authUser.phone || localStorage.getItem('user_phone') || '').replace(/\D/g, '');
 
   const now = new Date();
   const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -99,9 +100,18 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
       if (Array.isArray(records)) {
         setAllExpenses(records);
         const myItems = records.filter((e: any) => {
-          const n = (e.technicianName || '').toLowerCase().trim();
+          if (!techName && !techPhone) return false;
+          const tName = (e.technicianName || '').toLowerCase().trim();
+          const eName = (e.employeeName || '').toLowerCase().trim();
+          const rawPhone = (e.phone || e.technicianPhone || '').replace(/\D/g, '');
+
+          const matchesPhone = Boolean(techPhone && rawPhone && (rawPhone.includes(techPhone) || techPhone.includes(rawPhone)));
           const target = techName.toLowerCase();
-          return n.includes(target) || target.includes(n);
+          const matchesName = Boolean(target && (
+            (tName && (tName.includes(target) || target.includes(tName))) ||
+            (eName && (eName.includes(target) || target.includes(eName)))
+          ));
+          return matchesPhone || matchesName;
         });
         setMyExpenses(myItems);
       }
@@ -213,6 +223,7 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
   if (!isOpen) return null;
 
   const myTotal = myExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  const companyTotal = allExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -301,12 +312,12 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
               <h3 className="font-bold text-base text-zinc-900">
                 {activeTab === 'ADD' 
                   ? 'Record Daily Field Expense' 
-                  : 'My Field Expenses'}
+                  : viewScope === 'MY' ? 'My Field Expenses' : 'Company Field Expenses'}
               </h3>
               <p className="text-xs text-zinc-500">
                 {activeTab === 'ADD' 
                   ? 'Record technician site claims or office daily expenses' 
-                  : `${techName} • ${currentYearMonth}`}
+                  : viewScope === 'MY' ? `${techName || 'My Claims'} • ${currentYearMonth}` : `All Technicians & Office • ${currentYearMonth}`}
               </p>
             </div>
           </div>
@@ -319,13 +330,38 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
         </div>
 
         {/* Top Scope / Switcher Bar */}
-        <div className="px-4 py-2.5 bg-zinc-50/80 border-b border-zinc-100 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="px-3.5 py-1.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-2xs">
-              <Receipt className="w-3.5 h-3.5" />
-              <span>My Claims ({myExpenses.length})</span>
-            </span>
-          </div>
+        <div className="px-4 py-2.5 bg-zinc-50/80 border-b border-zinc-100 flex items-center justify-between gap-2 flex-wrap">
+          {activeTab === 'LIST' ? (
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <button
+                type="button"
+                onClick={() => setViewScope('MY')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  viewScope === 'MY'
+                    ? 'bg-rose-600 text-white shadow-xs'
+                    : 'bg-white text-zinc-600 hover:bg-zinc-100 border border-zinc-200'
+                }`}
+              >
+                <Receipt className="w-3.5 h-3.5" />
+                <span>My Claims ({myExpenses.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setViewScope('ALL')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  viewScope === 'ALL'
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'bg-white text-zinc-600 hover:bg-zinc-100 border border-zinc-200'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>Company Expenses ({allExpenses.length})</span>
+              </button>
+            </div>
+          ) : (
+            <span className="text-xs font-bold text-zinc-700">New Claim Form</span>
+          )}
 
           <button
             onClick={() => setActiveTab(activeTab === 'LIST' ? 'ADD' : 'LIST')}
@@ -348,19 +384,35 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
 
         {/* Total Summary Banner (when on LIST) */}
         {activeTab === 'LIST' && (
-          <div className="p-4 border-b flex items-center justify-between bg-rose-50/70 border-rose-100">
-            <div>
-              <span className="text-[11px] font-bold uppercase tracking-wider block text-rose-700">
-                My Total Expenses (This Month)
-              </span>
-              <span className="text-2xl font-black font-mono text-rose-600">
-                ₹{myTotal.toLocaleString('en-IN')}
+          viewScope === 'MY' ? (
+            <div className="p-4 border-b flex items-center justify-between bg-rose-50/70 border-rose-100">
+              <div>
+                <span className="text-[11px] font-bold uppercase tracking-wider block text-rose-700">
+                  My Total Expenses (This Month)
+                </span>
+                <span className="text-2xl font-black font-mono text-rose-600">
+                  ₹{myTotal.toLocaleString('en-IN')}
+                </span>
+              </div>
+              <span className="text-xs font-bold text-zinc-600 bg-white/90 px-3 py-1 rounded-full border border-zinc-200 shadow-2xs">
+                {myExpenses.length} {myExpenses.length === 1 ? 'claim' : 'claims'}
               </span>
             </div>
-            <span className="text-xs font-bold text-zinc-600 bg-white/90 px-3 py-1 rounded-full border border-zinc-200 shadow-2xs">
-              {myExpenses.length} {myExpenses.length === 1 ? 'claim' : 'claims'}
-            </span>
-          </div>
+          ) : (
+            <div className="p-4 border-b flex items-center justify-between bg-amber-50/70 border-amber-200">
+              <div>
+                <span className="text-[11px] font-bold uppercase tracking-wider block text-amber-800">
+                  Total Company Expenses (This Month)
+                </span>
+                <span className="text-2xl font-black font-mono text-amber-700">
+                  ₹{companyTotal.toLocaleString('en-IN')}
+                </span>
+              </div>
+              <span className="text-xs font-bold text-zinc-700 bg-white/90 px-3 py-1 rounded-full border border-zinc-200 shadow-2xs">
+                {allExpenses.length} {allExpenses.length === 1 ? 'claim' : 'claims'}
+              </span>
+            </div>
+          )
         )}
 
         {/* Content Body */}
@@ -686,22 +738,30 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
             <div>
               {isLoading ? (
                 <div className="text-center py-8 text-xs text-zinc-400">Loading claims...</div>
-              ) : myExpenses.length === 0 ? (
+              ) : (viewScope === 'MY' ? myExpenses : allExpenses).length === 0 ? (
                 <div className="text-center py-10 space-y-2">
                   <Receipt className="w-8 h-8 text-zinc-300 mx-auto" />
                   <p className="text-xs font-bold text-zinc-600">
-                    No Expenses Logged By You This Month
+                    {viewScope === 'MY' 
+                      ? 'No Expenses Logged By You This Month' 
+                      : 'No Company Expenses Recorded This Month'}
                   </p>
-                  <p className="text-[11px] text-zinc-400">Submit your daily petrol, food, or material receipts here.</p>
-                  <button
-                    onClick={() => setActiveTab('ADD')}
-                    className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl cursor-pointer shadow-xs"
-                  >
-                    + Record Daily Expense
-                  </button>
+                  <p className="text-[11px] text-zinc-400">
+                    {viewScope === 'MY' 
+                      ? 'Submit your daily petrol, food, or material receipts here.' 
+                      : 'Team expenses submitted for this month will appear here.'}
+                  </p>
+                  {viewScope === 'MY' && (
+                    <button
+                      onClick={() => setActiveTab('ADD')}
+                      className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl cursor-pointer shadow-xs"
+                    >
+                      + Record Daily Expense
+                    </button>
+                  )}
                 </div>
               ) : (
-                myExpenses.map((item) => {
+                (viewScope === 'MY' ? myExpenses : allExpenses).map((item) => {
                   const isOffice = (item.technicianName || '').toLowerCase().includes('office');
                   return (
                     <div

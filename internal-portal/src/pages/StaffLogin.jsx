@@ -68,13 +68,19 @@ export default function StaffLogin() {
           localStorage.setItem('user_id', data.data.id || data.data._id || '');
           localStorage.setItem('user_name', userName);
           localStorage.setItem('user_email', userEmail);
-          localStorage.setItem('internal_user', JSON.stringify({
+          if (data.data.phone) {
+            localStorage.setItem('user_phone', data.data.phone);
+          }
+          const userPayload = {
             id: data.data.id || data.data._id || '',
             name: userName,
             email: userEmail,
+            phone: data.data.phone || '',
             role: userRole,
             avatar: data.data.avatar || ''
-          }));
+          };
+          localStorage.setItem('internal_user', JSON.stringify(userPayload));
+          localStorage.setItem('tech_user', JSON.stringify(userPayload));
           localStorage.setItem('sk_tech_auth', 'true');
 
           if (userRole === 'ADMIN' || userRole === 'HR') {

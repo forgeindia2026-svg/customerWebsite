@@ -95,8 +95,9 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
   const now = new Date();
   const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  const authUser = JSON.parse(localStorage.getItem('tech_user') || '{}');
+  const authUser = JSON.parse(localStorage.getItem('tech_user') || localStorage.getItem('internal_user') || '{}');
   const currentTechName = (authUser.name || localStorage.getItem('user_name') || '').toLowerCase().trim();
+  const currentTechPhone = (authUser.phone || localStorage.getItem('user_phone') || '').replace(/\D/g, '');
 
   // Compute strictly from completed jobs for this month if summaryStats is missing
   const computedStatsFromJobs = React.useMemo(() => {
@@ -175,15 +176,24 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
     try {
       const records = await fetchExpensesApi(currentYearMonth);
       if (Array.isArray(records)) {
-        // Grand total across ALL technicians for this month
+        // Grand total across ALL technicians / entire company for this month
         const teamTotal = records.reduce((sum: number, e: any) => sum + (Number(e.amount) || 0), 0);
         setTotalTeamExpenses(teamTotal);
         setTotalTeamExpensesCount(records.length);
 
-        // My own technician records
+        // My own technician records (Strict check: never match all if identity is empty)
         const myRecords = records.filter((e: any) => {
-          const n = (e.technicianName || '').toLowerCase().trim();
-          return n.includes(currentTechName) || currentTechName.includes(n);
+          if (!currentTechName && !currentTechPhone) return false;
+          const tName = (e.technicianName || '').toLowerCase().trim();
+          const eName = (e.employeeName || '').toLowerCase().trim();
+          const rawPhone = (e.phone || e.technicianPhone || '').replace(/\D/g, '');
+
+          const matchesPhone = Boolean(currentTechPhone && rawPhone && (rawPhone.includes(currentTechPhone) || currentTechPhone.includes(rawPhone)));
+          const matchesName = Boolean(currentTechName && (
+            (tName && (tName.includes(currentTechName) || currentTechName.includes(tName))) ||
+            (eName && (eName.includes(currentTechName) || currentTechName.includes(eName)))
+          ));
+          return matchesPhone || matchesName;
         });
         setMyExpensesCount(myRecords.length);
         const myTotal = myRecords.reduce((sum: number, e: any) => sum + (Number(e.amount) || 0), 0);
@@ -212,7 +222,7 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('expenses_updated', handleCustomEvent);
     };
-  }, [currentTechName, currentYearMonth]);
+  }, [currentTechName, currentTechPhone, currentYearMonth]);
 
   const handleSubmitFeedback = (e: React.FormEvent) => {
     e.preventDefault();
@@ -277,8 +287,8 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
         </div>
       </div>
 
-      {/* 🚀 Vibrant Hero Metric Grid (7 Cards: Assigned, In Progress, Scheduled, Completed, Month Earnings, Today Earnings, My Expenses) */}
-      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3 sm:gap-4">
+      {/* 🚀 Vibrant Hero Metric Grid (8 Cards: Assigned, In Progress, Scheduled, Completed, Month Earnings, Today Earnings, My Expenses, Total Company Expenses) */}
+      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3 sm:gap-4">
         {/* 1. TOTAL ASSIGNED (Purple Card) */}
         <div 
           onClick={() => onNavigateTab?.('assigned_jobs', 'ALL')}
@@ -455,7 +465,7 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
             setShowExpenseModal(true);
           }}
           className="bg-[#E11D48] hover:bg-[#BE123C] text-white rounded-3xl p-5 sm:p-6 shadow-md shadow-rose-500/20 hover:shadow-xl hover:shadow-rose-500/30 hover:scale-[1.01] active:scale-[0.99] transition-all flex flex-col justify-between min-h-[145px] select-none group cursor-pointer"
-          title="Daily Field Expenses"
+          title="My Field Expenses this month"
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] sm:text-xs font-black tracking-wider text-white/90 uppercase">
@@ -475,6 +485,36 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
           <p className="text-xs font-medium text-white/85 flex items-center justify-between">
             <span>{myExpensesCount} daily {myExpensesCount === 1 ? 'claim' : 'claims'}</span>
             <span className="opacity-0 group-hover:opacity-100 transition-opacity">Claim &rarr;</span>
+          </p>
+        </div>
+
+        {/* 8. TOTAL COMPANY EXPENSES (Amber / Orange Card) */}
+        <div 
+          onClick={() => {
+            setExpenseModalScope('ALL');
+            setShowExpenseModal(true);
+          }}
+          className="bg-[#D97706] hover:bg-[#B45309] text-white rounded-3xl p-5 sm:p-6 shadow-md shadow-amber-500/20 hover:shadow-xl hover:shadow-amber-500/30 hover:scale-[1.01] active:scale-[0.99] transition-all flex flex-col justify-between min-h-[145px] select-none group cursor-pointer"
+          title="Total Company Expenses this month"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] sm:text-xs font-black tracking-wider text-white/90 uppercase">
+              TOTAL COMPANY EXPENSES
+            </span>
+            <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center text-white shrink-0 group-hover:scale-110 transition-transform">
+              <Layers className="w-5 h-5" />
+            </div>
+          </div>
+
+          <div className="my-2 flex items-center gap-3">
+            <span className="text-3xl sm:text-4xl font-black text-white leading-none font-mono">
+              ₹{totalTeamExpenses.toLocaleString('en-IN')}
+            </span>
+          </div>
+
+          <p className="text-xs font-medium text-white/85 flex items-center justify-between">
+            <span>{totalTeamExpensesCount} company {totalTeamExpensesCount === 1 ? 'claim' : 'claims'}</span>
+            <span className="opacity-0 group-hover:opacity-100 transition-opacity">View All &rarr;</span>
           </p>
         </div>
       </div>
