@@ -31,7 +31,7 @@ import {
 import { formatDate } from '../../services/dateUtils';
 import { AttendanceCard } from '../Attendance/AttendanceCard';
 import { TechnicianExpenseModal } from './TechnicianExpenseModal';
-import { fetchExpensesApi } from '../../../utils/expenseStorage';
+import { fetchExpensesApi, fetchExpensesSummaryApi } from '../../../utils/expenseStorage';
 
 interface DashboardModuleProps {
   jobs: Job[];
@@ -174,25 +174,38 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
 
   const loadTechnicianExpenses = async () => {
     try {
-      const records = await fetchExpensesApi(currentYearMonth);
-      if (Array.isArray(records)) {
-        // Grand total across ALL technicians / entire company for this month
-        const teamTotal = records.reduce((sum: number, e: any) => sum + (Number(e.amount) || 0), 0);
-        setTotalTeamExpenses(teamTotal);
-        setTotalTeamExpensesCount(records.length);
+      const [sumData, records] = await Promise.all([
+        fetchExpensesSummaryApi(currentYearMonth),
+        fetchExpensesApi(currentYearMonth)
+      ]);
 
-        // My own technician records (Strict check: never match all if identity is empty)
+      // 1. Total Company Expenses (strictly matching Admin /admin/expenses: e.g. ₹82,179, 74 expenses)
+      const companyTotal = sumData?.summary?.thisMonthTotal ?? (Array.isArray(records) ? records.reduce((sum: number, e: any) => sum + (Number(e.amount) || 0), 0) : 0);
+      const companyCount = sumData?.summary?.thisMonthCount ?? (Array.isArray(records) ? records.length : 0);
+      setTotalTeamExpenses(companyTotal);
+      setTotalTeamExpensesCount(companyCount);
+
+      // 2. Technician Own Expenses (strictly matching GOPINATH.M breakdown: ₹1,380, 6 claims)
+      // Check official technicianBreakdown from API first
+      const techBreakdownEntry = (sumData?.technicianBreakdown || []).find((t: any) => {
+        const tName = (t.technicianName || '').toLowerCase().trim();
+        return currentTechName && (tName.includes(currentTechName) || currentTechName.includes(tName));
+      });
+
+      if (techBreakdownEntry) {
+        setMyMonthlyExpenses(Number(techBreakdownEntry.monthTotal) || 0);
+        setMyExpensesCount(Number(techBreakdownEntry.monthCount) || 0);
+      } else if (Array.isArray(records)) {
+        // Fallback filter strictly on records: EXCLUDE ALL OFFICE EXPENSES
         const myRecords = records.filter((e: any) => {
           if (!currentTechName && !currentTechPhone) return false;
+          if (e.expenseType === 'OFFICE' || (e.technicianName || '').toLowerCase().startsWith('office')) return false;
+
           const tName = (e.technicianName || '').toLowerCase().trim();
-          const eName = (e.employeeName || '').toLowerCase().trim();
           const rawPhone = (e.phone || e.technicianPhone || '').replace(/\D/g, '');
 
           const matchesPhone = Boolean(currentTechPhone && rawPhone && (rawPhone.includes(currentTechPhone) || currentTechPhone.includes(rawPhone)));
-          const matchesName = Boolean(currentTechName && (
-            (tName && (tName.includes(currentTechName) || currentTechName.includes(tName))) ||
-            (eName && (eName.includes(currentTechName) || currentTechName.includes(eName)))
-          ));
+          const matchesName = Boolean(currentTechName && (tName.includes(currentTechName) || currentTechName.includes(tName)));
           return matchesPhone || matchesName;
         });
         setMyExpensesCount(myRecords.length);

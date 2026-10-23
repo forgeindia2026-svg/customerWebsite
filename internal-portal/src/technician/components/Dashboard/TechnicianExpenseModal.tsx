@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { 
   fetchExpensesApi, 
+  fetchExpensesSummaryApi,
   createExpenseApi 
 } from '../../../utils/expenseStorage';
 import toast from 'react-hot-toast';
@@ -28,6 +29,8 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
   const [viewScope, setViewScope] = useState<'MY' | 'ALL'>(initialView);
   const [allExpenses, setAllExpenses] = useState<any[]>([]);
   const [myExpenses, setMyExpenses] = useState<any[]>([]);
+  const [companyExpenseTotal, setCompanyExpenseTotal] = useState(0);
+  const [companyExpenseCount, setCompanyExpenseCount] = useState(0);
   const [pettyCashData, setPettyCashData] = useState<any>(null);
   const [techniciansList, setTechniciansList] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -92,35 +95,38 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [records, petty] = await Promise.all([
-        fetchExpensesApi(currentYearMonth),
-        fetchPettyCashSummaryApi(currentYearMonth)
+      const [sumData, records] = await Promise.all([
+        fetchExpensesSummaryApi(currentYearMonth),
+        fetchExpensesApi(currentYearMonth)
       ]);
+
+      if (sumData?.summary) {
+        setCompanyExpenseTotal(Number(sumData.summary.thisMonthTotal) || 0);
+        setCompanyExpenseCount(Number(sumData.summary.thisMonthCount) || 0);
+      } else if (Array.isArray(records)) {
+        setCompanyExpenseTotal(records.reduce((sum, e) => sum + (Number(e.amount) || 0), 0));
+        setCompanyExpenseCount(records.length);
+      }
 
       if (Array.isArray(records)) {
         setAllExpenses(records);
         const myItems = records.filter((e: any) => {
           if (!techName && !techPhone) return false;
+          // Strictly exclude office expenses from technician personal claims
+          if (e.expenseType === 'OFFICE' || (e.technicianName || '').toLowerCase().startsWith('office')) return false;
+
           const tName = (e.technicianName || '').toLowerCase().trim();
-          const eName = (e.employeeName || '').toLowerCase().trim();
           const rawPhone = (e.phone || e.technicianPhone || '').replace(/\D/g, '');
 
           const matchesPhone = Boolean(techPhone && rawPhone && (rawPhone.includes(techPhone) || techPhone.includes(rawPhone)));
           const target = techName.toLowerCase();
-          const matchesName = Boolean(target && (
-            (tName && (tName.includes(target) || target.includes(tName))) ||
-            (eName && (eName.includes(target) || target.includes(eName)))
-          ));
+          const matchesName = Boolean(target && (tName.includes(target) || target.includes(tName)));
           return matchesPhone || matchesName;
         });
         setMyExpenses(myItems);
       }
-
-      if (petty) {
-        setPettyCashData(petty);
-      }
     } catch (err) {
-      console.warn('Failed to load expenses or petty cash:', err);
+      console.warn('Failed to load expenses or summary:', err);
     } finally {
       setIsLoading(false);
     }
@@ -356,7 +362,7 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
                 }`}
               >
                 <Layers className="w-3.5 h-3.5" />
-                <span>Company Expenses ({allExpenses.length})</span>
+                <span>Company Overview ({companyExpenseCount || allExpenses.length})</span>
               </button>
             </div>
           ) : (
@@ -405,11 +411,11 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
                   Total Company Expenses (This Month)
                 </span>
                 <span className="text-2xl font-black font-mono text-amber-700">
-                  ₹{companyTotal.toLocaleString('en-IN')}
+                  ₹{companyExpenseTotal.toLocaleString('en-IN')}
                 </span>
               </div>
               <span className="text-xs font-bold text-zinc-700 bg-white/90 px-3 py-1 rounded-full border border-zinc-200 shadow-2xs">
-                {allExpenses.length} {allExpenses.length === 1 ? 'claim' : 'claims'}
+                {companyExpenseCount || allExpenses.length} expenses recorded
               </span>
             </div>
           )
@@ -735,35 +741,67 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
             </form>
           ) : (
             /* Claims List */
-            <div>
-              {isLoading ? (
-                <div className="text-center py-8 text-xs text-zinc-400">Loading claims...</div>
-              ) : (viewScope === 'MY' ? myExpenses : allExpenses).length === 0 ? (
-                <div className="text-center py-10 space-y-2">
-                  <Receipt className="w-8 h-8 text-zinc-300 mx-auto" />
-                  <p className="text-xs font-bold text-zinc-600">
-                    {viewScope === 'MY' 
-                      ? 'No Expenses Logged By You This Month' 
-                      : 'No Company Expenses Recorded This Month'}
+            viewScope === 'ALL' ? (
+              /* Company Overview (Privacy Protected: Total amount & count only, itemized details hidden as requested) */
+              <div className="py-6 px-4 text-center space-y-4">
+                <div className="w-14 h-14 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center mx-auto shadow-xs">
+                  <Layers className="w-7 h-7" />
+                </div>
+                <div className="space-y-1">
+                  <span className="text-xs font-bold text-amber-800 uppercase tracking-wider block">
+                    Total Company Expenses ({currentYearMonth})
+                  </span>
+                  <span className="text-3xl sm:text-4xl font-black font-mono text-amber-700 block">
+                    ₹{companyExpenseTotal.toLocaleString('en-IN')}
+                  </span>
+                  <p className="text-xs font-medium text-zinc-500">
+                    {companyExpenseCount || allExpenses.length} total expense vouchers recorded across company this month
                   </p>
-                  <p className="text-[11px] text-zinc-400">
-                    {viewScope === 'MY' 
-                      ? 'Submit your daily petrol, food, or material receipts here.' 
-                      : 'Team expenses submitted for this month will appear here.'}
+                </div>
+
+                <div className="max-w-md mx-auto p-4 bg-amber-50/80 rounded-2xl border border-amber-200 text-left text-xs text-amber-900 space-y-2">
+                  <div className="flex items-center gap-2 font-bold text-amber-950">
+                    <CheckCircle2 className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Company Expense Security & Privacy</span>
+                  </div>
+                  <p className="text-[11px] text-amber-800 leading-relaxed">
+                    Overall company spending figure is visible for operational awareness. Detailed vendor receipts, office purchase vouchers, and team claims are maintained centrally in Admin accounts.
                   </p>
-                  {viewScope === 'MY' && (
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    onClick={() => setViewScope('MY')}
+                    className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer inline-flex items-center gap-2"
+                  >
+                    <Receipt className="w-4 h-4" />
+                    <span>View My Daily Claims ({myExpenses.length}) &rarr;</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* My Claims List (GOPINATH.M: shows 6 daily claims with full itemized details) */
+              <div>
+                {isLoading ? (
+                  <div className="text-center py-8 text-xs text-zinc-400">Loading claims...</div>
+                ) : myExpenses.length === 0 ? (
+                  <div className="text-center py-10 space-y-2">
+                    <Receipt className="w-8 h-8 text-zinc-300 mx-auto" />
+                    <p className="text-xs font-bold text-zinc-600">
+                      No Expenses Logged By You This Month
+                    </p>
+                    <p className="text-[11px] text-zinc-400">
+                      Submit your daily petrol, food, or material receipts here.
+                    </p>
                     <button
                       onClick={() => setActiveTab('ADD')}
                       className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl cursor-pointer shadow-xs"
                     >
                       + Record Daily Expense
                     </button>
-                  )}
-                </div>
-              ) : (
-                (viewScope === 'MY' ? myExpenses : allExpenses).map((item) => {
-                  const isOffice = (item.technicianName || '').toLowerCase().includes('office');
-                  return (
+                  </div>
+                ) : (
+                  myExpenses.map((item) => (
                     <div
                       key={item._id}
                       className="p-3.5 rounded-2xl border border-zinc-200 bg-white flex items-center justify-between gap-2 shadow-2xs mb-2.5 hover:border-zinc-300 transition-all"
@@ -771,14 +809,8 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="font-bold text-xs text-zinc-900">{item.category}</span>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                            isOffice 
-                              ? 'bg-amber-50 text-amber-700 border-amber-200' 
-                              : 'bg-blue-50 text-blue-700 border-blue-200'
-                          }`}>
-                            {isOffice 
-                              ? `Office (${item.employeeName || 'Staff'})` 
-                              : item.technicianName}
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200">
+                            {item.technicianName}
                           </span>
                           <span className="text-[10px] text-zinc-400 font-mono">{item.date}</span>
                         </div>
@@ -803,10 +835,10 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
                         </span>
                       </div>
                     </div>
-                  );
-                })
-              )}
-            </div>
+                  ))
+                )}
+              </div>
+            )
           )}
         </div>
 
