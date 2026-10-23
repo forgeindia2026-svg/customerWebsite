@@ -410,7 +410,7 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
                   >
                     <span className="font-bold text-xs text-zinc-900 block truncate">Branch 1</span>
                     <span className="text-[10px] text-sky-600 font-bold block mt-0.5 truncate">
-                      Bal: {b1 ? `₹${Number(b1.remainingBalance || 0).toLocaleString('en-IN')}` : '...'}
+                      Petty Cash
                     </span>
                   </button>
 
@@ -426,7 +426,7 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
                   >
                     <span className="font-bold text-xs text-zinc-900 block truncate">Branch 2</span>
                     <span className="text-[10px] text-purple-600 font-bold block mt-0.5 truncate">
-                      Bal: {b2 ? `₹${Number(b2.remainingBalance || 0).toLocaleString('en-IN')}` : '...'}
+                      Petty Cash
                     </span>
                   </button>
 
@@ -670,32 +670,7 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
                 </div>
               </div>
 
-              {/* 6. LIVE PETTY CASH DEDUCTION CALCULATION PREVIEW */}
-              {liveBalancePreview && liveBalancePreview.isPetty && Number(formData.amount) > 0 && (
-                <div className={`p-3 rounded-xl border flex items-center justify-between text-xs font-medium ${
-                  liveBalancePreview.after >= 0
-                    ? 'bg-sky-50/70 border-sky-200 text-sky-900'
-                    : 'bg-rose-50 border-rose-200 text-rose-900'
-                }`}>
-                  <div className="flex items-center gap-2">
-                    <ArrowDownRight className="w-4 h-4 text-sky-600" />
-                    <div>
-                      <span className="font-bold block">Live Balance Deduction</span>
-                      <span className="text-[11px] text-zinc-500">
-                        ₹{liveBalancePreview.current.toLocaleString('en-IN')} - ₹{parseFloat(formData.amount).toLocaleString('en-IN')}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[10px] uppercase font-bold text-zinc-400 block">Remaining Cash In-Hand</span>
-                    <span className={`font-black text-sm ${liveBalancePreview.after >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                      ₹{liveBalancePreview.after.toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {/* 7. PURPOSE / DETAILS */}
+              {/* 6. PURPOSE / DETAILS */}
               <div>
                 <label className="block text-xs font-bold text-zinc-700 mb-1">Purpose / Details</label>
                 <textarea
