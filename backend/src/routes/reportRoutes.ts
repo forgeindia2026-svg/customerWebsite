@@ -156,7 +156,7 @@ router.post('/', async (req: Request, res: Response) => {
     let isSubTech = Boolean(isSubTechnician) || (typeof reqRole === 'string' && reqRole.toUpperCase() === 'SUB');
     let matchingJob: any = null;
 
-    if (cleanJobCode && cleanJobCode !== 'DAILY WORK LOG') {
+    if (cleanJobCode && cleanJobCode !== 'DAILY WORK LOG' && !req.body.isNewSession) {
       const strippedCode = cleanJobCode.replace(/^#/, '');
       matchingJob = await Job.findOne({
         $or: [
@@ -192,60 +192,19 @@ router.post('/', async (req: Request, res: Response) => {
 
     const targetDate = date || new Date().toISOString().split('T')[0];
 
-    // If a report for this jobCode AND date already exists, UPDATE it in-place!
-    if (cleanJobCode && cleanJobCode !== 'DAILY WORK LOG') {
-      const existing = await TechnicianReport.findOne({ 
-        jobCode: { $regex: new RegExp(`^#?${cleanJobCode.replace(/^#/, '')}$`, 'i') },
-        date: targetDate
-      });
-
+        // Update existing report ONLY if an explicit reportId is provided in req.body
+    // For all field job progress submissions, each visit creates a fresh, separate report with a unique _id
+    if (req.body.reportId) {
+      const existing = await TechnicianReport.findById(req.body.reportId);
       if (existing) {
-        existing.technicianId = finalTechId;
-        existing.technicianName = finalTechName;
-        existing.technicianRole = determinedRole;
-        existing.date = date || new Date().toISOString().split('T')[0];
-        existing.time = currentSubmissionTime;
         if (workDescription) existing.workDescription = workDescription;
         if (activityType) existing.activityType = activityType;
-        if (customerName) existing.customerName = customerName;
-        if (customerPhone) existing.customerPhone = customerPhone;
-        if (location) existing.location = location;
-        
-        // Update jobStatus (Sub Techs stay IN_PROGRESS, Main Tech can set COMPLETED)
-        if (isSubTech) {
-          if (!existing.jobStatus) existing.jobStatus = 'IN_PROGRESS';
-        } else {
-          if (jobStatus) existing.jobStatus = jobStatus;
-          else if (finalJobStatus === 'COMPLETED') existing.jobStatus = 'COMPLETED';
-        }
-
-        // Merge Before Photos (preserve unique URLs)
-        if (parsedBefore && parsedBefore.length > 0) {
-          const beforeSet = new Set(existing.beforePhotos || []);
-          parsedBefore.forEach((p: string) => beforeSet.add(p));
-          existing.beforePhotos = Array.from(beforeSet);
-        }
-
-        // Merge After Photos (preserve unique URLs)
-        if (parsedAfter && parsedAfter.length > 0) {
-          const afterSet = new Set(existing.afterPhotos || []);
-          parsedAfter.forEach((p: string) => afterSet.add(p));
-          existing.afterPhotos = Array.from(afterSet);
-        }
-
+        if (jobStatus) existing.jobStatus = jobStatus;
+        if (parsedBefore && parsedBefore.length > 0) existing.beforePhotos = parsedBefore;
+        if (parsedAfter && parsedAfter.length > 0) existing.afterPhotos = parsedAfter;
         if (voiceNoteUrl) existing.voiceNoteUrl = voiceNoteUrl;
-        existing.hasVoiceNote = Boolean(hasVoiceNote || (voiceNoteUrl && voiceNoteUrl.length > 0) || existing.hasVoiceNote);
         existing.updatedAt = new Date();
-
         const saved = await existing.save();
-
-        // If Main Tech marked it as COMPLETED, update Job status as well
-        if (matchingJob && !isSubTech && finalJobStatus === 'COMPLETED') {
-          matchingJob.status = 'COMPLETED';
-          matchingJob.completedAt = new Date();
-          await matchingJob.save();
-        }
-
         return res.status(200).json({ success: true, data: saved, message: 'Report updated successfully' });
       }
     }
