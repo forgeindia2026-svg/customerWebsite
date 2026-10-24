@@ -32,6 +32,9 @@ router.get('/', async (req: Request, res: Response) => {
     // Collect all IDs that need resolving
     const allPhotoIds: Set<string> = new Set();
     for (const rep of uniqueReports) {
+      if (rep.jobCode) {
+        rep.jobCode = rep.jobCode.replace(/^#+/, '');
+      }
       for (const p of [...(rep.beforePhotos || []), ...(rep.afterPhotos || [])]) {
         if (typeof p === 'string' && isMongoId(p)) allPhotoIds.add(p);
       }
