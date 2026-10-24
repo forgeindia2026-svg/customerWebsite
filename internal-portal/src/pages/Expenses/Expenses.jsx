@@ -16,7 +16,10 @@ import {
   fetchPettyCashSummaryApi,
   topupPettyCashApi,
   createExpenseApi, 
-  deleteExpenseApi 
+  deleteExpenseApi,
+  updateExpenseApi,
+  editPettyCashTopupApi,
+  updateAccountNameApi
 } from '../../utils/expenseStorage';
 
 const CUSTOM_CATEGORIES_KEY = 'sk_custom_expense_categories';
@@ -61,6 +64,28 @@ export default function Expenses() {
   const [selectedTechModal, setSelectedTechModal] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTopupSubmitting, setIsTopupSubmitting] = useState(false);
+
+  // Edit Expense State
+  const [editingExpense, setEditingExpense] = useState(null);
+  const [editExpenseForm, setEditExpenseForm] = useState({
+    expenseType: 'TECHNICIAN',
+    technicianName: '',
+    employeeName: '',
+    date: '',
+    category: '',
+    amount: '',
+    fundSource: 'Current Account',
+    paymentMode: 'UPI - PhonePe',
+    referenceId: '',
+    jobCode: '',
+    notes: ''
+  });
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+
+  // Top-Up History & Edit State
+  const [topupTab, setTopupTab] = useState('add'); // 'add' | 'history'
+  const [editingTopupId, setEditingTopupId] = useState(null);
+  const [editTopupData, setEditTopupData] = useState({ amount: '', notes: '', date: '', paymentMode: 'Cash' });
 
   // Topup Modal State
   const [topupForm, setTopupForm] = useState({
@@ -251,6 +276,107 @@ export default function Expenses() {
     };
   }, [formData.fundSource, formData.amount, pettyCashData]);
 
+  // 📥 Export / Download Expenses as CSV
+  const handleExportCsv = () => {
+    if (!filteredRecords || filteredRecords.length === 0) {
+      toast.error('No expenses to export for the selected filters.');
+      return;
+    }
+
+    const headers = [
+      'Date', 'Time', 'Voucher / Ref', 'Job Code', 'Expense Type',
+      'Person Name', 'Category', 'Fund Source', 'Payment Mode',
+      'Amount (INR)', 'Status', 'Notes'
+    ];
+
+    const rows = filteredRecords.map(exp => [
+      exp.date || '',
+      exp.time || '',
+      `"${exp.referenceId || ''}"`,
+      `"${exp.jobCode || ''}"`,
+      exp.expenseType || 'TECHNICIAN',
+      `"${exp.technicianName || exp.employeeName || ''}"`,
+      `"${exp.category || ''}"`,
+      `"${exp.fundSource || ''}"`,
+      `"${exp.paymentMode || ''}"`,
+      Number(exp.amount) || 0,
+      exp.status || 'APPROVED',
+      `"${(exp.notes || '').replace(/"/g, '""')}"`
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `sk_expenses_${selectedMonth}_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success('Expense report downloaded successfully!');
+  };
+
+  // ✏️ Handle Edit Expense Submit
+  const handleEditExpenseSubmit = async (e) => {
+    e.preventDefault();
+    if (!editingExpense) return;
+
+    setIsEditSubmitting(true);
+    try {
+      const payload = {
+        amount: Number(editExpenseForm.amount) || 0,
+        category: editExpenseForm.category,
+        notes: editExpenseForm.notes,
+        date: editExpenseForm.date,
+        fundSource: editExpenseForm.fundSource,
+        paymentMode: editExpenseForm.paymentMode,
+        technicianName: editExpenseForm.technicianName,
+        employeeName: editExpenseForm.employeeName,
+        referenceId: editExpenseForm.referenceId,
+        jobCode: editExpenseForm.jobCode,
+        expenseType: editExpenseForm.expenseType
+      };
+
+      const res = await updateExpenseApi(editingExpense._id, payload);
+      if (res && res.success !== false) {
+        toast.success('Expense record updated successfully!');
+        setEditingExpense(null);
+        await refreshAllData();
+      } else {
+        toast.error(res?.message || 'Failed to update expense.');
+      }
+    } catch (err) {
+      toast.error('Error updating expense.');
+    } finally {
+      setIsEditSubmitting(false);
+    }
+  };
+
+  // ✏️ Handle Edit Top-Up
+  const handleSaveTopupEdit = async (topupId) => {
+    try {
+      const res = await editPettyCashTopupApi({
+        branchId: topupForm.branchId,
+        topupId,
+        amount: Number(editTopupData.amount) || 0,
+        notes: editTopupData.notes,
+        date: editTopupData.date,
+        paymentMode: editTopupData.paymentMode
+      });
+
+      if (res && res.success !== false) {
+        toast.success('Top-up entry updated successfully!');
+        setEditingTopupId(null);
+        await refreshAllData();
+      } else {
+        toast.error(res?.message || 'Failed to update top-up.');
+      }
+    } catch (_) {
+      toast.error('Error updating top-up.');
+    }
+  };
+
   // Handle Form Submit
   const handleCreateExpense = async (e) => {
     e.preventDefault();
@@ -384,7 +510,7 @@ export default function Expenses() {
       let matchesFund = true;
       if (fundFilter === 'Branch 1') matchesFund = (exp.fundSource || '').includes('Branch 1');
       else if (fundFilter === 'Branch 2') matchesFund = (exp.fundSource || '').includes('Branch 2');
-      else if (fundFilter === 'Admin') matchesFund = (exp.fundSource || '').includes('Admin');
+      else if (fundFilter === 'Current Account' || fundFilter === 'Admin') matchesFund = (exp.fundSource || '').toLowerCase().includes('current') || (exp.fundSource || '').toLowerCase().includes('admin');
 
       return matchesSearch && matchesCat && matchesFund;
     });
@@ -399,7 +525,8 @@ export default function Expenses() {
 
   const b1 = pettyCashData?.branch1;
   const b2 = pettyCashData?.branch2;
-  const adminAcc = pettyCashData?.adminAccount;
+  const adminAcc = pettyCashData?.currentAccount || pettyCashData?.adminAccount;
+  const currentAcc = adminAcc;
 
   return (
     <div className="space-y-6 text-left pb-12">
@@ -441,6 +568,16 @@ export default function Expenses() {
           >
             <FiRefreshCw className="w-3.5 h-3.5" />
             <span>Petty Cash Top-Up</span>
+          </button>
+
+          {/* Download Expenses CSV */}
+          <button
+            onClick={handleExportCsv}
+            className="flex items-center gap-2 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 active:scale-95 transition-all"
+            title="Download full expense report as CSV"
+          >
+            <FiDownload className="w-4 h-4" />
+            <span>Download Expenses</span>
           </button>
 
           {/* Add Expense Button */}
@@ -574,7 +711,7 @@ export default function Expenses() {
           </div>
         </div>
 
-        {/* Admin Account (SARAN KUMAR) Card */}
+        {/* Current Account Card */}
         <div className="relative overflow-hidden bg-gradient-to-br from-white to-emerald-50/40 dark:from-slate-900 dark:to-slate-800/80 border border-emerald-200/90 dark:border-emerald-800/50 p-5 rounded-2xl shadow-xs">
           <div className="flex items-center justify-between pb-3 border-b border-emerald-100 dark:border-slate-800">
             <div className="flex items-center gap-2.5">
@@ -582,32 +719,55 @@ export default function Expenses() {
                 <FiCreditCard className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="font-bold text-sm text-slate-900 dark:text-white">Admin Account (SARAN KUMAR)</h3>
-                <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-semibold">UPI & Net Banking Transfers</span>
+                <h3 className="font-bold text-sm text-slate-900 dark:text-white">{currentAcc?.branchName || 'Current Account'}</h3>
+                <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-semibold">Company Bank (UPI & Net Banking)</span>
               </div>
             </div>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-              Direct Pay
-            </span>
+            <button
+              onClick={() => {
+                setTopupForm(prev => ({ ...prev, branchId: 'current-account', isOpeningBalanceReset: false }));
+                setTopupTab('add');
+                setIsTopupModalOpen(true);
+              }}
+              className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-200 transition-colors cursor-pointer"
+            >
+              + Top-Up / Edit
+            </button>
           </div>
 
           <div className="mt-4">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400 block">Total Disbursed This Month</span>
+            <div className="flex items-baseline justify-between">
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Available Account Balance</span>
+              {currentAcc ? (
+                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                  (currentAcc.remainingBalance || 0) > 1000 
+                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                    : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                }`}>
+                  {(currentAcc.remainingBalance || 0) > 0 ? 'Active' : 'Low Balance'}
+                </span>
+              ) : (
+                <span className="text-[11px] text-slate-400 font-medium">Loading...</span>
+              )}
+            </div>
             <h2 className="text-3xl font-black text-slate-900 dark:text-white mt-1 tracking-tight">
-              ₹{(adminAcc?.monthSpent ?? 0).toLocaleString('en-IN')}
+              {currentAcc ? `₹${Number(currentAcc.remainingBalance || 0).toLocaleString('en-IN')}` : '₹...'}
             </h2>
           </div>
 
-          <div className="flex flex-wrap gap-1.5 mt-4 pt-3 border-t border-emerald-100 dark:border-slate-800 text-[10px]">
-            <span className="px-2 py-0.5 rounded-md bg-emerald-100/70 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold">
-              PhonePe: ₹{adminAcc?.byMode?.['UPI - PhonePe'] || 0}
-            </span>
-            <span className="px-2 py-0.5 rounded-md bg-emerald-100/70 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold">
-              GPay: ₹{adminAcc?.byMode?.['UPI - GPay'] || 0}
-            </span>
-            <span className="px-2 py-0.5 rounded-md bg-emerald-100/70 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold">
-              NetBank: ₹{adminAcc?.byMode?.['Net Banking'] || 0}
-            </span>
+          <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-emerald-100 dark:border-slate-800 text-[11px]">
+            <div>
+              <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Allocated (Open + Topup)</span>
+              <span className="font-bold text-slate-800 dark:text-slate-200">
+                {currentAcc ? `₹${Number(currentAcc.totalAllocated || 0).toLocaleString('en-IN')}` : '₹...'}
+              </span>
+            </div>
+            <div className="text-right">
+              <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Spent This Month</span>
+              <span className="font-bold text-rose-600 dark:text-rose-400">
+                {currentAcc ? `-₹${Number(currentAcc.monthSpent || 0).toLocaleString('en-IN')}` : '-₹0'}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -724,7 +884,7 @@ export default function Expenses() {
           {/* Fund Source Filter */}
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Fund Source:</span>
-            {['ALL', 'Branch 1', 'Branch 2', 'Admin'].map(f => (
+            {['ALL', 'Branch 1', 'Branch 2', 'Current Account'].map(f => (
               <button
                 key={f}
                 onClick={() => setFundFilter(f)}
@@ -734,7 +894,7 @@ export default function Expenses() {
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
                 }`}
               >
-                {f === 'ALL' ? 'All Sources' : f === 'Admin' ? 'Admin Account' : `${f} Petty Cash`}
+                {f === 'ALL' ? 'All Sources' : (f === 'Admin' || f === 'Current Account') ? 'Current Account' : `${f} Petty Cash`}
               </button>
             ))}
           </div>
@@ -962,13 +1122,37 @@ export default function Expenses() {
                           {!exp.jobCode && !exp.referenceId && '-'}
                         </td>
                         <td className="py-3 px-4 text-right whitespace-nowrap">
-                          <button
-                            onClick={() => handleDeleteExpense(exp._id)}
-                            className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
-                            title="Delete record"
-                          >
-                            <FiTrash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => {
+                                setEditingExpense(exp);
+                                setEditExpenseForm({
+                                  expenseType: exp.expenseType || 'TECHNICIAN',
+                                  technicianName: exp.technicianName || '',
+                                  employeeName: exp.employeeName || '',
+                                  date: exp.date || '',
+                                  category: exp.category || '',
+                                  amount: exp.amount || '',
+                                  fundSource: exp.fundSource || 'Current Account',
+                                  paymentMode: exp.paymentMode || 'Petty Cash',
+                                  referenceId: exp.referenceId || '',
+                                  jobCode: exp.jobCode || '',
+                                  notes: exp.notes || ''
+                                });
+                              }}
+                              className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
+                              title="Edit expense record"
+                            >
+                              <FiEdit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteExpense(exp._id)}
+                              className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                              title="Delete record"
+                            >
+                              <FiTrash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -1590,6 +1774,148 @@ export default function Expenses() {
                   className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 active:scale-95 transition-all"
                 >
                   {isTopupSubmitting ? 'Saving...' : topupForm.isOpeningBalanceReset ? 'Set Opening Balance' : 'Add Top-Up'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: Edit Expense Modal (Admin Only) */}
+      {editingExpense && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden">
+            <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/40">
+              <div>
+                <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                  <FiEdit2 className="w-4 h-4 text-blue-600" />
+                  <span>Edit Expense Record</span>
+                </h3>
+                <p className="text-xs text-slate-500">Admin privilege: update amount, category, or notes</p>
+              </div>
+              <button
+                onClick={() => setEditingExpense(null)}
+                className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer"
+              >
+                <FiX className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditExpenseSubmit} className="p-5 space-y-4 max-h-[80vh] overflow-y-auto no-scrollbar">
+              {/* Fund Account */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Fund Source *</label>
+                <select
+                  value={editExpenseForm.fundSource}
+                  onChange={(e) => setEditExpenseForm({ ...editExpenseForm, fundSource: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none"
+                >
+                  <option value="Current Account">Current Account (Company Bank)</option>
+                  <option value="Branch 1 Petty Cash">Branch 1 Petty Cash</option>
+                  <option value="Branch 2 Petty Cash">Branch 2 Petty Cash</option>
+                </select>
+              </div>
+
+              {/* Amount & Category */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Amount (₹) *</label>
+                  <input
+                    type="number"
+                    required
+                    value={editExpenseForm.amount}
+                    onChange={(e) => setEditExpenseForm({ ...editExpenseForm, amount: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Category *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editExpenseForm.category}
+                    onChange={(e) => setEditExpenseForm({ ...editExpenseForm, category: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Person / Technician Name & Date */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Person / Tech Name</label>
+                  <input
+                    type="text"
+                    value={editExpenseForm.technicianName}
+                    onChange={(e) => setEditExpenseForm({ ...editExpenseForm, technicianName: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={editExpenseForm.date}
+                    onChange={(e) => setEditExpenseForm({ ...editExpenseForm, date: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Payment Mode & Reference */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Payment Method</label>
+                  <select
+                    value={editExpenseForm.paymentMode}
+                    onChange={(e) => setEditExpenseForm({ ...editExpenseForm, paymentMode: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none"
+                  >
+                    <option value="UPI - PhonePe">UPI - PhonePe</option>
+                    <option value="UPI - GPay">UPI - Google Pay</option>
+                    <option value="UPI - Paytm">UPI - Paytm</option>
+                    <option value="Net Banking">Net Banking</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Petty Cash">Petty Cash</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Txn / UTR / Ref</label>
+                  <input
+                    type="text"
+                    value={editExpenseForm.referenceId}
+                    onChange={(e) => setEditExpenseForm({ ...editExpenseForm, referenceId: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Notes / Description */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Notes / Description</label>
+                <textarea
+                  rows="2"
+                  value={editExpenseForm.notes}
+                  onChange={(e) => setEditExpenseForm({ ...editExpenseForm, notes: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setEditingExpense(null)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isEditSubmitting}
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-600/20 active:scale-95 transition-all cursor-pointer"
+                >
+                  {isEditSubmitting ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </form>

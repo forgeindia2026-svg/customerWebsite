@@ -1,3 +1,4 @@
+import { getCache, setCache, invalidateCache } from '../services/redisService';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { Router, Request, Response } from 'express';
 import Order from '../models/Order';
@@ -9,18 +10,27 @@ import { clearDashboardCache } from './dashboardRoutes';
 
 const router = Router();
 
-// GET all orders — with optional ?email= filter for customer dashboard
+// GET all orders — with optional ?email= filter for customer dashboard (⚡ Redis Cached)
 router.get('/', async (req: Request, res: Response) => {
   try {
     const emailFilter = req.query.email as string | undefined;
+    const cacheKey = `orders:${emailFilter ? emailFilter.toLowerCase() : 'all'}`;
+
+    const cached = await getCache(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+
     const query = emailFilter ? { customerEmail: emailFilter.toLowerCase() } : {};
-    const orders = await Order.find(query).sort({ createdAt: -1 });
-    res.json({ success: true, count: orders.length, data: orders });
+    const orders = await Order.find(query).sort({ createdAt: -1 }).lean();
+    const result = { success: true, count: orders.length, data: orders };
+
+    await setCache(cacheKey, result, 60);
+    res.json(result);
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
-
 function extractCleanJobTitle(raw: string): string {
   if (!raw) return 'CCTV Installation & Service';
   const parts = raw.split('|').map(p => p.trim()).filter(Boolean);
@@ -273,7 +283,7 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     clearDashboardCache();
-    res.json({ success: true, order: savedOrder, data: savedOrder });
+    invalidateCache("orders:*"); invalidateCache("dashboard:*"); res.json({ success: true, order: savedOrder, data: savedOrder });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -429,7 +439,7 @@ router.put('/:id', async (req: Request, res: Response) => {
 
     clearDashboardCache();
     broadcastEvent('dashboard:updated', {});
-    res.json({ success: true, data: updatedOrder });
+    invalidateCache("orders:*"); invalidateCache("dashboard:*"); res.json({ success: true, data: updatedOrder });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -520,7 +530,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 
     clearDashboardCache();
     broadcastEvent('dashboard:updated', {});
-    res.json({ success: true, message: 'Order and associated records deleted successfully' });
+    invalidateCache("orders:*"); invalidateCache("dashboard:*"); res.json({ success: true, message: "Order and associated records deleted successfully" });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

@@ -1,3 +1,4 @@
+import { getCache, setCache, invalidateCache } from '../services/redisService';
 import { Router, Request, Response } from 'express';
 import Job from '../models/Job';
 import Order from '../models/Order';
@@ -570,6 +571,13 @@ router.get('/dashboard-summary', async (req: Request, res: Response) => {
 router.get('/', async (req: Request, res: Response) => {
   try {
     const { status, priority, search, technicianId, technicianName, includeAvailable } = req.query;
+    const requesterRole = (req.headers['role'] as string) || (req.headers['user-role'] as string) || '';
+    const isTechRequest = Boolean(technicianId || technicianName || requesterRole.toUpperCase() === 'TECHNICIAN');
+    const cacheKey = `jobs:${JSON.stringify(req.query)}:${isTechRequest ? 'tech' : 'admin'}`;
+    const cached = await getCache(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
     let filter: any = {};
     const andClauses: any[] = [];
 
@@ -645,8 +653,7 @@ router.get('/', async (req: Request, res: Response) => {
       .lean();
 
     // Sanitize for technicians: strictly hide companyProfit and totalValue, only expose technicianEarning
-    const requesterRole = (req.headers['role'] as string) || (req.headers['user-role'] as string) || '';
-    const isTechRequest = Boolean(technicianId || technicianName || requesterRole.toUpperCase() === 'TECHNICIAN');
+    // Already computed above
     const sanitizedJobs = jobs.map((j: any) => {
       if (isTechRequest && j.financials) {
         return {
@@ -662,7 +669,9 @@ router.get('/', async (req: Request, res: Response) => {
       return j;
     });
 
-    res.json({ success: true, count: sanitizedJobs.length, data: sanitizedJobs });
+    const responseData = { success: true, count: sanitizedJobs.length, data: sanitizedJobs };
+    await setCache(cacheKey, responseData, 60);
+    res.json(responseData);
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

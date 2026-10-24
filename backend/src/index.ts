@@ -1,3 +1,4 @@
+import { initRedis } from './services/redisService';
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -27,6 +28,7 @@ const server = http.createServer(app);
 
 // Initialize Socket.io Real-time Gateway
 initSocket(server);
+initRedis();
 
 app.use(cors({
   origin: true,

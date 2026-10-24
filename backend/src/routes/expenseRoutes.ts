@@ -1,3 +1,4 @@
+import { invalidateCache } from '../services/redisService';
 import express, { Request, Response } from 'express';
 import Expense from '../models/Expense';
 import PettyCashAccount from '../models/PettyCashAccount';
@@ -53,9 +54,26 @@ export const getPettyCashAccountsSummary = async (targetMonth?: string) => {
   const b1TopupsTotal = (b1.topups || []).reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
   const b1Allocated = (Number(b1.openingBalance) || 0) + b1TopupsTotal;
 
+  // Current Account (Company Bank / Direct Pay)
+  let ca = await PettyCashAccount.findOne({
+    $or: [{ branchId: 'current-account' }, { branchId: 'admin-account' }]
+  });
+  if (!ca) {
+    ca = await PettyCashAccount.create({
+      branchId: 'current-account',
+      branchName: 'Current Account',
+      openingBalance: 0,
+      topups: []
+    });
+  }
+
   // Branch 2 allocation & spent
   const b2TopupsTotal = (b2.topups || []).reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
   const b2Allocated = (Number(b2.openingBalance) || 0) + b2TopupsTotal;
+
+  // Current Account allocation & spent
+  const caTopupsTotal = (ca.topups || []).reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+  const caAllocated = (Number(ca.openingBalance) || 0) + caTopupsTotal;
 
   // Fetch all expenses to calculate live remaining balances
   const allExpenses = await Expense.find({});
@@ -74,18 +92,36 @@ export const getPettyCashAccountsSummary = async (targetMonth?: string) => {
     .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   const b2Remaining = Math.max(0, b2Allocated - b2Spent);
 
-  // Admin Account (SARAN KUMAR) - UPI / Net Banking / Cash
-  const adminExpenses = allExpenses.filter(e => e.fundSource === 'Admin Account');
-  const adminTotalSpent = adminExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
-  const adminMonthSpent = adminExpenses
+  // Current Account / Admin Account expenses
+  const caExpenses = allExpenses.filter(e => {
+    const src = (e.fundSource || '').toLowerCase();
+    return src.includes('current account') || src.includes('admin account') || src.includes('bank');
+  });
+  const caSpent = caExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  const caMonthSpent = caExpenses
     .filter(e => e.date && e.date.startsWith(currentMonth))
     .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  const caRemaining = Math.max(0, caAllocated - caSpent);
 
-  const adminByMode: Record<string, number> = {};
-  adminExpenses.forEach(e => {
+  const caByMode: Record<string, number> = {};
+  caExpenses.forEach(e => {
     const mode = e.paymentMode || 'UPI - PhonePe';
-    adminByMode[mode] = (adminByMode[mode] || 0) + (Number(e.amount) || 0);
+    caByMode[mode] = (caByMode[mode] || 0) + (Number(e.amount) || 0);
   });
+
+  const currentAccObj = {
+    branchId: 'current-account',
+    branchName: ca.branchName || 'Current Account',
+    name: ca.branchName || 'Current Account',
+    openingBalance: Number(ca.openingBalance) || 0,
+    totalTopups: caTopupsTotal,
+    totalAllocated: caAllocated,
+    totalSpent: caSpent,
+    monthSpent: caMonthSpent,
+    remainingBalance: caRemaining,
+    topups: ca.topups || [],
+    byMode: caByMode
+  };
 
   return {
     branch1: {
@@ -110,12 +146,8 @@ export const getPettyCashAccountsSummary = async (targetMonth?: string) => {
       remainingBalance: b2Remaining,
       topups: b2.topups || []
     },
-    adminAccount: {
-      name: 'Admin Account (SARAN KUMAR)',
-      totalSpent: adminTotalSpent,
-      monthSpent: adminMonthSpent,
-      byMode: adminByMode
-    }
+    currentAccount: currentAccObj,
+    adminAccount: currentAccObj
   };
 };
 
@@ -148,8 +180,16 @@ router.post('/petty-cash/topup', async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: 'branchId and amount are required' });
     }
 
-    const cleanBranchId = String(branchId).toLowerCase().trim() === 'branch-2' ? 'branch-2' : 'branch-1';
-    const cleanBranchName = cleanBranchId === 'branch-2' ? 'Branch 2' : 'Branch 1';
+    const rawId = String(branchId).toLowerCase().trim();
+    let cleanBranchId = 'branch-1';
+    let cleanBranchName = 'Branch 1';
+    if (rawId.includes('current') || rawId.includes('admin') || rawId === 'current-account') {
+      cleanBranchId = 'current-account';
+      cleanBranchName = 'Current Account';
+    } else if (rawId.includes('2') || rawId === 'branch-2') {
+      cleanBranchId = 'branch-2';
+      cleanBranchName = 'Branch 2';
+    }
     const numAmount = Math.max(0, Number(amount));
 
     let account = await PettyCashAccount.findOne({ branchId: cleanBranchId });
@@ -178,6 +218,7 @@ router.post('/petty-cash/topup', async (req: Request, res: Response) => {
 
     await account.save();
 
+    try { await invalidateCache('dashboard:*'); } catch (_) {}
     const updatedSummary = await getPettyCashAccountsSummary();
 
     res.json({
@@ -197,6 +238,90 @@ router.post('/petty-cash/topup', async (req: Request, res: Response) => {
  * GET /api/expenses/summary
  * Aggregate summary for Dashboard KPI, Overview, and Accounts
  */
+
+/**
+ * PUT /api/expenses/petty-cash/topup
+ * Edit a specific top-up amount / notes / date
+ */
+router.put('/petty-cash/topup', async (req: Request, res: Response) => {
+  try {
+    const { branchId, topupId, index, amount, notes, date, paymentMode } = req.body;
+    const rawId = String(branchId || '').toLowerCase().trim();
+    let cleanBranchId = 'branch-1';
+    if (rawId.includes('current') || rawId.includes('admin')) {
+      cleanBranchId = 'current-account';
+    } else if (rawId.includes('2')) {
+      cleanBranchId = 'branch-2';
+    }
+
+    const account = await PettyCashAccount.findOne({
+      $or: [{ branchId: cleanBranchId }, ...(cleanBranchId === 'current-account' ? [{ branchId: 'admin-account' }] : [])]
+    });
+    if (!account) {
+      return res.status(404).json({ success: false, message: 'Account not found' });
+    }
+
+    let topupItem: any = null;
+    if (topupId) {
+      topupItem = (account.topups as any).id ? (account.topups as any).id(topupId) : null;
+    }
+    if (!topupItem && index !== undefined && account.topups[index]) {
+      topupItem = account.topups[index];
+    }
+    if (!topupItem && Array.isArray(account.topups) && account.topups.length > 0) {
+      topupItem = account.topups.find((t: any) => String(t._id || '') === String(topupId));
+    }
+
+    if (!topupItem) {
+      return res.status(404).json({ success: false, message: 'Top-up entry not found' });
+    }
+
+    if (amount !== undefined) topupItem.amount = Math.max(0, Number(amount));
+    if (notes !== undefined) topupItem.notes = notes;
+    if (date !== undefined) topupItem.date = date;
+    if (paymentMode !== undefined) topupItem.paymentMode = paymentMode;
+
+    await account.save();
+    try { await invalidateCache('dashboard:*'); } catch (_) {}
+    const updatedSummary = await getPettyCashAccountsSummary();
+    res.json({ success: true, message: 'Top-up updated successfully', data: updatedSummary });
+  } catch (err: any) {
+    console.error('Error editing top-up:', err);
+    res.status(500).json({ success: false, message: err.message || 'Server error' });
+  }
+});
+
+/**
+ * PUT /api/expenses/petty-cash/account-name
+ * Edit account name (e.g. Current Account, Company Bank, etc.)
+ */
+router.put('/petty-cash/account-name', async (req: Request, res: Response) => {
+  try {
+    const { branchId, name } = req.body;
+    if (!branchId || !name) {
+      return res.status(400).json({ success: false, message: 'branchId and name are required' });
+    }
+    const rawId = String(branchId).toLowerCase().trim();
+    let cleanBranchId = 'branch-1';
+    if (rawId.includes('current') || rawId.includes('admin')) cleanBranchId = 'current-account';
+    else if (rawId.includes('2')) cleanBranchId = 'branch-2';
+
+    let account = await PettyCashAccount.findOne({
+      $or: [{ branchId: cleanBranchId }, ...(cleanBranchId === 'current-account' ? [{ branchId: 'admin-account' }] : [])]
+    });
+    if (!account) {
+      account = new PettyCashAccount({ branchId: cleanBranchId, branchName: name.trim(), openingBalance: 0, topups: [] });
+    } else {
+      account.branchName = name.trim();
+    }
+    await account.save();
+    try { await invalidateCache('dashboard:*'); } catch (_) {}
+    res.json({ success: true, message: 'Account name updated successfully', branchName: account.branchName });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 router.get('/summary', async (req: Request, res: Response) => {
   try {
     const currentMonth = (req.query.month as string) || getCurrentYearMonth();

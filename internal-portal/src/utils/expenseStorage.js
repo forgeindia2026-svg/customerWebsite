@@ -391,3 +391,59 @@ export const deleteExpenseApi = async (id) => {
 
   return { success: true };
 };
+
+/**
+ * Update an existing expense
+ */
+export const updateExpenseApi = async (id, expenseData) => {
+  const localList = getLocalExpenses();
+  const updatedList = localList.map(e => e._id === id ? { ...e, ...expenseData, updatedAt: new Date().toISOString() } : e);
+  saveLocalExpenses(updatedList);
+
+  try {
+    const res = await fetch(`${getExpensesBase()}/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(expenseData)
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (_) {}
+
+  return { success: true };
+};
+
+/**
+ * Edit an existing petty cash top-up
+ */
+export const editPettyCashTopupApi = async ({ branchId, topupId, index, amount, notes, date, paymentMode }) => {
+  try {
+    const res = await fetch(`${getExpensesBase()}/petty-cash/topup`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ branchId, topupId, index, amount, notes, date, paymentMode })
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (_) {}
+  return { success: false };
+};
+
+/**
+ * Update account name (e.g. Current Account)
+ */
+export const updateAccountNameApi = async ({ branchId, name }) => {
+  try {
+    const res = await fetch(`${getExpensesBase()}/petty-cash/account-name`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ branchId, name })
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (_) {}
+  return { success: false };
+};
