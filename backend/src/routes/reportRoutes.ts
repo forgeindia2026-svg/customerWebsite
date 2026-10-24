@@ -16,10 +16,14 @@ router.get('/', async (req: Request, res: Response) => {
       query.date = { $regex: `^${month}` }; // Match YYYY-MM
     }
 
-    const reports = await TechnicianReport.find(query).sort({ updatedAt: -1, createdAt: -1 });
+        const limit = req.query.limit ? Number(req.query.limit) : 100;
+    const reports = await TechnicianReport.find(query)
+      .sort({ _id: -1 })
+      .limit(limit)
+      .lean();
 
     // Return all submitted daily reports as distinct historical entries
-    const uniqueReports: any[] = reports.map(r => r.toObject());
+    const uniqueReports: any[] = reports;
 
     // Resolve any MongoDB ObjectID photo references to actual URLs
     // The mobile app sometimes stores the photo's ObjectID instead of the URL
