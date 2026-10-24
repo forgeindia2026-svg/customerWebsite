@@ -158,7 +158,7 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
 
   const handleFundSourceChange = (newSource: string) => {
     let newPaymentMode = 'Petty Cash';
-    if (newSource === 'Admin Account') {
+    if (newSource === 'Current Account' || newSource === 'Admin Account') {
       newPaymentMode = 'UPI - PhonePe';
     }
     setFormData(prev => ({
@@ -223,8 +223,12 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
       const current = Number(b2?.remainingBalance || 0);
       return { current, after: current - entered, isPetty: true };
     }
+    if (formData.fundSource === 'Current Account' || formData.fundSource === 'Admin Account') {
+      const current = Number(pettyCashData?.currentAccount?.remainingBalance ?? pettyCashData?.adminAccount?.remainingBalance ?? 0);
+      return { current, after: current - entered, isPetty: true };
+    }
     return { current: 0, after: 0, isPetty: false };
-  }, [formData.fundSource, formData.amount, b1, b2]);
+  }, [formData.fundSource, formData.amount, b1, b2, pettyCashData]);
 
   if (!isOpen) return null;
 
@@ -261,7 +265,7 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
         category: formData.category,
         amount: parseFloat(formData.amount),
         fundSource: formData.fundSource,
-        paymentMode: formData.fundSource === 'Admin Account' ? formData.paymentMode : 'Petty Cash',
+        paymentMode: (formData.fundSource === 'Current Account' || formData.fundSource === 'Admin Account') ? formData.paymentMode : 'Petty Cash',
         referenceId: formData.referenceId || '',
         notes: formData.notes || '',
         jobCode: formData.jobCode || '',
@@ -465,17 +469,17 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
                     </span>
                   </button>
 
-                  {/* Admin Account */}
+                  {/* Current Account */}
                   <button
                     type="button"
-                    onClick={() => handleFundSourceChange('Admin Account')}
+                    onClick={() => handleFundSourceChange('Current Account')}
                     className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
-                      formData.fundSource === 'Admin Account'
+                      formData.fundSource === 'Current Account' || formData.fundSource === 'Admin Account'
                         ? 'border-emerald-500 bg-emerald-50/70 ring-2 ring-emerald-500/20'
                         : 'border-zinc-200 bg-zinc-50/60 hover:border-zinc-300'
                     }`}
                   >
-                    <span className="font-bold text-xs text-zinc-900 block truncate">Admin Account</span>
+                    <span className="font-bold text-xs text-zinc-900 block truncate">Current Account</span>
                     <span className="text-[10px] text-emerald-600 font-bold block mt-0.5 truncate">
                       UPI / NetBank
                     </span>
@@ -483,8 +487,8 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
                 </div>
               </div>
 
-              {/* ADMIN ACCOUNT EXTRA FIELDS (Payment Method & Reference ID) */}
-              {formData.fundSource === 'Admin Account' && (
+              {/* CURRENT ACCOUNT EXTRA FIELDS (Payment Method & Reference ID) */}
+              {(formData.fundSource === 'Current Account' || formData.fundSource === 'Admin Account') && (
                 <div className="p-3 bg-emerald-50/60 rounded-xl border border-emerald-200 space-y-2.5">
                   <div className="grid grid-cols-2 gap-2.5">
                     <div>

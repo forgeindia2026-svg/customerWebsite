@@ -195,7 +195,7 @@ export default function Expenses() {
   // Handle Fund Source Switch in Modal
   const handleFundSourceChange = (newSource) => {
     let newPaymentMode = 'Petty Cash';
-    if (newSource === 'Admin Account') {
+    if (newSource === 'Current Account' || newSource === 'Admin Account') {
       newPaymentMode = 'UPI - PhonePe';
     }
     setFormData(prev => ({
@@ -268,11 +268,12 @@ export default function Expenses() {
         isPetty: true
       };
     }
+    const currentAvail = Number(pettyCashData?.currentAccount?.remainingBalance ?? pettyCashData?.adminAccount?.remainingBalance ?? 0);
     return {
-      sourceName: 'Admin Account (SARAN KUMAR)',
-      current: null,
-      after: null,
-      isPetty: false
+      sourceName: 'Current Account (Company Bank)',
+      current: currentAvail,
+      after: currentAvail - amountNum,
+      isPetty: true
     };
   }, [formData.fundSource, formData.amount, pettyCashData]);
 
@@ -1323,17 +1324,17 @@ export default function Expenses() {
                     </span>
                   </button>
 
-                  {/* Admin Account */}
+                  {/* Current Account */}
                   <button
                     type="button"
-                    onClick={() => handleFundSourceChange('Admin Account')}
+                    onClick={() => handleFundSourceChange('Current Account')}
                     className={`p-2.5 rounded-xl border text-left transition-all ${
-                      formData.fundSource === 'Admin Account'
+                      formData.fundSource === 'Current Account' || formData.fundSource === 'Admin Account'
                         ? 'border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/40 ring-2 ring-emerald-500/20'
                         : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 hover:border-slate-300'
                     }`}
                   >
-                    <span className="font-bold text-xs text-slate-900 dark:text-white block">Admin Account</span>
+                    <span className="font-bold text-xs text-slate-900 dark:text-white block">Current Account</span>
                     <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block mt-0.5">
                       UPI / NetBank
                     </span>
@@ -1341,8 +1342,8 @@ export default function Expenses() {
                 </div>
               </div>
 
-              {/* ADMIN ACCOUNT EXTRA FIELDS (Payment Mode & Reference ID) */}
-              {formData.fundSource === 'Admin Account' && (
+              {/* CURRENT ACCOUNT EXTRA FIELDS (Payment Mode & Reference ID) */}
+              {(formData.fundSource === 'Current Account' || formData.fundSource === 'Admin Account') && (
                 <div className="p-3 bg-emerald-50/60 dark:bg-emerald-950/30 rounded-xl border border-emerald-200/80 dark:border-emerald-800/50 space-y-3">
                   <div className="grid grid-cols-2 gap-2.5">
                     <div>
@@ -1636,9 +1637,15 @@ export default function Expenses() {
             <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/40">
               <div>
                 <h3 className="font-bold text-base text-slate-900 dark:text-white">
-                  {topupForm.isOpeningBalanceReset ? 'Set Monthly Opening Balance' : 'Top-Up Petty Cash Fund'}
+                  {topupForm.branchId === 'current-account'
+                    ? (topupForm.isOpeningBalanceReset ? 'Set Current Account Opening Balance' : 'Top-Up Current Account (Company Bank)')
+                    : (topupForm.isOpeningBalanceReset ? 'Set Monthly Opening Balance' : 'Top-Up Petty Cash Fund')}
                 </h3>
-                <p className="text-xs text-slate-500">Add physical cash or set starting balance for branch</p>
+                <p className="text-xs text-slate-500">
+                  {topupForm.branchId === 'current-account'
+                    ? 'Add bank funds (UPI / Net Banking / Deposit) or set starting bank balance'
+                    : 'Add physical cash or set starting balance for branch'}
+                </p>
               </div>
               <button
                 onClick={() => setIsTopupModalOpen(false)}
@@ -1649,31 +1656,42 @@ export default function Expenses() {
             </div>
 
             <form onSubmit={handleTopupSubmit} className="p-5 space-y-4">
-              {/* Branch Selection */}
+              {/* Branch / Account Selection */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Select Branch *</label>
-                <div className="grid grid-cols-2 gap-2">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Select Account / Branch *</label>
+                <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
                     onClick={() => setTopupForm({ ...topupForm, branchId: 'branch-1' })}
-                    className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
+                    className={`py-2 px-2 rounded-xl border text-[11px] font-bold transition-all text-center ${
                       topupForm.branchId === 'branch-1'
-                        ? 'border-sky-500 bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300'
+                        ? 'border-sky-500 bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300 ring-2 ring-sky-500/20'
                         : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
                     }`}
                   >
-                    Branch 1 (Main Office)
+                    Branch 1
                   </button>
                   <button
                     type="button"
                     onClick={() => setTopupForm({ ...topupForm, branchId: 'branch-2' })}
-                    className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
+                    className={`py-2 px-2 rounded-xl border text-[11px] font-bold transition-all text-center ${
                       topupForm.branchId === 'branch-2'
-                        ? 'border-purple-500 bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300'
+                        ? 'border-purple-500 bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 ring-2 ring-purple-500/20'
                         : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
                     }`}
                   >
                     Branch 2
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTopupForm({ ...topupForm, branchId: 'current-account', paymentMode: 'Bank Transfer' })}
+                    className={`py-2 px-2 rounded-xl border text-[11px] font-bold transition-all text-center ${
+                      topupForm.branchId === 'current-account'
+                        ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 ring-2 ring-emerald-500/20'
+                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    Current Account
                   </button>
                 </div>
               </div>
@@ -1735,15 +1753,28 @@ export default function Expenses() {
 
               {/* Payment Mode (e.g. Handover Cash or Bank Withdrawal) */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Disbursed Via</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  {topupForm.branchId === 'current-account' ? 'Deposit / Transfer Mode' : 'Disbursed Via'}
+                </label>
                 <select
                   value={topupForm.paymentMode}
                   onChange={(e) => setTopupForm({ ...topupForm, paymentMode: e.target.value })}
                   className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none"
                 >
-                  <option value="Cash">Direct Physical Cash Handover</option>
-                  <option value="Bank ATM Withdrawal">Bank / ATM Cash Withdrawal</option>
-                  <option value="UPI Transfer">Admin UPI Handover</option>
+                  {topupForm.branchId === 'current-account' ? (
+                    <>
+                      <option value="Bank Transfer">Bank Transfer / NEFT / RTGS</option>
+                      <option value="UPI Deposit">UPI Deposit</option>
+                      <option value="Cash Deposit">Cash Deposit into Bank</option>
+                      <option value="Cheque Deposit">Cheque Deposit</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="Cash">Direct Physical Cash Handover</option>
+                      <option value="Bank ATM Withdrawal">Bank / ATM Cash Withdrawal</option>
+                      <option value="UPI Transfer">Admin UPI Handover</option>
+                    </>
+                  )}
                 </select>
               </div>
 

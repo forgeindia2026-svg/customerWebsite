@@ -51,14 +51,20 @@ export const getLocalPettyAccounts = () => {
     if (!raw) {
       return {
         'branch-1': { branchId: 'branch-1', branchName: 'Branch 1 (Main Office)', openingBalance: 0, topups: [] },
-        'branch-2': { branchId: 'branch-2', branchName: 'Branch 2', openingBalance: 0, topups: [] }
+        'branch-2': { branchId: 'branch-2', branchName: 'Branch 2', openingBalance: 0, topups: [] },
+        'current-account': { branchId: 'current-account', branchName: 'Current Account (Company Bank)', openingBalance: 0, topups: [] }
       };
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (!parsed['current-account']) {
+      parsed['current-account'] = { branchId: 'current-account', branchName: 'Current Account (Company Bank)', openingBalance: 0, topups: [] };
+    }
+    return parsed;
   } catch (_) {
     return {
       'branch-1': { branchId: 'branch-1', branchName: 'Branch 1 (Main Office)', openingBalance: 0, topups: [] },
-      'branch-2': { branchId: 'branch-2', branchName: 'Branch 2', openingBalance: 0, topups: [] }
+      'branch-2': { branchId: 'branch-2', branchName: 'Branch 2', openingBalance: 0, topups: [] },
+      'current-account': { branchId: 'current-account', branchName: 'Current Account (Company Bank)', openingBalance: 0, topups: [] }
     };
   }
 };
@@ -171,34 +177,46 @@ export const calculateExpensesSummary = (expensesList, targetMonth) => {
 
   const branch1 = calcBranch('branch-1', 'Branch 1 (Main Office)');
   const branch2 = calcBranch('branch-2', 'Branch 2');
+  const currentAcc = calcBranch('current-account', 'Current Account (Company Bank)');
 
-  const adminExpenses = list.filter(e => (e.fundSource || '').toLowerCase().includes('admin'));
-  const adminMonthSpent = adminExpenses
+  const caExpenses = list.filter(e => {
+    const src = (e.fundSource || '').toLowerCase();
+    return src.includes('current') || src.includes('admin') || src.includes('bank');
+  });
+  const caMonthSpent = caExpenses
     .filter(e => e.date && e.date.startsWith(currentMonth))
     .reduce((s, e) => s + (Number(e.amount) || 0), 0);
-  const adminTotalSpent = adminExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const caTotalSpent = caExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
 
-  const adminByMode = {
+  const caByMode = {
     'UPI - PhonePe': 0,
     'UPI - GPay': 0,
     'UPI - Paytm': 0,
     'Net Banking': 0,
     'Cash': 0
   };
-  adminExpenses.filter(e => e.date && e.date.startsWith(currentMonth)).forEach(e => {
+  caExpenses.filter(e => e.date && e.date.startsWith(currentMonth)).forEach(e => {
     const m = e.paymentMode || 'UPI - PhonePe';
-    adminByMode[m] = (adminByMode[m] || 0) + (Number(e.amount) || 0);
+    caByMode[m] = (caByMode[m] || 0) + (Number(e.amount) || 0);
   });
+
+  const caRemaining = Math.max(0, currentAcc.totalAllocated - caTotalSpent);
+
+  const currentAccountObj = {
+    ...currentAcc,
+    branchName: 'Current Account',
+    accountName: 'Current Account (Company Bank)',
+    monthSpent: caMonthSpent,
+    totalSpent: caTotalSpent,
+    remainingBalance: caRemaining,
+    byMode: caByMode
+  };
 
   const pettyCashSummary = {
     branch1,
     branch2,
-    adminAccount: {
-      accountName: 'Admin Account (SARAN KUMAR)',
-      monthSpent: adminMonthSpent,
-      totalSpent: adminTotalSpent,
-      byMode: adminByMode
-    }
+    currentAccount: currentAccountObj,
+    adminAccount: currentAccountObj
   };
 
   return {
@@ -303,7 +321,15 @@ export const fetchPettyCashSummaryApi = async (month) => {
 export const topupPettyCashApi = async ({ branchId, amount, isOpeningBalanceReset, notes, paymentMode, date }) => {
   // Update local storage first
   const accounts = getLocalPettyAccounts();
-  const acc = accounts[branchId] || { branchId, branchName: branchId === 'branch-1' ? 'Branch 1 (Main Office)' : 'Branch 2', openingBalance: 0, topups: [] };
+  const rawId = String(branchId || '').toLowerCase().trim();
+  const cleanId = (rawId.includes('current') || rawId.includes('admin')) 
+    ? 'current-account' 
+    : (rawId.includes('2') ? 'branch-2' : 'branch-1');
+  const fallbackName = cleanId === 'current-account' 
+    ? 'Current Account (Company Bank)' 
+    : (cleanId === 'branch-2' ? 'Branch 2' : 'Branch 1 (Main Office)');
+
+  const acc = accounts[cleanId] || { branchId: cleanId, branchName: fallbackName, openingBalance: 0, topups: [] };
 
   const parsedAmt = Number(amount) || 0;
   if (isOpeningBalanceReset) {
@@ -315,11 +341,11 @@ export const topupPettyCashApi = async ({ branchId, amount, isOpeningBalanceRese
       amount: parsedAmt,
       date: date || new Date().toISOString().split('T')[0],
       notes: notes || '',
-      paymentMode: paymentMode || 'Cash',
+      paymentMode: paymentMode || (cleanId === 'current-account' ? 'Bank Transfer' : 'Cash'),
       addedBy: 'Admin'
     });
   }
-  accounts[branchId] = acc;
+  accounts[cleanId] = acc;
   saveLocalPettyAccounts(accounts);
 
   // Sync with backend
