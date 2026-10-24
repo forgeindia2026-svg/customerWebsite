@@ -1386,11 +1386,15 @@ router.patch('/:id/location', async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: 'Latitude and Longitude are required' });
     }
 
-    const isMongoId = /^[0-9a-fA-F]{24}$/.test(req.params.id as string);
+    const rawId = req.params.id as string;
+    const cleanCode = rawId.replace(/^#/, '').trim();
+    const isMongoId = /^[0-9a-fA-F]{24}$/.test(cleanCode);
     const job = await Job.findOne({
       $or: [
-        ...(isMongoId ? [{ _id: req.params.id }] : []),
-        { jobCode: req.params.id },
+        ...(isMongoId ? [{ _id: cleanCode }] : []),
+        { jobCode: rawId },
+        { jobCode: cleanCode },
+        { jobCode: `#${cleanCode}` },
       ],
     });
     if (!job) {
@@ -1456,6 +1460,10 @@ router.post('/:id/upload-photo', async (req: Request, res: Response) => {
     };
 
     if (type === 'BEFORE') {
+      if (job.status !== 'IN_PROGRESS') {
+        job.status = 'IN_PROGRESS';
+        (job as any).markModified('status');
+      }
       if (!job.beforePhotos) job.beforePhotos = [];
       job.beforePhotos.push(photoObj);
       if (job.workProgress) {
@@ -1480,6 +1488,10 @@ router.post('/:id/upload-photo', async (req: Request, res: Response) => {
     }
 
     await job.save();
+    try {
+      await invalidateCache('jobs:*');
+      await invalidateCache('orders:*');
+    } catch (_) {}
 
     emitToJob(job._id.toString(), 'job:photo_added', { jobId: job._id, photo: photoObj });
     emitToRole('admin', 'job:photo_added', { jobId: job._id, jobCode: job.jobCode, photo: photoObj });

@@ -1306,9 +1306,20 @@ export default function Reports() {
     const cleanCode = (gr.jobCode || '').replace(/^#/, '').trim().toUpperCase();
     const meta = orderMetadataMap.get(cleanCode);
 
-    const isJobCompletedInOrder = (meta?.status || '').toUpperCase().includes('COMPLET');
-    const isReportCompleted = (gr.jobStatus || gr.status || '').toUpperCase().includes('COMPLET') || (gr.notes || '').toLowerCase().includes('completed');
-    const finalJobStatus = (isJobCompletedInOrder || isReportCompleted) ? 'COMPLETED' : (gr.jobStatus || (gr.status !== 'Approved' && gr.status !== 'VERIFIED' && gr.status !== 'PRESENT' ? gr.status : null) || (meta?.status !== 'Approved' ? meta?.status : null) || 'COMPLETED');
+    // Determine accurate Job Status for this specific report entry
+    const rawJobStatus = (gr.jobStatus || gr.status || '').toUpperCase().trim();
+    let finalJobStatus = 'IN_PROGRESS';
+    if (rawJobStatus === 'COMPLETED' || rawJobStatus === 'VERIFIED') {
+      finalJobStatus = 'COMPLETED';
+    } else if (rawJobStatus === 'IN_PROGRESS' || rawJobStatus === 'IN PROGRESS') {
+      finalJobStatus = 'IN_PROGRESS';
+    } else if (meta?.status && (meta.status.toUpperCase() === 'IN_PROGRESS' || meta.status.toUpperCase() === 'IN PROGRESS')) {
+      finalJobStatus = 'IN_PROGRESS';
+    } else if (meta?.status && meta.status.toUpperCase().includes('COMPLET')) {
+      finalJobStatus = 'COMPLETED';
+    } else {
+      finalJobStatus = gr.jobStatus || 'IN_PROGRESS';
+    }
 
     if (meta) {
       return {
