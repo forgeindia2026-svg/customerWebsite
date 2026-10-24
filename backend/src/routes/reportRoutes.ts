@@ -76,19 +76,17 @@ router.get('/', async (req: Request, res: Response) => {
         })
         .filter(Boolean);
 
-    // Fetch all jobs associated with these reports in one go to avoid N+1 query problem
+    // Fetch job metadata lightly (selecting only customer.phone to avoid heavy 30s timeouts)
     const jobCodes = [...new Set(uniqueReports.filter(r => r.jobCode).map(r => r.jobCode.replace(/^#/, '')))];
     let jobMap: Record<string, any> = {};
     if (jobCodes.length > 0) {
+      const allJobCodesToSearch = [...jobCodes, ...jobCodes.map(c => `#${c}`)];
       const jobs = await Job.find({
-        $or: [
-          { jobCode: { $in: jobCodes } },
-          { jobCode: { $in: jobCodes.map(c => `#${c}`) } }
-        ]
-      }).lean();
+        jobCode: { $in: allJobCodesToSearch }
+      }).select('jobCode customer.phone').lean();
       
       for (const job of jobs) {
-        const cleanCode = job.jobCode.replace(/^#/, '');
+        const cleanCode = (job.jobCode || '').replace(/^#/, '');
         jobMap[cleanCode] = job;
       }
     }
@@ -105,11 +103,13 @@ router.get('/', async (req: Request, res: Response) => {
           if (!rep.customerPhone && matchingJob.customer?.phone) {
             rep.customerPhone = matchingJob.customer.phone;
           }
-          const isCorrupted = (photos: any[]) => photos.length === 0 || photos.some(p => p === '[object Object]' || (typeof p === 'string' && p.includes('[object Object]')));
-          if (isCorrupted(rep.beforePhotos) && matchingJob.beforePhotos && matchingJob.beforePhotos.length > 0) {
+          // Only replace if photo array actually contains invalid serialization corruption like '[object Object]'
+          // Empty photo array ([]) is VALID (e.g. before-installation in-progress reports) and MUST NOT be overwritten!
+          const hasObjectCorruption = (photos: any[]) => Array.isArray(photos) && photos.some(p => p === '[object Object]' || (typeof p === 'string' && p.includes('[object Object]')));
+          if (hasObjectCorruption(rep.beforePhotos) && matchingJob.beforePhotos && matchingJob.beforePhotos.length > 0) {
             rep.beforePhotos = matchingJob.beforePhotos.map((p: any) => p.url || p);
           }
-          if (isCorrupted(rep.afterPhotos) && matchingJob.afterPhotos && matchingJob.afterPhotos.length > 0) {
+          if (hasObjectCorruption(rep.afterPhotos) && matchingJob.afterPhotos && matchingJob.afterPhotos.length > 0) {
             rep.afterPhotos = matchingJob.afterPhotos.map((p: any) => p.url || p);
           }
         }
