@@ -19,6 +19,8 @@ import {
   deleteExpenseApi,
   updateExpenseApi,
   editPettyCashTopupApi,
+  deletePettyCashTopupApi,
+  updateOpeningBalanceApi,
   updateAccountNameApi
 } from '../../utils/expenseStorage';
 
@@ -86,6 +88,8 @@ export default function Expenses() {
   const [topupTab, setTopupTab] = useState('add'); // 'add' | 'history'
   const [editingTopupId, setEditingTopupId] = useState(null);
   const [editTopupData, setEditTopupData] = useState({ amount: '', notes: '', date: '', paymentMode: 'Cash' });
+  const [isEditingOpeningBalance, setIsEditingOpeningBalance] = useState(false);
+  const [openingBalanceInput, setOpeningBalanceInput] = useState('');
 
   // Topup Modal State
   const [topupForm, setTopupForm] = useState({
@@ -180,6 +184,7 @@ export default function Expenses() {
       setIsLoading(false);
     }
   };
+  const refreshAllData = fetchExpenses;
 
   useEffect(() => {
     fetchExpenses();
@@ -378,6 +383,51 @@ export default function Expenses() {
     }
   };
 
+  // 🗑️ Handle Delete Top-Up
+  const handleDeleteTopup = async (topupId) => {
+    if (!window.confirm('Are you sure you want to delete this top-up entry? This will adjust your allocated balance.')) {
+      return;
+    }
+    try {
+      const res = await deletePettyCashTopupApi({
+        branchId: topupForm.branchId,
+        topupId
+      });
+      if (res && res.success !== false) {
+        toast.success('Top-up entry deleted successfully!');
+        await refreshAllData();
+      } else {
+        toast.error(res?.message || 'Failed to delete top-up.');
+      }
+    } catch (_) {
+      toast.error('Error deleting top-up.');
+    }
+  };
+
+  // ✏️ Handle Save Opening Balance
+  const handleSaveOpeningBalance = async () => {
+    const amt = parseFloat(openingBalanceInput);
+    if (isNaN(amt) || amt < 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+    try {
+      const res = await updateOpeningBalanceApi({
+        branchId: topupForm.branchId,
+        amount: amt
+      });
+      if (res && res.success !== false) {
+        toast.success('Opening balance updated successfully!');
+        setIsEditingOpeningBalance(false);
+        await refreshAllData();
+      } else {
+        toast.error(res?.message || 'Failed to update opening balance.');
+      }
+    } catch (_) {
+      toast.error('Error updating opening balance.');
+    }
+  };
+
   // Handle Form Submit
   const handleCreateExpense = async (e) => {
     e.preventDefault();
@@ -528,6 +578,13 @@ export default function Expenses() {
   const b2 = pettyCashData?.branch2;
   const adminAcc = pettyCashData?.currentAccount || pettyCashData?.adminAccount;
   const currentAcc = adminAcc;
+
+  // Selected Branch / Account for Top-Up Modal
+  const selectedBranchAccount = useMemo(() => {
+    if (topupForm.branchId === 'branch-1') return b1;
+    if (topupForm.branchId === 'branch-2') return b2;
+    return currentAcc;
+  }, [topupForm.branchId, b1, b2, currentAcc]);
 
   return (
     <div className="space-y-6 text-left pb-12">
@@ -1194,11 +1251,14 @@ export default function Expenses() {
               <div>
                 <span className="text-xs text-slate-500">This Month's Total:</span>
                 <span className="ml-2 font-black text-xl text-blue-600 dark:text-blue-400">
-                  ₹{selectedTechModal.monthTotal.toLocaleString('en-IN')}
+                  ₹{expenses
+                    .filter(e => e.technicianName?.toLowerCase() === selectedTechModal.technicianName?.toLowerCase())
+                    .reduce((sum, e) => sum + (Number(e.amount) || 0), 0)
+                    .toLocaleString('en-IN')}
                 </span>
               </div>
               <span className="text-xs font-semibold text-slate-500">
-                {selectedTechModal.monthCount} Recorded claims
+                {expenses.filter(e => e.technicianName?.toLowerCase() === selectedTechModal.technicianName?.toLowerCase()).length} Recorded claims
               </span>
             </div>
 
@@ -1241,12 +1301,38 @@ export default function Expenses() {
                         <span className="font-black text-sm text-slate-900 dark:text-white block">
                           ₹{Number(item.amount).toLocaleString('en-IN')}
                         </span>
-                        <button
-                          onClick={() => handleDeleteExpense(item._id)}
-                          className="text-[10px] text-rose-500 hover:underline mt-1"
-                        >
-                          Delete
-                        </button>
+                        <div className="flex items-center gap-2 mt-1 justify-end">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingExpense(item);
+                              setEditExpenseForm({
+                                expenseType: item.expenseType || 'TECHNICIAN',
+                                technicianName: item.technicianName || '',
+                                employeeName: item.employeeName || '',
+                                date: item.date || '',
+                                category: item.category || '',
+                                amount: item.amount || '',
+                                fundSource: item.fundSource || 'Current Account',
+                                paymentMode: item.paymentMode || 'Petty Cash',
+                                referenceId: item.referenceId || '',
+                                jobCode: item.jobCode || '',
+                                notes: item.notes || ''
+                              });
+                            }}
+                            className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                          >
+                            Edit
+                          </button>
+                          <span className="text-slate-300 dark:text-slate-600 text-[10px]">•</span>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteExpense(item._id)}
+                            className="text-[11px] text-rose-500 hover:underline cursor-pointer"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))
@@ -1633,29 +1719,31 @@ export default function Expenses() {
       {/* MODAL 3: Manage Opening Balance & Top-Up */}
       {isTopupModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden">
             <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/40">
               <div>
                 <h3 className="font-bold text-base text-slate-900 dark:text-white">
                   {topupForm.branchId === 'current-account'
-                    ? (topupForm.isOpeningBalanceReset ? 'Set Current Account Opening Balance' : 'Top-Up Current Account (Company Bank)')
-                    : (topupForm.isOpeningBalanceReset ? 'Set Monthly Opening Balance' : 'Top-Up Petty Cash Fund')}
+                    ? (topupTab === 'history' ? 'Current Account Allocation History' : topupForm.isOpeningBalanceReset ? 'Set Current Account Opening Balance' : 'Top-Up Current Account (Company Bank)')
+                    : (topupTab === 'history' ? `${topupForm.branchId === 'branch-2' ? 'Branch 2' : 'Branch 1'} Allocation History` : topupForm.isOpeningBalanceReset ? 'Set Monthly Opening Balance' : 'Top-Up Petty Cash Fund')}
                 </h3>
                 <p className="text-xs text-slate-500">
-                  {topupForm.branchId === 'current-account'
-                    ? 'Add bank funds (UPI / Net Banking / Deposit) or set starting bank balance'
-                    : 'Add physical cash or set starting balance for branch'}
+                  {topupTab === 'history'
+                    ? 'Review, edit, or delete past top-ups and update opening balance'
+                    : (topupForm.branchId === 'current-account'
+                      ? 'Add bank funds (UPI / Net Banking / Deposit) or set starting bank balance'
+                      : 'Add physical cash or set starting balance for branch')}
                 </p>
               </div>
               <button
                 onClick={() => setIsTopupModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-white"
+                className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer"
               >
                 <FiX className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleTopupSubmit} className="p-5 space-y-4">
+            <div className="p-5 space-y-4 max-h-[80vh] overflow-y-auto no-scrollbar">
               {/* Branch / Account Selection */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Select Account / Branch *</label>
@@ -1663,7 +1751,7 @@ export default function Expenses() {
                   <button
                     type="button"
                     onClick={() => setTopupForm({ ...topupForm, branchId: 'branch-1' })}
-                    className={`py-2 px-2 rounded-xl border text-[11px] font-bold transition-all text-center ${
+                    className={`py-2 px-2 rounded-xl border text-[11px] font-bold transition-all text-center cursor-pointer ${
                       topupForm.branchId === 'branch-1'
                         ? 'border-sky-500 bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300 ring-2 ring-sky-500/20'
                         : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
@@ -1674,7 +1762,7 @@ export default function Expenses() {
                   <button
                     type="button"
                     onClick={() => setTopupForm({ ...topupForm, branchId: 'branch-2' })}
-                    className={`py-2 px-2 rounded-xl border text-[11px] font-bold transition-all text-center ${
+                    className={`py-2 px-2 rounded-xl border text-[11px] font-bold transition-all text-center cursor-pointer ${
                       topupForm.branchId === 'branch-2'
                         ? 'border-purple-500 bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 ring-2 ring-purple-500/20'
                         : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
@@ -1685,7 +1773,7 @@ export default function Expenses() {
                   <button
                     type="button"
                     onClick={() => setTopupForm({ ...topupForm, branchId: 'current-account', paymentMode: 'Bank Transfer' })}
-                    className={`py-2 px-2 rounded-xl border text-[11px] font-bold transition-all text-center ${
+                    className={`py-2 px-2 rounded-xl border text-[11px] font-bold transition-all text-center cursor-pointer ${
                       topupForm.branchId === 'current-account'
                         ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 ring-2 ring-emerald-500/20'
                         : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
@@ -1696,118 +1784,357 @@ export default function Expenses() {
                 </div>
               </div>
 
-              {/* Action Mode Toggle */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Action Type</label>
-                <div className="grid grid-cols-2 gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
-                  <button
-                    type="button"
-                    onClick={() => setTopupForm({ ...topupForm, isOpeningBalanceReset: false })}
-                    className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-all ${
-                      !topupForm.isOpeningBalanceReset
-                        ? 'bg-emerald-600 text-white shadow-xs'
-                        : 'text-slate-600 dark:text-slate-400'
-                    }`}
-                  >
-                    + Add Top-Up Cash
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTopupForm({ ...topupForm, isOpeningBalanceReset: true })}
-                    className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-all ${
-                      topupForm.isOpeningBalanceReset
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'text-slate-600 dark:text-slate-400'
-                    }`}
-                  >
-                    Set Opening Balance
-                  </button>
-                </div>
-              </div>
-
-              {/* Amount & Date */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Amount (₹) *</label>
-                  <input
-                    type="number"
-                    required
-                    min="1"
-                    placeholder="e.g. 5000"
-                    value={topupForm.amount}
-                    onChange={(e) => setTopupForm({ ...topupForm, amount: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black text-slate-900 dark:text-white outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Date *</label>
-                  <input
-                    type="date"
-                    required
-                    value={topupForm.date}
-                    onChange={(e) => setTopupForm({ ...topupForm, date: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500"
-                  />
-                </div>
-              </div>
-
-              {/* Payment Mode (e.g. Handover Cash or Bank Withdrawal) */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  {topupForm.branchId === 'current-account' ? 'Deposit / Transfer Mode' : 'Disbursed Via'}
-                </label>
-                <select
-                  value={topupForm.paymentMode}
-                  onChange={(e) => setTopupForm({ ...topupForm, paymentMode: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none"
-                >
-                  {topupForm.branchId === 'current-account' ? (
-                    <>
-                      <option value="Bank Transfer">Bank Transfer / NEFT / RTGS</option>
-                      <option value="UPI Deposit">UPI Deposit</option>
-                      <option value="Cash Deposit">Cash Deposit into Bank</option>
-                      <option value="Cheque Deposit">Cheque Deposit</option>
-                    </>
-                  ) : (
-                    <>
-                      <option value="Cash">Direct Physical Cash Handover</option>
-                      <option value="Bank ATM Withdrawal">Bank / ATM Cash Withdrawal</option>
-                      <option value="UPI Transfer">Admin UPI Handover</option>
-                    </>
-                  )}
-                </select>
-              </div>
-
-              {/* Notes */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Notes / Voucher Reference</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Monthly initial cash handed to branch manager"
-                  value={topupForm.notes}
-                  onChange={(e) => setTopupForm({ ...topupForm, notes: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500"
-                />
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center justify-end gap-2.5 pt-2">
+              {/* Mode Switcher Tab (Add New vs Manage / Edit History) */}
+              <div className="grid grid-cols-2 gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
                 <button
                   type="button"
-                  onClick={() => setIsTopupModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  onClick={() => setTopupTab('add')}
+                  className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    topupTab === 'add'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400'
+                  }`}
                 >
-                  Cancel
+                  + Add Top-Up / Balance
                 </button>
                 <button
-                  type="submit"
-                  disabled={isTopupSubmitting}
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 active:scale-95 transition-all"
+                  type="button"
+                  onClick={() => {
+                    setTopupTab('history');
+                    setIsEditingOpeningBalance(false);
+                    setEditingTopupId(null);
+                  }}
+                  className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    topupTab === 'history'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400'
+                  }`}
                 >
-                  {isTopupSubmitting ? 'Saving...' : topupForm.isOpeningBalanceReset ? 'Set Opening Balance' : 'Add Top-Up'}
+                  Manage & Edit Allocations ({(selectedBranchAccount?.topups || []).length + 1})
                 </button>
               </div>
-            </form>
+
+              {topupTab === 'add' ? (
+                /* ADD TOP-UP / SET OPENING BALANCE FORM */
+                <form onSubmit={handleTopupSubmit} className="space-y-4 pt-1">
+                  {/* Action Mode Toggle */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Action Type</label>
+                    <div className="grid grid-cols-2 gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                      <button
+                        type="button"
+                        onClick={() => setTopupForm({ ...topupForm, isOpeningBalanceReset: false })}
+                        className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          !topupForm.isOpeningBalanceReset
+                            ? 'bg-emerald-600 text-white shadow-xs'
+                            : 'text-slate-600 dark:text-slate-400'
+                        }`}
+                      >
+                        + Add Top-Up Cash
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTopupForm({ ...topupForm, isOpeningBalanceReset: true })}
+                        className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          topupForm.isOpeningBalanceReset
+                            ? 'bg-blue-600 text-white shadow-xs'
+                            : 'text-slate-600 dark:text-slate-400'
+                        }`}
+                      >
+                        Set Opening Balance
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Amount & Date */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Amount (₹) *</label>
+                      <input
+                        type="number"
+                        required
+                        min="1"
+                        placeholder="e.g. 5000"
+                        value={topupForm.amount}
+                        onChange={(e) => setTopupForm({ ...topupForm, amount: e.target.value })}
+                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black text-slate-900 dark:text-white outline-none focus:border-blue-500 font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Date *</label>
+                      <input
+                        type="date"
+                        required
+                        value={topupForm.date}
+                        onChange={(e) => setTopupForm({ ...topupForm, date: e.target.value })}
+                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Payment Mode */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      {topupForm.branchId === 'current-account' ? 'Deposit / Transfer Mode' : 'Disbursed Via'}
+                    </label>
+                    <select
+                      value={topupForm.paymentMode}
+                      onChange={(e) => setTopupForm({ ...topupForm, paymentMode: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none"
+                    >
+                      {topupForm.branchId === 'current-account' ? (
+                        <>
+                          <option value="Bank Transfer">Bank Transfer / NEFT / RTGS</option>
+                          <option value="UPI Deposit">UPI Deposit</option>
+                          <option value="Cash Deposit">Cash Deposit into Bank</option>
+                          <option value="Cheque Deposit">Cheque Deposit</option>
+                        </>
+                      ) : (
+                        <>
+                          <option value="Cash">Direct Physical Cash Handover</option>
+                          <option value="Bank ATM Withdrawal">Bank / ATM Cash Withdrawal</option>
+                          <option value="UPI Transfer">Admin UPI Handover</option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+
+                  {/* Notes */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Notes / Voucher Reference</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Monthly initial cash handed to branch manager"
+                      value={topupForm.notes}
+                      onChange={(e) => setTopupForm({ ...topupForm, notes: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center justify-end gap-2.5 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsTopupModalOpen(false)}
+                      className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isTopupSubmitting}
+                      className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 active:scale-95 transition-all cursor-pointer"
+                    >
+                      {isTopupSubmitting ? 'Saving...' : topupForm.isOpeningBalanceReset ? 'Set Opening Balance' : 'Add Top-Up'}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                /* MANAGE & EDIT ALLOCATIONS (OPENING BALANCE & PAST TOP-UPS) */
+                <div className="space-y-4 pt-1">
+                  {/* Account Summary Banner */}
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Available Balance</span>
+                      <span className="text-xl font-black text-slate-900 dark:text-white font-mono">
+                        ₹{Number(selectedBranchAccount?.remainingBalance || 0).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Allocated (Open + Topups)</span>
+                      <span className="text-sm font-bold text-slate-700 dark:text-slate-300 font-mono">
+                        ₹{Number(selectedBranchAccount?.totalAllocated || 0).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 1. Base Opening Balance Card */}
+                  <div className="p-3.5 rounded-xl border border-blue-200 dark:border-blue-900/50 bg-blue-50/40 dark:bg-blue-950/20">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-xs font-bold text-blue-900 dark:text-blue-300 block">Base Opening Balance</span>
+                        <span className="text-[11px] text-blue-600 dark:text-blue-400">Starting balance set for this account</span>
+                      </div>
+                      {!isEditingOpeningBalance ? (
+                        <div className="flex items-center gap-2">
+                          <span className="font-black text-base text-slate-900 dark:text-white font-mono">
+                            ₹{Number(selectedBranchAccount?.openingBalance || 0).toLocaleString('en-IN')}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsEditingOpeningBalance(true);
+                              setOpeningBalanceInput(String(selectedBranchAccount?.openingBalance ?? 0));
+                            }}
+                            className="text-xs font-bold px-2.5 py-1 rounded-lg bg-blue-600 text-white hover:bg-blue-700 cursor-pointer shadow-2xs"
+                          >
+                            Edit
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    {isEditingOpeningBalance && (
+                      <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-800 flex items-center gap-2">
+                        <div className="relative flex-1">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">₹</span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={openingBalanceInput}
+                            onChange={(e) => setOpeningBalanceInput(e.target.value)}
+                            placeholder="Enter opening balance"
+                            className="w-full pl-6 pr-2.5 py-1.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded-lg text-xs font-black text-slate-900 dark:text-white outline-none focus:border-blue-500 font-mono"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleSaveOpeningBalance}
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold cursor-pointer"
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingOpeningBalance(false)}
+                          className="px-2.5 py-1.5 text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 2. Top-Up Entries List */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
+                      Top-Up Vouchers ({(selectedBranchAccount?.topups || []).length})
+                    </label>
+
+                    {(selectedBranchAccount?.topups || []).length === 0 ? (
+                      <div className="text-center py-6 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-400">
+                        No additional top-ups recorded for this account.
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {selectedBranchAccount.topups.map((topup, idx) => (
+                          <div
+                            key={topup._id || idx}
+                            className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/40"
+                          >
+                            {editingTopupId === (topup._id || idx) ? (
+                              /* Inline Editing Mode */
+                              <div className="space-y-2">
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Amount (₹)</label>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={editTopupData.amount}
+                                      onChange={(e) => setEditTopupData({ ...editTopupData, amount: e.target.value })}
+                                      className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-bold font-mono outline-none"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Date</label>
+                                    <input
+                                      type="date"
+                                      value={editTopupData.date}
+                                      onChange={(e) => setEditTopupData({ ...editTopupData, date: e.target.value })}
+                                      className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs outline-none"
+                                    />
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Mode</label>
+                                    <input
+                                      type="text"
+                                      value={editTopupData.paymentMode}
+                                      onChange={(e) => setEditTopupData({ ...editTopupData, paymentMode: e.target.value })}
+                                      className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs outline-none"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Notes</label>
+                                    <input
+                                      type="text"
+                                      value={editTopupData.notes}
+                                      onChange={(e) => setEditTopupData({ ...editTopupData, notes: e.target.value })}
+                                      className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs outline-none"
+                                    />
+                                  </div>
+                                </div>
+                                <div className="flex items-center justify-end gap-2 pt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingTopupId(null)}
+                                    className="px-2.5 py-1 text-xs text-slate-500 hover:text-slate-800 cursor-pointer"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSaveTopupEdit(topup._id || idx)}
+                                    className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold cursor-pointer"
+                                  >
+                                    Save
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              /* Normal View Mode */
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-black text-sm text-slate-900 dark:text-white font-mono">
+                                      ₹{Number(topup.amount).toLocaleString('en-IN')}
+                                    </span>
+                                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                                      {topup.paymentMode || 'Cash'}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400 font-mono">{topup.date}</span>
+                                  </div>
+                                  {topup.notes && (
+                                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{topup.notes}</p>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingTopupId(topup._id || idx);
+                                      setEditTopupData({
+                                        amount: topup.amount,
+                                        date: topup.date,
+                                        notes: topup.notes || '',
+                                        paymentMode: topup.paymentMode || 'Cash'
+                                      });
+                                    }}
+                                    className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                                  >
+                                    Edit
+                                  </button>
+                                  <span className="text-slate-300 text-xs">•</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteTopup(topup._id || idx)}
+                                    className="text-xs font-semibold text-rose-500 hover:underline cursor-pointer"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

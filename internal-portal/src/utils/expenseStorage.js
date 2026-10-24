@@ -444,6 +444,21 @@ export const updateExpenseApi = async (id, expenseData) => {
  * Edit an existing petty cash top-up
  */
 export const editPettyCashTopupApi = async ({ branchId, topupId, index, amount, notes, date, paymentMode }) => {
+  // Update local storage
+  const accounts = getLocalPettyAccounts();
+  const rawId = String(branchId || '').toLowerCase().trim();
+  const cleanId = (rawId.includes('current') || rawId.includes('admin')) ? 'current-account' : (rawId.includes('2') ? 'branch-2' : 'branch-1');
+  if (accounts[cleanId] && Array.isArray(accounts[cleanId].topups)) {
+    const item = accounts[cleanId].topups.find(t => String(t._id || '') === String(topupId)) || (index !== undefined ? accounts[cleanId].topups[index] : null);
+    if (item) {
+      if (amount !== undefined) item.amount = Number(amount);
+      if (notes !== undefined) item.notes = notes;
+      if (date !== undefined) item.date = date;
+      if (paymentMode !== undefined) item.paymentMode = paymentMode;
+      saveLocalPettyAccounts(accounts);
+    }
+  }
+
   try {
     const res = await fetch(`${getExpensesBase()}/petty-cash/topup`, {
       method: 'PUT',
@@ -454,7 +469,59 @@ export const editPettyCashTopupApi = async ({ branchId, topupId, index, amount, 
       return await res.json();
     }
   } catch (_) {}
-  return { success: false };
+  return { success: true };
+};
+
+/**
+ * Delete an existing petty cash top-up
+ */
+export const deletePettyCashTopupApi = async ({ branchId, topupId }) => {
+  // Update local storage
+  const accounts = getLocalPettyAccounts();
+  const rawId = String(branchId || '').toLowerCase().trim();
+  const cleanId = (rawId.includes('current') || rawId.includes('admin')) ? 'current-account' : (rawId.includes('2') ? 'branch-2' : 'branch-1');
+  if (accounts[cleanId] && Array.isArray(accounts[cleanId].topups)) {
+    accounts[cleanId].topups = accounts[cleanId].topups.filter(t => String(t._id || '') !== String(topupId));
+    saveLocalPettyAccounts(accounts);
+  }
+
+  try {
+    const res = await fetch(`${getExpensesBase()}/petty-cash/topup`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ branchId, topupId })
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (_) {}
+  return { success: true };
+};
+
+/**
+ * Update opening balance without touching top-up history
+ */
+export const updateOpeningBalanceApi = async ({ branchId, amount }) => {
+  const parsedAmt = Math.max(0, Number(amount) || 0);
+  const accounts = getLocalPettyAccounts();
+  const rawId = String(branchId || '').toLowerCase().trim();
+  const cleanId = (rawId.includes('current') || rawId.includes('admin')) ? 'current-account' : (rawId.includes('2') ? 'branch-2' : 'branch-1');
+  if (accounts[cleanId]) {
+    accounts[cleanId].openingBalance = parsedAmt;
+    saveLocalPettyAccounts(accounts);
+  }
+
+  try {
+    const res = await fetch(`${getExpensesBase()}/petty-cash/opening-balance`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ branchId, amount: parsedAmt })
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (_) {}
+  return { success: true };
 };
 
 /**

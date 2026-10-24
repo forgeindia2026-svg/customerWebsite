@@ -292,6 +292,76 @@ router.put('/petty-cash/topup', async (req: Request, res: Response) => {
 });
 
 /**
+ * DELETE /api/expenses/petty-cash/topup
+ * Delete a specific top-up voucher from an account
+ */
+router.delete('/petty-cash/topup', async (req: Request, res: Response) => {
+  try {
+    const { branchId, topupId } = req.body;
+    const rawId = String(branchId || '').toLowerCase().trim();
+    let cleanBranchId = 'branch-1';
+    if (rawId.includes('current') || rawId.includes('admin')) {
+      cleanBranchId = 'current-account';
+    } else if (rawId.includes('2')) {
+      cleanBranchId = 'branch-2';
+    }
+
+    const account = await PettyCashAccount.findOne({
+      $or: [{ branchId: cleanBranchId }, ...(cleanBranchId === 'current-account' ? [{ branchId: 'admin-account' }] : [])]
+    });
+    if (!account) {
+      return res.status(404).json({ success: false, message: 'Account not found' });
+    }
+
+    const initialLen = account.topups.length;
+    account.topups = account.topups.filter((t: any) => String(t._id || '') !== String(topupId)) as any;
+
+    if (account.topups.length === initialLen) {
+      return res.status(404).json({ success: false, message: 'Top-up voucher not found' });
+    }
+
+    await account.save();
+    try { await invalidateCache('dashboard:*'); } catch (_) {}
+    const updatedSummary = await getPettyCashAccountsSummary();
+    res.json({ success: true, message: 'Top-up voucher deleted successfully', data: updatedSummary });
+  } catch (err: any) {
+    console.error('Error deleting top-up:', err);
+    res.status(500).json({ success: false, message: err.message || 'Server error' });
+  }
+});
+
+/**
+ * PUT /api/expenses/petty-cash/opening-balance
+ * Update only the opening balance without touching topup vouchers
+ */
+router.put('/petty-cash/opening-balance', async (req: Request, res: Response) => {
+  try {
+    const { branchId, amount } = req.body;
+    const rawId = String(branchId || '').toLowerCase().trim();
+    let cleanBranchId = 'branch-1';
+    if (rawId.includes('current') || rawId.includes('admin')) {
+      cleanBranchId = 'current-account';
+    } else if (rawId.includes('2')) {
+      cleanBranchId = 'branch-2';
+    }
+
+    let account = await PettyCashAccount.findOne({
+      $or: [{ branchId: cleanBranchId }, ...(cleanBranchId === 'current-account' ? [{ branchId: 'admin-account' }] : [])]
+    });
+    if (!account) {
+      account = new PettyCashAccount({ branchId: cleanBranchId, branchName: cleanBranchId, openingBalance: 0, topups: [] });
+    }
+    account.openingBalance = Math.max(0, Number(amount) || 0);
+    await account.save();
+    try { await invalidateCache('dashboard:*'); } catch (_) {}
+    const updatedSummary = await getPettyCashAccountsSummary();
+    res.json({ success: true, message: 'Opening balance updated', data: updatedSummary });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
  * PUT /api/expenses/petty-cash/account-name
  * Edit account name (e.g. Current Account, Company Bank, etc.)
  */
