@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import TechnicianReport from '../models/TechnicianReport';
 import Job from '../models/Job';
+import { invalidateCache } from '../services/redisService';
 
 const router = express.Router();
 
@@ -199,23 +200,61 @@ router.post('/', async (req: Request, res: Response) => {
 
     const targetDate = date || new Date().toISOString().split('T')[0];
 
-        // Update existing report ONLY if an explicit reportId is provided in req.body
-    // For all field job progress submissions, each visit creates a fresh, separate report with a unique _id
+        // ─── Single Visit Upsert Logic ───
+    // Within the same visit/day, update the existing report row (Before Photos + After Photos + Status in ONE row).
+    // When technician returns for a new day / clicks 'Continue Work', isNewSession is true so a separate visit row is created.
+    let existingReport: any = null;
     if (req.body.reportId) {
-      const existing = await TechnicianReport.findById(req.body.reportId);
-      if (existing) {
-        if (workDescription) existing.workDescription = workDescription;
-        if (activityType) existing.activityType = activityType;
-        if (jobStatus) existing.jobStatus = jobStatus;
-        if (parsedBefore && parsedBefore.length > 0) existing.beforePhotos = parsedBefore;
-        if (parsedAfter && parsedAfter.length > 0) existing.afterPhotos = parsedAfter;
-        if (voiceNoteUrl) existing.voiceNoteUrl = voiceNoteUrl;
-        existing.updatedAt = new Date();
-        const saved = await existing.save();
-        return res.status(200).json({ success: true, data: saved, message: 'Report updated successfully' });
-      }
+      existingReport = await TechnicianReport.findById(req.body.reportId);
+    } else if (cleanJobCode && cleanJobCode !== 'DAILY WORK LOG' && !req.body.isNewSession) {
+      const stripped = cleanJobCode.replace(/^#/, '');
+      existingReport = await TechnicianReport.findOne({
+        $or: [
+          { jobCode: cleanJobCode },
+          { jobCode: stripped },
+          { jobCode: `#${stripped}` }
+        ],
+        jobStatus: 'IN_PROGRESS',
+        date: targetDate
+      }).sort({ _id: -1 });
     }
 
+    if (existingReport) {
+      if (workDescription) existingReport.workDescription = workDescription;
+      if (activityType) existingReport.activityType = activityType;
+      if (finalJobStatus) existingReport.jobStatus = finalJobStatus;
+      if (status) existingReport.status = status;
+      if (hoursWorked != null) existingReport.hoursWorked = Number(hoursWorked);
+      if (parsedBefore && parsedBefore.length > 0) {
+        existingReport.beforePhotos = Array.from(new Set([...(existingReport.beforePhotos || []), ...parsedBefore]));
+      }
+      if (parsedAfter && parsedAfter.length > 0) {
+        existingReport.afterPhotos = Array.from(new Set([...(existingReport.afterPhotos || []), ...parsedAfter]));
+      }
+      if (voiceNoteUrl) existingReport.voiceNoteUrl = voiceNoteUrl;
+      existingReport.updatedAt = new Date();
+      const saved = await existingReport.save();
+
+      // Update linked Job status
+      if (matchingJob && !isSubTech) {
+        if (finalJobStatus === 'COMPLETED') {
+          matchingJob.status = 'COMPLETED';
+          matchingJob.completedAt = new Date();
+        } else if (finalJobStatus === 'IN_PROGRESS') {
+          matchingJob.status = 'IN_PROGRESS';
+        }
+        await matchingJob.save();
+      }
+
+      try {
+        await invalidateCache('jobs:*');
+        await invalidateCache('orders:*');
+      } catch (_) {}
+
+      return res.status(200).json({ success: true, data: saved, message: 'Report updated successfully' });
+    }
+
+    // Otherwise, create a clean new visit report row with deduplicated photos
     const report = new TechnicianReport({
       technicianId: finalTechId,
       technicianName: finalTechName,
@@ -236,8 +275,8 @@ router.post('/', async (req: Request, res: Response) => {
       location: location || '',
       isMultiDay: Boolean(isMultiDay),
       dayNumber: dayNumber || 1,
-      beforePhotos: parsedBefore || [],
-      afterPhotos: parsedAfter || [],
+      beforePhotos: Array.from(new Set(parsedBefore || [])),
+      afterPhotos: Array.from(new Set(parsedAfter || [])),
       voiceNoteUrl: voiceNoteUrl || '',
       hasVoiceNote: Boolean(hasVoiceNote || (voiceNoteUrl && voiceNoteUrl.length > 0)),
       approvedByAdmin: false
@@ -245,12 +284,21 @@ router.post('/', async (req: Request, res: Response) => {
 
     const savedReport = await report.save();
 
-    // If Main Tech marked it as COMPLETED, update Job status as well
-    if (matchingJob && !isSubTech && finalJobStatus === 'COMPLETED') {
-      matchingJob.status = 'COMPLETED';
-      matchingJob.completedAt = new Date();
+    // Update linked Job status
+    if (matchingJob && !isSubTech) {
+      if (finalJobStatus === 'COMPLETED') {
+        matchingJob.status = 'COMPLETED';
+        matchingJob.completedAt = new Date();
+      } else if (finalJobStatus === 'IN_PROGRESS') {
+        matchingJob.status = 'IN_PROGRESS';
+      }
       await matchingJob.save();
     }
+
+    try {
+      await invalidateCache('jobs:*');
+      await invalidateCache('orders:*');
+    } catch (_) {}
 
     res.status(201).json({ success: true, data: savedReport, message: 'Report submitted successfully' });
   } catch (error: any) {

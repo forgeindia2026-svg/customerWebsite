@@ -1306,17 +1306,14 @@ export default function Reports() {
     const cleanCode = (gr.jobCode || '').replace(/^#/, '').trim().toUpperCase();
     const meta = orderMetadataMap.get(cleanCode);
 
-    // Determine accurate Job Status for this specific report entry
+    // Determine accurate Job Status for this specific historical report entry:
+    // Respect the status recorded at the time of submission (past visits stay IN_PROGRESS, final visit is COMPLETED)
     const rawJobStatus = (gr.jobStatus || gr.status || '').toUpperCase().trim();
     let finalJobStatus = 'IN_PROGRESS';
     if (rawJobStatus === 'COMPLETED' || rawJobStatus === 'VERIFIED') {
       finalJobStatus = 'COMPLETED';
     } else if (rawJobStatus === 'IN_PROGRESS' || rawJobStatus === 'IN PROGRESS') {
       finalJobStatus = 'IN_PROGRESS';
-    } else if (meta?.status && (meta.status.toUpperCase() === 'IN_PROGRESS' || meta.status.toUpperCase() === 'IN PROGRESS')) {
-      finalJobStatus = 'IN_PROGRESS';
-    } else if (meta?.status && meta.status.toUpperCase().includes('COMPLET')) {
-      finalJobStatus = 'COMPLETED';
     } else {
       finalJobStatus = gr.jobStatus || 'IN_PROGRESS';
     }

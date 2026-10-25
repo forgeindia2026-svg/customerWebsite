@@ -1037,6 +1037,10 @@ router.put('/:id', async (req: Request, res: Response) => {
 
     Object.assign(job, req.body);
     const updatedJob = await job.save();
+    try {
+      await invalidateCache('jobs:*');
+      await invalidateCache('orders:*');
+    } catch (_) {}
 
     // Synchronize corresponding Order
     try {
@@ -1526,6 +1530,10 @@ router.post('/:id/complete', async (req: Request, res: Response) => {
 
     job.status = 'WAITING_ADMIN_APPROVAL';
     await job.save();
+    try {
+      await invalidateCache('jobs:*');
+      await invalidateCache('orders:*');
+    } catch (_) {}
 
     // Notify Admin via Dashboard model
     let dashboardData = await Dashboard.findOne();
