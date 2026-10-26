@@ -1,3 +1,4 @@
+import { sendFcmMessage } from '../utils/fcmHelper';
 import { Router, Request, Response } from 'express';
 import User from '../models/User';
 import Message from '../models/Message';
@@ -90,6 +91,12 @@ router.post('/', async (req: Request, res: Response) => {
           }
         });
       } else {
+        sendFcmMessage({
+          toUserId: recipientId,
+          senderName: senderName || 'Technician',
+          messageText: text ? text.trim() : (attachmentType ? `Sent an ${attachmentType}` : 'Sent an attachment'),
+          roomId
+        }).catch(console.error);
         io.to(`user:${recipientId}`).emit('message:new', {
           ...message.toObject(),
           roomId

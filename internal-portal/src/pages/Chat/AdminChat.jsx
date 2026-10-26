@@ -340,9 +340,10 @@ export default function AdminChat() {
     });
 
     socket.on('call:ended', (data) => {
-      if (data.to === myId || data.isGroup) {
-        endCallCleanup();
-      }
+      endCallCleanup();
+    });
+    socket.on('call:cancelled', (data) => {
+      endCallCleanup();
     });
 
     return () => { socket.disconnect(); };
@@ -498,6 +499,10 @@ export default function AdminChat() {
         if (mediaType === 'video' && user.videoTrack && remoteVideoRef.current) {
           user.videoTrack.play(remoteVideoRef.current);
         }
+      });
+
+      agoraClient.current.on('user-left', () => {
+        endCallCleanup();
       });
 
       await agoraClient.current.join(appId, channel, token, uid);

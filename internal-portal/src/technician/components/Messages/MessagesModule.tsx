@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Search, Send, Users, ShieldAlert, Phone, ChevronLeft, Loader2, MessageSquare,
   PhoneOff, Mic, MicOff, Video, VideoOff, Volume2, VolumeX, Plus, Paperclip, Image as ImageIcon, FileText, X
@@ -511,6 +512,10 @@ export const MessagesModule: React.FC = () => {
         }
       });
 
+      agoraClient.current.on('user-left', () => {
+        endCallCleanup();
+      });
+
       await agoraClient.current.join(appId, channel, token, uid);
       localTracks.current.audio = await AgoraRTC.createMicrophoneAudioTrack();
       await agoraClient.current.publish([localTracks.current.audio]);
@@ -646,12 +651,13 @@ export const MessagesModule: React.FC = () => {
 
   return (
     <>
-      {callState && (
+      {callState && typeof document !== 'undefined' && createPortal(
         <CallOverlay callState={callState} contact={callContact} localVideoRef={localVideoRef} remoteVideoRef={remoteVideoRef}
           isMuted={isMuted} isVideoOff={isVideoOff} isSpeakerOn={isSpeakerOn}
           onEndCall={endCall} onAccept={acceptCall} onReject={rejectCall}
           onToggleMute={toggleMute} onToggleVideo={toggleVideo} onToggleSpeaker={toggleSpeaker}
-          callWithVideo={callWithVideo} />
+          callWithVideo={callWithVideo} />,
+        document.body
       )}
       <div className="flex h-full w-full bg-white overflow-hidden">
         

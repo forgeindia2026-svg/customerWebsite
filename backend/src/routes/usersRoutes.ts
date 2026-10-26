@@ -4,6 +4,34 @@ import { sendPushToUser } from '../utils/pushHelper';
 
 const router = Router();
 
+// POST /api/users/fcm-token - Register device FCM Token for mobile app push & background calling
+router.post('/fcm-token', async (req: Request, res: Response) => {
+  try {
+    const { userId, fcmToken } = req.body;
+    if (!userId || !fcmToken) {
+      return res.status(400).json({ success: false, message: 'Missing userId or fcmToken' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found in DB' });
+    }
+
+    if (!user.fcmTokens) user.fcmTokens = [];
+    if (!user.fcmTokens.includes(fcmToken)) {
+      user.fcmTokens.push(fcmToken);
+      await user.save();
+      console.log(`📲 Registered FCM token for ${user.name} (${userId})`);
+    }
+
+    res.json({ success: true, message: 'FCM token registered successfully' });
+  } catch (err: any) {
+    console.error('Error saving FCM token:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+
 // POST /api/users/push/subscribe
 router.post('/push/subscribe', async (req: Request, res: Response) => {
   try {

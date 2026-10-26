@@ -129,7 +129,7 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
           const key = Object.keys(subs).find(k => k.toLowerCase().includes(currentTechName));
           if (key) subAmount = Number(subs[key]);
         }
-        earning = subAmount > 0 ? subAmount : Number(j.financials?.technicianEarning ?? j.technicianEarning ?? 0);
+        earning = subAmount;
       }
 
       const rawDate = j.scheduledDate || j.date || (j.dailyReports && j.dailyReports[0]?.date) || (j.createdAt ? String(j.createdAt).split('T')[0] : '');
@@ -145,12 +145,8 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
   }, [completedJobs, currentTechName, currentYearMonth, todayStr]);
 
   const totalEarningsVal = summaryStats?.totalEarnings ?? 0;
-  const monthlyEarningsVal = summaryStats?.monthlyEarnings !== undefined 
-    ? summaryStats.monthlyEarnings 
-    : computedStatsFromJobs.monthlyEarnings;
-  const todayEarningsVal = summaryStats?.todayEarnings !== undefined 
-    ? summaryStats.todayEarnings 
-    : computedStatsFromJobs.todayEarnings;
+  const monthlyEarningsVal = computedStatsFromJobs.monthlyEarnings;
+  const todayEarningsVal = computedStatsFromJobs.todayEarnings;
 
   const nextJob = activeJob || jobs[0];
 

@@ -654,11 +654,11 @@ export function App() {
             </ModuleErrorBoundary>
           )}
 
-          {activeTab === 'messages' && (
+          <div className={activeTab === 'messages' ? 'contents' : 'hidden'}>
             <ModuleErrorBoundary moduleName="Messages">
               <MessagesModule />
             </ModuleErrorBoundary>
-          )}
+          </div>
 
           {activeTab === 'scanner' && (
             <ModuleErrorBoundary moduleName="QR Scanner">

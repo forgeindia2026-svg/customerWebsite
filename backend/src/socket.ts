@@ -1,3 +1,4 @@
+import { sendFcmCall } from './utils/fcmHelper';
 import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
 
@@ -71,6 +72,14 @@ export const initSocket = (server: HttpServer) => {
           }).catch(console.error);
         } else {
           io.to(`user:${data.to}`).emit('call:incoming', data);
+          // Also send High-Priority FCM Push so device wakes up even if app is closed
+          sendFcmCall({
+            toUserId: data.to,
+            callerId: data.from,
+            callerName: data.fromName || 'Technician',
+            channel: data.channel,
+            withVideo: data.withVideo === true
+          }).catch(console.error);
         }
       }
     });

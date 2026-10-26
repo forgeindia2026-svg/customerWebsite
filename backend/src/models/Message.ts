@@ -9,7 +9,7 @@ export interface IMessage extends Document {
   roomId: string; // sorted "senderId_recipientId" or "groupId"
   text?: string;
   attachmentUrl?: string;
-  attachmentType?: 'image' | 'document' | 'audio';
+  attachmentType?: 'image' | 'document' | 'audio' | 'video';
   isGroupMessage: boolean;
   readBy: string[];
   createdAt: Date;
@@ -26,7 +26,7 @@ const MessageSchema: Schema = new Schema(
     roomId: { type: String, required: true, index: true },
     text: { type: String, required: false }, // Made optional so a message can be just an attachment
     attachmentUrl: { type: String, required: false },
-    attachmentType: { type: String, enum: ['image', 'document', 'audio'], required: false },
+    attachmentType: { type: String, enum: ['image', 'document', 'audio', 'video'], required: false },
     isGroupMessage: { type: Boolean, default: false },
     readBy: [{ type: String }],
   },

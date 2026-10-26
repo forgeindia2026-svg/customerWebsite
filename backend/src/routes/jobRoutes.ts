@@ -522,7 +522,7 @@ router.get('/dashboard-summary', async (req: Request, res: Response) => {
         if (subTechAmount > 0) {
           earning = subTechAmount;
         } else {
-          earning = Number(j.financials?.technicianEarning ?? j.technicianEarning ?? 0);
+          earning = 0;
         }
       }
 

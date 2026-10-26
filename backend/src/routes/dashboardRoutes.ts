@@ -877,6 +877,11 @@ router.put('/', async (req: Request, res: Response) => {
             body: newAnnouncement.description || newAnnouncement.content || 'Please check the portal for details.',
             url: '/technician'
           });
+          try { require('../socket').emitToRole('technician', 'announcement:new', {
+            title: newAnnouncement.title || 'New Announcement',
+            description: newAnnouncement.description || newAnnouncement.content || 'Please check announcements',
+            date: new Date().toISOString()
+          }); } catch (_) {}
         }
       }
       Object.assign(dashboardData, req.body);

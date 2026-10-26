@@ -1,9 +1,10 @@
-import mongoose, { Schema, Document } from 'mongoose';
+﻿import mongoose, { Schema, Document } from 'mongoose';
 
 export type UserRole = 'CUSTOMER' | 'TECHNICIAN' | 'ADMIN' | 'HR';
 
 export interface IUser extends Document {
   pushSubscriptions?: any[];
+  fcmTokens?: string[];
   name: string;
   email: string;
   passwordHash: string;
@@ -34,6 +35,7 @@ const UserSchema: Schema = new Schema(
     role: { type: String, enum: ['CUSTOMER', 'TECHNICIAN', 'ADMIN', 'HR'], default: 'CUSTOMER' },
     avatar: { type: String },
     specialties: [{ type: String }],
+    fcmTokens: [{ type: String }],
     rating: { type: Number, default: 5.0 },
     completedJobsCount: { type: Number, default: 0 },
     totalEarnings: { type: Number, default: 0 },
