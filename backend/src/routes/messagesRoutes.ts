@@ -86,6 +86,12 @@ router.post('/', async (req: Request, res: Response) => {
                   ...message.toObject(),
                   roomId
                 });
+                sendFcmMessage({
+                  toUserId: memberId,
+                  senderName: `${senderName || 'Member'} (${group.name || 'Group'})`,
+                  messageText: text ? text.trim() : (attachmentType ? `Sent an ${attachmentType}` : 'Sent an attachment'),
+                  roomId
+                }).catch(console.error);
               }
             });
           }

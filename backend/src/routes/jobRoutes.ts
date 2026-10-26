@@ -1,3 +1,4 @@
+import { sendPushToUser } from '../utils/pushHelper';
 import { getCache, setCache, invalidateCache } from '../services/redisService';
 import { Router, Request, Response } from 'express';
 import Job from '../models/Job';
@@ -738,6 +739,21 @@ router.post('/', async (req: Request, res: Response) => {
     const jobCode = `SK-JOB-${Math.floor(1000 + Math.random() * 9000)}`;
     const newJob = new Job({ ...req.body, jobCode });
     const savedJob = await newJob.save();
+
+    if (savedJob.assignedTechnicians && Array.isArray(savedJob.assignedTechnicians)) {
+      for (const t of savedJob.assignedTechnicians) {
+        if (t.id) {
+          sendPushToUser(t.id, {
+            title: 'New Job Assigned! 🛠️',
+            body: `You have been assigned to: ${savedJob.jobCode || savedJob.title || 'New Job'}`,
+            channelId: 'jobs_channel',
+            channelName: 'Job Assignments',
+            targetRoute: '/jobs'
+          });
+        }
+      }
+    }
+
     res.status(201).json({ success: true, data: savedJob });
   } catch (error: any) {
     res.status(400).json({ success: false, message: error.message });
@@ -1734,6 +1750,21 @@ router.post('/:id/admin-approve', async (req: Request, res: Response) => {
         }
         technician.completedJobsCount = (technician.completedJobsCount || 0) + 1;
         await technician.save();
+
+        sendPushToUser(technician._id.toString(), {
+          title: 'Job Approved & Earnings Credited! 🎉',
+          body: `Job #${targetCode} is approved! ₹${parsedEarning} added to your earnings.`,
+          channelId: 'earnings_channel',
+          channelName: 'Job Approvals & Earnings',
+          targetRoute: '/reports'
+        });
+        try {
+          require('../socket').emitToUser(technician._id.toString(), 'earnings:updated', {
+            jobCode: targetCode,
+            earnedAmount: parsedEarning,
+            totalEarnings: technician.totalEarnings
+          });
+        } catch (_) {}
       }
     }
 

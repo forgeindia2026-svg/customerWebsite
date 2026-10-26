@@ -124,6 +124,8 @@ export const sendFcmMessage = async (payload: FcmMessagePayload) => {
       },
       data: {
         type: 'chat',
+        title: payload.senderName || 'New Message',
+        body: payload.messageText || '',
         targetRoute: '/chat',
         roomId: payload.roomId || '',
         channelId: 'chats_channel',
@@ -133,6 +135,8 @@ export const sendFcmMessage = async (payload: FcmMessagePayload) => {
         notification: {
           channelId: 'chats_channel',
           sound: 'default',
+          defaultSound: true,
+          defaultVibrateTimings: true,
         },
       },
     };
@@ -142,5 +146,133 @@ export const sendFcmMessage = async (payload: FcmMessagePayload) => {
     console.log('[FCM Message] Sent to ' + user.name + ': ' + response.successCount + ' success');
   } catch (err) {
     console.error('[FCM Message] Error:', err);
+  }
+};
+
+export interface FcmNotificationPayload {
+  toUserId: string;
+  title: string;
+  body: string;
+  targetRoute?: string;
+  channelId?: string;
+  channelName?: string;
+  data?: Record<string, string>;
+}
+
+export const sendFcmNotification = async (payload: FcmNotificationPayload) => {
+  const app = initFirebaseAdmin();
+  if (!app) return;
+
+  try {
+    const user = await User.findById(payload.toUserId);
+    if (!user || !user.fcmTokens || user.fcmTokens.length === 0) return;
+
+    const channelId = payload.channelId || 'jobs_channel';
+    const targetRoute = payload.targetRoute || '/home';
+
+    const message: MulticastMessage = {
+      tokens: user.fcmTokens,
+      notification: {
+        title: payload.title,
+        body: payload.body,
+      },
+      data: {
+        type: 'alert',
+        title: payload.title,
+        body: payload.body,
+        targetRoute: targetRoute,
+        channelId: channelId,
+        ...(payload.data || {}),
+      },
+      android: {
+        priority: 'high',
+        notification: {
+          channelId: channelId,
+          sound: 'default',
+          defaultSound: true,
+          defaultVibrateTimings: true,
+        },
+      },
+    };
+
+    const messaging = getMessaging(app);
+    const response = await messaging.sendEachForMulticast(message);
+    console.log('[FCM Notification] Sent to ' + user.name + ' (' + payload.title + '): ' + response.successCount + ' success');
+
+    if (response.failureCount > 0) {
+      const validTokens: string[] = [];
+      response.responses.forEach((resp: any, idx: number) => {
+        if (resp.success) {
+          validTokens.push(user.fcmTokens![idx]);
+        }
+      });
+      user.fcmTokens = validTokens;
+      await user.save();
+    }
+  } catch (err) {
+    console.error('[FCM Notification] Error:', err);
+  }
+};
+
+export interface FcmBroadcastPayload {
+  title: string;
+  body: string;
+  targetRoute?: string;
+  channelId?: string;
+  data?: Record<string, string>;
+}
+
+export const sendFcmToAllTechnicians = async (payload: FcmBroadcastPayload) => {
+  const app = initFirebaseAdmin();
+  if (!app) return;
+
+  try {
+    const technicians = await User.find({ role: 'TECHNICIAN' });
+    const allTokens: string[] = [];
+    technicians.forEach(t => {
+      if (t.fcmTokens && Array.isArray(t.fcmTokens)) {
+        allTokens.push(...t.fcmTokens);
+      }
+    });
+
+    const uniqueTokens = Array.from(new Set(allTokens));
+    if (uniqueTokens.length === 0) {
+      console.log('[FCM Broadcast] No technician FCM tokens registered.');
+      return;
+    }
+
+    const channelId = payload.channelId || 'announcements_channel';
+    const targetRoute = payload.targetRoute || '/announcements';
+
+    const message: MulticastMessage = {
+      tokens: uniqueTokens,
+      notification: {
+        title: payload.title,
+        body: payload.body,
+      },
+      data: {
+        type: 'announcement',
+        title: payload.title,
+        body: payload.body,
+        targetRoute: targetRoute,
+        channelId: channelId,
+        ...(payload.data || {}),
+      },
+      android: {
+        priority: 'high',
+        notification: {
+          channelId: channelId,
+          sound: 'default',
+          defaultSound: true,
+          defaultVibrateTimings: true,
+        },
+      },
+    };
+
+    const messaging = getMessaging(app);
+    const response = await messaging.sendEachForMulticast(message);
+    console.log('[FCM Broadcast] Sent to ' + uniqueTokens.length + ' tokens: ' + response.successCount + ' success');
+  } catch (err) {
+    console.error('[FCM Broadcast] Error:', err);
   }
 };
