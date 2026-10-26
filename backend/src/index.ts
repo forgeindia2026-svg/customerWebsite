@@ -40,6 +40,7 @@ app.use(compression()); // ⚡ Gzip all responses - reduces payload size by 70-8
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use('/images', express.static(path.join(__dirname, '../public/images')));
+app.use('/apk', express.static(path.join(__dirname, '../public/apk')));
 
 // Health check
 app.get('/api/health', (req, res) => {
