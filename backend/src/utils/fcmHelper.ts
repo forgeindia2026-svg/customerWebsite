@@ -82,12 +82,13 @@ export const sendFcmCall = async (payload: FcmCallPayload) => {
       return;
     }
 
+    // CRITICAL: Do NOT use "from" in data payload - Google FCM v1 strictly forbids "from"!
     const message: MulticastMessage = {
       tokens: user.fcmTokens,
       data: {
         type: 'call',
-        from: String(payload.callerId),
-        fromName: String(payload.callerName || 'Technician'),
+        callerId: String(payload.callerId),
+        callerName: String(payload.callerName || 'Technician'),
         channel: String(payload.channel),
         withVideo: payload.withVideo ? 'true' : 'false',
       },
@@ -101,12 +102,15 @@ export const sendFcmCall = async (payload: FcmCallPayload) => {
     const response = await messaging.sendEachForMulticast(message);
     console.log('[FCM Call] Sent to ' + user.name + ': ' + response.successCount + ' success, ' + response.failureCount + ' failure');
 
-    // Clean up stale or expired tokens
+    // Clean up stale or expired tokens ONLY when genuinely invalid
     if (response.failureCount > 0) {
       const validTokens: string[] = [];
       response.responses.forEach((resp: any, idx: number) => {
-        if (resp.success) {
+        const errCode = resp.error?.code || '';
+        if (resp.success || (errCode !== 'messaging/registration-token-not-registered' && errCode !== 'messaging/invalid-registration-token')) {
           validTokens.push(user.fcmTokens![idx]);
+        } else {
+          console.log('[FCM Call] Pruned expired token for ' + user.name + ': ' + errCode);
         }
       });
       user.fcmTokens = validTokens;
@@ -218,7 +222,8 @@ export const sendFcmNotification = async (payload: FcmNotificationPayload) => {
     if (response.failureCount > 0) {
       const validTokens: string[] = [];
       response.responses.forEach((resp: any, idx: number) => {
-        if (resp.success) {
+        const errCode = resp.error?.code || '';
+        if (resp.success || (errCode !== 'messaging/registration-token-not-registered' && errCode !== 'messaging/invalid-registration-token')) {
           validTokens.push(user.fcmTokens![idx]);
         }
       });
