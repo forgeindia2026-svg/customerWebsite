@@ -6,6 +6,22 @@ import User from '../models/User';
 
 let firebaseApp: App | null = null;
 
+// Universal helper to find user by MongoDB _id, id, employeeId, or name
+async function findUserAny(identifier: string) {
+  if (!identifier) return null;
+  const clean = String(identifier).trim();
+  const isMongoId = /^[0-9a-fA-F]{24}$/.test(clean);
+  return await User.findOne({
+    $or: [
+      ...(isMongoId ? [{ _id: clean }] : []),
+      { id: clean },
+      { employeeId: clean },
+      { name: clean },
+      { name: new RegExp('^' + clean.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') }
+    ]
+  });
+}
+
 // Attempt to locate a Firebase Service Account key file in the backend root
 function initFirebaseAdmin(): App | null {
   if (firebaseApp) return firebaseApp;
@@ -60,7 +76,7 @@ export const sendFcmCall = async (payload: FcmCallPayload) => {
   if (!app) return;
 
   try {
-    const user = await User.findById(payload.toUserId);
+    const user = await findUserAny(payload.toUserId);
     if (!user || !user.fcmTokens || user.fcmTokens.length === 0) {
       console.log('[FCM Call] User ' + payload.toUserId + ' has no registered FCM tokens');
       return;
@@ -113,7 +129,7 @@ export const sendFcmMessage = async (payload: FcmMessagePayload) => {
   if (!app) return;
 
   try {
-    const user = await User.findById(payload.toUserId);
+    const user = await findUserAny(payload.toUserId);
     if (!user || !user.fcmTokens || user.fcmTokens.length === 0) return;
 
     const message: MulticastMessage = {
@@ -164,7 +180,7 @@ export const sendFcmNotification = async (payload: FcmNotificationPayload) => {
   if (!app) return;
 
   try {
-    const user = await User.findById(payload.toUserId);
+    const user = await findUserAny(payload.toUserId);
     if (!user || !user.fcmTokens || user.fcmTokens.length === 0) return;
 
     const channelId = payload.channelId || 'jobs_channel';
