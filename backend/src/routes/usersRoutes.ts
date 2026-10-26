@@ -7,7 +7,7 @@ const router = Router();
 // POST /api/users/fcm-token - Register device FCM Token for mobile app push & background calling
 router.post('/fcm-token', async (req: Request, res: Response) => {
   try {
-    const { userId, fcmToken } = req.body;
+    const { userId, fcmToken } = req.body || {};
     if (!userId || !fcmToken) {
       return res.status(400).json({ success: false, message: 'Missing userId or fcmToken' });
     }
