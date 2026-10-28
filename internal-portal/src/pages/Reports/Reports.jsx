@@ -1336,8 +1336,8 @@ export default function Reports() {
 
   const reportedCodesSet = new Set(processedGeneralReports.map(gr => (gr.jobCode || '').replace(/^#/, '').trim().toUpperCase()).filter(Boolean));
 
-  // Include orders that don't have explicit daily reports submitted yet
-  const unsubmittedOrders = (orderReportsList || []).filter(ord => {
+  // Only include unsubmitted orders once reports have finished loading, so we never flash aggregated orders
+  const unsubmittedOrders = isLoadingReports ? [] : (orderReportsList || []).filter(ord => {
     const cleanCode = (ord.jobCode || '').replace(/^#/, '').trim().toUpperCase();
     return !reportedCodesSet.has(cleanCode);
   });
@@ -2850,7 +2850,7 @@ export default function Reports() {
 
             {/* 📱 Mobile Card View (Screenshot 1) - Matching Technician Mobile Flow */}
             <div className="block md:hidden space-y-3">
-              {isLoadingReports && filteredFieldReports.length === 0 ? (
+              {isLoadingReports ? (
                 <div className="p-8 text-center text-slate-400 text-xs bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
                   <div className="flex flex-col items-center justify-center space-y-2">
                     <div className="w-6 h-6 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
@@ -2927,7 +2927,7 @@ export default function Reports() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
-                  {isLoadingReports && filteredFieldReports.length === 0 ? (
+                  {isLoadingReports ? (
                     <tr>
                       <td colSpan={9} className="py-16 text-center text-slate-400 text-sm">
                         <div className="flex flex-col items-center justify-center space-y-3">
