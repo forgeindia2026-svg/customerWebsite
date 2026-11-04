@@ -30,22 +30,36 @@ const getTodayIST = () => {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
 };
 
-// Auto-close any unclosed attendance from previous dates
-const autoCloseStaleAttendances = async (technicianId?: string) => {
+// Auto-close any unclosed attendance from previous dates or current date at EOD (11:59 PM)
+export const autoCloseStaleAttendances = async (technicianId?: string) => {
   try {
     const today = getTodayIST();
-    const query: any = { date: { $ne: today }, status: 'PRESENT' };
+    const query: any = { status: 'PRESENT' };
     if (technicianId) {
       query.technicianId = technicianId;
     }
 
     const staleRecords = await TechnicianAttendance.find(query);
     for (const record of staleRecords) {
-      const recordDate = record.date; // e.g. '2026-10-30'
-      const autoOutTime = '08:00 PM';
+      const recordDate = record.date; // e.g. '2026-11-04'
+      
+      // If it's today's record, only auto-close if triggered by midnight EOD routine or explicit close
+      // But if date is previous (< today), always auto-close
+      if (recordDate === today && !technicianId) {
+        // Only close if it's the 11:59 PM cron trigger
+        const istNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+        const currentHours = istNow.getHours();
+        const currentMins = istNow.getMinutes();
+        // Check if close to 11:59 PM (e.g. >= 23:55)
+        if (currentHours < 23 || currentMins < 55) {
+          continue; // still active work hours today
+        }
+      }
+
+      const autoOutTime = '11:59 PM';
       let autoOutTimestamp: Date;
       try {
-        autoOutTimestamp = new Date(`${recordDate}T20:00:00+05:30`);
+        autoOutTimestamp = new Date(`${recordDate}T23:59:59+05:30`);
         if (isNaN(autoOutTimestamp.getTime())) autoOutTimestamp = new Date(record.checkInTimestamp || Date.now());
       } catch (_) {
         autoOutTimestamp = new Date(record.checkInTimestamp || Date.now());
@@ -56,7 +70,7 @@ const autoCloseStaleAttendances = async (technicianId?: string) => {
           if (p.punchInTimestamp && !p.punchOutTimestamp) {
             p.punchOutTime = autoOutTime;
             p.punchOutTimestamp = autoOutTimestamp;
-            p.notes = p.notes ? `${p.notes} (Auto EOD Closed)` : 'Auto EOD Closed';
+            p.notes = p.notes ? `${p.notes} (Auto 11:59 PM Closed)` : 'Auto 11:59 PM Closed';
             const diffMs = Math.max(0, autoOutTimestamp.getTime() - new Date(p.punchInTimestamp).getTime());
             p.durationHours = Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100;
           }
@@ -72,7 +86,7 @@ const autoCloseStaleAttendances = async (technicianId?: string) => {
       record.checkOutTime = record.checkOutTime || autoOutTime;
       record.checkOutTimestamp = record.checkOutTimestamp || autoOutTimestamp;
       record.status = 'OFF_DUTY';
-      record.notes = record.notes ? `${record.notes} (Auto closed by system next-day)` : 'Auto closed by system next-day';
+      record.notes = record.notes ? `${record.notes} (Auto closed by system at 11:59 PM)` : 'Auto closed by system at 11:59 PM';
       await record.save();
 
       // Set user availability to false if stale

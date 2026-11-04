@@ -47,7 +47,7 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', version: '2.6.1', message: 'CCTV eCommerce Backend API & Socket Server is running', timestamp: new Date() });
 });
 
-import attendanceRoutes from './routes/attendanceRoutes';
+import attendanceRoutes, { autoCloseStaleAttendances } from './routes/attendanceRoutes';
 import queryRoutes from './routes/queryRoutes';
 import qrRoutes from './routes/qrRoutes';
 import orderTypeRoutes from './routes/orderTypeRoutes';
@@ -104,6 +104,19 @@ mongoose
         .then(() => console.log('🔥 Dashboard cache warmed on startup'))
         .catch((e) => console.warn('Cache warm failed:', e.message));
     }, 2000); // Wait 2s for server to fully start
+
+    // 🕒 Setup automatic EOD attendance auto-close timer (checks every minute, triggers at 11:59 PM IST)
+    setInterval(() => {
+      try {
+        const istNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+        if (istNow.getHours() === 23 && istNow.getMinutes() === 59) {
+          console.log('🌙 Running 11:59 PM EOD Attendance Auto-Close routine...');
+          autoCloseStaleAttendances();
+        }
+      } catch (err) {
+        console.error('Error in EOD cron ticker:', err);
+      }
+    }, 60 * 1000);
   })
   .catch((err) => {
     console.error('⚠️ MongoDB Connection Note:', err.message || err);
