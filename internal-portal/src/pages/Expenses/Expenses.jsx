@@ -1722,29 +1722,18 @@ export default function Expenses() {
               </div>
 
               {/* 5. AMOUNT & JOB REFERENCE */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Amount (₹) *</label>
-                  <input
-                    type="number"
-                    required
-                    min="1"
-                    placeholder="e.g. 500"
-                    value={formData.amount}
-                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black text-slate-900 dark:text-white outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Job / Order Code (Optional)</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. SK-ORD-29158"
-                    value={formData.jobCode}
-                    onChange={(e) => setFormData({ ...formData, jobCode: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500"
-                  />
-                </div>
+              {/* 5. Amount */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Amount (₹) *</label>
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  placeholder="e.g. 500"
+                  value={formData.amount}
+                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black text-slate-900 dark:text-white outline-none focus:border-blue-500"
+                />
               </div>
 
               {/* 6. LIVE PETTY CASH DEDUCTION CALCULATION PREVIEW */}

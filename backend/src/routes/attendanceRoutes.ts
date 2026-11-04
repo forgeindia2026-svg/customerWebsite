@@ -30,11 +30,77 @@ const getTodayIST = () => {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
 };
 
+// Auto-close any unclosed attendance from previous dates
+const autoCloseStaleAttendances = async (technicianId?: string) => {
+  try {
+    const today = getTodayIST();
+    const query: any = { date: { $ne: today }, status: 'PRESENT' };
+    if (technicianId) {
+      query.technicianId = technicianId;
+    }
+
+    const staleRecords = await TechnicianAttendance.find(query);
+    for (const record of staleRecords) {
+      const recordDate = record.date; // e.g. '2026-10-30'
+      const autoOutTime = '08:00 PM';
+      let autoOutTimestamp: Date;
+      try {
+        autoOutTimestamp = new Date(`${recordDate}T20:00:00+05:30`);
+        if (isNaN(autoOutTimestamp.getTime())) autoOutTimestamp = new Date(record.checkInTimestamp || Date.now());
+      } catch (_) {
+        autoOutTimestamp = new Date(record.checkInTimestamp || Date.now());
+      }
+
+      if (Array.isArray(record.punches) && record.punches.length > 0) {
+        for (const p of record.punches) {
+          if (p.punchInTimestamp && !p.punchOutTimestamp) {
+            p.punchOutTime = autoOutTime;
+            p.punchOutTimestamp = autoOutTimestamp;
+            p.notes = p.notes ? `${p.notes} (Auto EOD Closed)` : 'Auto EOD Closed';
+            const diffMs = Math.max(0, autoOutTimestamp.getTime() - new Date(p.punchInTimestamp).getTime());
+            p.durationHours = Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100;
+          }
+        }
+        const cumulativeHours = record.punches.reduce((acc: number, p: any) => acc + (p.durationHours || 0), 0);
+        record.totalHours = Math.round(cumulativeHours * 100) / 100;
+      } else {
+        const inTime = record.checkInTimestamp ? new Date(record.checkInTimestamp).getTime() : autoOutTimestamp.getTime();
+        const diffMs = Math.max(0, autoOutTimestamp.getTime() - inTime);
+        record.totalHours = Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100;
+      }
+
+      record.checkOutTime = record.checkOutTime || autoOutTime;
+      record.checkOutTimestamp = record.checkOutTimestamp || autoOutTimestamp;
+      record.status = 'OFF_DUTY';
+      record.notes = record.notes ? `${record.notes} (Auto closed by system next-day)` : 'Auto closed by system next-day';
+      await record.save();
+
+      // Set user availability to false if stale
+      const isMongoId = /^[0-9a-fA-F]{24}$/.test(record.technicianId);
+      await User.updateMany(
+        { $or: [...(isMongoId ? [{ _id: record.technicianId }] : []), { name: record.technicianName }] },
+        { $set: { isAvailable: false } }
+      );
+    }
+  } catch (err) {
+    console.error('Error auto-closing stale attendances:', err);
+  }
+};
+
 // GET today's attendance roster for all technicians (Live Dashboard Radar)
 router.get('/today', async (req: Request, res: Response) => {
   try {
     const today = getTodayIST();
-    const records = await TechnicianAttendance.find({ date: today }).sort({ checkInTimestamp: -1 });
+    const { technicianId } = req.query;
+
+    // Run auto-close on stale records so technicians start fresh on new days
+    await autoCloseStaleAttendances(technicianId as string);
+
+    const filter: any = { date: today };
+    if (technicianId) {
+      filter.technicianId = technicianId;
+    }
+    const records = await TechnicianAttendance.find(filter).sort({ checkInTimestamp: -1 });
     res.json(records);
   } catch (error) {
     console.error('Error fetching today attendance:', error);

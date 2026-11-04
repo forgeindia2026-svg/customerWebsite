@@ -683,30 +683,18 @@ export const TechnicianExpenseModal: React.FC<TechnicianExpenseModalProps> = ({
                 )}
               </div>
 
-              {/* 5. AMOUNT & JOB REFERENCE */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-zinc-700 mb-1">Amount (₹) *</label>
-                  <input
-                    type="number"
-                    required
-                    min="1"
-                    placeholder="e.g. 500"
-                    value={formData.amount}
-                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-black text-zinc-900 outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-zinc-700 mb-1">Job / Order Code (Optional)</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. SK-ORD-29158"
-                    value={formData.jobCode}
-                    onChange={(e) => setFormData({ ...formData, jobCode: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-mono text-zinc-800 outline-none focus:border-blue-500"
-                  />
-                </div>
+              {/* 5. AMOUNT */}
+              <div>
+                <label className="block text-xs font-bold text-zinc-700 mb-1">Amount (₹) *</label>
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  placeholder="e.g. 500"
+                  value={formData.amount}
+                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-black text-zinc-900 outline-none focus:border-blue-500"
+                />
               </div>
 
               {/* 6. PURPOSE / DETAILS */}
