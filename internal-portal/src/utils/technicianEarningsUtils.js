@@ -1,3 +1,5 @@
+import { isDateInRange } from './dateFilterUtils';
+
 /**
  * Universal Technician Name Matcher
  */
@@ -17,16 +19,10 @@ export const isTechNameMatch = (name1, name2) => {
 /**
  * Universal Technician Monthly & Total Earnings Calculator
  * Evaluates lead technicians and sub-technicians across approved / completed orders
+ * @param {Array} itemsList List of orders / jobs
+ * @param {string} dateRange Optional date range, defaults to 'This Month'
  */
-export const buildTechSummaries = (itemsList) => {
-  const now = new Date();
-  let istMonth = '';
-  try {
-    istMonth = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now).substring(0, 7);
-  } catch (_) {
-    istMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  }
-
+export const buildTechSummaries = (itemsList, dateRange = 'This Month') => {
   const map = {};
   const jobsByTech = {};
 
@@ -38,35 +34,8 @@ export const buildTechSummaries = (itemsList) => {
     if (!isFinished) return;
 
     // 2. Date parsing (supporting IST YYYY-MM and formatted strings)
-    let jobDateStr = '';
-    if (j.scheduledDate && typeof j.scheduledDate === 'string') {
-      jobDateStr = j.scheduledDate.split('T')[0];
-    } else if (j.date && typeof j.date === 'string') {
-      try {
-        const d = new Date(j.date);
-        if (!isNaN(d.getTime())) {
-          jobDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(d);
-        } else {
-          jobDateStr = j.date.split('T')[0];
-        }
-      } catch (_) {
-        jobDateStr = j.date.split('T')[0];
-      }
-    } else if (j.financials?.approvedAt) {
-      try {
-        jobDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(j.financials.approvedAt));
-      } catch (_) {
-        jobDateStr = String(j.financials.approvedAt).split('T')[0];
-      }
-    } else if (j.createdAt) {
-      try {
-        jobDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(j.createdAt));
-      } catch (_) {
-        jobDateStr = String(j.createdAt).split('T')[0];
-      }
-    }
-
-    const isThisMonth = jobDateStr.startsWith(istMonth) || (typeof j.date === 'string' && j.date.toLowerCase().includes('oct'));
+    const rawDate = j.scheduledDate || j.date || j.financials?.approvedAt || j.createdAt || j.updatedAt;
+    const isThisMonth = isDateInRange(rawDate, dateRange || 'This Month');
 
     const leadName = (
       j.assignedTechnicianName ||

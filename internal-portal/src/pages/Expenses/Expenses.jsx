@@ -21,7 +21,7 @@ import {
   editPettyCashTopupApi,
   deletePettyCashTopupApi,
   updateOpeningBalanceApi,
-  updateAccountNameApi
+  transferPettyCashApi
 } from '../../utils/expenseStorage';
 
 const CUSTOM_CATEGORIES_KEY = 'sk_custom_expense_categories';
@@ -85,11 +85,22 @@ export default function Expenses() {
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
 
   // Top-Up History & Edit State
-  const [topupTab, setTopupTab] = useState('add'); // 'add' | 'history'
+  const [topupTab, setTopupTab] = useState('add'); // 'add' | 'history' | 'transfer'
   const [editingTopupId, setEditingTopupId] = useState(null);
   const [editTopupData, setEditTopupData] = useState({ amount: '', notes: '', date: '', paymentMode: 'Cash' });
   const [isEditingOpeningBalance, setIsEditingOpeningBalance] = useState(false);
   const [openingBalanceInput, setOpeningBalanceInput] = useState('');
+
+  // Transfer Modal State
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+  const [isTransferSubmitting, setIsTransferSubmitting] = useState(false);
+  const [transferForm, setTransferForm] = useState({
+    fromBranchId: 'branch-1',
+    amount: '',
+    date: new Date().toISOString().split('T')[0],
+    paymentMode: 'Bank Transfer',
+    notes: ''
+  });
 
   // Topup Modal State
   const [topupForm, setTopupForm] = useState({
@@ -527,6 +538,54 @@ export default function Expenses() {
     }
   };
 
+  // Handle Transfer to Current Account Submit
+  const handleTransferSubmit = async (e) => {
+    e.preventDefault();
+    const amt = parseFloat(transferForm.amount);
+    if (!amt || amt <= 0) {
+      toast.error('Please enter a valid transfer amount');
+      return;
+    }
+
+    const sourceBranch = transferForm.fromBranchId === 'branch-2' ? b2 : b1;
+    const available = Number(sourceBranch?.remainingBalance || 0);
+    if (amt > available) {
+      toast.error(`Transfer amount exceeds available cash (₹${available.toLocaleString('en-IN')})`);
+      return;
+    }
+
+    setIsTransferSubmitting(true);
+    try {
+      const res = await transferPettyCashApi({
+        fromBranchId: transferForm.fromBranchId,
+        amount: amt,
+        date: transferForm.date,
+        paymentMode: transferForm.paymentMode,
+        notes: transferForm.notes,
+        transferredBy: 'Admin'
+      });
+
+      if (res && res.success !== false) {
+        toast.success(res.message || 'Money transferred to Current Account successfully!');
+        setIsTransferModalOpen(false);
+        setTransferForm({
+          fromBranchId: 'branch-1',
+          amount: '',
+          date: new Date().toISOString().split('T')[0],
+          paymentMode: 'Bank Transfer',
+          notes: ''
+        });
+        await refreshAllData();
+      } else {
+        toast.error(res?.message || 'Failed to process transfer');
+      }
+    } catch (err) {
+      toast.error('Error executing money transfer');
+    } finally {
+      setIsTransferSubmitting(false);
+    }
+  };
+
   // Handle Delete Expense
   const handleDeleteExpense = async (id) => {
     if (!window.confirm('Are you sure you want to delete this expense record?')) return;
@@ -659,19 +718,38 @@ export default function Expenses() {
                 B1
               </div>
               <div>
-                <h3 className="font-bold text-sm text-slate-900 dark:text-white">Branch 1 Petty Cash</h3>
-                <span className="text-[10px] text-sky-700 dark:text-sky-300 font-semibold">Main Office Hand-Cash</span>
+                <h3 className="font-bold text-sm text-slate-900 dark:text-white">Branch 1 Soolagiri</h3>
+                <span className="text-[10px] text-sky-700 dark:text-sky-300 font-semibold">Soolagiri Office Hand-Cash</span>
               </div>
             </div>
-            <button
-              onClick={() => {
-                setTopupForm(prev => ({ ...prev, branchId: 'branch-1', isOpeningBalanceReset: false }));
-                setIsTopupModalOpen(true);
-              }}
-              className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-sky-100 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300 hover:bg-sky-200 transition-colors"
-            >
-              + Top-Up / Edit
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => {
+                  setTransferForm({
+                    fromBranchId: 'branch-1',
+                    amount: '',
+                    date: new Date().toISOString().split('T')[0],
+                    paymentMode: 'Bank Transfer',
+                    notes: ''
+                  });
+                  setIsTransferModalOpen(true);
+                }}
+                className="text-[10px] font-bold px-2 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-200 transition-colors flex items-center gap-1 cursor-pointer"
+                title="Transfer money from Branch 1 Soolagiri to Current Account"
+              >
+                <FiArrowUpRight className="w-3 h-3 text-emerald-700 dark:text-emerald-300" />
+                <span>To Current A/C</span>
+              </button>
+              <button
+                onClick={() => {
+                  setTopupForm(prev => ({ ...prev, branchId: 'branch-1', isOpeningBalanceReset: false }));
+                  setIsTopupModalOpen(true);
+                }}
+                className="text-[10px] font-bold px-2 py-1 rounded-lg bg-sky-100 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300 hover:bg-sky-200 transition-colors cursor-pointer"
+              >
+                + Top-Up / Edit
+              </button>
+            </div>
           </div>
 
           <div className="mt-4">
@@ -718,19 +796,38 @@ export default function Expenses() {
                 B2
               </div>
               <div>
-                <h3 className="font-bold text-sm text-slate-900 dark:text-white">Branch 2 Petty Cash</h3>
-                <span className="text-[10px] text-purple-700 dark:text-purple-300 font-semibold">Sub-Branch Hand-Cash</span>
+                <h3 className="font-bold text-sm text-slate-900 dark:text-white">Branch 2 Palacode</h3>
+                <span className="text-[10px] text-purple-700 dark:text-purple-300 font-semibold">Palacode Sub-Branch Cash</span>
               </div>
             </div>
-            <button
-              onClick={() => {
-                setTopupForm(prev => ({ ...prev, branchId: 'branch-2', isOpeningBalanceReset: false }));
-                setIsTopupModalOpen(true);
-              }}
-              className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 hover:bg-purple-200 transition-colors"
-            >
-              + Top-Up / Edit
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => {
+                  setTransferForm({
+                    fromBranchId: 'branch-2',
+                    amount: '',
+                    date: new Date().toISOString().split('T')[0],
+                    paymentMode: 'Bank Transfer',
+                    notes: ''
+                  });
+                  setIsTransferModalOpen(true);
+                }}
+                className="text-[10px] font-bold px-2 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-200 transition-colors flex items-center gap-1 cursor-pointer"
+                title="Transfer money from Branch 2 Palacode to Current Account"
+              >
+                <FiArrowUpRight className="w-3 h-3 text-emerald-700 dark:text-emerald-300" />
+                <span>To Current A/C</span>
+              </button>
+              <button
+                onClick={() => {
+                  setTopupForm(prev => ({ ...prev, branchId: 'branch-2', isOpeningBalanceReset: false }));
+                  setIsTopupModalOpen(true);
+                }}
+                className="text-[10px] font-bold px-2 py-1 rounded-lg bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 hover:bg-purple-200 transition-colors cursor-pointer"
+              >
+                + Top-Up / Edit
+              </button>
+            </div>
           </div>
 
           <div className="mt-4">
@@ -1757,7 +1854,7 @@ export default function Expenses() {
                         : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
                     }`}
                   >
-                    Branch 1
+                    Branch 1 Soolagiri
                   </button>
                   <button
                     type="button"
@@ -1768,7 +1865,7 @@ export default function Expenses() {
                         : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
                     }`}
                   >
-                    Branch 2
+                    Branch 2 Palacode
                   </button>
                   <button
                     type="button"
@@ -2274,6 +2371,173 @@ export default function Expenses() {
                   className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-600/20 active:scale-95 transition-all cursor-pointer"
                 >
                   {isEditSubmitting ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: Transfer from Branch (Soolagiri / Palacode) to Current Account */}
+      {isTransferModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-transparent">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shadow-xs">
+                  <FiArrowUpRight className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-900 dark:text-white">Transfer to Current Account</h3>
+                  <p className="text-xs text-slate-500">Move cash from Branch to Company Bank Account</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsTransferModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer"
+              >
+                <FiX className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleTransferSubmit} className="p-5 space-y-4">
+              {/* Source Branch Selection */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  From Source Branch *
+                </label>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setTransferForm({ ...transferForm, fromBranchId: 'branch-1' })}
+                    className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                      transferForm.fromBranchId === 'branch-1'
+                        ? 'border-sky-500 bg-sky-50 dark:bg-sky-950/40 ring-2 ring-sky-500/20'
+                        : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'
+                    }`}
+                  >
+                    <span className="text-[10px] uppercase font-bold text-sky-600 dark:text-sky-400 block">Branch 1</span>
+                    <span className="text-xs font-bold text-slate-900 dark:text-white block mt-0.5">Soolagiri</span>
+                    <span className="text-[11px] font-black text-sky-700 dark:text-sky-300 font-mono block mt-1">
+                      ₹{Number(b1?.remainingBalance || 0).toLocaleString('en-IN')} avail
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setTransferForm({ ...transferForm, fromBranchId: 'branch-2' })}
+                    className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                      transferForm.fromBranchId === 'branch-2'
+                        ? 'border-purple-500 bg-purple-50 dark:bg-purple-950/40 ring-2 ring-purple-500/20'
+                        : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'
+                    }`}
+                  >
+                    <span className="text-[10px] uppercase font-bold text-purple-600 dark:text-purple-400 block">Branch 2</span>
+                    <span className="text-xs font-bold text-slate-900 dark:text-white block mt-0.5">Palacode</span>
+                    <span className="text-[11px] font-black text-purple-700 dark:text-purple-300 font-mono block mt-1">
+                      ₹{Number(b2?.remainingBalance || 0).toLocaleString('en-IN')} avail
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Destination Account Preview */}
+              <div className="p-3 bg-emerald-50/70 dark:bg-emerald-950/30 rounded-2xl border border-emerald-200/80 dark:border-emerald-800/40 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FiCreditCard className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-emerald-800 dark:text-emerald-300 block">Destination Account</span>
+                    <span className="text-xs font-bold text-slate-900 dark:text-white">Current Account (Company Bank)</span>
+                  </div>
+                </div>
+                <span className="text-xs font-black text-emerald-700 dark:text-emerald-300 font-mono">
+                  ₹{Number(currentAcc?.remainingBalance || 0).toLocaleString('en-IN')}
+                </span>
+              </div>
+
+              {/* Transfer Amount */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Transfer Amount (₹) *
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">₹</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max={transferForm.fromBranchId === 'branch-2' ? Number(b2?.remainingBalance || 0) : Number(b1?.remainingBalance || 0)}
+                    required
+                    placeholder="Enter amount to transfer"
+                    value={transferForm.amount}
+                    onChange={(e) => setTransferForm({ ...transferForm, amount: e.target.value })}
+                    className="w-full pl-8 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 font-mono"
+                  />
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1">
+                  <span>Available to transfer:</span>
+                  <span className="font-bold text-slate-700 dark:text-slate-300 font-mono">
+                    ₹{Number(
+                      transferForm.fromBranchId === 'branch-2' ? (b2?.remainingBalance || 0) : (b1?.remainingBalance || 0)
+                    ).toLocaleString('en-IN')}
+                  </span>
+                </div>
+              </div>
+
+              {/* Date & Payment Mode */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Transfer Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={transferForm.date}
+                    onChange={(e) => setTransferForm({ ...transferForm, date: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none text-slate-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Mode *</label>
+                  <select
+                    value={transferForm.paymentMode}
+                    onChange={(e) => setTransferForm({ ...transferForm, paymentMode: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none text-slate-900 dark:text-white"
+                  >
+                    <option value="Bank Transfer">Bank Transfer / NEFT</option>
+                    <option value="Cash Deposit">Bank Cash Deposit</option>
+                    <option value="UPI Transfer">UPI Handover / Transfer</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Notes / Remark (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Excess counter cash deposited to bank"
+                  value={transferForm.notes}
+                  onChange={(e) => setTransferForm({ ...transferForm, notes: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none text-slate-900 dark:text-white"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsTransferModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isTransferSubmitting}
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <FiArrowUpRight className="w-4 h-4" />
+                  <span>{isTransferSubmitting ? 'Transferring...' : 'Confirm Transfer'}</span>
                 </button>
               </div>
             </form>

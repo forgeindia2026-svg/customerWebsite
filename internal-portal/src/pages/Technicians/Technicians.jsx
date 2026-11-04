@@ -10,6 +10,7 @@ import Modal from '../../components/Modal';
 import { getApiUrl } from '../../utils/config';
 import AdminTechEarningsModal from './AdminTechEarningsModal';
 import { exportAllTechniciansPDF } from '../../utils/technicianPdfGenerator';
+import { isDateInRange } from '../../utils/dateFilterUtils';
 import toast from 'react-hot-toast';
 
 export default function Technicians() {
@@ -31,15 +32,23 @@ export default function Technicians() {
 
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
-  const buildTechSummaries = (itemsList) => {
-    const now = new Date();
-    let istMonth = '';
-    try {
-      istMonth = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now).substring(0, 7);
-    } catch (_) {
-      istMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    }
+  const [selectedDateRange, setSelectedDateRange] = useState(
+    () => localStorage.getItem('admin_date_range') || 'This Month'
+  );
 
+  useEffect(() => {
+    const handleDateFilterChange = (e) => {
+      if (e?.detail) {
+        setSelectedDateRange(e.detail);
+      }
+    };
+    window.addEventListener('admin_date_filter_change', handleDateFilterChange);
+    return () => {
+      window.removeEventListener('admin_date_filter_change', handleDateFilterChange);
+    };
+  }, []);
+
+  const buildTechSummaries = (itemsList, dateRange = selectedDateRange) => {
     const map = {};
     const jobsByTech = {};
 
@@ -50,35 +59,9 @@ export default function Technicians() {
       const isFinished = st === 'approved' || st === 'completed' || st === 'delivered';
       if (!isFinished) return;
 
-      // 2. Date parsing (supporting IST YYYY-MM and formatted string 'Oct 12, 2026')
-      let jobDateStr = '';
-      if (j.scheduledDate && typeof j.scheduledDate === 'string') jobDateStr = j.scheduledDate.split('T')[0];
-      else if (j.date && typeof j.date === 'string') {
-        try {
-          const d = new Date(j.date);
-          if (!isNaN(d.getTime())) {
-            jobDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(d);
-          } else {
-            jobDateStr = j.date.split('T')[0];
-          }
-        } catch (_) {
-          jobDateStr = j.date.split('T')[0];
-        }
-      } else if (j.financials?.approvedAt) {
-        try {
-          jobDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(j.financials.approvedAt));
-        } catch (_) {
-          jobDateStr = String(j.financials.approvedAt).split('T')[0];
-        }
-      } else if (j.createdAt) {
-        try {
-          jobDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(j.createdAt));
-        } catch (_) {
-          jobDateStr = String(j.createdAt).split('T')[0];
-        }
-      }
-
-      const isThisMonth = jobDateStr.startsWith(istMonth) || (typeof j.date === 'string' && j.date.toLowerCase().includes('oct'));
+      // 2. Date parsing using universal date filter (e.g. This Month, Today, Last Month)
+      const rawDate = j.scheduledDate || j.date || j.financials?.approvedAt || j.createdAt || j.updatedAt;
+      const isThisMonth = isDateInRange(rawDate, dateRange || 'This Month');
 
       const leadName = (
         j.assignedTechnicianName ||
@@ -192,7 +175,7 @@ export default function Technicians() {
       const res = await fetch(`${baseUrl}/api/dashboard`);
       const data = await res.json();
       if (data && data.success && data.data && Array.isArray(data.data.orders)) {
-        const { map, jobsByTech } = buildTechSummaries(data.data.orders);
+        const { map, jobsByTech } = buildTechSummaries(data.data.orders, selectedDateRange);
         setTechSummaries(map);
         setTechJobsMap(jobsByTech);
         return map;
@@ -202,7 +185,7 @@ export default function Technicians() {
       const jobRes = await fetch(`${baseUrl}/api/jobs?status=COMPLETED`);
       const jobData = await jobRes.json();
       if (jobData && jobData.success && Array.isArray(jobData.data)) {
-        const { map, jobsByTech } = buildTechSummaries(jobData.data);
+        const { map, jobsByTech } = buildTechSummaries(jobData.data, selectedDateRange);
         setTechSummaries(map);
         setTechJobsMap(jobsByTech);
         return map;
@@ -213,16 +196,16 @@ export default function Technicians() {
     return null;
   };
 
-  // Keep summaries in sync whenever Redux orders update
+  // Keep summaries in sync whenever Redux orders or date filter update
   useEffect(() => {
     if (dashboardOrders && dashboardOrders.length > 0) {
-      const { map, jobsByTech } = buildTechSummaries(dashboardOrders);
+      const { map, jobsByTech } = buildTechSummaries(dashboardOrders, selectedDateRange);
       setTechSummaries(map);
       setTechJobsMap(jobsByTech);
     } else {
       fetchCompletedJobsData();
     }
-  }, [dashboardOrders]);
+  }, [dashboardOrders, selectedDateRange]);
 
   const isTechNameMatch = (name1, name2) => {
     if (!name1 || !name2) return false;
@@ -693,7 +676,7 @@ export default function Technicians() {
                           ₹
                         </div>
                         <div>
-                          <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400">This Month</div>
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400">{selectedDateRange}</div>
                           <div className="text-xs font-black text-emerald-900 dark:text-emerald-200">
                             ₹{getTechMonthEarning(tech.name).toLocaleString('en-IN')}
                           </div>
@@ -780,7 +763,7 @@ export default function Technicians() {
                       >
                         <div className="flex items-center gap-1.5">
                           <span className="w-5 h-5 rounded-md bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold text-xs flex items-center justify-center">₹</span>
-                          <span className="text-[10px] font-bold text-emerald-800 dark:text-emerald-400">Month:</span>
+                          <span className="text-[10px] font-bold text-emerald-800 dark:text-emerald-400">{selectedDateRange}:</span>
                           <span className="text-xs font-black text-emerald-950 dark:text-emerald-200">
                             ₹{getTechMonthEarning(tech.name).toLocaleString('en-IN')}
                           </span>
@@ -853,7 +836,7 @@ export default function Technicians() {
                     <th className="py-3.5 px-4 min-w-[200px] whitespace-nowrap">Technician</th>
                     <th className="py-3.5 px-4 min-w-[220px] whitespace-nowrap">Specialization</th>
                     <th className="py-3.5 px-4 min-w-[240px] whitespace-nowrap">Contact Info</th>
-                    <th className="py-3.5 px-4 text-center whitespace-nowrap w-36">This Month</th>
+                    <th className="py-3.5 px-4 text-center whitespace-nowrap w-36">{selectedDateRange}</th>
                     <th className="py-3.5 px-4 text-center whitespace-nowrap w-24">Rating</th>
                     <th className="py-3.5 px-4 text-right whitespace-nowrap w-44">Status</th>
                     <th className="py-3.5 px-4 text-center whitespace-nowrap w-24">Actions</th>

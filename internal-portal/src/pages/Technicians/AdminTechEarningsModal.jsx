@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { getApiUrl } from '../../utils/config';
 import { exportSingleTechnicianStatementPDF } from '../../utils/technicianPdfGenerator';
+import { isDateInRange } from '../../utils/dateFilterUtils';
 import toast from 'react-hot-toast';
 
 export default function AdminTechEarningsModal({ isOpen, onClose, technician, summary, preloadedJobs = [] }) {
@@ -234,8 +235,8 @@ export default function AdminTechEarningsModal({ isOpen, onClose, technician, su
   };
 
   const isJobThisMonth = (job) => {
-    const dStr = getJobDateString(job);
-    return dStr.startsWith(currentYearMonth);
+    const rawDate = job.scheduledDate || job.date || job.financials?.approvedAt || job.createdAt || job.updatedAt;
+    return isDateInRange(rawDate, 'This Month');
   };
 
   // Filtered jobs

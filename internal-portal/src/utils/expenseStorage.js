@@ -175,8 +175,8 @@ export const calculateExpensesSummary = (expensesList, targetMonth) => {
     };
   };
 
-  const branch1 = calcBranch('branch-1', 'Branch 1 (Main Office)');
-  const branch2 = calcBranch('branch-2', 'Branch 2');
+  const branch1 = calcBranch('branch-1', 'Branch 1 Soolagiri');
+  const branch2 = calcBranch('branch-2', 'Branch 2 Palacode');
   const currentAcc = calcBranch('current-account', 'Current Account (Company Bank)');
 
   const caExpenses = list.filter(e => {
@@ -525,18 +525,23 @@ export const updateOpeningBalanceApi = async ({ branchId, amount }) => {
 };
 
 /**
- * Update account name (e.g. Current Account)
+ * Transfer funds from Branch (Soolagiri / Palacode) to Current Account
  */
-export const updateAccountNameApi = async ({ branchId, name }) => {
+export const transferPettyCashApi = async ({ fromBranchId, amount, notes, date, paymentMode, transferredBy }) => {
+  const parsedAmt = Math.max(0, Number(amount) || 0);
   try {
-    const res = await fetch(`${getExpensesBase()}/petty-cash/account-name`, {
-      method: 'PUT',
+    const res = await fetch(`${getExpensesBase()}/petty-cash/transfer`, {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ branchId, name })
+      body: JSON.stringify({ fromBranchId, amount: parsedAmt, notes, date, paymentMode, transferredBy })
     });
     if (res.ok) {
       return await res.json();
+    } else {
+      const errData = await res.json().catch(() => ({}));
+      return { success: false, message: errData.message || 'Transfer failed' };
     }
-  } catch (_) {}
-  return { success: false };
+  } catch (err) {
+    return { success: false, message: 'Network error processing transfer' };
+  }
 };

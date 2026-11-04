@@ -29,25 +29,31 @@ const getTodayDate = (): string => {
 export const getPettyCashAccountsSummary = async (targetMonth?: string) => {
   const currentMonth = targetMonth || getCurrentYearMonth();
 
-  // Find or create Branch 1 and Branch 2 accounts
+  // Find or create Branch 1 (Soolagiri) and Branch 2 (Palacode) accounts
   let b1 = await PettyCashAccount.findOne({ branchId: 'branch-1' });
   if (!b1) {
     b1 = await PettyCashAccount.create({
       branchId: 'branch-1',
-      branchName: 'Branch 1',
+      branchName: 'Branch 1 Soolagiri',
       openingBalance: 0,
       topups: []
     });
+  } else if (!b1.branchName || b1.branchName === 'Branch 1') {
+    b1.branchName = 'Branch 1 Soolagiri';
+    await b1.save();
   }
 
   let b2 = await PettyCashAccount.findOne({ branchId: 'branch-2' });
   if (!b2) {
     b2 = await PettyCashAccount.create({
       branchId: 'branch-2',
-      branchName: 'Branch 2',
+      branchName: 'Branch 2 Palacode',
       openingBalance: 0,
       topups: []
     });
+  } else if (!b2.branchName || b2.branchName === 'Branch 2') {
+    b2.branchName = 'Branch 2 Palacode';
+    await b2.save();
   }
 
   // Branch 1 allocation & spent
@@ -78,14 +84,22 @@ export const getPettyCashAccountsSummary = async (targetMonth?: string) => {
   // Fetch all expenses to calculate live remaining balances
   const allExpenses = await Expense.find({});
 
-  const b1Expenses = allExpenses.filter(e => e.fundSource === 'Branch 1 Petty Cash');
+  // Match both new 'Branch 1 Soolagiri' and old 'Branch 1'
+  const b1Expenses = allExpenses.filter(e => {
+    const s = (e.fundSource || '').toLowerCase();
+    return s.includes('branch 1') || s.includes('soolagiri');
+  });
   const b1Spent = b1Expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   const b1MonthSpent = b1Expenses
     .filter(e => e.date && e.date.startsWith(currentMonth))
     .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   const b1Remaining = Math.max(0, b1Allocated - b1Spent);
 
-  const b2Expenses = allExpenses.filter(e => e.fundSource === 'Branch 2 Petty Cash');
+  // Match both new 'Branch 2 Palacode' and old 'Branch 2'
+  const b2Expenses = allExpenses.filter(e => {
+    const s = (e.fundSource || '').toLowerCase();
+    return s.includes('branch 2') || s.includes('palacode');
+  });
   const b2Spent = b2Expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   const b2MonthSpent = b2Expenses
     .filter(e => e.date && e.date.startsWith(currentMonth))
@@ -126,7 +140,7 @@ export const getPettyCashAccountsSummary = async (targetMonth?: string) => {
   return {
     branch1: {
       branchId: 'branch-1',
-      branchName: 'Branch 1',
+      branchName: b1.branchName || 'Branch 1 Soolagiri',
       openingBalance: Number(b1.openingBalance) || 0,
       totalTopups: b1TopupsTotal,
       totalAllocated: b1Allocated,
@@ -137,7 +151,7 @@ export const getPettyCashAccountsSummary = async (targetMonth?: string) => {
     },
     branch2: {
       branchId: 'branch-2',
-      branchName: 'Branch 2',
+      branchName: b2.branchName || 'Branch 2 Palacode',
       openingBalance: Number(b2.openingBalance) || 0,
       totalTopups: b2TopupsTotal,
       totalAllocated: b2Allocated,
@@ -182,13 +196,16 @@ router.post('/petty-cash/topup', async (req: Request, res: Response) => {
 
     const rawId = String(branchId).toLowerCase().trim();
     let cleanBranchId = 'branch-1';
-    let cleanBranchName = 'Branch 1';
+    let cleanBranchName = 'Branch 1 Soolagiri';
     if (rawId.includes('current') || rawId.includes('admin') || rawId === 'current-account') {
       cleanBranchId = 'current-account';
       cleanBranchName = 'Current Account';
-    } else if (rawId.includes('2') || rawId === 'branch-2') {
+    } else if (rawId.includes('2') || rawId === 'branch-2' || rawId.includes('palacode')) {
       cleanBranchId = 'branch-2';
-      cleanBranchName = 'Branch 2';
+      cleanBranchName = 'Branch 2 Palacode';
+    } else if (rawId.includes('1') || rawId === 'branch-1' || rawId.includes('soolagiri')) {
+      cleanBranchId = 'branch-1';
+      cleanBranchName = 'Branch 1 Soolagiri';
     }
     const numAmount = Math.max(0, Number(amount));
 
@@ -231,6 +248,108 @@ router.post('/petty-cash/topup', async (req: Request, res: Response) => {
   } catch (err: any) {
     console.error('Error updating petty cash:', err);
     res.status(500).json({ success: false, message: 'Server error updating petty cash', error: err.message });
+  }
+});
+
+/**
+ * POST /api/expenses/petty-cash/transfer
+ * Transfer money from Branch 1 Soolagiri or Branch 2 Palacode to Current Account
+ */
+router.post('/petty-cash/transfer', async (req: Request, res: Response) => {
+  try {
+    const { fromBranchId, amount, notes, date, paymentMode, transferredBy } = req.body;
+    const numAmount = Math.max(0, Number(amount) || 0);
+
+    if (numAmount <= 0) {
+      return res.status(400).json({ success: false, message: 'Please provide a valid transfer amount greater than 0' });
+    }
+
+    const rawFromId = String(fromBranchId || '').toLowerCase().trim();
+    let sourceBranchId = 'branch-1';
+    let sourceBranchName = 'Branch 1 Soolagiri';
+    if (rawFromId.includes('2') || rawFromId.includes('palacode')) {
+      sourceBranchId = 'branch-2';
+      sourceBranchName = 'Branch 2 Palacode';
+    } else {
+      sourceBranchId = 'branch-1';
+      sourceBranchName = 'Branch 1 Soolagiri';
+    }
+
+    // 1. Verify source branch account exists and has sufficient balance
+    const currentMonth = getCurrentYearMonth();
+    const liveSummary = await getPettyCashAccountsSummary(currentMonth);
+    const sourceSummary = sourceBranchId === 'branch-2' ? liveSummary.branch2 : liveSummary.branch1;
+    const currentBalance = Number(sourceSummary?.remainingBalance || 0);
+
+    if (numAmount > currentBalance) {
+      return res.status(400).json({
+        success: false,
+        message: `Insufficient in-hand cash in ${sourceBranchName}. Available: Rs. ${currentBalance.toLocaleString('en-IN')}, Requested: Rs. ${numAmount.toLocaleString('en-IN')}`
+      });
+    }
+
+    const transferDate = date || getTodayDate();
+    const cleanNotes = (notes || '').trim();
+    const transferRef = `TRF-${Date.now().toString().slice(-6)}`;
+
+    // 2. Record Transfer-Out Expense from Source Branch
+    const transferExpense = new Expense({
+      technicianName: 'Internal Transfer',
+      employeeName: transferredBy || 'Admin',
+      expenseType: 'OFFICE',
+      fundSource: sourceBranchId === 'branch-2' ? 'Branch 2 Palacode Petty Cash' : 'Branch 1 Soolagiri Petty Cash',
+      paymentMode: paymentMode || 'Bank Deposit',
+      referenceId: transferRef,
+      date: transferDate,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      category: 'Transfer to Current A/C',
+      amount: numAmount,
+      notes: cleanNotes ? `[Transfer to Current Account] ${cleanNotes}` : `Money transferred from ${sourceBranchName} to Current Account (Ref: ${transferRef})`,
+      status: 'APPROVED',
+      createdBy: transferredBy || 'Admin'
+    });
+    await transferExpense.save();
+
+    // 3. Add Top-Up / Deposit entry into Current Account
+    let currentAcc = await PettyCashAccount.findOne({
+      $or: [{ branchId: 'current-account' }, { branchId: 'admin-account' }]
+    });
+    if (!currentAcc) {
+      currentAcc = new PettyCashAccount({
+        branchId: 'current-account',
+        branchName: 'Current Account',
+        openingBalance: 0,
+        topups: []
+      });
+    }
+
+    currentAcc.topups.push({
+      amount: numAmount,
+      date: transferDate,
+      notes: cleanNotes ? `[Transfer In from ${sourceBranchName}] ${cleanNotes}` : `Transferred from ${sourceBranchName} (Ref: ${transferRef})`,
+      paymentMode: paymentMode || 'Bank Transfer',
+      addedBy: transferredBy || 'Admin',
+      createdAt: new Date()
+    });
+    await currentAcc.save();
+
+    try { await invalidateCache('dashboard:*'); } catch (_) {}
+    const updatedSummary = await getPettyCashAccountsSummary(currentMonth);
+
+    res.json({
+      success: true,
+      message: `Rs. ${numAmount.toLocaleString('en-IN')} transferred from ${sourceBranchName} to Current Account successfully!`,
+      data: {
+        transferRef,
+        amount: numAmount,
+        sourceBranchName,
+        targetAccount: 'Current Account',
+        updatedSummary
+      }
+    });
+  } catch (err: any) {
+    console.error('Error executing petty cash transfer to Current Account:', err);
+    res.status(500).json({ success: false, message: 'Server error processing transfer', error: err.message });
   }
 });
 
