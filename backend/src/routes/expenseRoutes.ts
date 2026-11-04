@@ -93,7 +93,8 @@ export const getPettyCashAccountsSummary = async (targetMonth?: string) => {
   const b1MonthSpent = b1Expenses
     .filter(e => e.date && e.date.startsWith(currentMonth))
     .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
-  const b1Remaining = Math.max(0, b1Allocated - b1Spent);
+  // Option 1: Available In-Hand Cash is based on Current Month Allocation minus Current Month Spent
+  const b1Remaining = Math.max(0, b1Allocated - b1MonthSpent);
 
   // Match both new 'Branch 2 Palacode' and old 'Branch 2'
   const b2Expenses = allExpenses.filter(e => {
@@ -104,7 +105,8 @@ export const getPettyCashAccountsSummary = async (targetMonth?: string) => {
   const b2MonthSpent = b2Expenses
     .filter(e => e.date && e.date.startsWith(currentMonth))
     .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
-  const b2Remaining = Math.max(0, b2Allocated - b2Spent);
+  // Option 1: Available In-Hand Cash is based on Current Month Allocation minus Current Month Spent
+  const b2Remaining = Math.max(0, b2Allocated - b2MonthSpent);
 
   // Current Account / Admin Account expenses
   const caExpenses = allExpenses.filter(e => {
@@ -115,7 +117,8 @@ export const getPettyCashAccountsSummary = async (targetMonth?: string) => {
   const caMonthSpent = caExpenses
     .filter(e => e.date && e.date.startsWith(currentMonth))
     .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
-  const caRemaining = Math.max(0, caAllocated - caSpent);
+  // Option 1: Available Account Balance is based on Current Month Allocation minus Current Month Spent
+  const caRemaining = Math.max(0, caAllocated - caMonthSpent);
 
   const caByMode: Record<string, number> = {};
   caExpenses.forEach(e => {
