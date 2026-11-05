@@ -7,7 +7,7 @@ const router = Router();
 // POST /api/groups - Create a new group
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { name, adminId, members } = req.body;
+    const { name, adminId, members, avatar } = req.body;
     if (!name || !adminId || !members || !members.length) {
       return res.status(400).json({ success: false, message: 'Name, adminId, and members are required.' });
     }
@@ -18,7 +18,8 @@ router.post('/', async (req: Request, res: Response) => {
     const group = new ChatGroup({
       name,
       adminId,
-      members: groupMembers
+      members: groupMembers,
+      avatar: avatar || ''
     });
 
     await group.save();
