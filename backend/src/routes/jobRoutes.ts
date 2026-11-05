@@ -698,15 +698,32 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     const requesterRole = (req.headers['role'] as string) || (req.headers['user-role'] as string) || '';
     if (requesterRole.toUpperCase() === 'TECHNICIAN' && (job as any).financials) {
-      const sanitized = job.toObject();
+      const sanitized: any = job.toObject();
       sanitized.financials = {
         technicianEarning: sanitized.financials?.technicianEarning || sanitized.technicianEarning || 0,
         approvedAt: sanitized.financials?.approvedAt
       };
+
+      // Also attach the latest report submitted for this job (e.g. from Main Technician)
+      const latestReport = await TechnicianReport.findOne({
+        $or: [{ jobCode: rawId }, { jobCode: cleanCode }, { jobCode: `#${cleanCode}` }]
+      }).sort({ createdAt: -1 }).lean();
+      if (latestReport) {
+        sanitized.latestReport = latestReport;
+      }
+
       return res.json({ success: true, data: sanitized });
     }
 
-    res.json({ success: true, data: job });
+    const jobObj: any = job.toObject();
+    const latestReport = await TechnicianReport.findOne({
+      $or: [{ jobCode: rawId }, { jobCode: cleanCode }, { jobCode: `#${cleanCode}` }]
+    }).sort({ createdAt: -1 }).lean();
+    if (latestReport) {
+      jobObj.latestReport = latestReport;
+    }
+
+    res.json({ success: true, data: jobObj });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

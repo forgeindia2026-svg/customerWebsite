@@ -11,7 +11,35 @@ router.get('/', async (req: Request, res: Response) => {
     const { technicianId, date, month } = req.query;
     
     let query: any = {};
-    if (technicianId) query.technicianId = technicianId;
+    if (technicianId) {
+      // Find all jobs where this technician is assigned as a subTechnician
+      const subJobs: any[] = await Job.find({
+        $or: [
+          { subTechnicians: technicianId },
+          { 'financials.subTechnicianEarnings': { $exists: true } }
+        ]
+      } as any).select('jobCode subTechnicians financials.subTechnicianEarnings').lean();
+
+      const matchedJobCodes: string[] = [];
+      for (const j of subJobs) {
+        const isSub = (j.subTechnicians || []).some((st: string) => String(st).trim().toLowerCase() === String(technicianId).trim().toLowerCase());
+        const subEarnings = (j.financials as any)?.subTechnicianEarnings || {};
+        const isSubInEarn = Object.keys(subEarnings).some(k => k.trim().toLowerCase() === String(technicianId).trim().toLowerCase());
+        if (isSub || isSubInEarn) {
+          const clean = (j.jobCode || '').replace(/^#/, '');
+          matchedJobCodes.push(clean, `#${clean}`);
+        }
+      }
+
+      if (matchedJobCodes.length > 0) {
+        query.$or = [
+          { technicianId: technicianId },
+          { jobCode: { $in: matchedJobCodes } }
+        ];
+      } else {
+        query.technicianId = technicianId;
+      }
+    }
     if (date) query.date = date;
     if (month && typeof month === 'string') {
       query.date = { $regex: `^${month}` }; // Match YYYY-MM
