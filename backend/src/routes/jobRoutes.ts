@@ -397,6 +397,225 @@ router.get('/technicians-overview', async (_req: Request, res: Response) => {
   }
 });
 
+// ⚡ Single Technician Detailed Earnings Statement (for mobile app & portal)
+router.get('/technician-earnings-statement', async (req: Request, res: Response) => {
+  try {
+    const rawTargetName = (req.query.technicianName || req.query.name || '').toString().trim();
+    const rawTargetId = (req.query.technicianId || req.query.id || '').toString().trim();
+
+    if (!rawTargetName && !rawTargetId) {
+      return res.status(400).json({ success: false, message: 'technicianName or technicianId is required' });
+    }
+
+    const isNameMatch = (name1?: string, name2?: string) => {
+      if (!name1 || !name2) return false;
+      const a = String(name1).toLowerCase().trim();
+      const b = String(name2).toLowerCase().trim();
+      if (a === b) return true;
+      if (a.includes(b) || b.includes(a)) return true;
+      const aClean = a.replace(/[\.\s_]/g, '');
+      const bClean = b.replace(/[\.\s_]/g, '');
+      if (aClean === bClean) return true;
+      if (aClean.length >= 4 && bClean.length >= 4 && (aClean.includes(bClean) || bClean.includes(aClean))) return true;
+      return false;
+    };
+
+    let targetName = rawTargetName;
+    if (!targetName && rawTargetId) {
+      const u = await User.findById(rawTargetId).lean();
+      if (u) targetName = u.name;
+    }
+
+    const completedJobs = await Job.find({
+      $or: [
+        { status: { $in: ['COMPLETED', 'DELIVERED', 'APPROVED'] } },
+        { 'financials.approvedAt': { $exists: true, $ne: null } }
+      ]
+    } as any)
+      .select('jobCode status scheduledDate date customer customerName location address city dailyReports financials mainTechnicianEarning technicianEarning subTechnicians subTechnicianEarnings assignedTechnician assignedTechnicians createdAt updatedAt')
+      .lean();
+
+    const now = new Date();
+    let istDateStr = '';
+    try {
+      istDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now);
+    } catch (_) {
+      istDateStr = now.toISOString().split('T')[0];
+    }
+    const currentYearMonth = istDateStr.substring(0, 7); // 'YYYY-MM'
+    const todayStr = istDateStr; // 'YYYY-MM-DD'
+
+    const getJobDateString = (j: any): string => {
+      if (j.scheduledDate && typeof j.scheduledDate === 'string') return j.scheduledDate.split('T')[0];
+      if (j.date && typeof j.date === 'string') return j.date.split('T')[0];
+      if (j.dailyReports && j.dailyReports.length > 0 && j.dailyReports[0]?.date) return String(j.dailyReports[0].date).split('T')[0];
+      if (j.financials?.approvedAt) {
+        try {
+          return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(j.financials.approvedAt));
+        } catch (_) {
+          return String(j.financials.approvedAt).split('T')[0];
+        }
+      }
+      if (j.createdAt) {
+        try {
+          return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(j.createdAt));
+        } catch (_) {
+          return new Date(j.createdAt).toISOString().split('T')[0];
+        }
+      }
+      return '';
+    };
+
+    const seenCodes = new Set<string>();
+    const items: any[] = [];
+    let thisMonthEarnings = 0;
+    let lifetimeEarnings = 0;
+    let todayEarnings = 0;
+    let thisMonthJobsCount = 0;
+    let lifetimeJobsCount = 0;
+
+    completedJobs.forEach((j: any) => {
+      const rawCode = String(j.jobCode || j.id || j._id || '').trim();
+      const cleanCode = rawCode.replace(/^#/, '').trim().toUpperCase();
+      if (!cleanCode || seenCodes.has(cleanCode)) return;
+
+      const leadName = String(
+        (typeof j.assignedTechnician === 'string' ? j.assignedTechnician : j.assignedTechnician?.name) ||
+        j.assignedTechnicianName ||
+        (Array.isArray(j.assignedTechnicians) && j.assignedTechnicians[0]?.name) ||
+        ''
+      ).trim();
+
+      const leadId = String(
+        (typeof j.assignedTechnician === 'object' ? (j.assignedTechnician?.id || j.assignedTechnician?._id) : '') ||
+        j.assignedTechnicianId ||
+        (Array.isArray(j.assignedTechnicians) && (j.assignedTechnicians[0]?.id || j.assignedTechnicians[0]?._id)) ||
+        ''
+      ).trim();
+
+      const isLead = (rawTargetId && leadId === rawTargetId) || isNameMatch(leadName, targetName);
+
+      // Parse sub technicians
+      const parseSubs = (raw: any): string[] => {
+        if (!raw) return [];
+        let list: any[] = [];
+        if (typeof raw === 'string') {
+          try {
+            const parsed = JSON.parse(raw);
+            list = Array.isArray(parsed) ? parsed : [raw];
+          } catch {
+            list = raw.split(',');
+          }
+        } else if (Array.isArray(raw)) {
+          list = raw;
+        }
+        return list.map(item => {
+          if (typeof item === 'object' && item !== null) return item.name || item.technicianName || item.id || '';
+          return String(item || '').trim();
+        }).filter(Boolean);
+      };
+
+      const orderSubList = parseSubs(j.subTechnicians);
+      const isSub = !isLead && orderSubList.some(s => isNameMatch(s, targetName));
+
+      // Also check subTechnicianEarnings directly
+      const subsFinancials = j.financials?.subTechnicianEarnings || j.subTechnicianEarnings || {};
+      let hasSubEarning = false;
+      let subAmount = 0;
+
+      if (Array.isArray(subsFinancials)) {
+        const match = subsFinancials.find((st: any) => isNameMatch(st.technicianName || st.name, targetName));
+        if (match) {
+          hasSubEarning = true;
+          subAmount = Number(match.amount || 0);
+        }
+      } else if (typeof subsFinancials === 'object' && subsFinancials !== null) {
+        const matchKey = Object.keys(subsFinancials).find(k => isNameMatch(k, targetName));
+        if (matchKey) {
+          hasSubEarning = true;
+          subAmount = Number(subsFinancials[matchKey] || 0);
+        }
+      }
+
+      if (!isLead && !isSub && !hasSubEarning) return;
+
+      seenCodes.add(cleanCode);
+
+      let earning = 0;
+      let role = isLead ? 'Lead Technician' : 'Sub-Technician';
+
+      if (isLead) {
+        earning = Number(
+          j.financials?.mainTechnicianEarning ??
+          j.mainTechnicianEarning ??
+          j.financials?.technicianEarning ??
+          j.technicianEarning ??
+          0
+        );
+      } else {
+        earning = subAmount;
+      }
+
+      const jobDateStr = getJobDateString(j);
+      const isThisMonth = jobDateStr.startsWith(currentYearMonth);
+      const isToday = jobDateStr === todayStr;
+
+      lifetimeEarnings += earning;
+      lifetimeJobsCount += 1;
+
+      if (isThisMonth) {
+        thisMonthEarnings += earning;
+        thisMonthJobsCount += 1;
+      }
+
+      if (isToday) {
+        todayEarnings += earning;
+      }
+
+      const custName = j.customer?.name || j.customerName || (typeof j.customer === 'string' ? j.customer : 'Customer');
+      const loc = j.location || j.address || j.customer?.address || j.customer?.city || 'Local Site';
+
+      const dObj = new Date(jobDateStr || Date.now());
+      const displayDate = !isNaN(dObj.getTime())
+        ? dObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+        : (jobDateStr || 'Recent');
+
+      items.push({
+        id: j._id?.toString() || cleanCode,
+        jobCode: cleanCode.startsWith('SK-') ? cleanCode : `#${cleanCode}`,
+        customerName: custName,
+        location: loc,
+        date: displayDate,
+        rawDate: jobDateStr,
+        role: isLead ? 'Lead' : 'Sub',
+        roleDisplay: role,
+        amount: earning,
+        status: 'COMPLETED',
+        payoutStatus: 'Approved',
+        isToday,
+        isThisMonth
+      });
+    });
+
+    items.sort((a, b) => new Date(b.rawDate).getTime() - new Date(a.rawDate).getTime());
+
+    res.json({
+      success: true,
+      data: {
+        technicianName: targetName,
+        thisMonthEarnings,
+        lifetimeEarnings,
+        todayEarnings,
+        thisMonthJobsCount,
+        lifetimeJobsCount,
+        jobs: items
+      }
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // ⚡ High-Speed Aggregated Dashboard Summary (< 20ms) - Filtered per Technician
 router.get('/dashboard-summary', async (req: Request, res: Response) => {
   const startTime = Date.now();
