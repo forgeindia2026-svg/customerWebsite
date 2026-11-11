@@ -31,10 +31,14 @@ const getTodayIST = () => {
 };
 
 // Auto-close any unclosed attendance from previous dates or current date at EOD (11:59 PM)
-export const autoCloseStaleAttendances = async (technicianId?: string) => {
+export const autoCloseStaleAttendances = async (technicianId?: string, isEodCron: boolean = false) => {
   try {
     const today = getTodayIST();
+    // Only query records strictly BEFORE today, UNLESS it's explicitly the 11:59 PM EOD cron trigger
     const query: any = { status: 'PRESENT' };
+    if (!isEodCron) {
+      query.date = { $lt: today };
+    }
     if (technicianId) {
       query.technicianId = technicianId;
     }
@@ -43,17 +47,9 @@ export const autoCloseStaleAttendances = async (technicianId?: string) => {
     for (const record of staleRecords) {
       const recordDate = record.date; // e.g. '2026-11-04'
       
-      // If it's today's record, only auto-close if triggered by midnight EOD routine or explicit close
-      // But if date is previous (< today), always auto-close
-      if (recordDate === today && !technicianId) {
-        // Only close if it's the 11:59 PM cron trigger
-        const istNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
-        const currentHours = istNow.getHours();
-        const currentMins = istNow.getMinutes();
-        // Check if close to 11:59 PM (e.g. >= 23:55)
-        if (currentHours < 23 || currentMins < 55) {
-          continue; // still active work hours today
-        }
+      // If it's today's record, only auto-close if triggered by midnight EOD routine
+      if (recordDate === today && !isEodCron) {
+        continue; // strictly do NOT auto-close today's active work session!
       }
 
       const autoOutTime = '11:59 PM';

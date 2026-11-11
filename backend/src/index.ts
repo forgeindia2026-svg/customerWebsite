@@ -111,7 +111,7 @@ mongoose
         const istNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
         if (istNow.getHours() === 23 && istNow.getMinutes() === 59) {
           console.log('🌙 Running 11:59 PM EOD Attendance Auto-Close routine...');
-          autoCloseStaleAttendances();
+          autoCloseStaleAttendances(undefined, true);
         }
       } catch (err) {
         console.error('Error in EOD cron ticker:', err);
