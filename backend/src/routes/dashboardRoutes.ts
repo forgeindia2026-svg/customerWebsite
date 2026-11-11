@@ -1198,4 +1198,193 @@ router.put('/', async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/dashboard/technician-earnings — universal single source of truth for mobile app & portal
+router.get('/technician-earnings', async (req: Request, res: Response) => {
+  try {
+    const rawTargetName = (req.query.technicianName || req.query.name || '').toString().trim();
+    const rawTargetId = (req.query.technicianId || req.query.id || '').toString().trim();
+
+    if (!rawTargetName && !rawTargetId) {
+      return res.status(400).json({ success: false, message: 'technicianName or technicianId is required' });
+    }
+
+    // Helper for matching technician names across initials, dots, and cases
+    const isNameMatch = (name1?: string, name2?: string) => {
+      if (!name1 || !name2) return false;
+      const a = String(name1).toLowerCase().trim();
+      const b = String(name2).toLowerCase().trim();
+      if (a === b) return true;
+      if (a.includes(b) || b.includes(a)) return true;
+      const aClean = a.replace(/[\.\s_]/g, '');
+      const bClean = b.replace(/[\.\s_]/g, '');
+      if (aClean === bClean) return true;
+      if (aClean.length >= 4 && bClean.length >= 4 && (aClean.includes(bClean) || bClean.includes(aClean))) return true;
+      return false;
+    };
+
+    // If ID provided but name empty, find user to get name
+    let targetName = rawTargetName;
+    if (!targetName && rawTargetId) {
+      const u = await User.findById(rawTargetId).lean();
+      if (u) targetName = u.name;
+    }
+
+    // Fetch finished jobs and orders
+    const [liveJobs, liveOrders] = await Promise.all([
+      (Job as any).find({ status: { $in: ['COMPLETED', 'APPROVED', 'DELIVERED'] } }).lean(),
+      (Order as any).find({ orderStatus: { $in: ['COMPLETED', 'DELIVERED', 'SHIPPED'] } }).lean()
+    ]);
+
+    // Parse sub technicians array / json / string
+    const parseSubs = (raw: any): string[] => {
+      if (!raw) return [];
+      let list: any[] = [];
+      if (typeof raw === 'string') {
+        try {
+          const parsed = JSON.parse(raw);
+          list = Array.isArray(parsed) ? parsed : [raw];
+        } catch {
+          list = raw.split(',');
+        }
+      } else if (Array.isArray(raw)) {
+        list = raw;
+      }
+      return list.map(item => {
+        if (typeof item === 'object' && item !== null) return item.name || item.technicianName || item.id || '';
+        return String(item || '').trim();
+      }).filter(Boolean);
+    };
+
+    const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const currentMonthShort = now.toLocaleString('en-US', { month: 'short' }).toLowerCase();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    const seenCodes = new Set<string>();
+    const items: any[] = [];
+    let thisMonthEarnings = 0;
+    let lifetimeEarnings = 0;
+    let todayEarnings = 0;
+    let thisMonthJobsCount = 0;
+    let lifetimeJobsCount = 0;
+
+    // Helper to evaluate a job or order
+    const processItem = (item: any, isJob: boolean) => {
+      const rawCode = String(item.jobCode || item.orderNumber || item.id || item._id || '').trim();
+      const cleanCode = rawCode.replace(/^#/, '').trim().toUpperCase();
+      if (!cleanCode || seenCodes.has(cleanCode)) return;
+
+      const leadName = String(
+        item.technician ||
+        item.assignedTechnicianName ||
+        item.assignedTechnician ||
+        (Array.isArray(item.assignedTechnicians) && item.assignedTechnicians[0]?.name) ||
+        ''
+      ).trim();
+
+      const leadId = String(
+        item.technicianId ||
+        item.assignedTechnicianId ||
+        (Array.isArray(item.assignedTechnicians) && item.assignedTechnicians[0]?.id) ||
+        ''
+      ).trim();
+
+      const isLead = (rawTargetId && leadId === rawTargetId) || isNameMatch(leadName, targetName);
+
+      const orderSubList = parseSubs(item.subTechnicians);
+      const isSub = !isLead && orderSubList.some(s => isNameMatch(s, targetName));
+
+      if (!isLead && !isSub) return; // Not involved in this work
+
+      seenCodes.add(cleanCode);
+
+      // Calculate payout
+      const financials = item.financials || {};
+      let earning = 0;
+      let role = isLead ? 'Lead Technician' : 'Sub-Technician';
+
+      if (isLead) {
+        earning = Number(
+          financials.mainTechnicianEarning ??
+          item.mainTechnicianEarning ??
+          financials.technicianEarning ??
+          item.technicianEarning ??
+          0
+        );
+      } else {
+        const subsFinancials = financials.subTechnicianEarnings || item.subTechnicianEarnings || {};
+        if (Array.isArray(subsFinancials)) {
+          const match = subsFinancials.find((st: any) => isNameMatch(st.technicianName || st.name, targetName));
+          if (match) earning = Number(match.amount || 0);
+        } else if (typeof subsFinancials === 'object' && subsFinancials !== null) {
+          const matchKey = Object.keys(subsFinancials).find(k => isNameMatch(k, targetName));
+          if (matchKey) earning = Number(subsFinancials[matchKey] || 0);
+        }
+      }
+
+      // Date parsing
+      const rawDate = item.scheduledDate || item.date || financials.approvedAt || item.createdAt || item.updatedAt;
+      const dateObj = new Date(rawDate || Date.now());
+      const dateIso = !isNaN(dateObj.getTime()) ? dateObj.toISOString() : new Date().toISOString();
+      const dateStr = dateIso.split('T')[0];
+
+      const isThisMonth = dateStr.startsWith(currentMonthKey) || dateIso.toLowerCase().includes(currentMonthShort);
+      const isToday = dateStr === todayStr;
+
+      lifetimeEarnings += earning;
+      lifetimeJobsCount += 1;
+
+      if (isThisMonth) {
+        thisMonthEarnings += earning;
+        thisMonthJobsCount += 1;
+      }
+
+      if (isToday) {
+        todayEarnings += earning;
+      }
+
+      let customerName = item.customerName || item.customer?.name || (typeof item.customer === 'string' ? item.customer : 'Customer');
+      let location = item.location || item.shippingAddress || item.customerAddress || item.customer?.address || item.customer?.city || 'Local Site';
+
+      items.push({
+        id: item._id?.toString() || cleanCode,
+        jobCode: cleanCode.startsWith('SK-') ? cleanCode : `#${cleanCode}`,
+        customerName,
+        location,
+        date: dateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+        rawDate: dateIso,
+        role: isLead ? 'Lead' : 'Sub',
+        roleDisplay: role,
+        amount: earning,
+        status: 'COMPLETED',
+        payoutStatus: 'Approved',
+        isToday,
+        isThisMonth
+      });
+    };
+
+    // Process all jobs and orders
+    liveJobs.forEach((j: any) => processItem(j, true));
+    liveOrders.forEach((o: any) => processItem(o, false));
+
+    // Sort items newest first
+    items.sort((a, b) => new Date(b.rawDate).getTime() - new Date(a.rawDate).getTime());
+
+    res.json({
+      success: true,
+      data: {
+        technicianName: targetName,
+        thisMonthEarnings,
+        lifetimeEarnings,
+        todayEarnings,
+        thisMonthJobsCount,
+        lifetimeJobsCount,
+        jobs: items
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 export default router;
