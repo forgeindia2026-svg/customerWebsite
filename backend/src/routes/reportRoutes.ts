@@ -236,15 +236,31 @@ router.post('/', async (req: Request, res: Response) => {
       existingReport = await TechnicianReport.findById(req.body.reportId);
     } else if (cleanJobCode && cleanJobCode !== 'DAILY WORK LOG' && !req.body.isNewSession) {
       const stripped = cleanJobCode.replace(/^#/, '');
+      // First try to find any existing report for this job+tech+date (regardless of status)
+      // This prevents duplicates when a COMPLETED report already exists
       existingReport = await TechnicianReport.findOne({
         $or: [
           { jobCode: cleanJobCode },
           { jobCode: stripped },
           { jobCode: `#${stripped}` }
         ],
-        jobStatus: 'IN_PROGRESS',
-        date: targetDate
+        technicianId: finalTechId,
+        date: targetDate,
+        activityType: activityType || 'General Work'
       }).sort({ _id: -1 });
+
+      // Fallback: also check without activityType match (broader duplicate prevention)
+      if (!existingReport) {
+        existingReport = await TechnicianReport.findOne({
+          $or: [
+            { jobCode: cleanJobCode },
+            { jobCode: stripped },
+            { jobCode: `#${stripped}` }
+          ],
+          technicianId: finalTechId,
+          date: targetDate
+        }).sort({ _id: -1 });
+      }
     }
 
     if (existingReport) {
