@@ -4,7 +4,7 @@ export interface IExpense extends Document {
   technicianId?: string;
   technicianName: string;
   employeeName?: string;
-  expenseType: 'TECHNICIAN' | 'OFFICE';
+  expenseType: 'TECHNICIAN' | 'OFFICE' | 'TRANSFER';
   fundSource: 'Admin Account' | 'Branch 1 Petty Cash' | 'Branch 2 Petty Cash' | string;
   paymentMode: 'UPI - PhonePe' | 'UPI - GPay' | 'UPI - Paytm' | 'Net Banking' | 'Cash' | 'Petty Cash' | string;
   referenceId?: string;
@@ -28,7 +28,7 @@ const ExpenseSchema: Schema = new Schema(
     employeeName: { type: String, default: '' },
     expenseType: {
       type: String,
-      enum: ['TECHNICIAN', 'OFFICE'],
+      enum: ['TECHNICIAN', 'OFFICE', 'TRANSFER'],
       default: 'TECHNICIAN'
     },
     fundSource: {

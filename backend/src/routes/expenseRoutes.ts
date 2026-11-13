@@ -295,11 +295,11 @@ router.post('/petty-cash/transfer', async (req: Request, res: Response) => {
     const cleanNotes = (notes || '').trim();
     const transferRef = `TRF-${Date.now().toString().slice(-6)}`;
 
-    // 2. Record Transfer-Out Expense from Source Branch
+    // 2. Record Transfer-Out Entry from Source Branch (Categorized as TRANSFER so it is excluded from regular expenses)
     const transferExpense = new Expense({
       technicianName: 'Internal Transfer',
       employeeName: transferredBy || 'Admin',
-      expenseType: 'OFFICE',
+      expenseType: 'TRANSFER',
       fundSource: sourceBranchId === 'branch-2' ? 'Branch 2 Palacode Petty Cash' : 'Branch 1 Soolagiri Petty Cash',
       paymentMode: paymentMode || 'Bank Deposit',
       referenceId: transferRef,
@@ -519,10 +519,17 @@ router.get('/summary', async (req: Request, res: Response) => {
     const currentMonth = (req.query.month as string) || getCurrentYearMonth();
     const today = getTodayDate();
 
-    const [allExpenses, pettyCashSummary] = await Promise.all([
+    const [allExpensesRaw, pettyCashSummary] = await Promise.all([
       Expense.find({}).sort({ date: -1, createdAt: -1 }),
       getPettyCashAccountsSummary(currentMonth)
     ]);
+
+    // Exclude internal bank transfers from expenses calculation & lists
+    const allExpenses = allExpensesRaw.filter(e => 
+      e.expenseType !== 'TRANSFER' && 
+      e.category !== 'Transfer to Current A/C' &&
+      e.technicianName !== 'Internal Transfer'
+    );
 
     const thisMonthExpenses = allExpenses.filter(e => e.date && e.date.startsWith(currentMonth));
     const todayExpenses = allExpenses.filter(e => e.date === today);
@@ -643,6 +650,10 @@ router.get('/', async (req: Request, res: Response) => {
 
     if (expenseType && typeof expenseType === 'string' && expenseType !== 'ALL') {
       filter.expenseType = expenseType;
+    } else if (!expenseType || expenseType === 'ALL') {
+      // By default, exclude internal bank transfers from regular expenses list
+      filter.expenseType = { $ne: 'TRANSFER' };
+      filter.category = filter.category || { $ne: 'Transfer to Current A/C' };
     }
 
     const expenses = await Expense.find(filter).sort({ date: -1, createdAt: -1 });
