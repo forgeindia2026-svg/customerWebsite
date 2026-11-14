@@ -10,7 +10,7 @@ import { toneGenerator } from '../../../utils/ToneGenerator';
 import CreateGroupModal from './CreateGroupModal';
 
 const API_BASE = (() => {
-  let url = import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io';
+  let url = import.meta.env.VITE_API_URL || 'https://13.210.104.45.sslip.io';
   return url.replace(/\/$/, '');
 })();
 

@@ -15,7 +15,7 @@ export default defineConfig({
         secure: false,
       },
       '/api': {
-        target: 'https://43.204.218.193.sslip.io',
+        target: 'https://13.210.104.45.sslip.io',
         changeOrigin: true,
         secure: false,
       },

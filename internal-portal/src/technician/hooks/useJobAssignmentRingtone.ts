@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
-const API_URL = import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io';
+const API_URL = import.meta.env.VITE_API_URL || 'https://13.210.104.45.sslip.io';
 
 export function useJobAssignmentRingtone() {
   useEffect(() => {

@@ -41,7 +41,7 @@ export default function Scanner() {
       formData.append('image', imageFile);
       formData.append('folder', 'qrcodes');
 
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://13.210.104.45.sslip.io';
       const res = await fetch(`${apiUrl}/api/upload`, {
         method: 'POST',
         body: formData,

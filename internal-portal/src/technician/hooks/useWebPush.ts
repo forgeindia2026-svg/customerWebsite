@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 
 // VAPID Public Key from backend .env
 const VAPID_PUBLIC_KEY = 'BKyloYfUS1ID7XKMiyut_CglpHzMSSji7AsFFgcNuXRJOdWE0krOvHj2BcbJcp7E2JiUveFMDwgoOOrM5hZUrOQ';
-const API_URL = import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io';
+const API_URL = import.meta.env.VITE_API_URL || 'https://13.210.104.45.sslip.io';
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Megaphone, X } from 'lucide-react';
-const API_URL = import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io';
+const API_URL = import.meta.env.VITE_API_URL || 'https://13.210.104.45.sslip.io';
 
 interface Announcement {
   id: string;

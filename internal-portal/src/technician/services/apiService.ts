@@ -16,7 +16,7 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const getApiUrl = () => {
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-  return 'https://43.204.218.193.sslip.io';
+  return 'https://13.210.104.45.sslip.io';
 };
 
 const failedProfileEmails = new Set<string>();
@@ -892,7 +892,7 @@ export const JobsApiService = {
   },
 
   async getJobById(jobId: string): Promise<Job> {
-    const baseUrl = import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io';
+    const baseUrl = import.meta.env.VITE_API_URL || 'https://13.210.104.45.sslip.io';
     const res = await fetch(`${baseUrl}/api/jobs/${jobId}`);
     const resData = await res.json();
     if (resData.success && resData.data) {

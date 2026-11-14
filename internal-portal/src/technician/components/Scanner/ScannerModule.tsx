@@ -7,7 +7,7 @@ export const ScannerModule = () => {
   useEffect(() => {
     const fetchQRs = async () => {
       try {
-        const apiUrl = import.meta.env.VITE_API_URL || 'https://43.204.218.193.sslip.io';
+        const apiUrl = import.meta.env.VITE_API_URL || 'https://13.210.104.45.sslip.io';
         const res = await fetch(`${apiUrl}/api/dashboard`);
         const json = await res.json();
         if (json.success && json.data && json.data.qrCodes) {

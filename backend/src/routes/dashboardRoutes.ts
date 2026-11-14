@@ -178,8 +178,12 @@ async function buildDashboardData() {
       Product.find().lean().catch(() => []),
       User.find({ role: { $in: ['TECHNICIAN', 'HR'] } }).lean().catch(() => []),
       User.find({ role: 'CUSTOMER' }).lean().catch(() => []),
-      // Optimize Job query by excluding large Base64 image fields to prevent 504 Gateway Timeouts
-      Job.find().select('-proofImages').sort({ createdAt: -1 }).lean().catch(() => []),
+      // Optimize Job query by excluding heavy photo arrays & legacy base64 fields to prevent 504 Gateway Timeouts
+      Job.find()
+        .select('-proofImages -customerSignature -installerSignature')
+        .sort({ createdAt: -1 })
+        .lean()
+        .catch(() => []),
       Query.find().sort({ updatedAt: -1, createdAt: -1 }).lean().catch(() => [])
     ]);
     console.log('Queries finished');
