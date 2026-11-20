@@ -1190,24 +1190,24 @@ export default function Expenses() {
         </div>
       ) : (
         /* Audit Table of all records */
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse table-fixed">
+            <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="bg-slate-50/80 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  <th className="py-3.5 px-4 w-[110px]">Date & Time</th>
-                  <th className="py-3.5 px-4 w-[190px]">Beneficiary / Staff</th>
-                  <th className="py-3.5 px-4 w-[160px]">Fund Source</th>
-                  <th className="py-3.5 px-4 w-[140px]">Category</th>
-                  <th className="py-3.5 px-4 w-[120px] text-right">Amount</th>
-                  <th className="py-3.5 px-6 min-w-[220px]">Purpose / Notes</th>
-                  <th className="py-3.5 px-4 w-[90px] text-center">Actions</th>
+                <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  <th className="py-3 px-3 whitespace-nowrap">Date</th>
+                  <th className="py-3 px-3 whitespace-nowrap">Beneficiary / Staff</th>
+                  <th className="py-3 px-3 whitespace-nowrap">Fund Source</th>
+                  <th className="py-3 px-3 whitespace-nowrap">Category</th>
+                  <th className="py-3 px-3 whitespace-nowrap text-right">Amount</th>
+                  <th className="py-3 px-4">Purpose / Notes</th>
+                  <th className="py-3 px-3 text-center whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
                 {filteredRecords.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="py-12 text-center text-slate-400 font-medium">
+                    <td colSpan="7" className="py-12 text-center text-slate-400 font-medium text-sm">
                       No expense records found matching filters.
                     </td>
                   </tr>
@@ -1219,31 +1219,31 @@ export default function Expenses() {
                     const isAdmin = (exp.fundSource || '').includes('Admin');
 
                     return (
-                      <tr key={exp._id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
-                        <td className="py-3.5 px-4 align-top font-mono text-slate-700 dark:text-slate-300">
-                          <span className="font-bold text-[12px] block text-slate-900 dark:text-white">{exp.date}</span>
-                          {exp.time && <span className="text-[10px] text-slate-400 mt-0.5 block">{exp.time}</span>}
+                      <tr key={exp._id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="py-3.5 px-3 align-middle font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                          <div>{exp.date}</div>
+                          {exp.time && <div className="text-[10px] text-slate-400 font-normal">{exp.time}</div>}
                         </td>
-                        <td className="py-3.5 px-4 align-top">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-bold text-slate-900 dark:text-white text-[12px]">
+                        <td className="py-3.5 px-3 align-middle whitespace-nowrap">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-slate-900 dark:text-white">
                               {exp.technicianName}
                             </span>
                             {isOffice && (
-                              <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800">
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800">
                                 Office
                               </span>
                             )}
                           </div>
                           {exp.employeeName && (
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-medium mt-0.5">
+                            <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
                               Spent by: {exp.employeeName}
-                            </span>
+                            </div>
                           )}
                         </td>
-                        <td className="py-3.5 px-4 align-top">
+                        <td className="py-3.5 px-3 align-middle whitespace-nowrap">
                           <div className="flex flex-col gap-0.5">
-                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold w-fit ${
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold w-fit ${
                               isBranch1 
                                 ? 'bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-200 dark:border-sky-800'
                                 : isBranch2
@@ -1259,18 +1259,20 @@ export default function Expenses() {
                             )}
                           </div>
                         </td>
-                        <td className="py-3.5 px-4 align-top">
-                          <span className="inline-block px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-blue-50/80 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200/50 dark:border-blue-900">
+                        <td className="py-3.5 px-3 align-middle whitespace-nowrap">
+                          <span className="inline-block px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800">
                             {exp.category}
                           </span>
                         </td>
-                        <td className="py-3.5 px-4 align-top text-right font-black text-slate-900 dark:text-white text-sm">
+                        <td className="py-3.5 px-3 align-middle text-right font-mono font-black text-slate-900 dark:text-white whitespace-nowrap">
                           ₹{Number(exp.amount).toLocaleString('en-IN')}
                         </td>
-                        <td className="py-3.5 px-6 align-top text-slate-600 dark:text-slate-300 leading-relaxed text-[12px]">
-                          {exp.notes || <span className="text-slate-400 italic">No notes provided</span>}
+                        <td className="py-3.5 px-4 align-middle text-slate-600 dark:text-slate-300">
+                          <div className="max-w-md line-clamp-2 leading-relaxed" title={exp.notes}>
+                            {exp.notes || <span className="text-slate-400 italic">No notes</span>}
+                          </div>
                         </td>
-                        <td className="py-3.5 px-4 align-top text-center">
+                        <td className="py-3.5 px-3 align-middle text-center whitespace-nowrap">
                           <div className="flex items-center justify-center gap-1.5">
                             <button
                               onClick={() => {
