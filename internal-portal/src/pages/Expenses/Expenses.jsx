@@ -1199,8 +1199,8 @@ export default function Expenses() {
                   <th className="py-3 px-3 whitespace-nowrap">Beneficiary / Staff</th>
                   <th className="py-3 px-3 whitespace-nowrap">Fund Source</th>
                   <th className="py-3 px-3 whitespace-nowrap">Category</th>
-                  <th className="py-3 px-3 whitespace-nowrap text-right">Amount</th>
-                  <th className="py-3 px-4">Purpose / Notes</th>
+                  <th className="py-3 px-4 w-full">Purpose / Notes</th>
+                  <th className="py-3 px-4 whitespace-nowrap text-right">Amount</th>
                   <th className="py-3 px-3 text-center whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
@@ -1264,13 +1264,13 @@ export default function Expenses() {
                             {exp.category}
                           </span>
                         </td>
-                        <td className="py-3.5 px-3 align-middle text-right font-mono font-black text-slate-900 dark:text-white whitespace-nowrap">
-                          ₹{Number(exp.amount).toLocaleString('en-IN')}
-                        </td>
                         <td className="py-3.5 px-4 align-middle text-slate-600 dark:text-slate-300">
-                          <div className="max-w-md line-clamp-2 leading-relaxed" title={exp.notes}>
+                          <div className="leading-relaxed font-medium" title={exp.notes}>
                             {exp.notes || <span className="text-slate-400 italic">No notes</span>}
                           </div>
+                        </td>
+                        <td className="py-3.5 px-4 align-middle text-right font-mono font-black text-slate-900 dark:text-white whitespace-nowrap text-sm">
+                          ₹{Number(exp.amount).toLocaleString('en-IN')}
                         </td>
                         <td className="py-3.5 px-3 align-middle text-center whitespace-nowrap">
                           <div className="flex items-center justify-center gap-1.5">
