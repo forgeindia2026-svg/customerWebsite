@@ -1190,24 +1190,24 @@ export default function Expenses() {
         </div>
       ) : (
         /* Audit Table of all records */
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-xs">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse table-auto">
+            <table className="w-full text-left border-collapse table-fixed">
               <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
-                  <th className="py-3.5 px-4 whitespace-nowrap">Date & Time</th>
-                  <th className="py-3.5 px-4 whitespace-nowrap">Beneficiary / Staff</th>
-                  <th className="py-3.5 px-4 whitespace-nowrap">Fund Source</th>
-                  <th className="py-3.5 px-4 whitespace-nowrap">Category</th>
-                  <th className="py-3.5 px-4 whitespace-nowrap">Amount</th>
-                  <th className="py-3.5 px-4 w-full">Purpose / Notes</th>
-                  <th className="py-3.5 px-4 text-right whitespace-nowrap">Actions</th>
+                <tr className="bg-slate-50/80 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  <th className="py-3.5 px-4 w-[110px]">Date & Time</th>
+                  <th className="py-3.5 px-4 w-[190px]">Beneficiary / Staff</th>
+                  <th className="py-3.5 px-4 w-[160px]">Fund Source</th>
+                  <th className="py-3.5 px-4 w-[140px]">Category</th>
+                  <th className="py-3.5 px-4 w-[120px] text-right">Amount</th>
+                  <th className="py-3.5 px-6 min-w-[220px]">Purpose / Notes</th>
+                  <th className="py-3.5 px-4 w-[90px] text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
                 {filteredRecords.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="py-8 text-center text-slate-500 font-medium">
+                    <td colSpan="7" className="py-12 text-center text-slate-400 font-medium">
                       No expense records found matching filters.
                     </td>
                   </tr>
@@ -1219,59 +1219,59 @@ export default function Expenses() {
                     const isAdmin = (exp.fundSource || '').includes('Admin');
 
                     return (
-                      <tr key={exp._id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
-                        <td className="py-3 px-4 font-mono text-slate-700 dark:text-slate-300 whitespace-nowrap">
-                          <span className="font-bold">{exp.date}</span>
-                          {exp.time && <span className="text-[10px] text-slate-400 block">{exp.time}</span>}
+                      <tr key={exp._id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                        <td className="py-3.5 px-4 align-top font-mono text-slate-700 dark:text-slate-300">
+                          <span className="font-bold text-[12px] block text-slate-900 dark:text-white">{exp.date}</span>
+                          {exp.time && <span className="text-[10px] text-slate-400 mt-0.5 block">{exp.time}</span>}
                         </td>
-                        <td className="py-3 px-4 whitespace-nowrap">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-slate-900 dark:text-white">
+                        <td className="py-3.5 px-4 align-top">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-slate-900 dark:text-white text-[12px]">
                               {exp.technicianName}
                             </span>
                             {isOffice && (
-                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                              <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800">
                                 Office
                               </span>
                             )}
                           </div>
                           {exp.employeeName && (
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-medium">
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-medium mt-0.5">
                               Spent by: {exp.employeeName}
                             </span>
                           )}
                         </td>
-                        <td className="py-3 px-4 whitespace-nowrap">
-                          <div className="flex flex-col">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold w-fit ${
+                        <td className="py-3.5 px-4 align-top">
+                          <div className="flex flex-col gap-0.5">
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold w-fit ${
                               isBranch1 
-                                ? 'bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-300 dark:border-sky-700'
+                                ? 'bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-200 dark:border-sky-800'
                                 : isBranch2
-                                ? 'bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-300 dark:border-purple-700'
-                                : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                                ? 'bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
+                                : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
                             }`}>
                               {exp.fundSource || 'Branch 1 Petty Cash'}
                             </span>
                             {exp.paymentMode && exp.paymentMode !== 'Petty Cash' && (
-                              <span className="text-[10px] font-medium text-slate-500 mt-0.5">
+                              <span className="text-[10px] font-medium text-slate-400 pl-0.5">
                                 {exp.paymentMode}
                               </span>
                             )}
                           </div>
                         </td>
-                        <td className="py-3 px-4 whitespace-nowrap">
-                          <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800">
+                        <td className="py-3.5 px-4 align-top">
+                          <span className="inline-block px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-blue-50/80 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200/50 dark:border-blue-900">
                             {exp.category}
                           </span>
                         </td>
-                        <td className="py-3 px-4 font-black text-slate-900 dark:text-white text-sm whitespace-nowrap">
+                        <td className="py-3.5 px-4 align-top text-right font-black text-slate-900 dark:text-white text-sm">
                           ₹{Number(exp.amount).toLocaleString('en-IN')}
                         </td>
-                        <td className="py-3 px-4 text-slate-600 dark:text-slate-300 break-words" title={exp.notes}>
-                          {exp.notes || '-'}
+                        <td className="py-3.5 px-6 align-top text-slate-600 dark:text-slate-300 leading-relaxed text-[12px]">
+                          {exp.notes || <span className="text-slate-400 italic">No notes provided</span>}
                         </td>
-                        <td className="py-3 px-4 text-right whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-1">
+                        <td className="py-3.5 px-4 align-top text-center">
+                          <div className="flex items-center justify-center gap-1.5">
                             <button
                               onClick={() => {
                                 setEditingExpense(exp);
