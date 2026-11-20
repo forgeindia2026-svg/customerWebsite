@@ -714,17 +714,17 @@ export default function Expenses() {
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-all">
           <div>
             {/* Top Header */}
-            <div className="flex items-start justify-between gap-3 pb-3.5 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-200/80 dark:border-sky-800 flex items-center justify-center font-bold text-sky-700 dark:text-sky-300 text-xs">
+            <div className="flex items-center justify-between gap-3 pb-3.5 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-200/80 dark:border-sky-800 flex items-center justify-center font-bold text-sky-700 dark:text-sky-300 text-xs shrink-0">
                   B1
                 </div>
-                <div>
-                  <h3 className="font-bold text-sm text-slate-900 dark:text-white leading-tight">Branch 1 Soolagiri</h3>
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400">Soolagiri Office Hand-Cash</span>
+                <div className="min-w-0">
+                  <h3 className="font-bold text-sm text-slate-900 dark:text-white truncate">Branch 1 (Soolagiri)</h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">Hand Cash Account</p>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 flex-shrink-0">
+              <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   onClick={() => {
                     setTransferForm({
@@ -736,7 +736,7 @@ export default function Expenses() {
                     });
                     setIsTransferModalOpen(true);
                   }}
-                  className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors flex items-center gap-1 cursor-pointer"
+                  className="text-[11px] font-semibold px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors flex items-center gap-1 cursor-pointer"
                   title="Transfer money from Branch 1 Soolagiri to Current Account"
                 >
                   <FiArrowUpRight className="w-3.5 h-3.5 text-slate-500" />
@@ -798,17 +798,17 @@ export default function Expenses() {
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-all">
           <div>
             {/* Top Header */}
-            <div className="flex items-start justify-between gap-3 pb-3.5 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/60 border border-purple-200/80 dark:border-purple-800 flex items-center justify-center font-bold text-purple-700 dark:text-purple-300 text-xs">
+            <div className="flex items-center justify-between gap-3 pb-3.5 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/60 border border-purple-200/80 dark:border-purple-800 flex items-center justify-center font-bold text-purple-700 dark:text-purple-300 text-xs shrink-0">
                   B2
                 </div>
-                <div>
-                  <h3 className="font-bold text-sm text-slate-900 dark:text-white leading-tight">Branch 2 Palacode</h3>
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400">Palacode Sub-Branch Cash</span>
+                <div className="min-w-0">
+                  <h3 className="font-bold text-sm text-slate-900 dark:text-white truncate">Branch 2 (Palacode)</h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">Hand Cash Account</p>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 flex-shrink-0">
+              <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   onClick={() => {
                     setTransferForm({
@@ -820,7 +820,7 @@ export default function Expenses() {
                     });
                     setIsTransferModalOpen(true);
                   }}
-                  className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors flex items-center gap-1 cursor-pointer"
+                  className="text-[11px] font-semibold px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors flex items-center gap-1 cursor-pointer"
                   title="Transfer money from Branch 2 Palacode to Current Account"
                 >
                   <FiArrowUpRight className="w-3.5 h-3.5 text-slate-500" />
@@ -882,17 +882,17 @@ export default function Expenses() {
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-all">
           <div>
             {/* Top Header */}
-            <div className="flex items-start justify-between gap-3 pb-3.5 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/80 dark:border-emerald-800 flex items-center justify-center text-emerald-700 dark:text-emerald-300">
+            <div className="flex items-center justify-between gap-3 pb-3.5 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/80 dark:border-emerald-800 flex items-center justify-center text-emerald-700 dark:text-emerald-300 shrink-0">
                   <FiCreditCard className="w-5 h-5" />
                 </div>
-                <div>
-                  <h3 className="font-bold text-sm text-slate-900 dark:text-white leading-tight">{currentAcc?.branchName || 'Current Account'}</h3>
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400">Company Bank (UPI / NetBanking)</span>
+                <div className="min-w-0">
+                  <h3 className="font-bold text-sm text-slate-900 dark:text-white truncate">{currentAcc?.branchName || 'Current Account'}</h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">Company Bank Account</p>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 flex-shrink-0">
+              <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   onClick={() => {
                     setTopupForm(prev => ({ ...prev, branchId: 'current-account', isOpeningBalanceReset: false }));
