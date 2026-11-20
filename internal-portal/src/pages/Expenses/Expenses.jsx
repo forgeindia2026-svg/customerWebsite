@@ -1280,9 +1280,16 @@ export default function Expenses() {
                           </div>
                         </td>
                         <td className="py-3.5 px-3 align-middle whitespace-nowrap">
-                          <span className="inline-block px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800">
-                            {exp.category}
-                          </span>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="inline-block px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800 w-fit">
+                              {exp.category}
+                            </span>
+                            {(exp.referenceId || exp.jobCode || exp.paymentMode) && (
+                              <span className="text-[10px] text-slate-400 font-medium pl-0.5">
+                                {exp.jobCode || exp.referenceId || exp.paymentMode}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="py-3.5 px-4 align-middle text-slate-600 dark:text-slate-300">
                           <div className="leading-relaxed font-medium" title={exp.notes}>
