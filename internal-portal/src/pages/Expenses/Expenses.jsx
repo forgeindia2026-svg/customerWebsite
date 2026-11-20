@@ -1201,14 +1201,13 @@ export default function Expenses() {
                   <th className="py-3.5 px-4">Category</th>
                   <th className="py-3.5 px-4">Amount</th>
                   <th className="py-3.5 px-4">Purpose / Notes</th>
-                  <th className="py-3.5 px-4">Job / Ref</th>
                   <th className="py-3.5 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
                 {filteredRecords.length === 0 ? (
                   <tr>
-                    <td colSpan="8" className="py-8 text-center text-slate-500 font-medium">
+                    <td colSpan="7" className="py-8 text-center text-slate-500 font-medium">
                       No expense records found matching filters.
                     </td>
                   </tr>
@@ -1270,11 +1269,6 @@ export default function Expenses() {
                         </td>
                         <td className="py-3 px-4 text-slate-600 dark:text-slate-300 max-w-xs truncate" title={exp.notes}>
                           {exp.notes || '-'}
-                        </td>
-                        <td className="py-3 px-4 font-mono text-[11px] text-slate-500 whitespace-nowrap">
-                          {exp.jobCode && <span className="block font-semibold text-blue-600">{exp.jobCode}</span>}
-                          {exp.referenceId && <span className="block text-[10px] text-slate-400">Txn: {exp.referenceId}</span>}
-                          {!exp.jobCode && !exp.referenceId && '-'}
                         </td>
                         <td className="py-3 px-4 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-1">
