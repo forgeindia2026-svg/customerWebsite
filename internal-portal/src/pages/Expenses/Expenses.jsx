@@ -43,7 +43,7 @@ export default function Expenses() {
     }
   });
 
-  const [activeTab, setActiveTab] = useState('technicians'); // 'technicians' | 'all_records'
+  const [activeTab, setActiveTab] = useState('all_records'); // 'all_records' | 'technicians'
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [fundFilter, setFundFilter] = useState('ALL'); // 'ALL' | 'Branch 1' | 'Branch 2' | 'Admin'
@@ -1000,16 +1000,6 @@ export default function Expenses() {
           {/* Tabs */}
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setActiveTab('technicians')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                activeTab === 'technicians'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-              }`}
-            >
-              Technicians Breakdown ({technicianCards.length})
-            </button>
-            <button
               onClick={() => setActiveTab('all_records')}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                 activeTab === 'all_records'
@@ -1018,6 +1008,16 @@ export default function Expenses() {
               }`}
             >
               All Daily Records ({filteredRecords.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('technicians')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                activeTab === 'technicians'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              Technicians Breakdown ({technicianCards.length})
             </button>
           </div>
 
