@@ -1192,16 +1192,16 @@ export default function Expenses() {
         /* Audit Table of all records */
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse table-auto">
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
-                  <th className="py-3.5 px-4">Date & Time</th>
-                  <th className="py-3.5 px-4">Beneficiary / Staff</th>
-                  <th className="py-3.5 px-4">Fund Source</th>
-                  <th className="py-3.5 px-4">Category</th>
-                  <th className="py-3.5 px-4">Amount</th>
-                  <th className="py-3.5 px-4">Purpose / Notes</th>
-                  <th className="py-3.5 px-4 text-right">Actions</th>
+                  <th className="py-3.5 px-4 whitespace-nowrap">Date & Time</th>
+                  <th className="py-3.5 px-4 whitespace-nowrap">Beneficiary / Staff</th>
+                  <th className="py-3.5 px-4 whitespace-nowrap">Fund Source</th>
+                  <th className="py-3.5 px-4 whitespace-nowrap">Category</th>
+                  <th className="py-3.5 px-4 whitespace-nowrap">Amount</th>
+                  <th className="py-3.5 px-4 w-full">Purpose / Notes</th>
+                  <th className="py-3.5 px-4 text-right whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
@@ -1264,10 +1264,10 @@ export default function Expenses() {
                             {exp.category}
                           </span>
                         </td>
-                        <td className="py-3 px-4 whitespace-nowrap font-black text-slate-900 dark:text-white text-sm">
+                        <td className="py-3 px-4 font-black text-slate-900 dark:text-white text-sm whitespace-nowrap">
                           ₹{Number(exp.amount).toLocaleString('en-IN')}
                         </td>
-                        <td className="py-3 px-4 text-slate-600 dark:text-slate-300 max-w-xs truncate" title={exp.notes}>
+                        <td className="py-3 px-4 text-slate-600 dark:text-slate-300 break-words" title={exp.notes}>
                           {exp.notes || '-'}
                         </td>
                         <td className="py-3 px-4 text-right whitespace-nowrap">
