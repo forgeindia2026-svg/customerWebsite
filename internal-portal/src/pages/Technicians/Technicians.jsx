@@ -4,11 +4,12 @@ import { updateTechnicianStatus, addTechnician, editTechnician, deleteTechnician
 import { 
   FiSliders, FiPhone, FiMail, FiStar, FiPlus, 
   FiChevronDown, FiGrid, FiList, FiSearch, FiEdit, FiInfo,
-  FiEye, FiEyeOff, FiTrash2, FiPower, FiDollarSign, FiDownload
+  FiEye, FiEyeOff, FiTrash2, FiPower, FiDollarSign, FiDownload, FiAward
 } from 'react-icons/fi';
 import Modal from '../../components/Modal';
 import { getApiUrl } from '../../utils/config';
 import AdminTechEarningsModal from './AdminTechEarningsModal';
+import TechnicianAwardsModal from './TechnicianAwardsModal';
 import { exportAllTechniciansPDF } from '../../utils/technicianPdfGenerator';
 import { isDateInRange } from '../../utils/dateFilterUtils';
 import toast from 'react-hot-toast';
@@ -31,6 +32,7 @@ export default function Technicians() {
   const [techJobsMap, setTechJobsMap] = useState({});
 
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [awardsModalOpen, setAwardsModalOpen] = useState(false);
 
   const [selectedDateRange, setSelectedDateRange] = useState(
     () => localStorage.getItem('admin_date_range') || 'This Month'
@@ -246,6 +248,41 @@ export default function Technicians() {
     if (key) return techJobsMap[key];
     return [];
   };
+
+  // Compute Top 3 Earned Technicians for the current selected month
+  const top3EarnedTechnicians = React.useMemo(() => {
+    const list = technicians.map(tech => {
+      const summary = getTechSummary(tech.name);
+      const monthlyEarnings = getTechMonthEarning(tech.name);
+      const jobsCompleted = summary?.monthCompletedCount || summary?.totalCompleted || 0;
+      return {
+        tech,
+        monthlyEarnings,
+        jobsCompleted
+      };
+    });
+
+    // Sort descending by monthly earnings
+    list.sort((a, b) => b.monthlyEarnings - a.monthlyEarnings);
+
+    // Filter top 3 with earnings > 0, fallback to top 3 even if zero
+    const top = list.slice(0, 3).map((item, index) => ({
+      ...item,
+      rank: index + 1
+    }));
+    return top;
+  }, [technicians, techSummaries]);
+
+  // Lookup map for quick rank badge on tech cards
+  const techRankMap = React.useMemo(() => {
+    const map = {};
+    top3EarnedTechnicians.forEach(item => {
+      if (item.monthlyEarnings > 0) {
+        map[item.tech.id] = item.rank;
+      }
+    });
+    return map;
+  }, [top3EarnedTechnicians]);
 
   const handleDownloadAllTechPDF = async () => {
     if (isGeneratingPDF) return;
@@ -583,6 +620,16 @@ export default function Technicians() {
 
           <button 
             type="button"
+            onClick={() => setAwardsModalOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer bg-amber-500 hover:bg-amber-600 text-white"
+            title="View Top 3 Performers & Download Official Certificates"
+          >
+            <FiAward size={15} />
+            <span>Top Awards & Certificates</span>
+          </button>
+
+          <button 
+            type="button"
             disabled={isGeneratingPDF}
             onClick={handleDownloadAllTechPDF}
             className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer text-white ${
@@ -627,6 +674,22 @@ export default function Technicians() {
                         <div>
                           <div className="flex items-center space-x-1.5">
                             <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">{tech.name}</h4>
+                            {techRankMap[tech.id] && (
+                              <span 
+                                onClick={() => setAwardsModalOpen(true)}
+                                className={`text-[9px] font-black px-1.5 py-0.2 rounded-full cursor-pointer shadow-2xs flex items-center gap-0.5 ${
+                                  techRankMap[tech.id] === 1 
+                                    ? 'bg-amber-400 text-slate-950 border border-amber-300' 
+                                    : techRankMap[tech.id] === 2 
+                                    ? 'bg-slate-300 text-slate-900 border border-slate-200' 
+                                    : 'bg-amber-700 text-white border border-amber-600'
+                                }`}
+                                title={`Top Performer Rank #${techRankMap[tech.id]}! Click to view certificate`}
+                              >
+                                <FiAward size={10} />
+                                <span>#{techRankMap[tech.id]}</span>
+                              </span>
+                            )}
                             <span className="flex items-center gap-0.5 text-[10px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 rounded border border-amber-200/60">
                               <FiStar className="text-amber-500 fill-amber-500 w-3 h-3" /> {tech.rating}
                             </span>
@@ -722,7 +785,25 @@ export default function Technicians() {
                     <div>
                       {/* Profile header */}
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">{tech.id.length > 8 ? tech.id.slice(-8) : tech.id}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">{tech.id.length > 8 ? tech.id.slice(-8) : tech.id}</span>
+                          {techRankMap[tech.id] && (
+                            <span 
+                              onClick={() => setAwardsModalOpen(true)}
+                              className={`text-[9px] font-black px-1.5 py-0.2 rounded-full cursor-pointer shadow-2xs flex items-center gap-0.5 ${
+                                techRankMap[tech.id] === 1 
+                                  ? 'bg-amber-400 text-slate-950 border border-amber-300' 
+                                  : techRankMap[tech.id] === 2 
+                                  ? 'bg-slate-300 text-slate-900 border border-slate-200' 
+                                  : 'bg-amber-700 text-white border border-amber-600'
+                              }`}
+                              title={`Top Performer Rank #${techRankMap[tech.id]}! Click to view certificate`}
+                            >
+                              <FiAward size={10} />
+                              <span>#{techRankMap[tech.id]}</span>
+                            </span>
+                          )}
+                        </div>
                         <span className="flex items-center gap-0.5 text-[11px] font-bold text-slate-700 dark:text-slate-200">
                           <FiStar className="text-amber-400 fill-amber-400 w-3 h-3" /> {tech.rating}
                         </span>
@@ -1184,6 +1265,15 @@ export default function Technicians() {
           preloadedJobs={getTechJobs(earningsTech?.name)}
         />
       )}
+
+      {/* Top 3 Performers Monthly Awards & Certificates Studio Modal */}
+      <TechnicianAwardsModal
+        isOpen={awardsModalOpen}
+        onClose={() => setAwardsModalOpen(false)}
+        top3={top3EarnedTechnicians}
+        monthYear={selectedDateRange.toUpperCase() === 'THIS MONTH' ? new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }).toUpperCase() : selectedDateRange.toUpperCase()}
+        adminName="SARAN KUMAR"
+      />
 
     </div>
   );
