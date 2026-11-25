@@ -251,7 +251,31 @@ export default function Reports() {
   };
 
   const handleOpenEditTransaction = (item) => {
-    setEditingTransaction(item);
+    // If order has subTechnicians, extract them
+    const matchingOrder = orders.find(o => {
+      const oNum = String(o.orderNumber || o.id || '').replace(/^#/, '').toLowerCase().trim();
+      const iNum = String(item.invoiceNo || item.transactionNo || item.id || '').replace(/^PAY-/i, '').replace(/^#/, '').toLowerCase().trim();
+      return oNum === iNum;
+    });
+
+    const subTechs = item.subTechnicians && item.subTechnicians.length > 0 
+      ? item.subTechnicians 
+      : (matchingOrder?.subTechnicians || []);
+
+    const existingMainEarn = item.mainTechnicianEarning !== undefined && item.mainTechnicianEarning !== ''
+      ? item.mainTechnicianEarning
+      : (matchingOrder?.financials?.mainTechnicianEarning !== undefined ? matchingOrder.financials.mainTechnicianEarning : (item.technicianEarning || ''));
+
+    const existingSubEarns = item.subTechnicianEarnings && Object.keys(item.subTechnicianEarnings).length > 0
+      ? item.subTechnicianEarnings
+      : (matchingOrder?.financials?.subTechnicianEarnings || {});
+
+    setEditingTransaction({
+      ...item,
+      subTechnicians: Array.isArray(subTechs) ? subTechs : [],
+      mainTechnicianEarning: existingMainEarn !== undefined ? String(existingMainEarn) : '',
+      subTechnicianEarnings: existingSubEarns ? { ...existingSubEarns } : {}
+    });
   };
 
   const handleUpdateTransactionSubmit = async (e) => {
@@ -262,14 +286,32 @@ export default function Reports() {
     const purchaseNum = Number(editingTransaction.purchaseValue || 0);
     const margin = salesNum - purchaseNum;
     const profitNum = editingTransaction.companyProfit !== '' ? Number(editingTransaction.companyProfit) : (margin > 0 ? Math.round(margin * 0.7) : 0);
-    const earningNum = editingTransaction.technicianEarning !== '' ? Number(editingTransaction.technicianEarning) : (margin > 0 ? Math.round(margin * 0.3) : 0);
+    
+    // Calculate Main + Sub technician earnings
+    const mainEarningNum = Number(editingTransaction.mainTechnicianEarning || 0);
+    let subEarningsTotal = 0;
+    const subEarningsClean = {};
+    if (editingTransaction.subTechnicians && editingTransaction.subTechnicians.length > 0) {
+      editingTransaction.subTechnicians.forEach(sub => {
+        const amt = Number(editingTransaction.subTechnicianEarnings?.[sub] || 0);
+        subEarningsClean[sub] = amt;
+        subEarningsTotal += amt;
+      });
+    }
+
+    const totalTechEarning = (mainEarningNum > 0 || subEarningsTotal > 0)
+      ? (mainEarningNum + subEarningsTotal)
+      : (editingTransaction.technicianEarning !== '' ? Number(editingTransaction.technicianEarning) : (margin > 0 ? Math.round(margin * 0.3) : 0));
 
     const updatedPayload = {
       ...editingTransaction,
       salesValue: salesNum,
       purchaseValue: purchaseNum,
       companyProfit: profitNum,
-      technicianEarning: earningNum,
+      technicianEarning: totalTechEarning,
+      mainTechnicianEarning: mainEarningNum,
+      subTechnicianEarnings: subEarningsClean,
+      subTechnicians: editingTransaction.subTechnicians || [],
       amount: salesNum
     };
 
@@ -286,14 +328,20 @@ export default function Reports() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             customerName: editingTransaction.customerName,
+            assignedTechnician: editingTransaction.createdBy,
+            assignedTechnicianName: editingTransaction.createdBy,
+            subTechnicians: editingTransaction.subTechnicians || [],
             totalAmount: salesNum,
             financials: {
               salesValue: salesNum,
               totalValue: salesNum,
               purchaseValue: purchaseNum,
               companyProfit: profitNum,
-              technicianEarning: earningNum
-            }
+              technicianEarning: totalTechEarning,
+              mainTechnicianEarning: mainEarningNum,
+              subTechnicianEarnings: subEarningsClean
+            },
+            technicianEarning: totalTechEarning
           })
         });
       } catch (err) {
@@ -302,7 +350,7 @@ export default function Reports() {
     }
 
     setEditingTransaction(null);
-    showToast('Daybook transaction updated successfully!');
+    showToast('Transaction updated successfully!');
   };
   const [selectedPhotoModal, setSelectedPhotoModal] = useState(null);
   const [selectedAttendancePhoto, setSelectedAttendancePhoto] = useState(null);
@@ -2537,26 +2585,147 @@ export default function Reports() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">Company Profit (₹)</label>
+                <input 
+                  type="number" 
+                  placeholder="0" 
+                  value={editingTransaction.companyProfit !== undefined ? editingTransaction.companyProfit : ''} 
+                  onChange={e => setEditingTransaction({...editingTransaction, companyProfit: e.target.value})} 
+                  className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none" 
+                />
+              </div>
+
+              {/* Technician & Sub-Technicians Earnings Section */}
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl space-y-3 border border-slate-200 dark:border-slate-700">
+                <div className="flex justify-between items-center">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                    Technician Earnings Breakdown
+                  </label>
+                  <span className="text-[11px] font-bold text-slate-500">
+                    Total: <strong className="text-emerald-600 font-mono">₹{(
+                      (parseFloat(editingTransaction.mainTechnicianEarning) || 0) +
+                      (editingTransaction.subTechnicians || []).reduce((sum, s) => sum + (parseFloat(editingTransaction.subTechnicianEarnings?.[s]) || 0), 0)
+                    ).toLocaleString('en-IN')}</strong>
+                  </span>
+                </div>
+
+                {/* Main Lead Technician Earning */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">Company Profit (₹)</label>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Lead: <strong className="text-slate-900 dark:text-slate-100">{editingTransaction.createdBy || 'Lead Tech'}</strong>
+                    </span>
+                    <span className="text-[10px] text-slate-400">Main Tech Share</span>
+                  </div>
                   <input 
                     type="number" 
                     placeholder="0" 
-                    value={editingTransaction.companyProfit !== undefined ? editingTransaction.companyProfit : ''} 
-                    onChange={e => setEditingTransaction({...editingTransaction, companyProfit: e.target.value})} 
-                    className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none" 
+                    min="0"
+                    value={editingTransaction.mainTechnicianEarning !== undefined ? editingTransaction.mainTechnicianEarning : (editingTransaction.technicianEarning || '')} 
+                    onChange={e => {
+                      const val = e.target.value;
+                      const subsSum = (editingTransaction.subTechnicians || []).reduce((sum, s) => sum + (parseFloat(editingTransaction.subTechnicianEarnings?.[s]) || 0), 0);
+                      setEditingTransaction({
+                        ...editingTransaction, 
+                        mainTechnicianEarning: val,
+                        technicianEarning: (parseFloat(val) || 0) + subsSum
+                      });
+                    }} 
+                    className="w-full px-3 py-2 text-sm font-bold font-mono border border-emerald-300 dark:border-emerald-700/60 bg-emerald-50/40 dark:bg-emerald-950/20 rounded-lg text-emerald-800 dark:text-emerald-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none" 
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">Technician Earning (₹)</label>
-                  <input 
-                    type="number" 
-                    placeholder="0" 
-                    value={editingTransaction.technicianEarning !== undefined ? editingTransaction.technicianEarning : ''} 
-                    onChange={e => setEditingTransaction({...editingTransaction, technicianEarning: e.target.value})} 
-                    className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none" 
-                  />
+
+                {/* Sub Technicians Individual Earnings */}
+                {(editingTransaction.subTechnicians && editingTransaction.subTechnicians.length > 0) && (
+                  <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                    <span className="text-xs font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block">
+                      Sub Technicians ({editingTransaction.subTechnicians.length})
+                    </span>
+                    {editingTransaction.subTechnicians.map((sub, sIdx) => (
+                      <div key={sIdx} className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 w-36 shrink-0 truncate">
+                          <span className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate" title={sub}>
+                            {sub}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updatedSubs = editingTransaction.subTechnicians.filter(s => s !== sub);
+                              const newSubsEarnings = { ...(editingTransaction.subTechnicianEarnings || {}) };
+                              delete newSubsEarnings[sub];
+                              const newSubsSum = updatedSubs.reduce((sum, s) => sum + (parseFloat(newSubsEarnings[s]) || 0), 0);
+                              const mainVal = parseFloat(editingTransaction.mainTechnicianEarning) || 0;
+                              setEditingTransaction({
+                                ...editingTransaction,
+                                subTechnicians: updatedSubs,
+                                subTechnicianEarnings: newSubsEarnings,
+                                technicianEarning: mainVal + newSubsSum
+                              });
+                            }}
+                            className="text-rose-500 hover:text-rose-700 text-xs px-1 cursor-pointer"
+                            title="Remove sub-technician"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                        <input
+                          type="number"
+                          placeholder="0"
+                          min="0"
+                          value={editingTransaction.subTechnicianEarnings?.[sub] !== undefined ? editingTransaction.subTechnicianEarnings[sub] : ''}
+                          onChange={e => {
+                            const val = e.target.value;
+                            const newSubs = {
+                              ...(editingTransaction.subTechnicianEarnings || {}),
+                              [sub]: val
+                            };
+                            const subsSum = (editingTransaction.subTechnicians || []).reduce((sum, s) => sum + (parseFloat(newSubs[s]) || 0), 0);
+                            const mainVal = parseFloat(editingTransaction.mainTechnicianEarning) || 0;
+                            setEditingTransaction({
+                              ...editingTransaction,
+                              subTechnicianEarnings: newSubs,
+                              technicianEarning: mainVal + subsSum
+                            });
+                          }}
+                          className="flex-1 px-3 py-1.5 text-xs font-mono font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-lg text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add Sub Technician Dropdown */}
+                <div className="pt-2 flex items-center gap-2">
+                  <select
+                    className="flex-1 text-xs px-2.5 py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 focus:outline-none"
+                    defaultValue=""
+                    onChange={e => {
+                      const selected = e.target.value;
+                      if (!selected) return;
+                      const currentSubs = editingTransaction.subTechnicians || [];
+                      if (!currentSubs.includes(selected)) {
+                        setEditingTransaction({
+                          ...editingTransaction,
+                          subTechnicians: [...currentSubs, selected],
+                          subTechnicianEarnings: {
+                            ...(editingTransaction.subTechnicianEarnings || {}),
+                            [selected]: ''
+                          }
+                        });
+                      }
+                      e.target.value = '';
+                    }}
+                  >
+                    <option value="" disabled>+ Add Sub Technician...</option>
+                    {(technicians || [])
+                      .filter(t => (t.name || t.fullName) !== editingTransaction.createdBy && !(editingTransaction.subTechnicians || []).includes(t.name || t.fullName))
+                      .map((t, idx) => (
+                        <option key={idx} value={t.name || t.fullName}>
+                          {t.name || t.fullName} ({t.phone || 'Tech'})
+                        </option>
+                      ))}
+                  </select>
                 </div>
               </div>
 
@@ -3761,6 +3930,9 @@ export default function Reports() {
                               purchaseValue: rowData.purchaseValue,
                               companyProfit: rowData.companyProfit,
                               technicianEarning: rowData.technicianEarning,
+                              mainTechnicianEarning: rowData.mainTechnicianEarning,
+                              subTechnicianEarnings: rowData.subTechnicianEarnings,
+                              subTechnicians: rowData.subTechnicians,
                               createdBy: rowData.createdBy
                             })}
                             className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 transition-colors cursor-pointer"
