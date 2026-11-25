@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { addPayment } from '../../redux/dashboardSlice';
+import { addPayment, updatePayment } from '../../redux/dashboardSlice';
 import jsPDF from 'jspdf';
 import LeaderboardModule from '../../technician/components/Leaderboard/LeaderboardModule';
 import { getApiUrl } from '../../utils/config';
@@ -10,7 +10,7 @@ import {
   FiDownload, FiBarChart2, FiTrendingUp, FiCheckCircle, 
   FiUsers, FiStar, FiClock, FiSettings, FiGrid, FiActivity,
   FiEye, FiTrash2, FiFileText, FiMoreVertical, FiShield, FiShieldOff,
-  FiUserX, FiZap, FiAward, FiShoppingBag, FiDollarSign
+  FiUserX, FiZap, FiAward, FiShoppingBag, FiDollarSign, FiEdit2
 } from 'react-icons/fi';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -223,7 +223,9 @@ export default function Reports() {
     }
   }, [tabParam]);
   const [showAddTransaction, setShowAddTransaction] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState(null);
   const [transactionForm, setTransactionForm] = useState({ date: new Date().toISOString().split('T')[0], customerName: '', type: 'Sales Invoices', invoiceNo: '', salesValue: '', purchaseValue: '', companyProfit: '', technicianEarning: '', createdBy: '' });
+  
   const handleAddTransaction = (e) => {
     e.preventDefault();
     const salesNum = Number(transactionForm.salesValue || 0);
@@ -246,6 +248,61 @@ export default function Reports() {
     setShowAddTransaction(false);
     setTransactionForm({ date: new Date().toISOString().split('T')[0], customerName: '', type: 'Sales Invoices', invoiceNo: '', salesValue: '', purchaseValue: '', companyProfit: '', technicianEarning: '', createdBy: '' });
     showToast('Transaction added successfully!');
+  };
+
+  const handleOpenEditTransaction = (item) => {
+    setEditingTransaction(item);
+  };
+
+  const handleUpdateTransactionSubmit = async (e) => {
+    e.preventDefault();
+    if (!editingTransaction) return;
+
+    const salesNum = Number(editingTransaction.salesValue || 0);
+    const purchaseNum = Number(editingTransaction.purchaseValue || 0);
+    const margin = salesNum - purchaseNum;
+    const profitNum = editingTransaction.companyProfit !== '' ? Number(editingTransaction.companyProfit) : (margin > 0 ? Math.round(margin * 0.7) : 0);
+    const earningNum = editingTransaction.technicianEarning !== '' ? Number(editingTransaction.technicianEarning) : (margin > 0 ? Math.round(margin * 0.3) : 0);
+
+    const updatedPayload = {
+      ...editingTransaction,
+      salesValue: salesNum,
+      purchaseValue: purchaseNum,
+      companyProfit: profitNum,
+      technicianEarning: earningNum,
+      amount: salesNum
+    };
+
+    // 1. Dispatch to Redux state
+    dispatch(updatePayment(updatedPayload));
+
+    // 2. Sync to Backend order if order number is present
+    const orderRef = editingTransaction.invoiceNo || editingTransaction.transactionNo || editingTransaction.id;
+    if (orderRef) {
+      try {
+        const cleanRef = String(orderRef).replace(/^PAY-/i, '').replace(/^#/, '').trim();
+        await fetch(`${getApiUrl()}/api/orders/${encodeURIComponent(cleanRef)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customerName: editingTransaction.customerName,
+            totalAmount: salesNum,
+            financials: {
+              salesValue: salesNum,
+              totalValue: salesNum,
+              purchaseValue: purchaseNum,
+              companyProfit: profitNum,
+              technicianEarning: earningNum
+            }
+          })
+        });
+      } catch (err) {
+        console.warn('Backend order update sync error:', err);
+      }
+    }
+
+    setEditingTransaction(null);
+    showToast('Daybook transaction updated successfully!');
   };
   const [selectedPhotoModal, setSelectedPhotoModal] = useState(null);
   const [selectedAttendancePhoto, setSelectedAttendancePhoto] = useState(null);
@@ -2381,6 +2438,158 @@ export default function Reports() {
         </div>
       )}
 
+      {/* Edit Daybook Transaction Modal */}
+      {editingTransaction && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setEditingTransaction(null)} />
+          <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col border border-slate-100 dark:border-slate-800 animate-[fadeInUp_0.2s_ease]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="font-bold text-slate-800 dark:text-slate-100 text-lg">Edit Daybook Entry</h3>
+                <span className="text-xs text-blue-600 dark:text-blue-400 font-mono font-bold">
+                  {editingTransaction.invoiceNo || editingTransaction.transactionNo || editingTransaction.id}
+                </span>
+              </div>
+              <button 
+                onClick={() => setEditingTransaction(null)} 
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleUpdateTransactionSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">Date</label>
+                  <input 
+                    required 
+                    type="date" 
+                    value={editingTransaction.date ? (String(editingTransaction.date).includes('-') && editingTransaction.date.split('-')[0].length === 4 ? editingTransaction.date : new Date().toISOString().split('T')[0]) : new Date().toISOString().split('T')[0]} 
+                    onChange={e => setEditingTransaction({...editingTransaction, date: e.target.value})} 
+                    className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">Transaction No</label>
+                  <input 
+                    type="text" 
+                    disabled
+                    value={editingTransaction.invoiceNo || editingTransaction.transactionNo || editingTransaction.id} 
+                    className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-100 dark:bg-slate-800/60 text-slate-500 font-mono" 
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">Party Name / Customer</label>
+                <input 
+                  required 
+                  type="text" 
+                  value={editingTransaction.customerName || ''} 
+                  onChange={e => setEditingTransaction({...editingTransaction, customerName: e.target.value})} 
+                  className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none" 
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">Sales Value (₹)</label>
+                  <input 
+                    required 
+                    type="number" 
+                    min="0" 
+                    placeholder="0" 
+                    value={editingTransaction.salesValue !== undefined ? editingTransaction.salesValue : ''} 
+                    onChange={e => {
+                      const sales = Number(e.target.value || 0);
+                      const purchase = Number(editingTransaction.purchaseValue || 0);
+                      const margin = sales - purchase;
+                      setEditingTransaction({
+                        ...editingTransaction, 
+                        salesValue: e.target.value,
+                        companyProfit: margin > 0 ? Math.round(margin * 0.7) : 0,
+                        technicianEarning: margin > 0 ? Math.round(margin * 0.3) : 0
+                      });
+                    }} 
+                    className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">Purchase Value (₹)</label>
+                  <input 
+                    type="number" 
+                    min="0" 
+                    placeholder="0" 
+                    value={editingTransaction.purchaseValue !== undefined ? editingTransaction.purchaseValue : ''} 
+                    onChange={e => {
+                      const purchase = Number(e.target.value || 0);
+                      const sales = Number(editingTransaction.salesValue || 0);
+                      const margin = sales - purchase;
+                      setEditingTransaction({
+                        ...editingTransaction, 
+                        purchaseValue: e.target.value,
+                        companyProfit: margin > 0 ? Math.round(margin * 0.7) : 0,
+                        technicianEarning: margin > 0 ? Math.round(margin * 0.3) : 0
+                      });
+                    }} 
+                    className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none" 
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">Company Profit (₹)</label>
+                  <input 
+                    type="number" 
+                    placeholder="0" 
+                    value={editingTransaction.companyProfit !== undefined ? editingTransaction.companyProfit : ''} 
+                    onChange={e => setEditingTransaction({...editingTransaction, companyProfit: e.target.value})} 
+                    className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">Technician Earning (₹)</label>
+                  <input 
+                    type="number" 
+                    placeholder="0" 
+                    value={editingTransaction.technicianEarning !== undefined ? editingTransaction.technicianEarning : ''} 
+                    onChange={e => setEditingTransaction({...editingTransaction, technicianEarning: e.target.value})} 
+                    className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none" 
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">Created By / Assigned Lead</label>
+                <input 
+                  type="text" 
+                  value={editingTransaction.createdBy || ''} 
+                  onChange={e => setEditingTransaction({...editingTransaction, createdBy: e.target.value})} 
+                  className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none" 
+                />
+              </div>
+
+              <div className="pt-4 flex gap-3">
+                <button 
+                  type="button" 
+                  onClick={() => setEditingTransaction(null)} 
+                  className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-medium rounded-lg transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors cursor-pointer shadow-xs"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Overview Block */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm transition-colors overflow-hidden">
         {/* Header */}
@@ -3448,12 +3657,13 @@ export default function Reports() {
                     <th className="px-4 py-3 text-right">COMPANY PROFIT</th>
                     <th className="px-4 py-3 text-right">TECHNICIAN EARNING</th>
                     <th className="px-4 py-3">CREATED BY</th>
+                    <th className="px-4 py-3 text-center">ACTION</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700 text-slate-700 dark:text-slate-300">
                   {(!displayPayments || displayPayments.length === 0) ? (
                     <tr>
-                      <td colSpan="9" className="px-4 py-8 text-center text-slate-500">
+                      <td colSpan="10" className="px-4 py-8 text-center text-slate-500">
                         No transactions found
                       </td>
                     </tr>
@@ -3538,6 +3748,27 @@ export default function Reports() {
                               </div>
                             )}
                           </div>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            onClick={() => handleOpenEditTransaction({
+                              ...p,
+                              id: rowData.id,
+                              invoiceNo: rowData.no,
+                              customerName: rowData.customer,
+                              type: rowData.type,
+                              salesValue: rowData.salesValue,
+                              purchaseValue: rowData.purchaseValue,
+                              companyProfit: rowData.companyProfit,
+                              technicianEarning: rowData.technicianEarning,
+                              createdBy: rowData.createdBy
+                            })}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 transition-colors cursor-pointer"
+                            title="Edit transaction details & financial figures"
+                          >
+                            <FiEdit2 size={12} />
+                            <span>Edit</span>
+                          </button>
                         </td>
                       </tr>
                     );

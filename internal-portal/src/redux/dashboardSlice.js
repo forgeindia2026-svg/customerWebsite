@@ -1144,6 +1144,63 @@ const dashboardSlice = createSlice({
         }
       } catch (e) {}
     },
+    updatePayment: (state, action) => {
+      if (!state.payments) state.payments = [];
+      const updated = action.payload;
+      const targetId = updated.id || updated.invoiceNo || updated.transactionNo;
+      const cleanTarget = String(targetId || '').replace(/^PAY-/i, '').toLowerCase().trim();
+
+      const idx = state.payments.findIndex(p => {
+        const pId = String(p.id || '').replace(/^PAY-/i, '').toLowerCase().trim();
+        const pInv = String(p.invoiceNo || '').replace(/^PAY-/i, '').toLowerCase().trim();
+        const pTxn = String(p.transactionNo || '').replace(/^PAY-/i, '').toLowerCase().trim();
+        return pId === cleanTarget || pInv === cleanTarget || pTxn === cleanTarget;
+      });
+
+      if (idx >= 0) {
+        state.payments[idx] = { ...state.payments[idx], ...updated };
+      } else {
+        state.payments.unshift(updated);
+      }
+
+      // Also update matching order in state.orders if order exists
+      if (state.orders && Array.isArray(state.orders)) {
+        const ordIdx = state.orders.findIndex(o => {
+          const oId = String(o.id || o.orderNumber || '').replace(/^#/, '').toLowerCase().trim();
+          return oId === cleanTarget;
+        });
+        if (ordIdx >= 0) {
+          const ord = state.orders[ordIdx];
+          const existingFin = ord.financials || {};
+          state.orders[ordIdx] = {
+            ...ord,
+            customer: updated.customerName || ord.customer,
+            customerName: updated.customerName || ord.customerName,
+            totalAmount: updated.salesValue !== undefined ? Number(updated.salesValue) : ord.totalAmount,
+            amount: updated.salesValue !== undefined ? Number(updated.salesValue) : ord.amount,
+            financials: {
+              ...existingFin,
+              salesValue: updated.salesValue !== undefined ? Number(updated.salesValue) : existingFin.salesValue,
+              totalValue: updated.salesValue !== undefined ? Number(updated.salesValue) : existingFin.totalValue,
+              purchaseValue: updated.purchaseValue !== undefined ? Number(updated.purchaseValue) : existingFin.purchaseValue,
+              companyProfit: updated.companyProfit !== undefined ? Number(updated.companyProfit) : existingFin.companyProfit,
+              technicianEarning: updated.technicianEarning !== undefined ? Number(updated.technicianEarning) : existingFin.technicianEarning,
+              mainTechnicianEarning: updated.mainTechnicianEarning !== undefined ? Number(updated.mainTechnicianEarning) : existingFin.mainTechnicianEarning,
+              subTechnicianEarnings: updated.subTechnicianEarnings || existingFin.subTechnicianEarnings || {}
+            }
+          };
+        }
+      }
+
+      try {
+        const cached = JSON.parse(localStorage.getItem('sk_admin_dashboard_cache') || '{}');
+        if (cached) {
+          cached.payments = state.payments;
+          cached.orders = state.orders;
+          localStorage.setItem('sk_admin_dashboard_cache', JSON.stringify(cached));
+        }
+      } catch (e) {}
+    },
     updatePaymentStatus: (state, action) => {
       const { id, status } = action.payload;
       const payment = state.payments.find(p => p.id === id);
@@ -1227,6 +1284,7 @@ export const {
   deleteTechnician,
   toggleTechnicianActivation,
   addPayment,
+  updatePayment,
   updatePaymentStatus,
   addQRCode,
   removeQRCode
