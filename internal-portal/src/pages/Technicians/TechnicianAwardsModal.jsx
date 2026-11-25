@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FiAward, FiDownload, FiX, FiCheckCircle, FiStar, FiCalendar, FiUser } from 'react-icons/fi';
 import toast from 'react-hot-toast';
-import { generateTechnicianCertificate, bulkDownloadTop3Certificates, loadImageAsBase64 } from '../../utils/technicianCertificateGenerator';
+import { downloadRenderedCertificate } from '../../utils/technicianCertificateGenerator';
 
 export default function TechnicianAwardsModal({
   isOpen,
@@ -18,15 +18,13 @@ export default function TechnicianAwardsModal({
   const handleDownloadSingle = async (item) => {
     try {
       setDownloadingRank(item.rank);
-      const logoData = await loadImageAsBase64('/logo.png');
-      await generateTechnicianCertificate({
+      await downloadRenderedCertificate({
         tech: item.tech,
         rank: item.rank,
         monthYear,
         monthlyEarnings: item.monthlyEarnings,
         jobsCompleted: item.jobsCompleted,
-        adminName,
-        logoBase64: logoData
+        adminName
       });
       toast.success(`Certificate for ${item.tech.name} downloaded successfully!`);
     } catch (err) {
@@ -40,13 +38,17 @@ export default function TechnicianAwardsModal({
   const handleBulkDownload = async () => {
     try {
       setIsBulkDownloading(true);
-      const logoData = await loadImageAsBase64('/logo.png');
-      await bulkDownloadTop3Certificates({
-        top3,
-        monthYear,
-        adminName,
-        logoBase64: logoData
-      });
+      for (let i = 0; i < top3.length; i++) {
+        const item = top3[i];
+        await downloadRenderedCertificate({
+          tech: item.tech,
+          rank: item.rank || (i + 1),
+          monthYear,
+          monthlyEarnings: item.monthlyEarnings,
+          jobsCompleted: item.jobsCompleted,
+          adminName
+        });
+      }
       toast.success('All 3 Top Performer Certificates downloaded!');
     } catch (err) {
       console.error('Bulk certificate download error:', err);
